@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { User, Calendar, Clock, AlertTriangle, Bell, Edit, Info, MoreHorizontal } from "lucide-react";
+import { User, Calendar, Clock, AlertTriangle, Bell, Edit, Info, MoreHorizontal, QrCode } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/ui/data-table";
