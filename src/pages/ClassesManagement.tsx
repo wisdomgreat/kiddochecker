@@ -1,9 +1,24 @@
 
 import { useState } from "react";
-import { GraduationCap, Search, Edit, MoreVertical, Users, Calendar, Bell } from "lucide-react";
+import { Link } from "react-router-dom";
+import { 
+  GraduationCap, 
+  Search, 
+  Edit, 
+  MoreVertical, 
+  Users, 
+  Calendar, 
+  Bell, 
+  Plus,
+  Filter,
+  Download,
+  Trash2,
+  FileText
+} from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import StatCard from "@/components/ui/stat-card";
+import { DataTable } from "@/components/ui/data-table";
 
 // Mock data for classes
 const classesData = [
@@ -11,62 +26,235 @@ const classesData = [
     id: "1", 
     name: "Preschool Class", 
     ageGroup: "Ages 3-5", 
-    capacity: "15/20 capacity", 
+    capacity: "15/20",
+    teachers: "Sarah Johnson, Michael Chen",
+    schedule: "Sunday, 9:30 AM - 11:30 AM",
+    location: "Room 103",
     status: true 
   },
   { 
     id: "2", 
     name: "Toddler Class", 
     ageGroup: "Ages 1-2", 
-    capacity: "8/12 capacity", 
+    capacity: "8/12",
+    teachers: "Emma Rodriguez",
+    schedule: "Sunday, 9:30 AM - 11:30 AM",
+    location: "Room 101",
     status: true 
   },
   { 
     id: "3", 
     name: "Elementary Class", 
     ageGroup: "Ages 6-10", 
-    capacity: "15/25 capacity", 
+    capacity: "15/25",
+    teachers: "Robert Miller, Jessica Wong",
+    schedule: "Sunday, 9:30 AM - 11:30 AM",
+    location: "Room 205",
     status: true 
   },
   { 
     id: "4", 
     name: "Middle School Class", 
     ageGroup: "Ages 11-13", 
-    capacity: "12/20 capacity", 
+    capacity: "12/20",
+    teachers: "David Thompson",
+    schedule: "Sunday, 9:30 AM - 11:30 AM",
+    location: "Room 208",
     status: true 
   },
   { 
     id: "5", 
     name: "High School Class", 
     ageGroup: "Ages 14-18", 
-    capacity: "10/15 capacity", 
+    capacity: "10/15",
+    teachers: "Jennifer Adams, Brian Scott",
+    schedule: "Sunday, 9:30 AM - 11:30 AM",
+    location: "Youth Room",
+    status: true 
+  },
+  { 
+    id: "6", 
+    name: "Special Needs Class", 
+    ageGroup: "All ages", 
+    capacity: "5/8",
+    teachers: "Linda Harris, Marco Gomez",
+    schedule: "Sunday, 9:30 AM - 11:30 AM",
+    location: "Room 104",
+    status: true 
+  },
+  { 
+    id: "7", 
+    name: "Nursery", 
+    ageGroup: "Ages 0-1", 
+    capacity: "6/10",
+    teachers: "Patricia Lee",
+    schedule: "Sunday, 9:30 AM - 11:30 AM",
+    location: "Nursery Room",
     status: true 
   }
 ];
 
 // Mock data for class roster
 const rosterData = [
-  { id: "1", name: "Emma Wilson", age: 4, status: "Checked in", time: "9:45 AM", allergies: "None" },
-  { id: "2", name: "Noah Johnson", age: 5, status: "Checked in", time: "9:48 AM", allergies: "Peanuts" },
-  { id: "3", name: "Olivia Smith", age: 3, status: "Checked in", time: "9:50 AM", allergies: "None" },
-  { id: "4", name: "Liam Brown", age: 4, status: "Checked in", time: "9:55 AM", allergies: "Special needs: Yes" }
+  { id: "1", name: "Emma Wilson", age: 4, status: "Checked in", time: "9:45 AM", allergies: "None", parentName: "Sarah & James Wilson", parentContact: "555-123-4567" },
+  { id: "2", name: "Noah Johnson", age: 5, status: "Checked in", time: "9:48 AM", allergies: "Peanuts", parentName: "Michael Johnson", parentContact: "555-234-5678" },
+  { id: "3", name: "Olivia Smith", age: 3, status: "Checked in", time: "9:50 AM", allergies: "None", parentName: "Emily & Daniel Smith", parentContact: "555-345-6789" },
+  { id: "4", name: "Liam Brown", age: 4, status: "Checked in", time: "9:55 AM", allergies: "Special needs: Yes", parentName: "Jessica Brown", parentContact: "555-456-7890" },
+  { id: "5", name: "Ava Davis", age: 5, status: "Checked out", time: "10:30 AM", allergies: "Gluten", parentName: "Robert Davis", parentContact: "555-567-8901" },
+  { id: "6", name: "Ethan Miller", age: 3, status: "Absent", time: "", allergies: "None", parentName: "Jennifer Miller", parentContact: "555-678-9012" },
+  { id: "7", name: "Isabella Garcia", age: 4, status: "Checked in", time: "9:42 AM", allergies: "None", parentName: "Maria Garcia", parentContact: "555-789-0123" },
+  { id: "8", name: "Mason Rodriguez", age: 5, status: "Checked in", time: "9:58 AM", allergies: "Dairy", parentName: "Carlos Rodriguez", parentContact: "555-890-1234" }
+];
+
+// Teacher data for the selected class
+const teacherData = [
+  { id: "1", name: "Sarah Johnson", role: "Lead Teacher", experience: "5 years", certified: true, contact: "555-111-2222" },
+  { id: "2", name: "Michael Chen", role: "Assistant Teacher", experience: "2 years", certified: true, contact: "555-333-4444" }
 ];
 
 const ClassesManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("active");
   const [selectedClass, setSelectedClass] = useState(classesData[0]);
+  const [activeClassTab, setActiveClassTab] = useState("roster");
   
+  // Class columns for data table
+  const classColumns = [
+    {
+      key: "name" as const,
+      header: "Class Name",
+      render: (value: string, item: typeof classesData[0]) => (
+        <div className="flex items-center">
+          <div className="rounded-full bg-purple-100 p-2 mr-3">
+            <GraduationCap size={16} className="text-purple-600" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-gray-900">{value}</div>
+            <div className="text-sm text-gray-500">{item.ageGroup}</div>
+          </div>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "ageGroup" as const,
+      header: "Age Group",
+      sortable: true,
+    },
+    {
+      key: "capacity" as const,
+      header: "Capacity",
+      render: (value: string) => (
+        <div className="flex items-center">
+          <div className={`w-16 h-2 rounded-full bg-gray-200 mr-2 overflow-hidden`}>
+            <div
+              className={`h-full rounded-full ${
+                parseInt(value.split('/')[0]) / parseInt(value.split('/')[1]) > 0.8
+                  ? "bg-red-500"
+                  : parseInt(value.split('/')[0]) / parseInt(value.split('/')[1]) > 0.5
+                  ? "bg-yellow-500"
+                  : "bg-green-500"
+              }`}
+              style={{
+                width: `${(parseInt(value.split('/')[0]) / parseInt(value.split('/')[1])) * 100}%`,
+              }}
+            ></div>
+          </div>
+          <span className="text-sm text-gray-600">{value}</span>
+        </div>
+      ),
+    },
+    {
+      key: "teachers" as const,
+      header: "Teachers",
+      render: (value: string) => (
+        <div className="flex items-center">
+          <Users size={16} className="text-gray-400 mr-2" />
+          <span className="text-sm">{value.split(',')[0]}{value.split(',').length > 1 ? ` +${value.split(',').length - 1}` : ''}</span>
+        </div>
+      ),
+    },
+    {
+      key: "status" as const,
+      header: "Status",
+      render: (value: boolean) => (
+        <div className="flex items-center">
+          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${value ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+            {value ? "Active" : "Inactive"}
+          </span>
+        </div>
+      ),
+    },
+  ];
+
+  // Roster columns for data table
+  const rosterColumns = [
+    {
+      key: "name" as const,
+      header: "Name",
+      render: (value: string) => (
+        <div className="flex items-center">
+          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+            <Users size={16} className="text-gray-500" />
+          </div>
+          <div className="ml-4">
+            <div className="text-sm font-medium text-gray-900">{value}</div>
+          </div>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "age" as const,
+      header: "Age",
+      render: (value: number) => <span>Age {value}</span>,
+      sortable: true,
+    },
+    {
+      key: "status" as const,
+      header: "Status",
+      render: (value: string) => (
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+          value === "Checked in" ? "bg-green-100 text-green-800" : 
+          value === "Checked out" ? "bg-blue-100 text-blue-800" : 
+          "bg-gray-100 text-gray-800"
+        }`}>
+          {value}
+        </span>
+      ),
+      sortable: true,
+    },
+    {
+      key: "time" as const,
+      header: "Time",
+    },
+    {
+      key: "allergies" as const,
+      header: "Allergies",
+      render: (value: string) => (
+        <span className={`text-sm ${value.includes("Special needs") || value.includes("Peanuts") ? "text-red-600 font-medium" : "text-gray-500"}`}>
+          {value}
+        </span>
+      ),
+    },
+    {
+      key: "parentName" as const,
+      header: "Parent/Guardian",
+    },
+  ];
+
   // Filter classes based on search term
   const filteredClasses = classesData.filter(cls => 
     cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.ageGroup.toLowerCase().includes(searchTerm.toLowerCase())
+    cls.ageGroup.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cls.teachers.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   return (
     <MainLayout>
       <Breadcrumb
         items={[
+          { label: "Home", path: "/" },
           { label: "Classes", path: "/classes" },
           { label: "Management" },
         ]}
@@ -74,7 +262,20 @@ const ClassesManagement = () => {
       
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Classes Management</h1>
-        <button className="btn-primary">Add New Class</button>
+        <div className="flex gap-2">
+          <button className="px-3 py-2 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50">
+            <Filter size={16} />
+            <span>Filter</span>
+          </button>
+          <button className="px-3 py-2 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50">
+            <Download size={16} />
+            <span>Export</span>
+          </button>
+          <button className="px-3 py-2 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700">
+            <Plus size={16} />
+            <span>Add New Class</span>
+          </button>
+        </div>
       </div>
       
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 animate-fade-in">
@@ -112,7 +313,11 @@ const ClassesManagement = () => {
         </div>
         
         <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">Active Classes</h2>
+          <h2 className="text-xl font-bold mb-4">
+            {activeTab === "active" && "Active Classes"}
+            {activeTab === "archived" && "Archived Classes"}
+            {activeTab === "templates" && "Class Templates"}
+          </h2>
           
           <div className="relative mb-6">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -127,81 +332,13 @@ const ClassesManagement = () => {
             />
           </div>
           
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Class Name
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Age Group
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Capacity
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Teachers
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredClasses.map((classItem) => (
-                  <tr 
-                    key={classItem.id} 
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setSelectedClass(classItem)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="rounded-full bg-purple-100 p-2 mr-3">
-                          <GraduationCap size={16} className="text-purple-600" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{classItem.name}</div>
-                          <div className="text-sm text-gray-500">{classItem.ageGroup}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {classItem.ageGroup}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {classItem.capacity}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Status
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="relative inline-block w-10 align-middle select-none">
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          defaultChecked={classItem.status}
-                        />
-                        <div className="block h-6 rounded-full bg-gray-200 w-10"></div>
-                        <div className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform ${classItem.status ? 'translate-x-4' : ''}`}></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-gray-400 hover:text-gray-600 mr-3">
-                        <Edit size={18} />
-                      </button>
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <MoreVertical size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={classColumns}
+            data={filteredClasses}
+            keyExtractor={(item) => item.id}
+            searchable={false}
+            onRowClick={(item) => setSelectedClass(item)}
+          />
         </div>
       </div>
       
@@ -212,14 +349,24 @@ const ClassesManagement = () => {
               <div className="rounded-full bg-purple-100 p-3 mr-4">
                 <GraduationCap size={24} className="text-purple-600" />
               </div>
-              <div>
-                <h2 className="text-xl font-bold">{selectedClass.name}</h2>
-                <p className="text-gray-600">
-                  A nurturing environment for young children to learn biblical stories through interactive activities.
-                </p>
-                <div className="mt-4 space-x-3">
-                  <button className="btn-primary">Edit Class</button>
-                  <button className="btn-secondary">View Roster</button>
+              <div className="flex-1">
+                <div className="flex justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold">{selectedClass.name}</h2>
+                    <p className="text-gray-600">
+                      {selectedClass.ageGroup} • {selectedClass.location} • {selectedClass.schedule}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="px-3 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50">
+                      <Edit size={16} />
+                      <span>Edit</span>
+                    </button>
+                    <button className="px-3 py-1.5 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700">
+                      <FileText size={16} />
+                      <span>Class Details</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -227,15 +374,15 @@ const ClassesManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <StatCard
                 title="STUDENTS"
-                value="12"
-                description="Currently checked in"
+                value={selectedClass.capacity.split('/')[0]}
+                description={`of ${selectedClass.capacity.split('/')[1]} max capacity`}
                 icon={<Users size={24} />}
                 actionLabel="View Students"
               />
               
               <StatCard
                 title="TEACHERS"
-                value="2"
+                value={selectedClass.teachers.split(',').length.toString()}
                 description="Assigned to class"
                 icon={<Users size={24} />}
                 actionLabel="Manage Teachers"
@@ -251,77 +398,232 @@ const ClassesManagement = () => {
               
               <StatCard
                 title="ALERTS"
-                value="1"
-                description="Special needs student"
+                value="2"
+                description="Allergy alerts in class"
                 icon={<Bell size={24} />}
                 actionLabel="View Details"
               />
             </div>
             
-            <h3 className="text-xl font-bold mb-4">Class Roster</h3>
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Age
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Allergies
-                  </th>
-                  <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {rosterData.map((student) => (
-                  <tr key={student.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                          <Users size={16} className="text-gray-500" />
+            <div className="border-b border-gray-200 mb-6">
+              <div className="flex">
+                <button
+                  className={`px-4 py-2 font-medium text-sm ${
+                    activeClassTab === "roster"
+                      ? "text-purple-600 border-b-2 border-purple-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  onClick={() => setActiveClassTab("roster")}
+                >
+                  Class Roster
+                </button>
+                <button
+                  className={`px-4 py-2 font-medium text-sm ${
+                    activeClassTab === "teachers"
+                      ? "text-purple-600 border-b-2 border-purple-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  onClick={() => setActiveClassTab("teachers")}
+                >
+                  Teachers
+                </button>
+                <button
+                  className={`px-4 py-2 font-medium text-sm ${
+                    activeClassTab === "materials"
+                      ? "text-purple-600 border-b-2 border-purple-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  onClick={() => setActiveClassTab("materials")}
+                >
+                  Materials
+                </button>
+                <button
+                  className={`px-4 py-2 font-medium text-sm ${
+                    activeClassTab === "settings"
+                      ? "text-purple-600 border-b-2 border-purple-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                  onClick={() => setActiveClassTab("settings")}
+                >
+                  Settings
+                </button>
+              </div>
+            </div>
+            
+            {activeClassTab === "roster" && (
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold">Class Roster</h3>
+                  <div className="flex gap-2">
+                    <button className="px-2.5 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50 text-sm">
+                      <Download size={14} />
+                      <span>Export Roster</span>
+                    </button>
+                    <button className="px-2.5 py-1.5 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700 text-sm">
+                      <Plus size={14} />
+                      <span>Add Student</span>
+                    </button>
+                  </div>
+                </div>
+                
+                <DataTable
+                  columns={rosterColumns}
+                  data={rosterData}
+                  keyExtractor={(item) => item.id}
+                  searchable={true}
+                  searchPlaceholder="Search students by name, age, or status..."
+                />
+              </>
+            )}
+            
+            {activeClassTab === "teachers" && (
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold">Teachers</h3>
+                  <button className="px-2.5 py-1.5 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700 text-sm">
+                    <Plus size={14} />
+                    <span>Assign Teacher</span>
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {teacherData.map((teacher) => (
+                    <div key={teacher.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between">
+                        <div className="flex items-center">
+                          <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                            <Users size={20} className="text-purple-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium">{teacher.name}</h4>
+                            <p className="text-sm text-gray-500">{teacher.role} • {teacher.experience}</p>
+                          </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${teacher.certified ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                            {teacher.certified ? "Certified" : "Not Certified"}
+                          </span>
+                          <button className="text-gray-400 hover:text-gray-600">
+                            <Edit size={16} />
+                          </button>
+                          <button className="text-gray-400 hover:text-red-600">
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Age {student.age}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {student.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {student.time}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {student.allergies}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <MoreVertical size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div className="mt-2 text-sm text-gray-500">
+                        <p>Contact: {teacher.contact}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             
-            <div className="mt-4">
-              <button className="btn-primary">View Full Roster</button>
-            </div>
+            {activeClassTab === "materials" && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold">Class Materials</h3>
+                  <button className="px-2.5 py-1.5 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700 text-sm">
+                    <Plus size={14} />
+                    <span>Add Material</span>
+                  </button>
+                </div>
+                
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                  <FileText size={40} className="mx-auto text-gray-400 mb-2" />
+                  <h4 className="text-lg font-medium mb-1">No materials added yet</h4>
+                  <p className="text-gray-500 mb-4">Upload lesson plans, activity sheets, or other materials for this class</p>
+                  <button className="px-4 py-2 rounded-md bg-purple-600 text-white inline-flex items-center gap-2 hover:bg-purple-700">
+                    <Plus size={16} />
+                    <span>Add First Material</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {activeClassTab === "settings" && (
+              <div className="space-y-6">
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold mb-4">Class Settings</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Class Name</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                      defaultValue={selectedClass.name}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Age Group</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                      defaultValue={selectedClass.ageGroup}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                      defaultValue={selectedClass.location}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Capacity</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" 
+                      defaultValue={selectedClass.capacity.split('/')[1]}
+                    />
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="font-medium mb-2">Class Status</h4>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Active</p>
+                      <p className="text-sm text-gray-500">This class is currently active and visible in the system</p>
+                    </div>
+                    <div className="relative inline-block w-14 align-middle select-none">
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        defaultChecked={selectedClass.status}
+                      />
+                      <div className="block h-8 rounded-full bg-gray-200 w-14"></div>
+                      <div className={`absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transform ${selectedClass.status ? 'translate-x-6' : ''}`}></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="font-medium mb-2">Danger Zone</h4>
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                    <h5 className="text-red-700 font-medium mb-1">Archive Class</h5>
+                    <p className="text-sm text-red-600 mb-3">Archiving will remove this class from active view but preserve all records.</p>
+                    <button className="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50">
+                      Archive Class
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 mt-6">
+                  <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            )}
+            
           </div>
         </div>
       )}
