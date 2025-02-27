@@ -5,8 +5,18 @@ import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/ui/data-table";
 
+// Define the type for checkout data
+interface CheckoutItem {
+  id: string;
+  name: string;
+  class: string;
+  status: string;
+  time: string;
+  actions?: string; // Add this property to match the column key
+}
+
 // Mock data for recent check-outs
-const recentCheckouts = [
+const recentCheckouts: CheckoutItem[] = [
   { id: "1", name: "Olivia Smith", class: "Toddler Class", status: "Checked out", time: "11:30 AM" },
   { id: "2", name: "Liam Brown", class: "Elementary Class", status: "Checked out", time: "11:32 AM" },
   { id: "3", name: "Sophia Martinez", class: "Preschool Class", status: "Checked out", time: "11:45 AM" },
@@ -41,9 +51,9 @@ const CheckOutStation = () => {
     { key: "status" as const, header: "Status" },
     { key: "time" as const, header: "Time" },
     {
-      key: "actions" as const,
+      key: "actions" as const, // This will now match the property in the CheckoutItem type
       header: "",
-      render: () => (
+      render: (_: any, item: CheckoutItem) => ( // Accept the item as second parameter
         <button className="p-1 rounded-full hover:bg-gray-100">
           <svg
             xmlns="http://www.w3.org/2000/svg"
