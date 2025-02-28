@@ -11,7 +11,9 @@ import {
   UserCheck,
   Mail,
   CheckCircle2,
-  BadgeAlert
+  BadgeAlert,
+  MapPin,
+  Download
 } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { DataTable } from "@/components/ui/data-table";
