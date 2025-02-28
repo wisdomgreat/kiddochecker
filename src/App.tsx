@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import CheckOutStation from "./pages/CheckOutStation";
+import CheckInKiosk from "./pages/CheckInKiosk";
 import ClassesManagement from "./pages/ClassesManagement";
 import UsersManagement from "./pages/UsersManagement";
 import UserProfile from "./pages/UserProfile";
@@ -26,6 +27,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/check-out" element={<CheckOutStation />} />
+          <Route path="/check-in" element={<CheckInKiosk />} />
           <Route path="/classes" element={<ClassesManagement />} />
           <Route path="/users" element={<UsersManagement />} />
           <Route path="/users/:id" element={<UserProfile />} />

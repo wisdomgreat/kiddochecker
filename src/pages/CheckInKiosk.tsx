@@ -1,9 +1,13 @@
 
 import { useState } from "react";
-import { QrCode, User, Phone, Search, AlertTriangle, Info } from "lucide-react";
+import { QrCode, User, Phone, Check, Calendar, AlertTriangle, Info } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
-import Breadcrumb from "@/components/ui/breadcrumb";
-import { DataTable } from "@/components/ui/data-table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
 
 // Define types for check-in data
 interface CheckInItem {
@@ -12,7 +16,6 @@ interface CheckInItem {
   class: string;
   status: string;
   time: string;
-  actions?: string;
 }
 
 // Mock data for recent check-ins
@@ -26,6 +29,7 @@ const CheckInKiosk = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [step, setStep] = useState<"phone" | "children" | "confirmation">("phone");
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
+  const { toast } = useToast();
 
   // Mock data for children associated with a parent
   const availableChildren = [
@@ -53,6 +57,11 @@ const CheckInKiosk = () => {
   const handleConfirmCheckIn = () => {
     console.log("Children checked in:", selectedChildren);
     setStep("confirmation");
+    toast({
+      title: "Check-in Successful",
+      description: `${selectedChildren.length} children have been checked in`,
+      variant: "default",
+    });
     // In a real app, this would submit the check-in to the server
   };
 
@@ -62,247 +71,188 @@ const CheckInKiosk = () => {
     setStep("phone");
   };
 
-  const checkInColumns = [
-    {
-      key: "name" as const,
-      header: "Child",
-      render: (value: string) => (
-        <div className="flex items-center gap-3">
-          <User size={20} className="text-gray-500" />
-          <span>{value}</span>
-        </div>
-      ),
-    },
-    { key: "class" as const, header: "Class" },
-    { key: "status" as const, header: "Status" },
-    { key: "time" as const, header: "Time" },
-    {
-      key: "actions" as const,
-      header: "",
-      render: (_: any, item: CheckInItem) => (
-        <button className="p-1 rounded-full hover:bg-gray-100">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-green-500"
-          >
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-          </svg>
-        </button>
-      ),
-    },
-  ];
-
   return (
     <MainLayout>
-      <Breadcrumb
-        items={[
-          { label: "Dashboard", path: "/" },
-          { label: "Check-in Kiosk" },
-        ]}
-      />
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">Check-in Kiosk</h1>
+        <p className="text-gray-500">Check in children using their parent's phone number or QR code.</p>
+      </div>
       
-      <h1 className="text-2xl font-bold mb-6">Check-in Kiosk</h1>
-      
-      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 mb-8 animate-fade-in">
-        {step === "phone" && (
-          <div>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="rounded-full bg-green-100 p-3">
-                <Phone size={24} className="text-green-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">Enter Parent Phone Number</h2>
-                <p className="text-gray-600">
-                  Please enter your phone number to check in your children.
-                </p>
-              </div>
-            </div>
-            
-            <div className="mb-6">
-              <div className="relative">
-                <input
-                  type="tel"
-                  placeholder="Enter phone number (e.g., 555-123-4567)"
-                  className="input-field text-lg py-3"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  <Phone size={20} className="text-gray-400" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {step === "phone" && <Phone className="h-5 w-5 text-primary" />}
+              {step === "children" && <User className="h-5 w-5 text-primary" />}
+              {step === "confirmation" && <Check className="h-5 w-5 text-primary" />}
+              {step === "phone" && "Enter Parent Phone Number"}
+              {step === "children" && "Select Children to Check In"}
+              {step === "confirmation" && "Check-in Complete"}
+            </CardTitle>
+            <CardDescription>
+              {step === "phone" && "Please enter the parent's phone number to find their children"}
+              {step === "children" && "Select which children you would like to check in today"}
+              {step === "confirmation" && "Children have been successfully checked in"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {step === "phone" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="(555) 123-4567"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  />
                 </div>
               </div>
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                className="btn-primary flex-1 py-3 text-lg"
-                onClick={handlePhoneSubmit}
-                disabled={!phoneNumber}
-              >
-                Next
-              </button>
-              <button className="btn-secondary py-3 text-lg">
-                Scan QR Code
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {step === "children" && (
-          <div>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="rounded-full bg-purple-100 p-3">
-                <User size={24} className="text-purple-600" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold">Select Children to Check In</h2>
-                <p className="text-gray-600">
-                  Please select which children you'd like to check in today.
-                </p>
-              </div>
-            </div>
-            
-            <div className="mb-6 space-y-4">
-              {availableChildren.map((child) => (
-                <div 
-                  key={child.id}
-                  className={`border rounded-lg p-4 flex items-center cursor-pointer transition-colors duration-200 ${
-                    selectedChildren.includes(child.id)
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-200 hover:border-purple-200"
-                  }`}
-                  onClick={() => handleChildSelection(child.id)}
-                >
-                  <div className="flex-1">
-                    <h3 className="font-medium">{child.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      Age {child.age} • {child.class}
-                    </p>
-                  </div>
-                  <div>
-                    <div className={`w-6 h-6 rounded-full border ${
+            )}
+
+            {step === "children" && (
+              <div className="space-y-4">
+                {availableChildren.map((child) => (
+                  <div
+                    key={child.id}
+                    className={`border rounded-lg p-4 flex items-center justify-between cursor-pointer transition-colors duration-200 ${
                       selectedChildren.includes(child.id)
-                        ? "bg-purple-600 border-purple-600"
-                        : "border-gray-300"
-                    } flex items-center justify-center`}>
-                      {selectedChildren.includes(child.id) && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-white"
-                        >
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                      )}
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/20"
+                    }`}
+                    onClick={() => handleChildSelection(child.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-primary/10 rounded-full p-2">
+                        <User className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{child.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Age {child.age} • {child.class}
+                        </p>
+                      </div>
+                    </div>
+                    <Checkbox
+                      checked={selectedChildren.includes(child.id)}
+                      onCheckedChange={() => handleChildSelection(child.id)}
+                      className="data-[state=checked]:border-primary"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {step === "confirmation" && (
+              <div className="text-center space-y-4">
+                <div className="mx-auto bg-green-100 text-green-600 rounded-full p-3 w-16 h-16 flex items-center justify-center mb-4">
+                  <Check className="h-8 w-8" />
+                </div>
+                <h3 className="text-xl font-bold">Check-in Successful!</h3>
+                <p className="text-muted-foreground">
+                  The following children have been checked in:
+                </p>
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-left">
+                  {availableChildren
+                    .filter((child) => selectedChildren.includes(child.id))
+                    .map((child) => (
+                      <div key={child.id} className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span>
+                          {child.name} ({child.class})
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            {step === "phone" && (
+              <>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Scan QR Code
+                </Button>
+                <Button 
+                  onClick={handlePhoneSubmit} 
+                  disabled={!phoneNumber}
+                  className="w-full sm:w-auto"
+                >
+                  Next
+                </Button>
+              </>
+            )}
+
+            {step === "children" && (
+              <>
+                <Button variant="outline" onClick={() => setStep("phone")}>
+                  Back
+                </Button>
+                <Button
+                  onClick={handleConfirmCheckIn}
+                  disabled={selectedChildren.length === 0}
+                >
+                  Check In {selectedChildren.length > 0 && `(${selectedChildren.length})`}
+                </Button>
+              </>
+            )}
+
+            {step === "confirmation" && (
+              <Button onClick={handleRestart} className="w-full">
+                New Check-in
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg">Recent Check-ins</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentCheckIns.map((checkIn) => (
+                  <div key={checkIn.id} className="flex items-center gap-3 border-b pb-3 last:border-0 last:pb-0">
+                    <div className="bg-primary/10 rounded-full p-2">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{checkIn.name}</p>
+                      <p className="text-xs text-muted-foreground">{checkIn.class} • {checkIn.time}</p>
+                    </div>
+                    <div className="bg-green-100 text-green-600 rounded-full px-2 py-1 text-xs font-medium">
+                      {checkIn.status}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                className="btn-primary flex-1 py-3 text-lg"
-                onClick={handleConfirmCheckIn}
-                disabled={selectedChildren.length === 0}
-              >
-                Check In Selected Children
-              </button>
-              <button 
-                className="btn-secondary py-3 text-lg"
-                onClick={() => setStep("phone")}
-              >
-                Back
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {step === "confirmation" && (
-          <div className="text-center">
-            <div className="rounded-full bg-green-100 p-4 w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="40"
-                height="40"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-green-600"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            
-            <h2 className="text-2xl font-bold mb-2">Check-in Successful!</h2>
-            <p className="text-gray-600 mb-6">
-              Your children have been checked in. Please take their name tags and proceed to their assigned classrooms.
-            </p>
-            
-            <div className="bg-purple-50 border border-purple-100 rounded-lg p-6 mb-6 text-left">
-              <h3 className="font-bold text-lg mb-2">Check-in Summary</h3>
-              {availableChildren
-                .filter(child => selectedChildren.includes(child.id))
-                .map(child => (
-                  <div key={child.id} className="mb-2 last:mb-0">
-                    <div className="font-medium">{child.name}</div>
-                    <div className="text-sm text-gray-600">{child.class}</div>
-                  </div>
-                ))
-              }
-            </div>
-            
-            <button
-              className="btn-primary py-3 text-lg w-full"
-              onClick={handleRestart}
-            >
-              Done
-            </button>
-          </div>
-        )}
-      </div>
-      
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-4">Recent Check-ins</h2>
-        <DataTable
-          columns={checkInColumns}
-          data={recentCheckIns}
-          keyExtractor={(item) => item.id}
-        />
-      </div>
-      
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 animate-fade-in">
-        <div className="flex items-start gap-3">
-          <div className="rounded-full bg-blue-100 p-2">
-            <Info size={20} className="text-blue-600" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold mb-1">Need Assistance?</h2>
-            <p className="text-gray-600 mb-4">
-              If you're having trouble with the check-in process, please speak with a staff member for help.
-            </p>
-            <button className="btn-primary">Request Help</button>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button variant="outline" className="w-full">
+                View All
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                Need Help?
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                If you're having trouble with the check-in process, please speak with a staff member for assistance.
+              </p>
+              <Button variant="secondary" className="w-full">
+                Request Assistance
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </MainLayout>
