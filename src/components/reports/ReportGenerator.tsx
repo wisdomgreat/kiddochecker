@@ -11,8 +11,9 @@ import {
   BarChart, 
   PieChart, 
   LineChart, 
-  FileChart, 
-  Download
+  FileBarChart,
+  Download,
+  RefreshCcw
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -270,7 +271,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ onClose }) => {
                     }`}
                     onClick={() => setSelectedChart("combo")}
                   >
-                    <FileChart className="h-8 w-8 text-purple-600 mb-2" />
+                    <FileBarChart className="h-8 w-8 text-purple-600 mb-2" />
                     <span className="text-sm">Combination</span>
                   </div>
                 </div>
@@ -378,7 +379,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ onClose }) => {
           onClick={handleNext}
           disabled={isGenerating}
         >
-          {isGenerating && <RefreshCw size={16} className="mr-2 animate-spin" />}
+          {isGenerating && <RefreshCcw size={16} className="mr-2 animate-spin" />}
           {activeStep < 3 ? "Next" : "Generate Report"}
         </Button>
       </div>
