@@ -1,509 +1,621 @@
 
 import { useState } from "react";
-import { User, Calendar, Clock, AlertTriangle, Bell, Edit, Info, MoreHorizontal, QrCode } from "lucide-react";
+import { Link } from "react-router-dom";
+import { 
+  User, 
+  Calendar, 
+  Clock, 
+  AlertCircle, 
+  Bell, 
+  FileText, 
+  UserCheck,
+  Mail,
+  CheckCircle2,
+  BadgeAlert
+} from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
-import Breadcrumb from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/ui/data-table";
+import StatCard from "@/components/ui/stat-card";
 
-interface Child {
-  id: string;
-  name: string;
-  age: number;
-  class: string;
-  allergies: string[];
-  notes: string;
-  photoUrl?: string;
-}
-
-interface CheckInRecord {
-  id: string;
-  childId: string;
-  childName: string;
-  date: string;
-  checkInTime: string;
-  checkOutTime?: string;
-  class: string;
-  notes?: string;
-}
-
-// Mock data for children
-const childrenData: Child[] = [
-  {
-    id: "1",
-    name: "Emma Wilson",
-    age: 4,
+// Mock children data
+const childrenData = [
+  { 
+    id: "1", 
+    name: "Emma Wilson", 
+    age: 4, 
     class: "Preschool Class",
-    allergies: ["Peanuts"],
-    notes: "Shy at first, but warms up quickly.",
-    photoUrl: "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
+    attendance: "92%",
+    nextClass: "Sunday, 9:30 AM",
+    status: "Checked in", 
+    checkInTime: "9:30 AM", 
+    room: "Room 103",
+    teacher: "Sarah Johnson"
   },
-  {
-    id: "2",
-    name: "Jack Wilson",
-    age: 6,
+  { 
+    id: "2", 
+    name: "Noah Wilson", 
+    age: 2, 
+    class: "Toddler Class",
+    attendance: "85%",
+    nextClass: "Sunday, 9:30 AM",
+    status: "Not checked in", 
+    checkInTime: "-", 
+    room: "Room 101",
+    teacher: "Emma Rodriguez"
+  },
+  { 
+    id: "3", 
+    name: "Olivia Wilson", 
+    age: 6, 
     class: "Elementary Class",
-    allergies: [],
-    notes: "Very energetic and social.",
-    photoUrl: "https://images.unsplash.com/photo-1545205597-3d9d02c29597?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-  },
+    attendance: "95%",
+    nextClass: "Sunday, 11:00 AM",
+    status: "Checked out", 
+    checkInTime: "11:45 AM", 
+    room: "Room 202",
+    teacher: "Michael Johnson"
+  }
 ];
 
-// Mock data for check-in history
-const checkInHistoryData: CheckInRecord[] = [
+// Mock upcoming events
+const upcomingEvents = [
   {
     id: "1",
-    childId: "1",
-    childName: "Emma Wilson",
-    date: "Oct 15, 2023",
-    checkInTime: "9:30 AM",
-    checkOutTime: "11:45 AM",
-    class: "Preschool Class",
-    notes: "Participated in group activities",
+    title: "Summer Bible Camp",
+    date: "July 15-19, 2023",
+    time: "9:00 AM - 12:00 PM",
+    location: "Main Campus",
+    description: "A week of fun activities and learning for children ages 3-12."
   },
   {
     id: "2",
-    childId: "2",
-    childName: "Jack Wilson",
-    date: "Oct 15, 2023",
-    checkInTime: "9:32 AM",
-    checkOutTime: "11:47 AM",
-    class: "Elementary Class",
+    title: "Family Picnic",
+    date: "June 12, 2023",
+    time: "11:00 AM - 2:00 PM",
+    location: "Community Park",
+    description: "Join us for food, games, and fellowship with other families."
   },
   {
     id: "3",
-    childId: "1",
-    childName: "Emma Wilson",
-    date: "Oct 8, 2023",
-    checkInTime: "9:28 AM",
-    checkOutTime: "11:40 AM",
-    class: "Preschool Class",
-    notes: "Made a craft to take home",
-  },
-  {
-    id: "4",
-    childId: "2",
-    childName: "Jack Wilson",
-    date: "Oct 8, 2023",
-    checkInTime: "9:28 AM",
-    checkOutTime: "11:42 AM",
-    class: "Elementary Class",
-  },
+    title: "Parent-Teacher Conference",
+    date: "May 25, 2023",
+    time: "Various Times",
+    location: "Children's Building",
+    description: "Schedule a meeting with your child's teacher to discuss progress."
+  }
 ];
 
-// Mock data for announcements
-const announcementsData = [
+// Mock notifications
+const notifications = [
   {
     id: "1",
-    title: "Fall Festival",
-    date: "Oct 31, 2023",
-    content: "Join us for our annual Fall Festival! There will be games, food, and fun activities for the whole family.",
-    priority: "medium",
+    type: "alert",
+    title: "New Health Form Required",
+    date: "1 day ago",
+    read: false,
+    message: "Please complete the updated health form for Noah before next Sunday."
   },
   {
     id: "2",
-    title: "Teacher Appreciation Week",
-    date: "Nov 6-10, 2023",
-    content: "Next week is Teacher Appreciation Week. Show your appreciation for your child's teachers!",
-    priority: "low",
+    type: "info",
+    title: "Emma's Class Photo Available",
+    date: "3 days ago",
+    read: true,
+    message: "The class photos from last Sunday are now available to download."
   },
   {
-    id: "3", 
-    title: "Allergy Alert: Snacks Update",
-    date: "Starting Oct 22, 2023",
-    content: "We're updating our snack policy to ensure all foods served are nut-free. Please check the new guidelines.",
-    priority: "high",
-  },
+    id: "3",
+    type: "success",
+    title: "Successfully Registered for Summer Camp",
+    date: "1 week ago",
+    read: true,
+    message: "Olivia has been registered for the Summer Bible Camp."
+  }
 ];
 
 const ParentDashboard = () => {
-  const [activeTab, setActiveTab] = useState<"children" | "history" | "settings">("children");
-  const [selectedChild, setSelectedChild] = useState<Child | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
+  const unreadNotifications = notifications.filter(n => !n.read).length;
   
-  const historyColumns = [
+  // Children columns for data table
+  const childrenColumns = [
     {
-      key: "childName" as const,
+      key: "name" as const,
       header: "Child",
+      render: (value: string, item: typeof childrenData[0]) => (
+        <div className="flex items-center">
+          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+            <User size={16} className="text-purple-600" />
+          </div>
+          <div className="ml-3">
+            <div className="text-sm font-medium text-gray-900">{value}</div>
+            <div className="text-sm text-gray-500">Age {item.age}</div>
+          </div>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "class" as const,
+      header: "Class",
+      render: (value: string, item: typeof childrenData[0]) => (
+        <div>
+          <div className="text-sm font-medium">{value}</div>
+          <div className="text-xs text-gray-500">{item.room}</div>
+        </div>
+      ),
+    },
+    {
+      key: "status" as const,
+      header: "Status",
       render: (value: string) => (
-        <div className="flex items-center gap-3">
-          <User size={20} className="text-gray-500" />
+        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+          value === "Checked in" ? "bg-green-100 text-green-800" : 
+          value === "Checked out" ? "bg-blue-100 text-blue-800" : 
+          "bg-gray-100 text-gray-800"
+        }`}>
+          {value}
+        </span>
+      ),
+      sortable: true,
+    },
+    {
+      key: "teacher" as const,
+      header: "Teacher",
+      render: (value: string) => (
+        <Link to={`/teachers/1`} className="text-purple-600 hover:text-purple-800">
+          {value}
+        </Link>
+      ),
+    },
+    {
+      key: "nextClass" as const,
+      header: "Next Class",
+      render: (value: string) => (
+        <div className="flex items-center">
+          <Calendar size={14} className="mr-1 text-gray-400" />
           <span>{value}</span>
         </div>
       ),
     },
-    { key: "date" as const, header: "Date" },
-    { key: "checkInTime" as const, header: "Check-in Time" },
-    { key: "checkOutTime" as const, header: "Check-out Time" },
-    { key: "class" as const, header: "Class" },
     {
-      key: "notes" as const,
-      header: "Notes",
-      render: (value: string | undefined) => (
-        <span className="text-gray-500">{value || "No notes"}</span>
+      key: "attendance" as const,
+      header: "Attendance",
+      render: (value: string) => (
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div className="bg-purple-600 h-2.5 rounded-full" style={{ width: value }}></div>
+        </div>
       ),
-    },
+    }
   ];
+
+  // Filter displayed notifications
+  const displayedNotifications = showAllNotifications 
+    ? notifications 
+    : notifications.slice(0, 3);
 
   return (
     <MainLayout>
-      <Breadcrumb
-        items={[
-          { label: "Dashboard", path: "/" },
-          { label: "Parent Dashboard" },
-        ]}
-      />
-      
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Parent Dashboard</h1>
-        <button className="btn-primary">Preview Check-in QR Code</button>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 animate-fade-in">
-            <div className="flex border-b border-gray-200">
-              <button
-                className={`px-6 py-3 font-medium text-sm ${
-                  activeTab === "children"
-                    ? "text-purple-600 border-b-2 border-purple-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("children")}
-              >
-                My Children
-              </button>
-              <button
-                className={`px-6 py-3 font-medium text-sm ${
-                  activeTab === "history"
-                    ? "text-purple-600 border-b-2 border-purple-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("history")}
-              >
-                Check-in History
-              </button>
-              <button
-                className={`px-6 py-3 font-medium text-sm ${
-                  activeTab === "settings"
-                    ? "text-purple-600 border-b-2 border-purple-600"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-                onClick={() => setActiveTab("settings")}
-              >
-                Account Settings
-              </button>
-            </div>
-            
-            <div className="p-6">
-              {activeTab === "children" && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-xl font-bold">My Children</h2>
-                    <button className="btn-primary py-1 px-3 text-sm">Add Child</button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {childrenData.map((child) => (
-                      <div key={child.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="p-4">
-                          <div className="flex items-start">
-                            <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden mr-4">
-                              {child.photoUrl ? (
-                                <img 
-                                  src={child.photoUrl} 
-                                  alt={child.name} 
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-purple-100">
-                                  <User size={30} className="text-purple-600" />
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="flex-1">
-                              <div className="flex justify-between mb-1">
-                                <h3 className="font-bold text-lg">{child.name}</h3>
-                                <button className="text-gray-400 hover:text-gray-600">
-                                  <Edit size={16} />
-                                </button>
-                              </div>
-                              <p className="text-gray-600 text-sm mb-2">Age {child.age} • {child.class}</p>
-                              
-                              {child.allergies.length > 0 && (
-                                <div className="flex items-center text-sm text-red-600 mb-1">
-                                  <AlertTriangle size={16} className="mr-1" />
-                                  <span>Allergies: {child.allergies.join(", ")}</span>
-                                </div>
-                              )}
-                              
-                              <p className="text-sm text-gray-500 mt-2">{child.notes}</p>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-3 flex justify-between items-center">
-                          <span className="text-sm text-gray-500">Last checked in: Oct 15, 2023</span>
-                          <button 
-                            className="text-purple-600 text-sm font-medium hover:text-purple-700"
-                            onClick={() => setSelectedChild(child)}
-                          >
-                            View Details
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === "history" && (
-                <div>
-                  <h2 className="text-xl font-bold mb-4">Check-in History</h2>
-                  <DataTable
-                    columns={historyColumns}
-                    data={checkInHistoryData}
-                    keyExtractor={(item) => item.id}
-                  />
-                </div>
-              )}
-              
-              {activeTab === "settings" && (
-                <div>
-                  <h2 className="text-xl font-bold mb-6">Account Settings</h2>
-                  
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Personal Information</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                            First Name
-                          </label>
-                          <input
-                            id="firstName"
-                            type="text"
-                            className="input-field"
-                            defaultValue="Sarah"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                            Last Name
-                          </label>
-                          <input
-                            id="lastName"
-                            type="text"
-                            className="input-field"
-                            defaultValue="Wilson"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                            Email Address
-                          </label>
-                          <input
-                            id="email"
-                            type="email"
-                            className="input-field"
-                            defaultValue="sarah.wilson@example.com"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                            Phone Number
-                          </label>
-                          <input
-                            id="phone"
-                            type="tel"
-                            className="input-field"
-                            defaultValue="555-123-4567"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Emergency Contacts</h3>
-                      <div className="border border-gray-200 rounded-lg p-4 mb-4">
-                        <div className="flex justify-between mb-2">
-                          <h4 className="font-medium">James Wilson</h4>
-                          <div className="flex gap-2">
-                            <button className="text-gray-400 hover:text-gray-600">
-                              <Edit size={16} />
-                            </button>
-                            <button className="text-gray-400 hover:text-red-600">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M3 6h18"></path>
-                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600">Relationship: Spouse</p>
-                        <p className="text-sm text-gray-600">Phone: 555-123-4568</p>
-                      </div>
-                      
-                      <button className="btn-secondary text-sm py-1 px-3">
-                        <span className="flex items-center">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="mr-1"
-                          >
-                            <path d="M12 5v14M5 12h14" />
-                          </svg>
-                          Add Emergency Contact
-                        </span>
-                      </button>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Notification Preferences</h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Check-in Confirmations</p>
-                            <p className="text-sm text-gray-500">Receive notifications when your child is checked in</p>
-                          </div>
-                          <div className="relative inline-block w-10 align-middle select-none">
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              defaultChecked={true}
-                            />
-                            <div className="block h-6 rounded-full bg-gray-200 w-10"></div>
-                            <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform translate-x-4"></div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Check-out Confirmations</p>
-                            <p className="text-sm text-gray-500">Receive notifications when your child is checked out</p>
-                          </div>
-                          <div className="relative inline-block w-10 align-middle select-none">
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              defaultChecked={true}
-                            />
-                            <div className="block h-6 rounded-full bg-gray-200 w-10"></div>
-                            <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform translate-x-4"></div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">Special Announcements</p>
-                            <p className="text-sm text-gray-500">Receive notifications about special events and announcements</p>
-                          </div>
-                          <div className="relative inline-block w-10 align-middle select-none">
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              defaultChecked={true}
-                            />
-                            <div className="block h-6 rounded-full bg-gray-200 w-10"></div>
-                            <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform translate-x-4"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                      <button className="btn-secondary">Cancel</button>
-                      <button className="btn-primary">Save Changes</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+      <div className="pb-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Parent Dashboard</h1>
+          <p className="text-gray-500">Welcome back, James Wilson</p>
+        </div>
+
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex flex-wrap -mb-px">
+            <button
+              className={`px-4 py-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === "overview"
+                  ? "text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab("overview")}
+            >
+              Overview
+            </button>
+            <button
+              className={`px-4 py-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === "children"
+                  ? "text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab("children")}
+            >
+              Children
+            </button>
+            <button
+              className={`px-4 py-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === "events"
+                  ? "text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab("events")}
+            >
+              Events
+            </button>
+            <button
+              className={`px-4 py-2 font-medium text-sm whitespace-nowrap ${
+                activeTab === "reports"
+                  ? "text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab("reports")}
+            >
+              Reports
+            </button>
           </div>
         </div>
-        
-        <div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 animate-fade-in">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="font-bold">Announcements</h2>
-              <Bell size={18} className="text-gray-500" />
+
+        {activeTab === "overview" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard
+                title="Children"
+                value={childrenData.length}
+                description="Registered children"
+                icon={<User size={24} />}
+                className="bg-white"
+              />
+              <StatCard
+                title="Check-ins Today"
+                value="1/3"
+                description="Children checked in"
+                icon={<UserCheck size={24} />}
+                className="bg-white"
+              />
+              <StatCard
+                title="Upcoming Events"
+                value={upcomingEvents.length}
+                description="Events in next 30 days"
+                icon={<Calendar size={24} />}
+                className="bg-white"
+              />
             </div>
-            
-            <div className="p-4 max-h-96 overflow-y-auto">
-              <div className="space-y-4">
-                {announcementsData.map((announcement) => (
-                  <div 
-                    key={announcement.id} 
-                    className={`border-l-4 p-3 rounded-r-lg ${
-                      announcement.priority === "high"
-                        ? "border-red-500 bg-red-50"
-                        : announcement.priority === "medium"
-                        ? "border-orange-500 bg-orange-50"
-                        : "border-blue-500 bg-blue-50"
-                    }`}
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Children Status</h2>
+                <Link to="/children" className="text-sm text-purple-600 hover:text-purple-800">
+                  View all
+                </Link>
+              </div>
+              <div className="overflow-hidden">
+                <DataTable
+                  columns={childrenColumns}
+                  data={childrenData}
+                  keyExtractor={(item) => item.id}
+                  searchable={false}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-5 animate-fade-in">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Upcoming Events</h2>
+                  <Link to="/events" className="text-sm text-purple-600 hover:text-purple-800">
+                    View all
+                  </Link>
+                </div>
+                <div className="space-y-4">
+                  {upcomingEvents.map((event) => (
+                    <div key={event.id} className="border-b border-gray-100 pb-4 last:border-0">
+                      <h3 className="font-medium">{event.title}</h3>
+                      <div className="mt-1 flex items-center text-sm text-gray-500">
+                        <Calendar size={14} className="mr-1" />
+                        <span>{event.date}</span>
+                      </div>
+                      <div className="mt-1 flex items-center text-sm text-gray-500">
+                        <Clock size={14} className="mr-1" />
+                        <span>{event.time}</span>
+                      </div>
+                      <p className="mt-2 text-sm text-gray-600">{event.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 animate-fade-in">
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center">
+                    <h2 className="text-lg font-semibold">Notifications</h2>
+                    {unreadNotifications > 0 && (
+                      <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                        {unreadNotifications} new
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowAllNotifications(!showAllNotifications)}
+                    className="text-sm text-purple-600 hover:text-purple-800"
                   >
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-sm">{announcement.title}</h3>
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <MoreHorizontal size={16} />
+                    {showAllNotifications ? "Show less" : "View all"}
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {displayedNotifications.map((notification) => (
+                    <div 
+                      key={notification.id} 
+                      className={`p-3 rounded-lg border ${notification.read ? 'bg-white border-gray-200' : 'bg-purple-50 border-purple-200'}`}
+                    >
+                      <div className="flex items-start">
+                        <div className={`flex-shrink-0 p-1 rounded-md ${
+                          notification.type === 'alert' ? 'bg-red-100' : 
+                          notification.type === 'success' ? 'bg-green-100' : 
+                          'bg-blue-100'
+                        }`}>
+                          {notification.type === 'alert' ? (
+                            <AlertCircle size={16} className="text-red-600" />
+                          ) : notification.type === 'success' ? (
+                            <CheckCircle2 size={16} className="text-green-600" />
+                          ) : (
+                            <Bell size={16} className="text-blue-600" />
+                          )}
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium">{notification.title}</p>
+                            <p className="text-xs text-gray-500">{notification.date}</p>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "children" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">My Children</h2>
+              <button className="bg-purple-600 text-white px-3 py-1.5 rounded-md hover:bg-purple-700 flex items-center gap-1">
+                <User size={16} />
+                <span>Add Child</span>
+              </button>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <DataTable
+                columns={childrenColumns}
+                data={childrenData}
+                keyExtractor={(item) => item.id}
+                searchable={true}
+                searchPlaceholder="Search children..."
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {childrenData.map((child) => (
+                <div key={child.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="p-5">
+                    <div className="flex items-center mb-4">
+                      <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <User size={20} className="text-purple-600" />
+                      </div>
+                      <div className="ml-4">
+                        <h3 className="text-lg font-semibold">{child.name}</h3>
+                        <p className="text-gray-500">Age {child.age} • {child.class}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Next Class</p>
+                        <p className="font-medium">{child.nextClass}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Room</p>
+                        <p className="font-medium">{child.room}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Teacher</p>
+                        <Link to={`/teachers/1`} className="font-medium text-purple-600 hover:text-purple-800">
+                          {child.teacher}
+                        </Link>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 mb-1">Status</p>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          child.status === "Checked in" ? "bg-green-100 text-green-800" : 
+                          child.status === "Checked out" ? "bg-blue-100 text-blue-800" : 
+                          "bg-gray-100 text-gray-800"
+                        }`}>
+                          {child.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <p className="text-sm text-gray-500 mb-1">Attendance</p>
+                      <div className="flex items-center">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 mr-2">
+                          <div className="bg-purple-600 h-2.5 rounded-full" style={{ width: child.attendance }}></div>
+                        </div>
+                        <span className="text-sm font-medium">{child.attendance}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 px-5 py-3 flex justify-between">
+                    <Link to={`/children/${child.id}`} className="text-sm font-medium text-purple-600 hover:text-purple-800">
+                      View Details
+                    </Link>
+                    <Link to={`/check-in/${child.id}`} className={`text-sm font-medium ${
+                      child.status === "Checked in" ? "text-gray-500 cursor-not-allowed" : "text-purple-600 hover:text-purple-800"
+                    }`}>
+                      {child.status === "Checked in" ? "Already Checked In" : "Check In"}
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "events" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Upcoming Events</h2>
+              <div className="flex gap-2">
+                <button className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-md hover:bg-gray-50 flex items-center gap-1">
+                  <Calendar size={16} />
+                  <span>Calendar</span>
+                </button>
+                <button className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-md hover:bg-gray-50 flex items-center gap-1">
+                  <FileText size={16} />
+                  <span>Print Schedule</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-200">
+              {upcomingEvents.map((event) => (
+                <div key={event.id} className="p-5">
+                  <div className="sm:flex justify-between items-start">
+                    <div className="mb-4 sm:mb-0">
+                      <h3 className="text-lg font-semibold">{event.title}</h3>
+                      <p className="text-gray-600 mt-1">{event.description}</p>
+                      
+                      <div className="mt-3 flex flex-wrap gap-4">
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Calendar size={16} className="mr-1.5" />
+                          <span>{event.date}</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Clock size={16} className="mr-1.5" />
+                          <span>{event.time}</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <MapPin size={16} className="mr-1.5" />
+                          <span>{event.location}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <button className="bg-purple-600 text-white px-3 py-1.5 rounded-md hover:bg-purple-700">
+                        Register
+                      </button>
+                      <button className="bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-md hover:bg-gray-50">
+                        More Info
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mb-2">{announcement.date}</p>
-                    <p className="text-sm">{announcement.content}</p>
                   </div>
-                ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "reports" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">Reports & Documents</h2>
+              <Link to="/reports" className="bg-purple-600 text-white px-3 py-1.5 rounded-md hover:bg-purple-700 flex items-center gap-1">
+                <FileText size={16} />
+                <span>All Reports</span>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-purple-100 rounded-md">
+                    <FileText size={20} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs text-gray-500">Last week</span>
+                </div>
+                <h3 className="font-medium mb-1">Attendance Report</h3>
+                <p className="text-sm text-gray-500 mb-4">Weekly attendance summary for all children</p>
+                <button className="w-full flex items-center justify-center gap-1.5 text-sm text-purple-600 hover:text-purple-800">
+                  <Download size={16} />
+                  <span>Download</span>
+                </button>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-purple-100 rounded-md">
+                    <Mail size={20} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs text-gray-500">2 days ago</span>
+                </div>
+                <h3 className="font-medium mb-1">Newsletter</h3>
+                <p className="text-sm text-gray-500 mb-4">May 2023 Children's Ministry Newsletter</p>
+                <button className="w-full flex items-center justify-center gap-1.5 text-sm text-purple-600 hover:text-purple-800">
+                  <Download size={16} />
+                  <span>Download</span>
+                </button>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2 bg-purple-100 rounded-md">
+                    <BadgeAlert size={20} className="text-purple-600" />
+                  </div>
+                  <span className="text-xs text-gray-500">1 month ago</span>
+                </div>
+                <h3 className="font-medium mb-1">Allergy Information</h3>
+                <p className="text-sm text-gray-500 mb-4">Important health and allergy information</p>
+                <button className="w-full flex items-center justify-center gap-1.5 text-sm text-purple-600 hover:text-purple-800">
+                  <Download size={16} />
+                  <span>Download</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h3 className="font-semibold mb-4">Request Special Report</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <option>Attendance History</option>
+                    <option>Progress Report</option>
+                    <option>Payment History</option>
+                    <option>Custom Report</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Child</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <option>All Children</option>
+                    <option>Emma Wilson</option>
+                    <option>Noah Wilson</option>
+                    <option>Olivia Wilson</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <option>Last 30 Days</option>
+                    <option>Last 90 Days</option>
+                    <option>Last 6 Months</option>
+                    <option>Last Year</option>
+                    <option>Custom Range</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Format</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    <option>PDF</option>
+                    <option>Excel</option>
+                    <option>CSV</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                  Request Report
+                </button>
               </div>
             </div>
           </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in">
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="font-bold">Quick Actions</h2>
-            </div>
-            
-            <div className="p-4">
-              <div className="space-y-3">
-                <button className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
-                  <div className="rounded-full bg-purple-100 p-2 mr-3">
-                    <Calendar size={18} className="text-purple-600" />
-                  </div>
-                  <span className="font-medium">View Upcoming Events</span>
-                </button>
-                
-                <button className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
-                  <div className="rounded-full bg-blue-100 p-2 mr-3">
-                    <QrCode size={18} className="text-blue-600" />
-                  </div>
-                  <span className="font-medium">Generate Check-in QR Code</span>
-                </button>
-                
-                <button className="w-full text-left p-3 rounded-lg hover:bg-gray-50 transition-colors flex items-center">
-                  <div className="rounded-full bg-green-100 p-2 mr-3">
-                    <Edit size={18} className="text-green-600" />
-                  </div>
-                  <span className="font-medium">Update Child Information</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </MainLayout>
   );
