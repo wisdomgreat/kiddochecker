@@ -12,6 +12,7 @@ import UserProfile from "./pages/UserProfile";
 import TeacherProfile from "./pages/TeacherProfile";
 import ParentDashboard from "./pages/ParentDashboard";
 import ReportsDashboard from "./pages/ReportsDashboard";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/teachers/:id" element={<TeacherProfile />} />
           <Route path="/parent-dashboard" element={<ParentDashboard />} />
           <Route path="/reports" element={<ReportsDashboard />} />
+          <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
