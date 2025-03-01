@@ -9,16 +9,218 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      attendance: {
+        Row: {
+          attendance_date: string
+          checked_in_at: string | null
+          checked_in_by: string | null
+          checked_out_at: string | null
+          checked_out_by: string | null
+          child_id: string
+          class_id: string | null
+          id: string
+        }
+        Insert: {
+          attendance_date?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          checked_out_at?: string | null
+          checked_out_by?: string | null
+          child_id: string
+          class_id?: string | null
+          id?: string
+        }
+        Update: {
+          attendance_date?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          checked_out_at?: string | null
+          checked_out_by?: string | null
+          child_id?: string
+          class_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      children: {
+        Row: {
+          age: number | null
+          allergies: string | null
+          created_at: string
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          parent_id: string
+          updated_at: string
+        }
+        Insert: {
+          age?: number | null
+          allergies?: string | null
+          created_at?: string
+          first_name: string
+          id?: string
+          last_name: string
+          notes?: string | null
+          parent_id: string
+          updated_at?: string
+        }
+        Update: {
+          age?: number | null
+          allergies?: string | null
+          created_at?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          parent_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      classes: {
+        Row: {
+          age_range: string | null
+          capacity: number | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          room: string | null
+          updated_at: string
+        }
+        Insert: {
+          age_range?: string | null
+          capacity?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          room?: string | null
+          updated_at?: string
+        }
+        Update: {
+          age_range?: string | null
+          capacity?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          room?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      teachers: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teachers_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          user_id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "staff" | "parent"
     }
     CompositeTypes: {
       [_ in never]: never

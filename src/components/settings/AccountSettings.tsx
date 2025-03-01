@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -19,23 +21,122 @@ const formSchema = z.object({
 
 const AccountSettings = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "John Smith",
-      email: "john.smith@example.com",
-      phone: "(555) 123-4567",
-      role: "Administrator",
+      name: "",
+      email: "",
+      phone: "",
+      role: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast({
-      title: "Account updated",
-      description: "Your account information has been updated successfully.",
-    });
+  useEffect(() => {
+    async function loadUserProfile() {
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          toast({
+            title: "Authentication Error",
+            description: "Please sign in to view and edit your profile.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Get user profile from profiles table
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        // Get user role
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+
+        if (roleError) throw roleError;
+
+        // Format the name (combine first and last name)
+        const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+        
+        // Set form values
+        form.reset({
+          name: fullName,
+          email: user.email || '',
+          phone: profile.phone || '',
+          role: roleData.role || 'parent',
+        });
+      } catch (error: any) {
+        console.error('Error loading profile:', error);
+        toast({
+          title: "Failed to Load Profile",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadUserProfile();
+  }, [toast, form]);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      setLoading(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Split name into first and last name
+      const nameParts = values.name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Update user profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          phone: values.phone,
+        })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Account updated",
+        description: "Your account information has been updated successfully.",
+      });
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Update Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="p-6">Loading profile information...</div>;
   }
 
   return (
@@ -49,7 +150,9 @@ const AccountSettings = () => {
                   src="/lovable-uploads/029d2e1a-eb1f-4149-89ea-500a876d3568.png" 
                   alt="Profile" 
                 />
-                <AvatarFallback>JS</AvatarFallback>
+                <AvatarFallback>
+                  {form.getValues().name.split(' ').map(n => n[0]).join('')}
+                </AvatarFallback>
               </Avatar>
               <Button variant="outline" size="sm" className="flex gap-2">
                 <Upload size={14} />
@@ -81,8 +184,11 @@ const AccountSettings = () => {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="Enter your email" {...field} />
+                          <Input type="email" placeholder="Enter your email" {...field} readOnly className="bg-gray-50" />
                         </FormControl>
+                        <FormDescription>
+                          Email cannot be changed directly. Contact administrator if needed.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -120,7 +226,9 @@ const AccountSettings = () => {
                   />
                 </div>
 
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Saving..." : "Save Changes"}
+                </Button>
               </form>
             </Form>
           </div>

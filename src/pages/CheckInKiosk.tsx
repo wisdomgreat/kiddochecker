@@ -6,21 +6,92 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 const CheckInKiosk = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [pin, setPin] = useState("");
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleContinue = () => {
-    // In a real application, this would verify the credentials
-    console.log("Credentials submitted:", { phoneNumber, pin });
-    toast({
-      title: "Login Successful",
-      description: "You have been logged in successfully",
-      variant: "default",
-    });
-    // In a real app, this would navigate to the next step or parent dashboard
+  const handleSignUp = async () => {
+    try {
+      setLoading(true);
+      // In a real application, you would implement phone auth here
+      // For now, we'll use email+password with a fake email derived from phone
+      const fakeEmail = `${phoneNumber.replace(/\D/g, '')}@example.com`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: fakeEmail,
+        password: pin,
+        options: {
+          data: {
+            phone: phoneNumber,
+            // We're not collecting names at check-in, but the trigger expects them
+            first_name: "New",
+            last_name: "Parent",
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Registration Successful",
+        description: "Please verify your account (in a real app this would be via SMS)",
+        variant: "default",
+      });
+      
+      // In a real app with phone auth, we would handle verification here
+      // For demo purposes, we'll log them in directly
+      await handleContinue();
+      
+    } catch (error: any) {
+      toast({
+        title: "Registration Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    try {
+      setLoading(true);
+      // In a real app with phone auth, this would use phone authentication
+      // For demo, we're using email+password with a fake email derived from phone
+      const fakeEmail = `${phoneNumber.replace(/\D/g, '')}@example.com`;
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: fakeEmail,
+        password: pin,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Login Successful",
+        description: "You have been logged in successfully",
+        variant: "default",
+      });
+      
+      // Navigate to parent dashboard
+      navigate("/parent-dashboard");
+      
+    } catch (error: any) {
+      // If login failed, it might be because user doesn't exist
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -81,9 +152,9 @@ const CheckInKiosk = () => {
             <Button 
               onClick={handleContinue}
               className="w-full py-6 text-base font-medium bg-blue-600 hover:bg-blue-700"
-              disabled={!phoneNumber || !pin}
+              disabled={!phoneNumber || !pin || loading}
             >
-              Continue
+              {loading ? "Please wait..." : "Continue"}
             </Button>
           </div>
           
@@ -98,14 +169,14 @@ const CheckInKiosk = () => {
       
       <div className="w-full max-w-2xl mt-6">
         <div className="bg-slate-50/80 rounded-lg p-4 text-center">
-          <a href="#" className="text-blue-500 hover:text-blue-600">
+          <a href="#" onClick={(e) => {e.preventDefault(); handleSignUp();}} className="text-blue-500 hover:text-blue-600">
             New Parent? Register Here
           </a>
         </div>
         
         <div className="mt-16 text-center">
           <p className="text-gray-400 mb-2">Admin Access</p>
-          <Button variant="outline" className="bg-white">
+          <Button variant="outline" className="bg-white" onClick={() => navigate("/settings")}>
             Staff Login
           </Button>
         </div>
