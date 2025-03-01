@@ -1,46 +1,129 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import CheckOutStation from "./pages/CheckOutStation";
-import CheckInKiosk from "./pages/CheckInKiosk";
-import ClassesManagement from "./pages/ClassesManagement";
-import UsersManagement from "./pages/UsersManagement";
-import UserProfile from "./pages/UserProfile";
-import TeacherProfile from "./pages/TeacherProfile";
-import ParentDashboard from "./pages/ParentDashboard";
-import ReportsDashboard from "./pages/ReportsDashboard";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import AdminDashboard from '@/pages/AdminDashboard';
+import TeacherDashboard from '@/pages/TeacherDashboard';
+import ParentDashboard from '@/pages/ParentDashboard';
+import CheckInKiosk from '@/pages/CheckInKiosk';
+import CheckOutStation from '@/pages/CheckOutStation';
+import ClassesManagement from '@/pages/ClassesManagement';
+import UsersManagement from '@/pages/UsersManagement';
+import TeacherProfile from '@/pages/TeacherProfile';
+import ReportsDashboard from '@/pages/ReportsDashboard';
+import UserProfile from '@/pages/UserProfile';
+import Settings from '@/pages/Settings';
+import NotFound from '@/pages/NotFound';
+import Index from '@/pages/Index';
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/check-out" element={<CheckOutStation />} />
-          <Route path="/check-in" element={<CheckInKiosk />} />
-          <Route path="/classes" element={<ClassesManagement />} />
-          <Route path="/users" element={<UsersManagement />} />
-          <Route path="/users/:id" element={<UserProfile />} />
-          <Route path="/teachers/:id" element={<TeacherProfile />} />
-          <Route path="/parent-dashboard" element={<ParentDashboard />} />
-          <Route path="/reports" element={<ReportsDashboard />} />
-          <Route path="/settings" element={<Settings />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+// Pages that we might create later
+const Unauthorized = () => (
+  <div className="flex flex-col items-center justify-center min-h-screen p-4">
+    <h1 className="text-2xl font-bold mb-4">Unauthorized Access</h1>
+    <p className="mb-6">You don't have permission to access this page.</p>
+    <button 
+      onClick={() => window.history.back()} 
+      className="px-4 py-2 bg-blue-600 text-white rounded-md"
+    >
+      Go Back
+    </button>
+  </div>
 );
+
+function App() {
+  const { user, userRole, isLoading } = useAuth();
+
+  // Default redirect based on user role
+  const getDefaultRoute = () => {
+    if (!user) return '/check-in-kiosk';
+    
+    switch(userRole) {
+      case 'admin':
+        return '/admin-dashboard';
+      case 'teacher':
+        return '/teacher-dashboard';
+      case 'parent':
+      default:
+        return '/parent-dashboard';
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route path="/404" element={<NotFound />} />
+      
+      {/* Redirects for authenticated users */}
+      <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
+      
+      {/* Admin routes */}
+      <Route path="/admin-dashboard" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/users-management" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <UsersManagement />
+        </ProtectedRoute>
+      } />
+      <Route path="/classes-management" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ClassesManagement />
+        </ProtectedRoute>
+      } />
+      <Route path="/reports-dashboard" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ReportsDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/settings" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <Settings />
+        </ProtectedRoute>
+      } />
+      
+      {/* Teacher routes */}
+      <Route path="/teacher-dashboard" element={
+        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+          <TeacherDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/teacher-profile" element={
+        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+          <TeacherProfile />
+        </ProtectedRoute>
+      } />
+      <Route path="/check-out-station" element={
+        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+          <CheckOutStation />
+        </ProtectedRoute>
+      } />
+      
+      {/* Parent routes */}
+      <Route path="/parent-dashboard" element={
+        <ProtectedRoute allowedRoles={['admin', 'parent']}>
+          <ParentDashboard />
+        </ProtectedRoute>
+      } />
+      
+      {/* Common routes */}
+      <Route path="/user-profile" element={
+        <ProtectedRoute>
+          <UserProfile />
+        </ProtectedRoute>
+      } />
+      
+      {/* Fall-through route */}
+      <Route path="*" element={<Navigate to="/404" replace />} />
+    </Routes>
+  );
+}
 
 export default App;
