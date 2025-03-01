@@ -98,7 +98,7 @@ async function fetchClassStatus() {
   const classesWithCounts = await Promise.all(data.map(async (classItem) => {
     const { count: childrenCount, error: childrenError } = await supabase
       .from('attendance')
-      .select('*', { count: true })
+      .select('id', { count: 'exact' })
       .eq('class_id', classItem.id)
       .eq('attendance_date', today)
       .is('checked_out_at', null);

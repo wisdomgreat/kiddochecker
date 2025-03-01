@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
@@ -188,10 +187,6 @@ const TeacherDashboard = () => {
           description="Currently checked in"
           icon={<CheckCircle2 size={24} />}
           className="bg-white"
-          trend={{
-            value: `${Math.round((presentStudents / (totalStudents || 1)) * 100)}%`,
-            direction: "up",
-          }}
         />
         
         <StatCard
@@ -200,10 +195,6 @@ const TeacherDashboard = () => {
           description="Not checked in"
           icon={<XCircle size={24} />}
           className="bg-white"
-          trend={{
-            value: `${Math.round((absentStudents / (totalStudents || 1)) * 100)}%`,
-            direction: "down",
-          }}
         />
       </div>
       
