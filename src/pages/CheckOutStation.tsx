@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { QrCode, User, Calendar, Clock, Info, Search, X } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
@@ -18,6 +17,7 @@ interface CheckoutItem {
   time: string;
   child_id: string;
   attendance_id: string;
+  actions?: string; // Add actions field to match column definition
 }
 
 const CheckOutStation = () => {
@@ -309,7 +309,7 @@ const CheckOutStation = () => {
     { key: "status" as const, header: "Status" },
     { key: "time" as const, header: "Time" },
     {
-      key: "actions" as const,
+      key: "actions" as const, // This is now valid with our updated DataTable component
       header: "",
       render: (_: any, item: CheckoutItem) => (
         <button 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { User, QrCode, UsersRound, Clock, AlertTriangle, MoreHorizontal } from "lucide-react";
@@ -9,7 +8,6 @@ import { DataTable } from "@/components/ui/data-table";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
-// Define types for our data
 interface Child {
   id: string;
   first_name: string;
@@ -31,6 +29,7 @@ interface ActivityRecord {
   class: string;
   status: string;
   time: string;
+  actions?: string;
 }
 
 interface Alert {
@@ -41,11 +40,9 @@ interface Alert {
   timestamp: Date;
 }
 
-// Fetch recent activity data
 async function fetchRecentActivity() {
   const todayDate = new Date().toISOString().split('T')[0];
   
-  // Fetch checked-in children
   const { data: checkedIn, error: checkedInError } = await supabase
     .from('attendance')
     .select(`
@@ -65,7 +62,6 @@ async function fetchRecentActivity() {
     return [];
   }
 
-  // Format the data
   return checkedIn.map((record) => {
     const childName = `${record.children?.first_name || ''} ${record.children?.last_name || ''}`;
     const className = record.classes?.name || 'Unknown Class';
@@ -84,7 +80,6 @@ async function fetchRecentActivity() {
   });
 }
 
-// Fetch class status data
 async function fetchClassStatus() {
   const { data, error } = await supabase
     .from('classes')
@@ -99,10 +94,8 @@ async function fetchClassStatus() {
     return [];
   }
 
-  // For each class, get counts of children checked in today
   const today = new Date().toISOString().split('T')[0];
   const classesWithCounts = await Promise.all(data.map(async (classItem) => {
-    // Count children currently checked in
     const { count: childrenCount, error: childrenError } = await supabase
       .from('attendance')
       .select('*', { count: true })
@@ -110,7 +103,6 @@ async function fetchClassStatus() {
       .eq('attendance_date', today)
       .is('checked_out_at', null);
 
-    // Count teachers assigned to this class
     const { count: teacherCount, error: teacherError } = await supabase
       .from('teachers')
       .select('*', { count: true })
@@ -125,37 +117,31 @@ async function fetchClassStatus() {
       name: classItem.name,
       children: childrenCount || 0,
       teachers: teacherCount || 0,
-      active: true // For now, we'll assume all classes are active
+      active: true
     };
   }));
 
   return classesWithCounts;
 }
 
-// Fetch dashboard stats
 async function fetchDashboardStats() {
   const today = new Date().toISOString().split('T')[0];
   
-  // Get total checked in count
   const { count: checkedInCount, error: checkedInError } = await supabase
     .from('attendance')
-    .select('*', { count: true })
+    .select('*', { count: 'exact' })
     .eq('attendance_date', today);
 
-  // Get checked out count
   const { count: checkedOutCount, error: checkedOutError } = await supabase
     .from('attendance')
-    .select('*', { count: true })
+    .select('*', { count: 'exact' })
     .eq('attendance_date', today)
     .not('checked_out_at', 'is', null);
 
-  // Get active classes count
   const { count: classesCount, error: classesError } = await supabase
     .from('classes')
-    .select('*', { count: true });
+    .select('*', { count: 'exact' });
 
-  // For now, just return hardcoded alerts count
-  // In a real app, you would fetch this from an alerts table
   const alertsCount = 2;
 
   if (checkedInError || checkedOutError || classesError) {
@@ -171,7 +157,6 @@ async function fetchDashboardStats() {
   };
 }
 
-// Mock data for alerts - in a real app, you'd fetch this from the database
 const alertsData = [
   { 
     id: "1", 
@@ -199,7 +184,6 @@ const alertsData = [
 const Dashboard = () => {
   const { toast } = useToast();
   
-  // Fetch activity data with React Query
   const { 
     data: activityData = [], 
     isLoading: isLoadingActivity 
@@ -208,7 +192,6 @@ const Dashboard = () => {
     queryFn: fetchRecentActivity
   });
   
-  // Fetch class status data
   const { 
     data: classStatusData = [], 
     isLoading: isLoadingClasses 
@@ -217,7 +200,6 @@ const Dashboard = () => {
     queryFn: fetchClassStatus
   });
   
-  // Fetch dashboard stats
   const { 
     data: dashboardStats, 
     isLoading: isLoadingStats 
@@ -226,7 +208,6 @@ const Dashboard = () => {
     queryFn: fetchDashboardStats
   });
 
-  // Show toast when data is loaded
   useEffect(() => {
     if (!isLoadingActivity && !isLoadingClasses && !isLoadingStats) {
       toast({
@@ -236,7 +217,6 @@ const Dashboard = () => {
     }
   }, [isLoadingActivity, isLoadingClasses, isLoadingStats, toast]);
 
-  // Column definitions for the activity table
   const activityColumns = [
     {
       key: "name" as const,
