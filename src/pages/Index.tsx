@@ -6,22 +6,172 @@ import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import StatCard from "@/components/ui/stat-card";
 import { DataTable } from "@/components/ui/data-table";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
-// Mock data
-const activityData = [
-  { id: "1", name: "Emma Wilson", class: "Preschool Class", status: "Checked in", time: "9:45 AM" },
-  { id: "2", name: "Noah Johnson", class: "Elementary Class", status: "Checked in", time: "9:48 AM" },
-  { id: "3", name: "Olivia Smith", class: "Toddler Class", status: "Checked out", time: "11:30 AM" },
-  { id: "4", name: "Liam Brown", class: "Elementary Class", status: "Checked out", time: "11:32 AM" },
-  { id: "5", name: "Ava Davis", class: "Preschool Class", status: "Checked in", time: "11:40 AM" },
-];
+// Define types for our data
+interface Child {
+  id: string;
+  first_name: string;
+  last_name: string;
+  age: number;
+}
 
-const classStatusData = [
-  { id: "1", name: "Preschool Class", children: 12, teachers: 2, active: true },
-  { id: "2", name: "Toddler Class", children: 8, teachers: 3, active: true },
-  { id: "3", name: "Elementary Class", children: 15, teachers: 2, active: true },
-];
+interface Class {
+  id: string;
+  name: string;
+  children_count: number;
+  teachers_count: number;
+  active: boolean;
+}
 
+interface ActivityRecord {
+  id: string;
+  name: string;
+  class: string;
+  status: string;
+  time: string;
+}
+
+interface Alert {
+  id: string;
+  type: string;
+  message: string;
+  severity: 'high' | 'medium' | 'low';
+  timestamp: Date;
+}
+
+// Fetch recent activity data
+async function fetchRecentActivity() {
+  const todayDate = new Date().toISOString().split('T')[0];
+  
+  // Fetch checked-in children
+  const { data: checkedIn, error: checkedInError } = await supabase
+    .from('attendance')
+    .select(`
+      id,
+      child_id,
+      checked_in_at,
+      checked_out_at,
+      children(first_name, last_name),
+      classes(name)
+    `)
+    .eq('attendance_date', todayDate)
+    .order('checked_in_at', { ascending: false })
+    .limit(10);
+
+  if (checkedInError) {
+    console.error("Error fetching activity data:", checkedInError);
+    return [];
+  }
+
+  // Format the data
+  return checkedIn.map((record) => {
+    const childName = `${record.children?.first_name || ''} ${record.children?.last_name || ''}`;
+    const className = record.classes?.name || 'Unknown Class';
+    const status = record.checked_out_at ? 'Checked out' : 'Checked in';
+    const time = record.checked_out_at 
+      ? new Date(record.checked_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+      : new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return {
+      id: record.id,
+      name: childName.trim(),
+      class: className,
+      status,
+      time
+    };
+  });
+}
+
+// Fetch class status data
+async function fetchClassStatus() {
+  const { data, error } = await supabase
+    .from('classes')
+    .select(`
+      id,
+      name,
+      capacity
+    `);
+
+  if (error) {
+    console.error("Error fetching class status:", error);
+    return [];
+  }
+
+  // For each class, get counts of children checked in today
+  const today = new Date().toISOString().split('T')[0];
+  const classesWithCounts = await Promise.all(data.map(async (classItem) => {
+    // Count children currently checked in
+    const { count: childrenCount, error: childrenError } = await supabase
+      .from('attendance')
+      .select('*', { count: true })
+      .eq('class_id', classItem.id)
+      .eq('attendance_date', today)
+      .is('checked_out_at', null);
+
+    // Count teachers assigned to this class
+    const { count: teacherCount, error: teacherError } = await supabase
+      .from('teachers')
+      .select('*', { count: true })
+      .eq('class_id', classItem.id);
+
+    if (childrenError || teacherError) {
+      console.error("Error fetching counts:", childrenError || teacherError);
+    }
+
+    return {
+      id: classItem.id,
+      name: classItem.name,
+      children: childrenCount || 0,
+      teachers: teacherCount || 0,
+      active: true // For now, we'll assume all classes are active
+    };
+  }));
+
+  return classesWithCounts;
+}
+
+// Fetch dashboard stats
+async function fetchDashboardStats() {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Get total checked in count
+  const { count: checkedInCount, error: checkedInError } = await supabase
+    .from('attendance')
+    .select('*', { count: true })
+    .eq('attendance_date', today);
+
+  // Get checked out count
+  const { count: checkedOutCount, error: checkedOutError } = await supabase
+    .from('attendance')
+    .select('*', { count: true })
+    .eq('attendance_date', today)
+    .not('checked_out_at', 'is', null);
+
+  // Get active classes count
+  const { count: classesCount, error: classesError } = await supabase
+    .from('classes')
+    .select('*', { count: true });
+
+  // For now, just return hardcoded alerts count
+  // In a real app, you would fetch this from an alerts table
+  const alertsCount = 2;
+
+  if (checkedInError || checkedOutError || classesError) {
+    console.error("Error fetching dashboard stats:", 
+      checkedInError || checkedOutError || classesError);
+  }
+
+  return {
+    checkedIn: checkedInCount || 0,
+    checkedOut: checkedOutCount || 0,
+    classes: classesCount || 0,
+    alerts: alertsCount
+  };
+}
+
+// Mock data for alerts - in a real app, you'd fetch this from the database
 const alertsData = [
   { 
     id: "1", 
@@ -48,20 +198,43 @@ const alertsData = [
 
 const Dashboard = () => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Fetch activity data with React Query
+  const { 
+    data: activityData = [], 
+    isLoading: isLoadingActivity 
+  } = useQuery({
+    queryKey: ['activity'],
+    queryFn: fetchRecentActivity
+  });
+  
+  // Fetch class status data
+  const { 
+    data: classStatusData = [], 
+    isLoading: isLoadingClasses 
+  } = useQuery({
+    queryKey: ['classes'],
+    queryFn: fetchClassStatus
+  });
+  
+  // Fetch dashboard stats
+  const { 
+    data: dashboardStats, 
+    isLoading: isLoadingStats 
+  } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: fetchDashboardStats
+  });
 
+  // Show toast when data is loaded
   useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false);
+    if (!isLoadingActivity && !isLoadingClasses && !isLoadingStats) {
       toast({
         title: "Dashboard updated",
         description: "Latest data has been loaded",
       });
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [toast]);
+    }
+  }, [isLoadingActivity, isLoadingClasses, isLoadingStats, toast]);
 
   // Column definitions for the activity table
   const activityColumns = [
@@ -104,7 +277,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="TODAY"
-          value="42"
+          value={isLoadingStats ? "..." : String(dashboardStats?.checkedIn || 0)}
           description="Children checked in"
           icon={<User size={24} />}
           actionLabel="View Details"
@@ -112,7 +285,7 @@ const Dashboard = () => {
         
         <StatCard
           title="TODAY"
-          value="28"
+          value={isLoadingStats ? "..." : String(dashboardStats?.checkedOut || 0)}
           description="Children checked out"
           icon={<QrCode size={24} />}
           actionLabel="View Details"
@@ -120,7 +293,7 @@ const Dashboard = () => {
         
         <StatCard
           title="ACTIVE"
-          value="8"
+          value={isLoadingStats ? "..." : String(dashboardStats?.classes || 0)}
           description="Classes in session"
           icon={<UsersRound size={24} />}
           actionLabel="Manage Classes"
@@ -128,7 +301,7 @@ const Dashboard = () => {
         
         <StatCard
           title="ALERTS"
-          value="2"
+          value={isLoadingStats ? "..." : String(dashboardStats?.alerts || 0)}
           description="Requires attention"
           icon={<AlertTriangle size={24} />}
           actionLabel="Resolve Issues"
@@ -142,8 +315,9 @@ const Dashboard = () => {
         
         <DataTable
           columns={activityColumns}
-          data={activityData}
+          data={isLoadingActivity ? [] : activityData}
           keyExtractor={(item) => item.id}
+          loading={isLoadingActivity}
         />
         
         <div className="mt-4 flex justify-center">
@@ -158,37 +332,41 @@ const Dashboard = () => {
           </div>
           
           <div className="space-y-4">
-            {classStatusData.map((classItem) => (
-              <div key={classItem.id} className="glass-card p-4 rounded-lg">
-                <div className="flex items-start">
-                  <div className="rounded-full bg-purple-100 p-2 mr-3">
-                    <UsersRound size={20} className="text-purple-600" />
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h3 className="font-medium">{classItem.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {classItem.children} children, {classItem.teachers} teachers
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <button className="rounded-full p-1 hover:bg-gray-100">
-                      <MoreHorizontal size={18} className="text-gray-500" />
-                    </button>
-                    <div className="relative inline-block w-10 align-middle select-none">
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        defaultChecked={classItem.active}
-                      />
-                      <div className="block h-6 rounded-full bg-gray-200 w-10"></div>
-                      <div className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform ${classItem.active ? 'translate-x-4' : ''}`}></div>
+            {isLoadingClasses ? (
+              <div className="text-center py-8">Loading class data...</div>
+            ) : (
+              classStatusData.map((classItem) => (
+                <div key={classItem.id} className="glass-card p-4 rounded-lg">
+                  <div className="flex items-start">
+                    <div className="rounded-full bg-purple-100 p-2 mr-3">
+                      <UsersRound size={20} className="text-purple-600" />
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h3 className="font-medium">{classItem.name}</h3>
+                      <p className="text-sm text-gray-500">
+                        {classItem.children} children, {classItem.teachers} teachers
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <button className="rounded-full p-1 hover:bg-gray-100">
+                        <MoreHorizontal size={18} className="text-gray-500" />
+                      </button>
+                      <div className="relative inline-block w-10 align-middle select-none">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          defaultChecked={classItem.active}
+                        />
+                        <div className="block h-6 rounded-full bg-gray-200 w-10"></div>
+                        <div className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transform ${classItem.active ? 'translate-x-4' : ''}`}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           
           <div className="mt-4">

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Phone, Lock, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,52 @@ const CheckInKiosk = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      
+      if (data.session) {
+        // If already logged in, redirect to dashboard
+        navigate("/parent-dashboard");
+      }
+    };
+    
+    checkSession();
+    
+    // Subscribe to auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        setSession(newSession);
+        if (newSession) {
+          navigate("/parent-dashboard");
+        }
+      }
+    );
+    
+    return () => {
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe();
+      }
+    };
+  }, [navigate]);
 
   const handleSignUp = async () => {
     try {
       setLoading(true);
+      // Validate inputs
+      if (!phoneNumber || phoneNumber.length < 10) {
+        throw new Error("Please enter a valid phone number");
+      }
+      if (!pin || pin.length < 4) {
+        throw new Error("Please enter a 4-digit PIN");
+      }
+      
       // In a real application, you would implement phone auth here
       // For now, we'll use email+password with a fake email derived from phone
       const fakeEmail = `${phoneNumber.replace(/\D/g, '')}@example.com`;
@@ -62,6 +102,14 @@ const CheckInKiosk = () => {
   const handleContinue = async () => {
     try {
       setLoading(true);
+      // Validate inputs
+      if (!phoneNumber || phoneNumber.length < 10) {
+        throw new Error("Please enter a valid phone number");
+      }
+      if (!pin || pin.length < 4) {
+        throw new Error("Please enter a 4-digit PIN");
+      }
+      
       // In a real app with phone auth, this would use phone authentication
       // For demo, we're using email+password with a fake email derived from phone
       const fakeEmail = `${phoneNumber.replace(/\D/g, '')}@example.com`;
@@ -94,6 +142,40 @@ const CheckInKiosk = () => {
     }
   };
 
+  // Format phone number as user types
+  const formatPhoneNumber = (value: string) => {
+    // Strip all non-numeric characters
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    let formatted = '';
+    if (cleaned.length > 0) {
+      formatted += '(' + cleaned.substring(0, 3);
+      if (cleaned.length > 3) {
+        formatted += ') ' + cleaned.substring(3, 6);
+        if (cleaned.length > 6) {
+          formatted += '-' + cleaned.substring(6, 10);
+        }
+      }
+    }
+    
+    return formatted.trim();
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const formattedValue = formatPhoneNumber(value);
+    setPhoneNumber(formattedValue);
+  };
+
+  const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numeric input for PIN
+    const value = e.target.value.replace(/\D/g, '');
+    if (value.length <= 4) {
+      setPin(value);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <div className="w-full max-w-2xl mx-auto text-center mb-6">
@@ -122,7 +204,7 @@ const CheckInKiosk = () => {
                   type="tel"
                   placeholder="(555) 123-4567"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={handlePhoneChange}
                   className="pr-10 bg-white text-base py-6"
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -139,7 +221,7 @@ const CheckInKiosk = () => {
                   type="password"
                   placeholder="Enter your 4-digit PIN"
                   value={pin}
-                  onChange={(e) => setPin(e.target.value)}
+                  onChange={handlePinChange}
                   className="pr-10 bg-white text-base py-6"
                   maxLength={4}
                 />

@@ -1,9 +1,13 @@
 
-import { useState } from "react";
-import { QrCode, User, Calendar, Clock, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { QrCode, User, Calendar, Clock, Info, Search, X } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/ui/data-table";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 // Define the type for checkout data
 interface CheckoutItem {
@@ -12,28 +16,282 @@ interface CheckoutItem {
   class: string;
   status: string;
   time: string;
-  actions?: string; // Add this property to match the column key
+  child_id: string;
+  attendance_id: string;
 }
 
-// Mock data for recent check-outs
-const recentCheckouts: CheckoutItem[] = [
-  { id: "1", name: "Olivia Smith", class: "Toddler Class", status: "Checked out", time: "11:30 AM" },
-  { id: "2", name: "Liam Brown", class: "Elementary Class", status: "Checked out", time: "11:32 AM" },
-  { id: "3", name: "Sophia Martinez", class: "Preschool Class", status: "Checked out", time: "11:45 AM" },
-];
-
 const CheckOutStation = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [childName, setChildName] = useState("");
-  
-  const handleSearch = () => {
-    console.log("Searching for:", { phoneNumber, childName });
-    // In a real app, this would search the database
+  const [checkoutResults, setCheckoutResults] = useState<CheckoutItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Function to fetch recent checkouts
+  const fetchRecentCheckouts = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('attendance')
+      .select(`
+        id,
+        checked_in_at,
+        checked_out_at,
+        children (
+          id,
+          first_name,
+          last_name
+        ),
+        classes (
+          name
+        )
+      `)
+      .eq('attendance_date', today)
+      .not('checked_out_at', 'is', null)
+      .order('checked_out_at', { ascending: false })
+      .limit(10);
+    
+    if (error) {
+      console.error("Error fetching recent checkouts:", error);
+      throw error;
+    }
+    
+    return data.map(item => ({
+      id: item.id,
+      name: `${item.children.first_name} ${item.children.last_name}`,
+      class: item.classes?.name || "Unknown Class",
+      status: "Checked out",
+      time: new Date(item.checked_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      child_id: item.children.id,
+      attendance_id: item.id
+    }));
+  };
+
+  // Query for recent checkouts
+  const { 
+    data: recentCheckouts = [], 
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ['recent-checkouts'],
+    queryFn: fetchRecentCheckouts,
+    staleTime: 30000 // 30 seconds
+  });
+
+  // Mutation for checking out a child
+  const checkoutMutation = useMutation({
+    mutationFn: async (attendanceId: string) => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .update({
+          checked_out_at: new Date().toISOString(),
+          checked_out_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq('id', attendanceId)
+        .select();
+        
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Child checked out successfully",
+        variant: "default"
+      });
+      queryClient.invalidateQueries({ queryKey: ['recent-checkouts'] });
+      
+      // Clear search results
+      setCheckoutResults([]);
+      setChildName("");
+      setPhoneNumber("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to check out child",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Handle checking out a child
+  const handleCheckout = (attendanceId: string) => {
+    checkoutMutation.mutate(attendanceId);
+  };
+
+  // Function to search for children to check out
+  const handleSearch = async () => {
+    try {
+      setIsSearching(true);
+      
+      if (!phoneNumber && !childName) {
+        throw new Error("Please enter either a phone number or child's name");
+      }
+
+      // Different searches depending on if we have phone or name
+      let query;
+
+      if (phoneNumber) {
+        // Search by parent's phone number
+        const { data: profiles, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('phone', `%${phoneNumber.replace(/\D/g, '')}%`);
+          
+        if (profileError) throw profileError;
+        
+        if (!profiles || profiles.length === 0) {
+          throw new Error("No parent found with this phone number");
+        }
+        
+        // Get the parent IDs
+        const parentIds = profiles.map(profile => profile.id);
+        
+        // Find children of these parents
+        const { data: children, error: childrenError } = await supabase
+          .from('children')
+          .select('id, first_name, last_name, parent_id')
+          .in('parent_id', parentIds);
+          
+        if (childrenError) throw childrenError;
+        
+        if (!children || children.length === 0) {
+          throw new Error("No children found for this parent");
+        }
+        
+        // Now get today's attendance records for these children
+        const today = new Date().toISOString().split('T')[0];
+        const childIds = children.map(child => child.id);
+        
+        const { data: attendance, error: attendanceError } = await supabase
+          .from('attendance')
+          .select(`
+            id,
+            checked_in_at,
+            checked_out_at,
+            child_id,
+            classes(name)
+          `)
+          .in('child_id', childIds)
+          .eq('attendance_date', today)
+          .is('checked_out_at', null);
+          
+        if (attendanceError) throw attendanceError;
+        
+        if (!attendance || attendance.length === 0) {
+          throw new Error("No children are currently checked in for this parent");
+        }
+        
+        // Join attendance data with children's names
+        const results = attendance.map(record => {
+          const child = children.find(c => c.id === record.child_id);
+          return {
+            id: record.id, // This is a unique ID for the row
+            name: `${child?.first_name} ${child?.last_name}`,
+            class: record.classes?.name || "Unknown Class",
+            status: "Checked in",
+            time: new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            child_id: record.child_id,
+            attendance_id: record.id
+          };
+        });
+        
+        setCheckoutResults(results);
+      } else if (childName) {
+        // Search by child's name
+        const { data: children, error: childrenError } = await supabase
+          .from('children')
+          .select('id, first_name, last_name')
+          .or(`first_name.ilike.%${childName}%,last_name.ilike.%${childName}%`);
+          
+        if (childrenError) throw childrenError;
+        
+        if (!children || children.length === 0) {
+          throw new Error("No children found with this name");
+        }
+        
+        // Now get today's attendance records for these children
+        const today = new Date().toISOString().split('T')[0];
+        const childIds = children.map(child => child.id);
+        
+        const { data: attendance, error: attendanceError } = await supabase
+          .from('attendance')
+          .select(`
+            id,
+            checked_in_at,
+            checked_out_at,
+            child_id,
+            classes(name)
+          `)
+          .in('child_id', childIds)
+          .eq('attendance_date', today)
+          .is('checked_out_at', null);
+          
+        if (attendanceError) throw attendanceError;
+        
+        if (!attendance || attendance.length === 0) {
+          throw new Error("No children with this name are currently checked in");
+        }
+        
+        // Join attendance data with children's names
+        const results = attendance.map(record => {
+          const child = children.find(c => c.id === record.child_id);
+          return {
+            id: record.id, // This is a unique ID for the row
+            name: `${child?.first_name} ${child?.last_name}`,
+            class: record.classes?.name || "Unknown Class",
+            status: "Checked in",
+            time: new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            child_id: record.child_id,
+            attendance_id: record.id
+          };
+        });
+        
+        setCheckoutResults(results);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Search Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setCheckoutResults([]);
+    } finally {
+      setIsSearching(false);
+    }
   };
   
   const handleReset = () => {
     setPhoneNumber("");
     setChildName("");
+    setCheckoutResults([]);
+  };
+
+  // Format phone number as user types
+  const formatPhoneNumber = (value: string) => {
+    // Strip all non-numeric characters
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    let formatted = '';
+    if (cleaned.length > 0) {
+      formatted += '(' + cleaned.substring(0, 3);
+      if (cleaned.length > 3) {
+        formatted += ') ' + cleaned.substring(3, 6);
+        if (cleaned.length > 6) {
+          formatted += '-' + cleaned.substring(6, 10);
+        }
+      }
+    }
+    
+    return formatted.trim();
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const formattedValue = formatPhoneNumber(value);
+    setPhoneNumber(formattedValue);
   };
   
   const checkoutColumns = [
@@ -51,29 +309,61 @@ const CheckOutStation = () => {
     { key: "status" as const, header: "Status" },
     { key: "time" as const, header: "Time" },
     {
-      key: "actions" as const, // This will now match the property in the CheckoutItem type
+      key: "actions" as const,
       header: "",
-      render: (_: any, item: CheckoutItem) => ( // Accept the item as second parameter
-        <button className="p-1 rounded-full hover:bg-gray-100">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-green-500"
-          >
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-          </svg>
+      render: (_: any, item: CheckoutItem) => (
+        <button 
+          className="p-1 rounded-full hover:bg-gray-100"
+          onClick={() => handleCheckout(item.attendance_id)}
+          disabled={item.status === "Checked out"}
+        >
+          {item.status === "Checked out" ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-green-500"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          ) : (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-blue-600 hover:text-blue-800"
+            >
+              Check out
+            </Button>
+          )}
         </button>
       ),
     },
   ];
+
+  // Show search results if available
+  useEffect(() => {
+    if (checkoutResults.length > 0) {
+      toast({
+        title: `Found ${checkoutResults.length} children to check out`,
+        description: "Click 'Check out' to complete the process",
+      });
+    }
+  }, [checkoutResults, toast]);
+
+  if (error) {
+    toast({
+      title: "Error loading checkouts",
+      description: "Please try refreshing the page",
+      variant: "destructive",
+    });
+  }
 
   return (
     <MainLayout>
@@ -102,12 +392,30 @@ const CheckOutStation = () => {
         <button className="btn-primary mt-4">Manual Override</button>
       </div>
       
+      {/* Show search results if available */}
+      {checkoutResults.length > 0 && (
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Search Results</h2>
+            <Button variant="outline" size="sm" onClick={handleReset}>
+              <X size={16} className="mr-1" /> Clear Results
+            </Button>
+          </div>
+          <DataTable
+            columns={checkoutColumns}
+            data={checkoutResults}
+            keyExtractor={(item) => item.id}
+          />
+        </div>
+      )}
+      
       <div className="mb-8">
         <h2 className="text-xl font-bold mb-4">Recent Check-outs</h2>
         <DataTable
           columns={checkoutColumns}
           data={recentCheckouts}
           keyExtractor={(item) => item.id}
+          loading={isLoading}
         />
       </div>
       
@@ -126,7 +434,7 @@ const CheckOutStation = () => {
                 placeholder="Enter phone number"
                 className="input-field"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                onChange={handlePhoneChange}
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                 <svg
@@ -184,9 +492,22 @@ const CheckOutStation = () => {
             <button
               className="btn-primary flex-1"
               onClick={handleSearch}
-              disabled={!phoneNumber && !childName}
+              disabled={(!phoneNumber && !childName) || isSearching}
             >
-              Search
+              {isSearching ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search size={16} className="mr-1" />
+                  Search
+                </>
+              )}
             </button>
             <button className="btn-secondary" onClick={handleReset}>
               Reset
