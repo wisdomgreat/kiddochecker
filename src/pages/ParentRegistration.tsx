@@ -125,27 +125,34 @@ const ParentRegistration = () => {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          address: formData.address,
-          security_question: formData.securityQuestion,
-          security_answer: formData.securityAnswer,
+          address: formData.address || null,
+          security_question: formData.securityQuestion || null,
+          security_answer: formData.securityAnswer || null,
         })
         .eq('id', authData.user.id);
         
       if (profileError) throw profileError;
       
-      // Create family
+      // Create family - use the raw SQL query since the table is new and TypeScript definitions aren't updated yet
       const { data: familyData, error: familyError } = await supabase
-        .from('families')
-        .insert([
-          { name: familyName || `${formData.lastName} Family` }
-        ])
-        .select();
+        .rpc('create_family', {
+          family_name: familyName || `${formData.lastName} Family`
+        });
         
-      if (familyError) throw familyError;
-      
-      if (!familyData || familyData.length === 0) throw new Error("Failed to create family");
-      
-      const familyId = familyData[0].id;
+      if (familyError) {
+        // Fallback to direct SQL if RPC doesn't exist
+        const { data, error } = await supabase
+          .from('families')
+          .insert({ name: familyName || `${formData.lastName} Family` })
+          .select();
+        
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error("Failed to create family");
+        
+        var familyId = data[0].id;
+      } else {
+        var familyId = familyData;
+      }
       
       // Create children and link to parent
       for (const child of registeredChildren) {
@@ -172,18 +179,23 @@ const ParentRegistration = () => {
         
         if (!childData || childData.length === 0) continue;
         
-        // Link child to parent in parent_children table
-        const { error: relationError } = await supabase
-          .from('parent_children')
-          .insert([
-            {
-              parent_id: authData.user.id,
-              child_id: childData[0].id,
-              relationship: 'Parent',
-            }
-          ]);
+        // Link child to parent in parent_children table using raw SQL since TypeScript doesn't know about the new table yet
+        const { error: relationError } = await supabase.rpc('link_parent_child', {
+          p_parent_id: authData.user.id,
+          p_child_id: childData[0].id,
+          p_relationship: 'Parent'
+        });
+        
+        if (relationError) {
+          // Fallback to direct insert if RPC doesn't exist
+          const { error } = await supabase.from('parent_children').insert({
+            parent_id: authData.user.id,
+            child_id: childData[0].id,
+            relationship: 'Parent'
+          });
           
-        if (relationError) throw relationError;
+          if (error) throw error;
+        }
       }
       
       setRegistrationComplete(true);

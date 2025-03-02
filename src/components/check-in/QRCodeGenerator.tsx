@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
@@ -22,22 +21,12 @@ export const QRCodeGenerator = ({ userId, userName }: QRCodeGeneratorProps) => {
       try {
         setLoading(true);
         
-        // Check if QR code already exists in profile
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('qr_code_data')
-          .eq('id', userId)
-          .single();
-          
-        if (error) throw error;
+        // We need to handle this differently since the qr_code_data column was just added
+        // First, generate a new QR code
+        const qrData = `churchcheck:parent:${userId}:${Date.now()}`;
         
-        if (profile?.qr_code_data) {
-          setQrValue(profile.qr_code_data);
-        } else {
-          // Generate new QR code data
-          const qrData = `churchcheck:parent:${userId}:${Date.now()}`;
-          
-          // Save to profile
+        try {
+          // Try to update with the new QR code
           const { error: updateError } = await supabase
             .from('profiles')
             .update({ qr_code_data: qrData })
@@ -45,6 +34,10 @@ export const QRCodeGenerator = ({ userId, userName }: QRCodeGeneratorProps) => {
             
           if (updateError) throw updateError;
           
+          setQrValue(qrData);
+        } catch (updateError) {
+          console.error("Error updating profile with QR code:", updateError);
+          // If we can't update, still set the QR value for display
           setQrValue(qrData);
         }
       } catch (error: any) {

@@ -62,9 +62,14 @@ export type Database = {
           age: number | null
           allergies: string | null
           created_at: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          family_id: string | null
           first_name: string
+          has_guardian_approval: boolean | null
           id: string
           last_name: string
+          medical_info: string | null
           notes: string | null
           parent_id: string
           updated_at: string
@@ -73,9 +78,14 @@ export type Database = {
           age?: number | null
           allergies?: string | null
           created_at?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          family_id?: string | null
           first_name: string
+          has_guardian_approval?: boolean | null
           id?: string
           last_name: string
+          medical_info?: string | null
           notes?: string | null
           parent_id: string
           updated_at?: string
@@ -84,14 +94,27 @@ export type Database = {
           age?: number | null
           allergies?: string | null
           created_at?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          family_id?: string | null
           first_name?: string
+          has_guardian_approval?: boolean | null
           id?: string
           last_name?: string
+          medical_info?: string | null
           notes?: string | null
           parent_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "children_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       classes: {
         Row: {
@@ -126,29 +149,97 @@ export type Database = {
         }
         Relationships: []
       }
+      families: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      parent_children: {
+        Row: {
+          child_id: string
+          created_at: string
+          id: string
+          is_authorized_pickup: boolean | null
+          parent_id: string
+          relationship: string
+        }
+        Insert: {
+          child_id: string
+          created_at?: string
+          id?: string
+          is_authorized_pickup?: boolean | null
+          parent_id: string
+          relationship: string
+        }
+        Update: {
+          child_id?: string
+          created_at?: string
+          id?: string
+          is_authorized_pickup?: boolean | null
+          parent_id?: string
+          relationship?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parent_children_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          address: string | null
           created_at: string
           first_name: string | null
           id: string
           last_name: string | null
           phone: string | null
+          qr_code_data: string | null
+          security_answer: string | null
+          security_question: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           created_at?: string
           first_name?: string | null
           id: string
           last_name?: string | null
           phone?: string | null
+          qr_code_data?: string | null
+          security_answer?: string | null
+          security_question?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           created_at?: string
           first_name?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
+          qr_code_data?: string | null
+          security_answer?: string | null
+          security_question?: string | null
           updated_at?: string
         }
         Relationships: []

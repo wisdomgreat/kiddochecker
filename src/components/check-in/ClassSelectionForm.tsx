@@ -50,10 +50,20 @@ export const ClassSelectionForm = ({
         const today = new Date().toISOString().split('T')[0];
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')
-          .select('class_id, count')
+          .select('class_id, count(*)')
           .eq('attendance_date', today)
           .is('checked_out_at', null)
-          .group('class_id');
+          .or(`class_id.eq.${classesData.map(c => c.id).join(',class_id.eq.')}`)
+          .then(result => {
+            // Transform the result to match the expected format
+            return {
+              ...result,
+              data: result.data ? result.data.map(item => ({
+                class_id: item.class_id,
+                count: item.count
+              })) : []
+            };
+          });
           
         if (attendanceError) throw attendanceError;
         
