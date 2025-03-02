@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { User, Phone, Lock, HelpCircle } from "lucide-react";
+import { User, Phone, Lock, HelpCircle, ArrowRight, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,54 +49,8 @@ const CheckInKiosk = () => {
   }, [navigate]);
 
   const handleSignUp = async () => {
-    try {
-      setLoading(true);
-      // Validate inputs
-      if (!phoneNumber || phoneNumber.length < 10) {
-        throw new Error("Please enter a valid phone number");
-      }
-      if (!pin || pin.length < 4) {
-        throw new Error("Please enter a 4-digit PIN");
-      }
-      
-      // In a real application, you would implement phone auth here
-      // For now, we'll use email+password with a fake email derived from phone
-      const fakeEmail = `${phoneNumber.replace(/\D/g, '')}@example.com`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email: fakeEmail,
-        password: pin,
-        options: {
-          data: {
-            phone: phoneNumber,
-            // We're not collecting names at check-in, but the trigger expects them
-            first_name: "New",
-            last_name: "Parent",
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Registration Successful",
-        description: "Please verify your account (in a real app this would be via SMS)",
-        variant: "default",
-      });
-      
-      // In a real app with phone auth, we would handle verification here
-      // For demo purposes, we'll log them in directly
-      await handleContinue();
-      
-    } catch (error: any) {
-      toast({
-        title: "Registration Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    // Redirect to the full registration flow
+    navigate("/parent-registration");
   };
 
   const handleContinue = async () => {
@@ -236,7 +190,11 @@ const CheckInKiosk = () => {
               className="w-full py-6 text-base font-medium bg-blue-600 hover:bg-blue-700"
               disabled={!phoneNumber || !pin || loading}
             >
-              {loading ? "Please wait..." : "Continue"}
+              {loading ? "Please wait..." : (
+                <div className="flex items-center justify-center">
+                  Continue <ArrowRight className="ml-2 h-5 w-5" />
+                </div>
+              )}
             </Button>
           </div>
           
@@ -251,9 +209,14 @@ const CheckInKiosk = () => {
       
       <div className="w-full max-w-2xl mt-6">
         <div className="bg-slate-50/80 rounded-lg p-4 text-center">
-          <a href="#" onClick={(e) => {e.preventDefault(); handleSignUp();}} className="text-blue-500 hover:text-blue-600">
+          <Button 
+            variant="ghost" 
+            onClick={handleSignUp} 
+            className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 font-medium"
+          >
+            <UserPlus className="mr-2 h-5 w-5" />
             New Parent? Register Here
-          </a>
+          </Button>
         </div>
         
         <div className="mt-16 text-center">

@@ -14,6 +14,8 @@ import UserProfile from '@/pages/UserProfile';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import Index from '@/pages/Index';
+import ParentRegistration from '@/pages/ParentRegistration';
+import CheckInProcess from '@/pages/CheckInProcess';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 
 // Pages that we might create later
@@ -56,6 +58,7 @@ function App() {
     <Routes>
       {/* Public routes */}
       <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+      <Route path="/parent-registration" element={<ParentRegistration />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/404" element={<NotFound />} />
       
@@ -110,6 +113,11 @@ function App() {
       <Route path="/parent-dashboard" element={
         <ProtectedRoute allowedRoles={['admin', 'parent']}>
           <ParentDashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/check-in-process" element={
+        <ProtectedRoute allowedRoles={['admin', 'parent']}>
+          <CheckInProcess />
         </ProtectedRoute>
       } />
       
