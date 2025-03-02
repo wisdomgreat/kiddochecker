@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { User, QrCode, UsersRound, Clock, AlertTriangle, MoreHorizontal } from "lucide-react";
@@ -105,7 +106,7 @@ async function fetchClassStatus() {
 
     const { count: teacherCount, error: teacherError } = await supabase
       .from('teachers')
-      .select('*', { count: true })
+      .select('*', { count: 'exact' })
       .eq('class_id', classItem.id);
 
     if (childrenError || teacherError) {
