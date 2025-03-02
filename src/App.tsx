@@ -13,7 +13,7 @@ import ReportsDashboard from '@/pages/ReportsDashboard';
 import UserProfile from '@/pages/UserProfile';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
-import Index from '@/pages/Index';
+import LandingPage from '@/pages/LandingPage';
 import ParentRegistration from '@/pages/ParentRegistration';
 import CheckInProcess from '@/pages/CheckInProcess';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
@@ -37,7 +37,7 @@ function App() {
 
   // Default redirect based on user role
   const getDefaultRoute = () => {
-    if (!user) return '/check-in-kiosk';
+    if (!user) return '/landing';
     
     switch(userRole) {
       case 'admin':
@@ -57,6 +57,7 @@ function App() {
   return (
     <Routes>
       {/* Public routes */}
+      <Route path="/landing" element={<LandingPage />} />
       <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
       <Route path="/parent-registration" element={<ParentRegistration />} />
       <Route path="/unauthorized" element={<Unauthorized />} />

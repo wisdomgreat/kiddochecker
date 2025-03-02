@@ -48,31 +48,32 @@ export const ClassSelectionForm = ({
         
         // Get current attendance counts for each class
         const today = new Date().toISOString().split('T')[0];
-        const { data: attendanceData, error: attendanceError } = await supabase
-          .from('attendance')
-          .select('class_id, count(*)')
-          .eq('attendance_date', today)
-          .is('checked_out_at', null)
-          .or(`class_id.eq.${classesData.map(c => c.id).join(',class_id.eq.')}`)
-          .then(result => {
-            // Transform the result to match the expected format
-            return {
-              ...result,
-              data: result.data ? result.data.map(item => ({
-                class_id: item.class_id,
-                count: item.count
-              })) : []
-            };
-          });
+        
+        // Fetch attendance counts for each class separately to avoid the parsing error
+        const classAttendanceCounts = [];
+        
+        for (const classItem of classesData) {
+          const { data: attendanceData, error: attendanceError } = await supabase
+            .from('attendance')
+            .select('id')
+            .eq('attendance_date', today)
+            .eq('class_id', classItem.id)
+            .is('checked_out_at', null);
+            
+          if (attendanceError) throw attendanceError;
           
-        if (attendanceError) throw attendanceError;
+          classAttendanceCounts.push({
+            class_id: classItem.id,
+            count: attendanceData ? attendanceData.length : 0
+          });
+        }
         
         // Map attendance counts to classes
         const classesWithAttendance = classesData.map(classItem => {
-          const attendanceRecord = attendanceData.find(a => a.class_id === classItem.id);
+          const attendanceRecord = classAttendanceCounts.find(a => a.class_id === classItem.id);
           return {
             ...classItem,
-            currentAttendance: attendanceRecord ? parseInt(attendanceRecord.count) : 0
+            currentAttendance: attendanceRecord ? attendanceRecord.count : 0
           };
         });
         
