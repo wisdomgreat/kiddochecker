@@ -25,6 +25,23 @@ const ChildrenStep = ({
   handleRemoveChild,
   handleChildFormChange
 }: ChildrenStepProps) => {
+  // Convert our ChildFormData to the format expected by ChildRegistrationForm
+  const mapToChildFormValues = (child: ChildFormData, index: number) => {
+    return {
+      firstName: child.firstName,
+      lastName: child.lastName,
+      age: 0, // We're using birthdate instead of age, so set a default
+      allergies: child.allergies,
+      medicalInfo: child.medicalInfo,
+      notes: child.specialNeeds, // Map specialNeeds to notes
+      emergencyContactName: "",
+      emergencyContactPhone: ""
+    };
+  };
+
+  // Need to create a dummy "family name" for the child registration form
+  const [familyName, setFamilyName] = React.useState("");
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Child Information</h2>
@@ -46,10 +63,70 @@ const ChildrenStep = ({
               )}
             </div>
             
-            <ChildRegistrationForm 
-              childData={child}
-              onChange={(field, value) => handleChildFormChange(index, field as keyof ChildFormData, value)}
-            />
+            {/* Use our custom adapter for the ChildRegistrationForm */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">First Name</label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={child.firstName}
+                    onChange={(e) => handleChildFormChange(index, 'firstName', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={child.lastName}
+                    onChange={(e) => handleChildFormChange(index, 'lastName', e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
+                <input
+                  type="date"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={child.birthdate}
+                  onChange={(e) => handleChildFormChange(index, 'birthdate', e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Allergies</label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={child.allergies}
+                  onChange={(e) => handleChildFormChange(index, 'allergies', e.target.value)}
+                  placeholder="List any allergies"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Special Needs</label>
+                <textarea
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={child.specialNeeds}
+                  onChange={(e) => handleChildFormChange(index, 'specialNeeds', e.target.value)}
+                  placeholder="Any special needs or accommodations"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Medical Information</label>
+                <textarea
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={child.medicalInfo}
+                  onChange={(e) => handleChildFormChange(index, 'medicalInfo', e.target.value)}
+                  placeholder="Any medical conditions or medications"
+                />
+              </div>
+            </div>
           </div>
         ))}
         

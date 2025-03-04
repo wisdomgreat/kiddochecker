@@ -146,16 +146,18 @@ const ParentRegistration = () => {
       // Create family record
       let familyId = null;
       
-      // Using the stored procedure via rpc
+      // Using the stored procedure via function call
       try {
-        const { data: familyData, error: familyError } = await supabase.rpc("create_family", {
-          family_name: `${lastName} Family`
+        const { data: familyData, error: familyError } = await supabase.functions.invoke("create_family", {
+          body: {
+            family_name: `${lastName} Family`
+          }
         });
         
         if (familyError) throw familyError;
         familyId = familyData;
       } catch (error) {
-        console.error("Error with RPC, falling back to direct SQL", error);
+        console.error("Error with functions, falling back to direct SQL", error);
         
         // Fallback to direct SQL insert
         const { data: familyData, error: familyError } = await supabase
@@ -204,15 +206,17 @@ const ParentRegistration = () => {
         
         // Link parent to child
         try {
-          const { error: linkError } = await supabase.rpc("link_parent_child", {
-            p_parent_id: authData.user?.id,
-            p_child_id: childData.id,
-            p_relationship: 'parent'
+          const { error: linkError } = await supabase.functions.invoke("link_parent_child", {
+            body: {
+              p_parent_id: authData.user?.id,
+              p_child_id: childData.id,
+              p_relationship: 'parent'
+            }
           });
           
           if (linkError) throw linkError;
         } catch (error) {
-          console.error("Error with RPC, falling back to direct SQL", error);
+          console.error("Error with functions, falling back to direct SQL", error);
           
           // Fallback to direct SQL insert
           const { error: linkError } = await supabase
