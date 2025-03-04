@@ -2,6 +2,7 @@
 import React from "react";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface RegistrationPromptProps {
   onSignUp: () => void;
@@ -9,16 +10,19 @@ interface RegistrationPromptProps {
 
 export const RegistrationPrompt = ({ onSignUp }: RegistrationPromptProps) => {
   return (
-    <div className="bg-slate-50/80 rounded-lg p-4 text-center">
-      <Button 
-        variant="ghost" 
-        onClick={onSignUp} 
-        className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 font-medium"
-      >
-        <UserPlus className="mr-2 h-5 w-5" />
-        New Parent? Register Here
-      </Button>
-    </div>
+    <Card className="bg-white rounded-lg p-6 shadow-md">
+      <div className="text-center space-y-3">
+        <h3 className="text-lg font-medium text-gray-900">New to ChurchCheck?</h3>
+        <p className="text-gray-600">Register your family for easy check-in and check-out.</p>
+        <Button 
+          onClick={onSignUp} 
+          className="w-full"
+        >
+          <UserPlus className="mr-2 h-5 w-5" />
+          Register Here
+        </Button>
+      </div>
+    </Card>
   );
 };
 
