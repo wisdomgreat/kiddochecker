@@ -26,8 +26,8 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       if (!phoneNumber || phoneNumber.length < 10) {
         throw new Error("Please enter a valid phone number");
       }
-      if (!pin || pin.length < 4) {
-        throw new Error("Please enter a 4-digit PIN");
+      if (!pin || pin.length < 6) {
+        throw new Error("Please enter a PIN or password of at least 6 characters");
       }
       
       // In a real app with phone auth, this would use phone authentication

@@ -60,10 +60,10 @@ const ParentRegistration = () => {
       return false;
     }
     
-    if (pin.length !== 4 || !/^\d+$/.test(pin)) {
+    if (pin.length < 6) {
       toast({
-        title: "Invalid PIN",
-        description: "PIN must be exactly 4 digits",
+        title: "Invalid PIN/Password",
+        description: "Your PIN/Password must be at least 6 characters long",
         variant: "destructive",
       });
       return false;
@@ -72,7 +72,7 @@ const ParentRegistration = () => {
     if (pin !== confirmPin) {
       toast({
         title: "PINs Do Not Match",
-        description: "Your PIN and confirmation PIN do not match",
+        description: "Your PIN/Password and confirmation do not match",
         variant: "destructive",
       });
       return false;
