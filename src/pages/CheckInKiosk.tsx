@@ -1,20 +1,14 @@
 
 import { useState, useEffect } from "react";
-import { User, Phone, Lock, HelpCircle, ArrowRight, UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import LoginForm from "@/components/check-in/LoginForm";
+import RegistrationPrompt from "@/components/check-in/RegistrationPrompt";
+import AdminAccess from "@/components/check-in/AdminAccess";
 
 const CheckInKiosk = () => {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [pin, setPin] = useState("");
-  const [loading, setLoading] = useState(false);
   const [session, setSession] = useState(null);
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Check if user is already logged in
@@ -48,86 +42,9 @@ const CheckInKiosk = () => {
     };
   }, [navigate]);
 
-  const handleSignUp = async () => {
+  const handleSignUp = () => {
     // Redirect to the full registration flow
     navigate("/parent-registration");
-  };
-
-  const handleContinue = async () => {
-    try {
-      setLoading(true);
-      // Validate inputs
-      if (!phoneNumber || phoneNumber.length < 10) {
-        throw new Error("Please enter a valid phone number");
-      }
-      if (!pin || pin.length < 4) {
-        throw new Error("Please enter a 4-digit PIN");
-      }
-      
-      // In a real app with phone auth, this would use phone authentication
-      // For demo, we're using email+password with a fake email derived from phone
-      const fakeEmail = `${phoneNumber.replace(/\D/g, '')}@example.com`;
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: pin,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Login Successful",
-        description: "You have been logged in successfully",
-        variant: "default",
-      });
-      
-      // Navigate to parent dashboard
-      navigate("/parent-dashboard");
-      
-    } catch (error: any) {
-      // If login failed, it might be because user doesn't exist
-      toast({
-        title: "Login Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Format phone number as user types
-  const formatPhoneNumber = (value: string) => {
-    // Strip all non-numeric characters
-    const cleaned = value.replace(/\D/g, '');
-    
-    // Format as (XXX) XXX-XXXX
-    let formatted = '';
-    if (cleaned.length > 0) {
-      formatted += '(' + cleaned.substring(0, 3);
-      if (cleaned.length > 3) {
-        formatted += ') ' + cleaned.substring(3, 6);
-        if (cleaned.length > 6) {
-          formatted += '-' + cleaned.substring(6, 10);
-        }
-      }
-    }
-    
-    return formatted.trim();
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const formattedValue = formatPhoneNumber(value);
-    setPhoneNumber(formattedValue);
-  };
-
-  const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow numeric input for PIN
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 4) {
-      setPin(value);
-    }
   };
 
   return (
@@ -137,93 +54,13 @@ const CheckInKiosk = () => {
         <p className="text-gray-600">Please enter your phone number to check in your children</p>
       </div>
       
-      <Card className="w-full max-w-2xl bg-slate-50/90 border-0 shadow-sm">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-blue-100 rounded-full p-2">
-              <User className="h-5 w-5 text-blue-500" />
-            </div>
-            <div className="text-left">
-              <h2 className="text-xl font-semibold">Parent Login</h2>
-              <p className="text-sm text-gray-500">Enter your credentials to continue</p>
-            </div>
-          </div>
-          
-          <div className="space-y-6 mt-8">
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-base font-medium">Phone Number</Label>
-              <div className="relative">
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={phoneNumber}
-                  onChange={handlePhoneChange}
-                  className="pr-10 bg-white text-base py-6"
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Phone className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="pin" className="text-base font-medium">PIN</Label>
-              <div className="relative">
-                <Input
-                  id="pin"
-                  type="password"
-                  placeholder="Enter your 4-digit PIN"
-                  value={pin}
-                  onChange={handlePinChange}
-                  className="pr-10 bg-white text-base py-6"
-                  maxLength={4}
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-              </div>
-            </div>
-            
-            <Button 
-              onClick={handleContinue}
-              className="w-full py-6 text-base font-medium bg-blue-600 hover:bg-blue-700"
-              disabled={!phoneNumber || !pin || loading}
-            >
-              {loading ? "Please wait..." : (
-                <div className="flex items-center justify-center">
-                  Continue <ArrowRight className="ml-2 h-5 w-5" />
-                </div>
-              )}
-            </Button>
-          </div>
-          
-          <div className="text-center mt-6">
-            <p className="text-gray-500 flex items-center justify-center gap-1">
-              <HelpCircle className="h-4 w-4" />
-              Need help? Ask a staff member for assistance
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <LoginForm onSignUp={handleSignUp} />
       
       <div className="w-full max-w-2xl mt-6">
-        <div className="bg-slate-50/80 rounded-lg p-4 text-center">
-          <Button 
-            variant="ghost" 
-            onClick={handleSignUp} 
-            className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 font-medium"
-          >
-            <UserPlus className="mr-2 h-5 w-5" />
-            New Parent? Register Here
-          </Button>
-        </div>
+        <RegistrationPrompt onSignUp={handleSignUp} />
         
-        <div className="mt-16 text-center">
-          <p className="text-gray-400 mb-2">Admin Access</p>
-          <Button variant="outline" className="bg-white" onClick={() => navigate("/settings")}>
-            Staff Login
-          </Button>
+        <div className="mt-16">
+          <AdminAccess />
         </div>
       </div>
     </div>
