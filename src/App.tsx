@@ -17,6 +17,8 @@ import LandingPage from '@/pages/LandingPage';
 import ParentRegistration from '@/pages/ParentRegistration';
 import CheckInProcess from '@/pages/CheckInProcess';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import OrganizationSetup from '@/pages/OrganizationSetup';
+import StaffManagement from '@/pages/StaffManagement';
 
 // Pages that we might create later
 const Unauthorized = () => (
@@ -42,7 +44,7 @@ function App() {
     switch(userRole) {
       case 'admin':
         return '/admin-dashboard';
-      case 'teacher':
+      case 'staff':
         return '/teacher-dashboard';
       case 'parent':
       default:
@@ -59,6 +61,7 @@ function App() {
       {/* Public routes */}
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+      <Route path="/organization-setup" element={<OrganizationSetup />} />
       <Route path="/parent-registration" element={<ParentRegistration />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/404" element={<NotFound />} />
@@ -75,6 +78,11 @@ function App() {
       <Route path="/users-management" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <UsersManagement />
+        </ProtectedRoute>
+      } />
+      <Route path="/staff-management" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <StaffManagement />
         </ProtectedRoute>
       } />
       <Route path="/classes-management" element={
@@ -95,17 +103,17 @@ function App() {
       
       {/* Teacher routes */}
       <Route path="/teacher-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <TeacherDashboard />
         </ProtectedRoute>
       } />
       <Route path="/teacher-profile" element={
-        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <TeacherProfile />
         </ProtectedRoute>
       } />
       <Route path="/check-out-station" element={
-        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <CheckOutStation />
         </ProtectedRoute>
       } />

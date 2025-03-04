@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -9,14 +9,50 @@ import {
   BarChart2, 
   Shield, 
   ArrowRight,
-  LogIn
+  LogIn,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [hasOrganization, setHasOrganization] = useState(true);
+  const [isChecking, setIsChecking] = useState(true);
+
+  // Check if any organization exists
+  useEffect(() => {
+    const checkOrganization = async () => {
+      try {
+        setIsChecking(true);
+        const { data, error, count } = await supabase
+          .from('organization_settings')
+          .select('*', { count: 'exact', head: true });
+        
+        if (error) throw error;
+        
+        setHasOrganization(count !== null && count > 0);
+      } catch (error) {
+        console.error("Error checking organization:", error);
+        setHasOrganization(false);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+    
+    checkOrganization();
+  }, []);
+
+  const handleCheckInClick = () => {
+    // If organization is set up, go to check-in kiosk, otherwise to organization setup
+    if (hasOrganization) {
+      navigate("/check-in-kiosk");
+    } else {
+      navigate("/organization-setup");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -31,39 +67,42 @@ const LandingPage = () => {
           <Button 
             size="lg" 
             className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => navigate("/check-in-kiosk")}
+            onClick={handleCheckInClick}
+            disabled={isChecking}
           >
-            Try Check-in Kiosk
+            {hasOrganization ? "Try Check-in Kiosk" : "Set Up Your Organization"}
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           
-          {showAdminLogin ? (
-            <div className="flex gap-2">
+          {hasOrganization && (
+            showAdminLogin ? (
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => navigate("/check-in-kiosk")}
+                >
+                  Parent Login
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => navigate("/check-in-kiosk")}
+                >
+                  Staff Login
+                  <LogIn className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
+            ) : (
               <Button 
                 variant="outline" 
                 size="lg"
-                onClick={() => navigate("/check-in-kiosk")}
+                onClick={() => setShowAdminLogin(true)}
               >
-                Parent Login
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg"
-                onClick={() => navigate("/settings")}
-              >
-                Staff Login
+                Sign In
                 <LogIn className="ml-2 h-5 w-5" />
               </Button>
-            </div>
-          ) : (
-            <Button 
-              variant="outline" 
-              size="lg"
-              onClick={() => setShowAdminLogin(true)}
-            >
-              Sign In
-              <LogIn className="ml-2 h-5 w-5" />
-            </Button>
+            )
           )}
         </div>
       </div>
@@ -105,9 +144,9 @@ const LandingPage = () => {
             />
             
             <FeatureCard 
-              icon={<Users className="h-10 w-10 text-teal-500" />}
-              title="Family Management"
-              description="Keep track of family relationships and emergency contacts in one place."
+              icon={<Settings className="h-10 w-10 text-teal-500" />}
+              title="Organization Management"
+              description="Complete customization of your organization's branding, staff roles and permissions."
             />
           </div>
         </div>
@@ -141,7 +180,7 @@ const LandingPage = () => {
               <Link to="/check-in-kiosk" className="text-gray-300 hover:text-white">
                 Try Now
               </Link>
-              <Link to="/settings" className="text-gray-300 hover:text-white">
+              <Link to="/check-in-kiosk" className="text-gray-300 hover:text-white">
                 Staff Login
               </Link>
             </div>
