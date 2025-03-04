@@ -54,14 +54,15 @@ export const AdminAccess = () => {
           description: "Welcome to the admin dashboard",
         });
         navigate("/admin-dashboard");
-      } else if (roleData?.role === 'teacher') {
+      } else if (roleData?.role === 'staff') {
+        // Changed from 'teacher' to 'staff' to match the expected enum values
         toast({
-          title: "Teacher Login Successful",
-          description: "Welcome to the teacher dashboard",
+          title: "Staff Login Successful",
+          description: "Welcome to the staff dashboard",
         });
         navigate("/teacher-dashboard");
       } else {
-        // If the user doesn't have an admin or teacher role
+        // If the user doesn't have an admin or staff role
         toast({
           title: "Access Denied",
           description: "You don't have staff or administrator privileges",
