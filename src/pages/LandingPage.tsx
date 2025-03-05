@@ -1,216 +1,109 @@
 
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  CheckCircle, 
-  Users, 
-  Calendar, 
-  BarChart2, 
-  Shield, 
-  ArrowRight,
-  LogIn,
-  Settings
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [hasOrganization, setHasOrganization] = useState(true);
-  const [isChecking, setIsChecking] = useState(true);
-
-  // Check if any organization exists
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
     const checkOrganization = async () => {
       try {
-        setIsChecking(true);
-        const { data, error, count } = await supabase
+        // Use raw query since organization_settings is not in types yet
+        const { count, error } = await supabase
           .from('organization_settings')
           .select('*', { count: 'exact', head: true });
-        
+          
         if (error) throw error;
         
-        setHasOrganization(count !== null && count > 0);
+        // If no organization exists, redirect to setup
+        if (count === 0) {
+          navigate('/organization-setup');
+        }
       } catch (error) {
         console.error("Error checking organization:", error);
-        setHasOrganization(false);
       } finally {
-        setIsChecking(false);
+        setLoading(false);
       }
     };
     
     checkOrganization();
-  }, []);
-
-  const handleCheckInClick = () => {
-    // If organization is set up, go to check-in kiosk, otherwise to organization setup
-    if (hasOrganization) {
-      navigate("/check-in-kiosk");
-    } else {
-      navigate("/organization-setup");
-    }
-  };
+  }, [navigate]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+        <span>Loading...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16 flex flex-col items-center text-center">
-        <h1 className="text-5xl font-bold text-blue-600 mb-6">ChurchCheck</h1>
-        <p className="text-xl text-gray-600 max-w-2xl mb-10">
-          A secure and efficient check-in system for your church's children ministry
-        </p>
-        
-        <div className="flex flex-col sm:flex-row gap-4 mb-16">
-          <Button 
-            size="lg" 
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={handleCheckInClick}
-            disabled={isChecking}
-          >
-            {hasOrganization ? "Try Check-in Kiosk" : "Set Up Your Organization"}
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-          
-          {hasOrganization && (
-            showAdminLogin ? (
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  onClick={() => navigate("/check-in-kiosk")}
-                >
-                  Parent Login
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  onClick={() => navigate("/check-in-kiosk")}
-                >
-                  Staff Login
-                  <LogIn className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
-            ) : (
-              <Button 
-                variant="outline" 
-                size="lg"
-                onClick={() => setShowAdminLogin(true)}
-              >
-                Sign In
-                <LogIn className="ml-2 h-5 w-5" />
-              </Button>
-            )
-          )}
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-blue-50 to-white">
+        <div className="max-w-4xl text-center">
+          <h1 className="text-4xl md:text-6xl font-bold text-blue-600 mb-6">
+            Secure Children's Check-in
+          </h1>
+          <p className="text-xl text-gray-600 mb-8">
+            A simple and secure way to check children in and out of your church or organization
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button 
+              onClick={() => navigate('/check-in-kiosk')}
+              className="px-8 py-3 bg-blue-600 text-white rounded-lg text-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              Try Check-in Kiosk
+            </button>
+            <button 
+              onClick={() => navigate('/parent-registration')}
+              className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-lg text-lg font-medium hover:bg-blue-50 transition-colors"
+            >
+              Register as Parent
+            </button>
+          </div>
         </div>
       </div>
-
+      
       {/* Features Section */}
-      <div className="bg-white py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">Features</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={<CheckCircle className="h-10 w-10 text-green-500" />}
-              title="Easy Check-in"
-              description="Fast and secure process for parents to check-in their children with QR codes and name tags."
-            />
-            
-            <FeatureCard 
-              icon={<Users className="h-10 w-10 text-blue-500" />}
-              title="Class Management"
-              description="Organize classes by age groups, assign teachers, and track attendance."
-            />
-            
-            <FeatureCard 
-              icon={<Shield className="h-10 w-10 text-purple-500" />}
-              title="Secure Check-out"
-              description="Ensure children are only released to authorized guardians with verification."
-            />
-            
-            <FeatureCard 
-              icon={<Calendar className="h-10 w-10 text-red-500" />}
-              title="Event Planning"
-              description="Schedule special events and manage registrations with ease."
-            />
-            
-            <FeatureCard 
-              icon={<BarChart2 className="h-10 w-10 text-amber-500" />}
-              title="Analytics"
-              description="Comprehensive reports on attendance, growth trends, and ministry insights."
-            />
-            
-            <FeatureCard 
-              icon={<Settings className="h-10 w-10 text-teal-500" />}
-              title="Organization Management"
-              description="Complete customization of your organization's branding, staff roles and permissions."
-            />
+      <div className="py-16 px-4 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-6 border rounded-lg shadow-sm">
+              <h3 className="text-xl font-semibold mb-3">Secure Check-in/out</h3>
+              <p className="text-gray-600">
+                Easy and secure process for parents to check their children in and out.
+              </p>
+            </div>
+            <div className="p-6 border rounded-lg shadow-sm">
+              <h3 className="text-xl font-semibold mb-3">Name Tag Printing</h3>
+              <p className="text-gray-600">
+                Automatic name tag printing with security codes and allergy information.
+              </p>
+            </div>
+            <div className="p-6 border rounded-lg shadow-sm">
+              <h3 className="text-xl font-semibold mb-3">Attendance Tracking</h3>
+              <p className="text-gray-600">
+                Comprehensive attendance reports and analytics.
+              </p>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Testimonial Section */}
-      <div className="bg-blue-50 py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-12">Trusted by Churches</h2>
-          
-          <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-md">
-            <p className="text-xl italic text-gray-600 mb-6">
-              "ChurchCheck has completely transformed our Sunday morning check-in process. 
-              It's reliable, secure, and our volunteers love how easy it is to use!"
-            </p>
-            <p className="font-medium text-gray-800">Pastor Michael, Grace Community Church</p>
-          </div>
-        </div>
-      </div>
-
+      
       {/* Footer */}
-      <footer className="bg-gray-800 text-white py-10">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <h3 className="text-xl font-bold mb-2">ChurchCheck</h3>
-              <p className="text-gray-400">Secure check-in for your ministry</p>
-            </div>
-            
-            <div className="flex gap-6">
-              <Link to="/check-in-kiosk" className="text-gray-300 hover:text-white">
-                Try Now
-              </Link>
-              <Link to="/check-in-kiosk" className="text-gray-300 hover:text-white">
-                Staff Login
-              </Link>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} ChurchCheck. All rights reserved.</p>
-          </div>
+      <footer className="py-8 px-4 bg-gray-100">
+        <div className="max-w-6xl mx-auto text-center">
+          <p className="text-gray-600">
+            © {new Date().getFullYear()} ChurchCheck. All rights reserved.
+          </p>
         </div>
       </footer>
     </div>
-  );
-};
-
-// Feature card component
-const FeatureCard = ({ icon, title, description }: { 
-  icon: React.ReactNode; 
-  title: string; 
-  description: string 
-}) => {
-  return (
-    <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
-      <CardHeader className="flex items-center">
-        {icon}
-        <CardTitle className="mt-4">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-center text-gray-600">{description}</p>
-      </CardContent>
-    </Card>
   );
 };
 

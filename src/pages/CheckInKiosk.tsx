@@ -21,9 +21,10 @@ const CheckInKiosk = () => {
     const checkOrganization = async () => {
       try {
         setIsChecking(true);
+        // Use raw query since organization_settings is not in types yet
         const { data, error, count } = await supabase
           .from('organization_settings')
-          .select('name', { count: 'exact' });
+          .select('*', { count: 'exact' });
         
         if (error) throw error;
         
@@ -38,7 +39,7 @@ const CheckInKiosk = () => {
         }
         
         setHasOrganization(true);
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error checking organization:", error);
         toast({
           title: "Setup Required",
@@ -52,7 +53,7 @@ const CheckInKiosk = () => {
     };
     
     checkOrganization();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   // Check if user is already logged in
   useEffect(() => {

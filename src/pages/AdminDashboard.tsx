@@ -5,18 +5,32 @@ import { UserPlus, Users, School, PieChart, Settings, LogOut } from "lucide-reac
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import MainLayout from "@/components/layout/MainLayout";
 import StatCards from "@/components/dashboard/StatCards";
 import ClassStatus from "@/components/dashboard/ClassStatus";
 import ActivityTable from "@/components/dashboard/ActivityTable";
 import AlertsPanel from "@/components/dashboard/AlertsPanel";
+import { useDashboardStats, useClassStatus, useRecentActivity, useRealtimeUpdates } from "@/hooks/useDashboardData";
 
 const AdminDashboard = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Fetch dashboard data using the hooks
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: classData, isLoading: classLoading } = useClassStatus();
+  const { data: activityData, isLoading: activityLoading } = useRecentActivity();
+  const { hasNewActivity, hasClassChanges, resetFlags } = useRealtimeUpdates();
+
+  // Effect to handle realtime updates
+  useEffect(() => {
+    if (hasNewActivity || hasClassChanges) {
+      resetFlags();
+    }
+  }, [hasNewActivity, hasClassChanges, resetFlags]);
 
   useEffect(() => {
     const checkSuperAdmin = async () => {
@@ -62,11 +76,11 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <StatCards />
+      <StatCards stats={stats || { checkedIn: 0, checkedOut: 0, classes: 0, alerts: 0 }} isLoading={statsLoading} />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         <div className="md:col-span-2">
-          <ClassStatus />
+          <ClassStatus classData={classData || []} isLoading={classLoading} />
         </div>
         <div>
           <AlertsPanel />
@@ -74,7 +88,7 @@ const AdminDashboard = () => {
       </div>
       
       <div className="mt-6">
-        <ActivityTable />
+        <ActivityTable activityData={activityData || []} isLoading={activityLoading} />
       </div>
       
       {/* Quick access cards */}

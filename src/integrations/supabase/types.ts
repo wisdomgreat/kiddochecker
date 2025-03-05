@@ -170,6 +170,39 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_settings: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          font_family: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          primary_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          font_family?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          font_family?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       parent_children: {
         Row: {
           child_id: string
@@ -280,18 +313,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_super_admin: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_super_admin?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_super_admin?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -311,7 +347,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "staff" | "parent"
+      app_role: "admin" | "staff" | "parent" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
