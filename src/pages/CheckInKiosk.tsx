@@ -4,12 +4,13 @@ import { User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 import LoginForm from "@/components/check-in/LoginForm";
 import RegistrationPrompt from "@/components/check-in/RegistrationPrompt";
 import AdminAccess from "@/components/check-in/AdminAccess";
 
 const CheckInKiosk = () => {
-  const [session, setSession] = useState(null);
+  const { user, userRole } = useAuth();
   const [organizationName, setOrganizationName] = useState("Your Church");
   const [hasOrganization, setHasOrganization] = useState(true);
   const [isChecking, setIsChecking] = useState(true);
@@ -55,38 +56,26 @@ const CheckInKiosk = () => {
     checkOrganization();
   }, [navigate, toast]);
 
-  // Check if user is already logged in
+  // Redirect authenticated users based on role
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
+    if (user && userRole) {
+      let targetRoute = "/parent-dashboard";
       
-      if (data.session) {
-        // If already logged in, redirect to dashboard
-        navigate("/parent-dashboard");
+      if (userRole === "admin") {
+        targetRoute = "/admin-dashboard";
+      } else if (userRole === "staff") {
+        targetRoute = "/teacher-dashboard";
       }
-    };
-    
-    if (hasOrganization) {
-      checkSession();
       
-      // Subscribe to auth changes
-      const { data: authListener } = supabase.auth.onAuthStateChange(
-        (event, newSession) => {
-          setSession(newSession);
-          if (newSession) {
-            navigate("/parent-dashboard");
-          }
-        }
-      );
-      
-      return () => {
-        if (authListener && authListener.subscription) {
-          authListener.subscription.unsubscribe();
-        }
-      };
+      const returnPath = sessionStorage.getItem("returnPath");
+      if (returnPath) {
+        sessionStorage.removeItem("returnPath");
+        navigate(returnPath);
+      } else {
+        navigate(targetRoute);
+      }
     }
-  }, [navigate, hasOrganization]);
+  }, [user, userRole, navigate]);
 
   const handleSignUp = () => {
     // Redirect to the full registration flow

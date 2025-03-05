@@ -53,7 +53,12 @@ function App() {
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <span className="ml-2 text-gray-600">Loading application...</span>
+      </div>
+    );
   }
 
   return (
@@ -101,7 +106,7 @@ function App() {
         </ProtectedRoute>
       } />
       
-      {/* Teacher routes */}
+      {/* Teacher/Staff routes */}
       <Route path="/teacher-dashboard" element={
         <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <TeacherDashboard />
@@ -130,7 +135,7 @@ function App() {
         </ProtectedRoute>
       } />
       
-      {/* Common routes */}
+      {/* Common routes accessible to all authenticated users */}
       <Route path="/user-profile" element={
         <ProtectedRoute>
           <UserProfile />

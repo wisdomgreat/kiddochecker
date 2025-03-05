@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, getUserRole } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface AuthContextType {
   session: Session | null;
@@ -10,6 +11,7 @@ interface AuthContextType {
   userRole: string | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   userRole: null,
   isLoading: true,
   signOut: async () => {},
+  refreshSession: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -32,30 +35,50 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        const role = await getUserRole();
-        setUserRole(role);
-      } else {
-        setUserRole(null);
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const role = await getUserRole();
+      setUserRole(role);
+      return role;
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+      setUserRole(null);
+      return null;
+    }
+  };
+
+  const refreshSession = async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+      setUser(data.session?.user || null);
+      
+      if (data.session?.user) {
+        await fetchUserRole(data.session.user.id);
       }
-    };
-
-    fetchUserRole();
-  }, [user]);
+    } catch (error) {
+      console.error("Error refreshing session:", error);
+    }
+  };
 
   useEffect(() => {
     // Initial session check
     const initializeAuth = async () => {
       try {
+        setIsLoading(true);
         const { data } = await supabase.auth.getSession();
         setSession(data.session);
         setUser(data.session?.user || null);
-        setIsLoading(false);
+        
+        if (data.session?.user) {
+          await fetchUserRole(data.session.user.id);
+        }
       } catch (error) {
         console.error('Error checking auth session:', error);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -65,15 +88,43 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Set up auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        console.log("Auth state changed:", event);
         setSession(newSession);
         setUser(newSession?.user || null);
 
-        // When authentication state changes, we get the role again
+        // Handle session changed events
         if (newSession?.user) {
-          const role = await getUserRole();
-          setUserRole(role);
-        } else {
+          const role = await fetchUserRole(newSession.user.id);
+          
+          // Handle redirects based on events and roles
+          if (event === "SIGNED_IN") {
+            const returnPath = sessionStorage.getItem("returnPath") || "/";
+            sessionStorage.removeItem("returnPath");
+            
+            // Redirect based on role
+            if (role === "admin") {
+              navigate("/admin-dashboard");
+            } else if (role === "staff") {
+              navigate("/teacher-dashboard");
+            } else if (role === "parent") {
+              navigate("/parent-dashboard");
+            } else {
+              navigate(returnPath !== location.pathname ? returnPath : "/");
+            }
+            
+            toast({
+              title: "Signed in successfully",
+              description: "Welcome back!",
+            });
+          }
+        } else if (event === "SIGNED_OUT") {
           setUserRole(null);
+          
+          // If on a protected route, redirect to login
+          const publicRoutes = ["/landing", "/check-in-kiosk", "/parent-registration", "/organization-setup", "/unauthorized", "/404"];
+          if (!publicRoutes.includes(location.pathname)) {
+            navigate("/check-in-kiosk");
+          }
         }
       }
     );
@@ -83,7 +134,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         authListener.subscription.unsubscribe();
       }
     };
-  }, []);
+  }, [navigate, toast, location.pathname]);
 
   const signOut = async () => {
     try {
@@ -92,6 +143,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         title: "Signed out successfully",
         description: "You have been logged out of your account",
       });
+      navigate("/check-in-kiosk");
     } catch (error: any) {
       toast({
         title: "Error signing out",
@@ -102,7 +154,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, userRole, isLoading, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      userRole, 
+      isLoading, 
+      signOut,
+      refreshSession
+    }}>
       {children}
     </AuthContext.Provider>
   );

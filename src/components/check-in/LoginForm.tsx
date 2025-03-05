@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { HelpCircle, ArrowRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
+import { useAuth } from "@/context/AuthContext";
 
 interface LoginFormProps {
   onSignUp: () => void;
@@ -18,6 +20,22 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, userRole } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      const defaultPath = userRole === 'admin' 
+        ? '/admin-dashboard' 
+        : userRole === 'staff' 
+          ? '/teacher-dashboard' 
+          : '/parent-dashboard';
+          
+      const returnPath = sessionStorage.getItem("returnPath") || defaultPath;
+      navigate(returnPath, { replace: true });
+    }
+  }, [user, userRole, navigate]);
 
   const handleContinue = async () => {
     try {
@@ -47,8 +65,7 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
         variant: "default",
       });
       
-      // Navigate to parent dashboard
-      navigate("/parent-dashboard");
+      // Auth state listener in AuthContext will handle navigation
       
     } catch (error: any) {
       // If login failed, it might be because user doesn't exist

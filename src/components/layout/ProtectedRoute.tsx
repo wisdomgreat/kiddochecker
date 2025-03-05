@@ -10,9 +10,23 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) => {
-  const { user, userRole, isLoading } = useAuth();
+  const { user, userRole, isLoading, refreshSession } = useAuth();
   const location = useLocation();
   const { toast } = useToast();
+
+  // Save the current path for redirect after login
+  useEffect(() => {
+    if (!user && !isLoading) {
+      sessionStorage.setItem("returnPath", location.pathname);
+    }
+  }, [user, isLoading, location.pathname]);
+
+  // Refresh session on route change to ensure up-to-date auth state
+  useEffect(() => {
+    if (!isLoading) {
+      refreshSession();
+    }
+  }, [location.pathname, refreshSession, isLoading]);
 
   // Log access attempt for debugging
   useEffect(() => {
