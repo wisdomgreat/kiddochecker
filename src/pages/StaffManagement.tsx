@@ -95,28 +95,20 @@ const StaffManagement = () => {
       setIsLoading(true);
       
       const { data, error } = await supabase
-        .from('user_roles')
-        .select(`
-          user_id,
-          role,
-          is_super_admin,
-          profiles:user_id(first_name, last_name, phone),
-          users:user_id(email, confirmed_at)
-        `)
-        .in('role', ['admin', 'staff']);
+        .rpc('get_staff_members');
       
       if (error) throw error;
       
       if (data) {
         const formattedStaff: StaffMember[] = data.map((staff: any) => ({
           id: staff.user_id,
-          email: staff.users?.email || '',
-          firstName: staff.profiles?.first_name || '',
-          lastName: staff.profiles?.last_name || '',
-          phone: staff.profiles?.phone || '',
-          role: staff.role,
+          email: staff.email || '',
+          firstName: staff.first_name || '',
+          lastName: staff.last_name || '',
+          phone: staff.phone || '',
+          role: staff.role as "admin" | "staff" | "parent",
           isSuperAdmin: staff.is_super_admin || false,
-          isActive: staff.users?.confirmed_at !== null
+          isActive: staff.is_active
         }));
         
         setStaffMembers(formattedStaff);

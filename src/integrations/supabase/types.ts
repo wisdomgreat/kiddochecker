@@ -338,6 +338,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_staff_members: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          email: string
+          first_name: string
+          last_name: string
+          phone: string
+          role: string
+          is_super_admin: boolean
+          is_active: boolean
+        }[]
+      }
       has_role: {
         Args: {
           user_id: string
