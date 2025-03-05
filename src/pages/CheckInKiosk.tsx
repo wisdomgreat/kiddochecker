@@ -8,12 +8,14 @@ import { useAuth } from "@/context/AuthContext";
 import LoginForm from "@/components/check-in/LoginForm";
 import RegistrationPrompt from "@/components/check-in/RegistrationPrompt";
 import AdminAccess from "@/components/check-in/AdminAccess";
+import { Button } from "@/components/ui/button";
 
 const CheckInKiosk = () => {
   const { user, userRole } = useAuth();
   const [organizationName, setOrganizationName] = useState("Your Church");
   const [hasOrganization, setHasOrganization] = useState(true);
   const [isChecking, setIsChecking] = useState(true);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -53,6 +55,17 @@ const CheckInKiosk = () => {
       }
     };
     
+    // Check for device ID
+    const savedDeviceId = localStorage.getItem('device_id');
+    if (savedDeviceId) {
+      setDeviceId(savedDeviceId);
+    } else {
+      // Generate a new unique device ID
+      const newDeviceId = crypto.randomUUID();
+      localStorage.setItem('device_id', newDeviceId);
+      setDeviceId(newDeviceId);
+    }
+    
     checkOrganization();
   }, [navigate, toast]);
 
@@ -81,6 +94,10 @@ const CheckInKiosk = () => {
     // Redirect to the full registration flow
     navigate("/parent-registration");
   };
+  
+  const handleBackToLanding = () => {
+    navigate("/landing");
+  };
 
   if (isChecking) {
     return (
@@ -95,7 +112,10 @@ const CheckInKiosk = () => {
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
       <div className="w-full max-w-2xl mx-auto text-center mb-6">
         <h1 className="text-3xl font-bold text-blue-500 mb-2">Welcome to {organizationName}</h1>
-        <p className="text-gray-600">Please enter your phone number to check in your children</p>
+        <p className="text-gray-600 mb-1">Please enter your phone number to check in your children</p>
+        {deviceId && (
+          <p className="text-xs text-gray-400 mb-4">Device ID: {deviceId.substring(0, 8)}...</p>
+        )}
       </div>
       
       <LoginForm onSignUp={handleSignUp} />
@@ -105,6 +125,16 @@ const CheckInKiosk = () => {
         
         <div className="mt-16">
           <AdminAccess />
+        </div>
+        
+        <div className="text-center mt-6">
+          <Button 
+            variant="ghost" 
+            onClick={handleBackToLanding} 
+            className="text-gray-500 text-sm"
+          >
+            Back to Home
+          </Button>
         </div>
       </div>
     </div>

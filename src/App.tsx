@@ -63,7 +63,7 @@ function App() {
 
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Public routes - accessible to everyone */}
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
       <Route path="/organization-setup" element={<OrganizationSetup />} />
@@ -71,7 +71,7 @@ function App() {
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/404" element={<NotFound />} />
       
-      {/* Redirects for authenticated users */}
+      {/* Root path redirect */}
       <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
       
       {/* Admin routes */}

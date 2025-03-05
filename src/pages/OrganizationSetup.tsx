@@ -79,6 +79,9 @@ const OrganizationSetup = () => {
     try {
       setIsSubmitting(true);
       
+      // Log the submission attempt
+      console.log("Organization setup submission started", values);
+      
       // 1. Create user account for admin
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.adminEmail,
@@ -92,21 +95,35 @@ const OrganizationSetup = () => {
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw authError;
+      }
       
-      // 2. Create organization settings using the function
+      console.log("Auth account created:", authData);
+      
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
+      }
+      
+      // 2. Create organization settings
       const { data: orgData, error: orgError } = await supabase
         .from('organization_settings')
         .insert({
           name: values.organizationName,
           primary_color: values.primaryColor,
           font_family: values.fontFamily,
-          created_by: authData.user?.id
+          created_by: authData.user.id
         })
         .select()
         .single();
         
-      if (orgError) throw orgError;
+      if (orgError) {
+        console.error("Organization creation error:", orgError);
+        throw orgError;
+      }
+      
+      console.log("Organization created:", orgData);
       
       // 3. Set user as super admin
       const { error: roleError } = await supabase
@@ -115,9 +132,14 @@ const OrganizationSetup = () => {
           role: 'admin',
           is_super_admin: true
         })
-        .eq('user_id', authData.user?.id);
+        .eq('user_id', authData.user.id);
         
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error("Role update error:", roleError);
+        throw roleError;
+      }
+      
+      console.log("Admin role assigned");
       
       // 4. Upload logo if provided
       if (logoFile && orgData.id) {
@@ -128,36 +150,60 @@ const OrganizationSetup = () => {
           .from('organization_assets')
           .upload(fileName, logoFile);
           
-        if (uploadError) throw uploadError;
-        
-        // Update organization with logo URL
-        const { data: publicUrlData } = supabase.storage
-          .from('organization_assets')
-          .getPublicUrl(fileName);
-          
-        const { error: updateLogoError } = await supabase
-          .from('organization_settings')
-          .update({ logo_url: publicUrlData.publicUrl })
-          .eq('id', orgData.id);
-          
-        if (updateLogoError) throw updateLogoError;
+        if (uploadError) {
+          console.error("Logo upload error:", uploadError);
+          // Don't throw here, logo is optional
+          toast({
+            title: "Logo Upload Failed",
+            description: "Your organization was created but we couldn't upload the logo.",
+            variant: "destructive",
+          });
+        } else {
+          // Update organization with logo URL
+          const { data: publicUrlData } = supabase.storage
+            .from('organization_assets')
+            .getPublicUrl(fileName);
+            
+          const { error: updateLogoError } = await supabase
+            .from('organization_settings')
+            .update({ logo_url: publicUrlData.publicUrl })
+            .eq('id', orgData.id);
+            
+          if (updateLogoError) {
+            console.error("Logo URL update error:", updateLogoError);
+          } else {
+            console.log("Logo updated successfully");
+          }
+        }
       }
       
       toast({
         title: "Organization Created",
-        description: "Your organization and admin account have been set up successfully.",
+        description: "Your organization and admin account have been set up successfully. Please sign in to continue.",
       });
       
-      // Redirect to admin dashboard
-      navigate("/admin-dashboard");
+      // Since we just created the account, we need to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: values.adminEmail,
+        password: values.adminPassword,
+      });
+      
+      if (signInError) {
+        console.error("Sign in error:", signInError);
+        // Don't throw here, just navigate to login
+        navigate("/check-in-kiosk");
+      } else {
+        // Redirect to admin dashboard
+        navigate("/admin-dashboard");
+      }
       
     } catch (error: any) {
+      console.error("Organization setup error:", error);
       toast({
         title: "Setup Failed",
         description: error.message || "Failed to create organization. Please try again.",
         variant: "destructive",
       });
-      console.error("Organization setup error:", error);
     } finally {
       setIsSubmitting(false);
     }
