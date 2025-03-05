@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -93,14 +94,17 @@ const OrganizationSetup = () => {
 
       if (authError) throw authError;
       
-      // 2. Create organization settings using raw query
+      // 2. Create organization settings using the function
       const { data: orgData, error: orgError } = await supabase
-        .rpc('create_organization', {
-          org_name: values.organizationName,
+        .from('organization_settings')
+        .insert({
+          name: values.organizationName,
           primary_color: values.primaryColor,
           font_family: values.fontFamily,
-          creator_id: authData.user?.id
-        });
+          created_by: authData.user?.id
+        })
+        .select()
+        .single();
         
       if (orgError) throw orgError;
       
@@ -116,7 +120,7 @@ const OrganizationSetup = () => {
       if (roleError) throw roleError;
       
       // 4. Upload logo if provided
-      if (logoFile && orgData?.id) {
+      if (logoFile && orgData.id) {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `org-logo-${orgData.id}.${fileExt}`;
         
@@ -131,11 +135,12 @@ const OrganizationSetup = () => {
           .from('organization_assets')
           .getPublicUrl(fileName);
           
-        await supabase
-          .rpc('update_organization_logo', { 
-            org_id: orgData.id, 
-            logo_url: publicUrlData.publicUrl 
-          });
+        const { error: updateLogoError } = await supabase
+          .from('organization_settings')
+          .update({ logo_url: publicUrlData.publicUrl })
+          .eq('id', orgData.id);
+          
+        if (updateLogoError) throw updateLogoError;
       }
       
       toast({

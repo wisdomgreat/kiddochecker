@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -95,25 +94,33 @@ const StaffManagement = () => {
     try {
       setIsLoading(true);
       
-      // Using raw query since we need to join tables
       const { data, error } = await supabase
-        .rpc('get_staff_members');
+        .from('user_roles')
+        .select(`
+          user_id,
+          role,
+          is_super_admin,
+          profiles:user_id(first_name, last_name, phone),
+          users:user_id(email, confirmed_at)
+        `)
+        .in('role', ['admin', 'staff']);
       
       if (error) throw error;
       
-      // Format the data for our component
-      const formattedStaff: StaffMember[] = data.map((staff: any) => ({
-        id: staff.user_id,
-        email: staff.email,
-        firstName: staff.first_name || '',
-        lastName: staff.last_name || '',
-        phone: staff.phone || '',
-        role: staff.role,
-        isSuperAdmin: staff.is_super_admin || false,
-        isActive: staff.is_active || true
-      }));
-      
-      setStaffMembers(formattedStaff);
+      if (data) {
+        const formattedStaff: StaffMember[] = data.map((staff: any) => ({
+          id: staff.user_id,
+          email: staff.users?.email || '',
+          firstName: staff.profiles?.first_name || '',
+          lastName: staff.profiles?.last_name || '',
+          phone: staff.profiles?.phone || '',
+          role: staff.role,
+          isSuperAdmin: staff.is_super_admin || false,
+          isActive: staff.users?.confirmed_at !== null
+        }));
+        
+        setStaffMembers(formattedStaff);
+      }
     } catch (error) {
       console.error("Error fetching staff members:", error);
       toast({
@@ -128,7 +135,6 @@ const StaffManagement = () => {
 
   const onSubmit = async (values: StaffFormValues) => {
     try {
-      // Create the user account
       const { data: userData, error: userError } = await supabase.auth.admin.createUser({
         email: values.email,
         password: values.password,
@@ -144,7 +150,6 @@ const StaffManagement = () => {
       
       if (!userData.user) throw new Error("Failed to create user");
       
-      // Update the user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .update({
@@ -182,7 +187,6 @@ const StaffManagement = () => {
         
       if (error) throw error;
       
-      // Update local state
       setStaffMembers(prevStaff => 
         prevStaff.map(staff => 
           staff.id === userId ? { ...staff, role: newRole } : staff
@@ -212,7 +216,6 @@ const StaffManagement = () => {
         
       if (error) throw error;
       
-      // Update local state
       setStaffMembers(prevStaff => 
         prevStaff.map(staff => 
           staff.id === userId ? { ...staff, isSuperAdmin } : staff
