@@ -1,8 +1,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Printer, CheckCircle } from "lucide-react";
+import { Printer, CheckCircle, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { QRCodeSVG } from "qrcode.react";
 
 interface NameTagPrinterProps {
   childName: string;
@@ -21,6 +22,9 @@ export const NameTagPrinter = ({
 }: NameTagPrinterProps) => {
   const [printed, setPrinted] = useState(false);
   const { toast } = useToast();
+
+  // Create a unique identifier for the QR code
+  const qrCodeValue = `CHILD:${childId}|CODE:${securityCode}`;
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -88,17 +92,43 @@ export const NameTagPrinter = ({
                 color: #666;
                 margin-top: 10px;
               }
+              .qr-container {
+                display: flex;
+                justify-content: center;
+                margin: 10px 0;
+              }
+              .qr-code {
+                width: 80px;
+                height: 80px;
+              }
+              .flex-row {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+              }
             </style>
           </head>
           <body>
             <div class="name-tag">
               <div class="header">ChurchCheck - Children's Ministry</div>
               <div class="name">${childName}</div>
-              <div class="info">
-                <div>Class: ${className}</div>
-                <div>ID: ${childId.substring(0, 6)}</div>
+              <div class="flex-row">
+                <div>
+                  <div class="info">
+                    <div>Class: ${className}</div>
+                    <div>ID: ${childId.substring(0, 6)}</div>
+                  </div>
+                  ${allergies ? `<div class="allergies">Allergies: ${allergies}</div>` : ''}
+                </div>
+                <div class="qr-container">
+                  <img class="qr-code" src="data:image/svg+xml;base64,${btoa(
+                    new XMLSerializer().serializeToString(
+                      document.getElementById('qr-code-to-print')
+                    )
+                  )}" alt="QR Code" />
+                </div>
               </div>
-              ${allergies ? `<div class="allergies">Allergies: ${allergies}</div>` : ''}
               <div class="security-code">Security Code: ${securityCode}</div>
               <div class="footer">Parents: Please keep your security code for pickup</div>
             </div>
@@ -146,6 +176,42 @@ export const NameTagPrinter = ({
             </>
           )}
         </Button>
+      </div>
+
+      {/* Hidden QR code for printing */}
+      <div className="hidden">
+        <QRCodeSVG
+          id="qr-code-to-print"
+          value={qrCodeValue}
+          size={80}
+          level="H"
+        />
+      </div>
+      
+      <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
+        <div className="flex flex-row items-center justify-between">
+          <div>
+            <div className="text-lg font-bold">{childName}</div>
+            <div className="text-sm">Class: {className}</div>
+            {allergies && (
+              <div className="text-sm font-medium text-red-600">
+                Allergies: {allergies}
+              </div>
+            )}
+          </div>
+          <div className="border border-gray-200 p-2 rounded bg-gray-50">
+            <QRCodeSVG
+              value={qrCodeValue}
+              size={80}
+              level="H"
+            />
+          </div>
+        </div>
+        {securityCode && (
+          <div className="mt-2 pt-2 border-t border-gray-100">
+            <p className="text-sm font-medium">Security Code: {securityCode}</p>
+          </div>
+        )}
       </div>
       
       {securityCode && (
