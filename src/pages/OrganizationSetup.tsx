@@ -108,7 +108,7 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 2. Create organization settings directly using the table
+      // 2. Create organization settings directly using the table - explicitly specify all column names
       const { data: orgData, error: orgError } = await supabase
         .from('organization_settings')
         .insert({
@@ -127,7 +127,7 @@ const OrganizationSetup = () => {
       
       console.log("Organization created:", orgData);
       
-      // 3. Set user as admin
+      // 3. Set user as admin - explicitly specify all column names to avoid ambiguity
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -143,10 +143,12 @@ const OrganizationSetup = () => {
       
       console.log("Admin role assigned");
       
-      // 4. Upload logo if provided
+      // 4. Upload logo if provided - use fully qualified references for bucket operations
       if (logoFile && orgData.id) {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `org-logo-${orgData.id}.${fileExt}`;
+        
+        console.log(`Uploading logo to organization_assets/${fileName}`);
         
         const { error: uploadError } = await supabase.storage
           .from('organization_assets')
@@ -161,6 +163,7 @@ const OrganizationSetup = () => {
             variant: "destructive",
           });
         } else {
+          console.log("Logo uploaded successfully");
           // Update organization with logo URL
           const { data: publicUrlData } = supabase.storage
             .from('organization_assets')
