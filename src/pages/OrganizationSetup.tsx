@@ -81,7 +81,7 @@ const OrganizationSetup = () => {
       setIsSubmitting(true);
       setError(null);
       
-      // Log the submission attempt
+      // Log the submission attempt for debugging
       console.log("Organization setup submission started", values);
       
       // 1. Create user account for admin
@@ -108,7 +108,7 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 2. Create organization settings
+      // 2. Create organization settings directly using the table
       const { data: orgData, error: orgError } = await supabase
         .from('organization_settings')
         .insert({
@@ -127,7 +127,7 @@ const OrganizationSetup = () => {
       
       console.log("Organization created:", orgData);
       
-      // 3. Set user as super admin
+      // 3. Set user as admin
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -192,9 +192,10 @@ const OrganizationSetup = () => {
       
       if (signInError) {
         console.error("Sign in error:", signInError);
-        // Don't throw here, just navigate to login
-        navigate("/check-in-kiosk");
+        // If sign in fails, redirect to login page
+        navigate("/login");
       } else {
+        console.log("Sign in successful, redirecting to admin dashboard");
         // Redirect to admin dashboard
         navigate("/admin-dashboard");
       }
@@ -436,7 +437,7 @@ const OrganizationSetup = () => {
                       <Button type="button" variant="outline" onClick={() => setCurrentStep("admin")}>
                         Back
                       </Button>
-                      <Button type="submit" disabled={isSubmitting}>
+                      <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700">
                         {isSubmitting ? "Setting up..." : "Complete Setup"}
                       </Button>
                     </div>
