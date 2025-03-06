@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -156,31 +155,15 @@ const ParentRegistration = () => {
         throw new Error("Failed to create user account");
       }
       
-      // Create family record
-      let familyId = null;
-      
-      // Using the stored procedure via function call
-      try {
-        const { data: familyData, error: familyError } = await supabase.rpc("create_organization", {
-          org_name: `${lastName} Family`,
-          creator_id: authData.user.id
-        });
-        
-        if (familyError) throw familyError;
-        familyId = familyData;
-      } catch (error) {
-        console.error("Error with functions, falling back to direct SQL", error);
-        
-        // Fallback to direct SQL insert
-        const { data: familyData, error: familyError } = await supabase
-          .from('families')
-          .insert({ name: `${lastName} Family` })
-          .select('id')
-          .single();
+      // Create family record directly using the families table
+      const { data: familyData, error: familyError } = await supabase
+        .from('families')
+        .insert({ name: `${lastName} Family` })
+        .select('id')
+        .single();
           
-        if (familyError) throw familyError;
-        familyId = familyData.id;
-      }
+      if (familyError) throw familyError;
+      let familyId = familyData.id;
       
       // Create parent profile
       const { error: profileError } = await supabase
@@ -216,29 +199,16 @@ const ParentRegistration = () => {
         
         if (childError) throw childError;
         
-        // Link parent to child
-        try {
-          const { error: linkError } = await supabase.rpc("link_parent_child", {
-            p_parent_id: authData.user.id,
-            p_child_id: childData.id,
-            p_relationship: 'parent'
+        // Link parent to child directly using the parent_children table
+        const { error: linkError } = await supabase
+          .from('parent_children')
+          .insert({
+            parent_id: authData.user.id,
+            child_id: childData.id,
+            relationship: 'parent'
           });
-          
-          if (linkError) throw linkError;
-        } catch (error) {
-          console.error("Error with functions, falling back to direct SQL", error);
-          
-          // Fallback to direct SQL insert
-          const { error: linkError } = await supabase
-            .from('parent_children')
-            .insert({
-              parent_id: authData.user.id,
-              child_id: childData.id,
-              relationship: 'parent'
-            });
             
-          if (linkError) throw linkError;
-        }
+        if (linkError) throw linkError;
       }
       
       // Registration successful
