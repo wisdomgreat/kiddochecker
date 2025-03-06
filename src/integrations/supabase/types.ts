@@ -338,6 +338,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_organization: {
+        Args: {
+          org_name: string
+          primary_color?: string
+          font_family?: string
+          creator_id?: string
+        }
+        Returns: string
+      }
       get_staff_members: {
         Args: Record<PropertyKey, never>
         Returns: {

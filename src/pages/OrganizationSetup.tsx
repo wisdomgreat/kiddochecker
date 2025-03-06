@@ -5,7 +5,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form } from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -108,7 +107,14 @@ const OrganizationSetup = () => {
       }
       
       // 2. Create organization settings using the create_organization function
-      // This will avoid the ambiguous column reference issue
+      // Important: Using proper parameter order to match the SQL function definition
+      console.log("Creating organization with parameters:", {
+        org_name: values.organizationName,
+        primary_color: values.primaryColor,
+        font_family: values.fontFamily,
+        creator_id: authData.user.id
+      });
+      
       const { data: orgData, error: orgError } = await supabase.rpc(
         'create_organization',
         {
