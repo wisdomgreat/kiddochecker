@@ -4,15 +4,15 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, EyeOff, Upload } from "lucide-react";
+import { OrganizationDetailsStep } from "@/components/organization/OrganizationDetailsStep";
+import { AdminAccountStep } from "@/components/organization/AdminAccountStep";
+import { AppearanceStep } from "@/components/organization/AppearanceStep";
 
 // Form schema for organization setup
 const organizationSchema = z.object({
@@ -42,7 +42,6 @@ const OrganizationSetup = () => {
   const [currentStep, setCurrentStep] = useState("organization");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -108,17 +107,17 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 2. Create organization settings directly using the table - explicitly specify all column names
-      const { data: orgData, error: orgError } = await supabase
-        .from('organization_settings')
-        .insert({
-          name: values.organizationName,
+      // 2. Create organization settings using the create_organization function
+      // This will avoid the ambiguous column reference issue
+      const { data: orgData, error: orgError } = await supabase.rpc(
+        'create_organization',
+        {
+          org_name: values.organizationName,
           primary_color: values.primaryColor,
           font_family: values.fontFamily,
-          created_by: authData.user.id
-        })
-        .select()
-        .single();
+          creator_id: authData.user.id
+        }
+      );
         
       if (orgError) {
         console.error("Organization creation error:", orgError);
@@ -144,9 +143,9 @@ const OrganizationSetup = () => {
       console.log("Admin role assigned");
       
       // 4. Upload logo if provided - use fully qualified references for bucket operations
-      if (logoFile && orgData.id) {
+      if (logoFile && orgData) {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `org-logo-${orgData.id}.${fileExt}`;
+        const fileName = `org-logo-${orgData}.${fileExt}`;
         
         console.log(`Uploading logo to organization_assets/${fileName}`);
         
@@ -172,12 +171,12 @@ const OrganizationSetup = () => {
           const { error: updateLogoError } = await supabase
             .from('organization_settings')
             .update({ logo_url: publicUrlData.publicUrl })
-            .eq('id', orgData.id);
+            .eq('id', orgData);
             
           if (updateLogoError) {
             console.error("Logo URL update error:", updateLogoError);
           } else {
-            console.log("Logo updated successfully");
+            console.log("Logo URL updated successfully");
           }
         }
       }
@@ -242,209 +241,28 @@ const OrganizationSetup = () => {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <TabsContent value="organization">
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="organizationName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter your church or organization name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="space-y-2">
-                      <FormLabel>Organization Logo</FormLabel>
-                      <div className="flex items-center gap-4">
-                        {logoPreview && (
-                          <div className="w-24 h-24 border rounded-md overflow-hidden">
-                            <img 
-                              src={logoPreview} 
-                              alt="Logo preview" 
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <label 
-                            htmlFor="logo-upload" 
-                            className="flex items-center justify-center gap-2 w-full h-12 px-4 border-2 border-dashed border-gray-300 rounded-md text-gray-600 cursor-pointer hover:border-blue-400 hover:text-blue-600 transition-colors"
-                          >
-                            <Upload size={18} />
-                            <span>Upload Logo</span>
-                          </label>
-                          <input 
-                            id="logo-upload" 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={handleLogoChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-4 flex justify-end">
-                      <Button type="button" onClick={() => setCurrentStep("admin")}>
-                        Next: Admin Account
-                      </Button>
-                    </div>
-                  </div>
+                  <OrganizationDetailsStep 
+                    form={form} 
+                    logoPreview={logoPreview} 
+                    handleLogoChange={handleLogoChange} 
+                    onNext={() => setCurrentStep("admin")} 
+                  />
                 </TabsContent>
                 
                 <TabsContent value="admin">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="adminFirstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>First Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter first name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="adminLastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Last Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter last name" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <FormField
-                      control={form.control}
-                      name="adminEmail"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="admin@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="adminPhone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone (Optional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter phone number" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="adminPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                type={showPassword ? "text" : "password"} 
-                                placeholder="Create a secure password" 
-                                {...field} 
-                              />
-                              <button 
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                              >
-                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="pt-4 flex justify-between">
-                      <Button type="button" variant="outline" onClick={() => setCurrentStep("organization")}>
-                        Back
-                      </Button>
-                      <Button type="button" onClick={() => setCurrentStep("appearance")}>
-                        Next: Appearance
-                      </Button>
-                    </div>
-                  </div>
+                  <AdminAccountStep 
+                    form={form} 
+                    onBack={() => setCurrentStep("organization")} 
+                    onNext={() => setCurrentStep("appearance")} 
+                  />
                 </TabsContent>
                 
                 <TabsContent value="appearance">
-                  <div className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="primaryColor"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Primary Color</FormLabel>
-                          <div className="flex gap-3">
-                            <Input type="color" {...field} className="w-14 h-14 p-1 cursor-pointer" />
-                            <Input value={field.value} onChange={field.onChange} className="flex-1" />
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="fontFamily"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Font Family</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a font" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Inter">Inter</SelectItem>
-                              <SelectItem value="Roboto">Roboto</SelectItem>
-                              <SelectItem value="Open Sans">Open Sans</SelectItem>
-                              <SelectItem value="Montserrat">Montserrat</SelectItem>
-                              <SelectItem value="Lato">Lato</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="pt-6 flex justify-between">
-                      <Button type="button" variant="outline" onClick={() => setCurrentStep("admin")}>
-                        Back
-                      </Button>
-                      <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700">
-                        {isSubmitting ? "Setting up..." : "Complete Setup"}
-                      </Button>
-                    </div>
-                  </div>
+                  <AppearanceStep 
+                    form={form} 
+                    onBack={() => setCurrentStep("admin")} 
+                    isSubmitting={isSubmitting} 
+                  />
                 </TabsContent>
               </form>
             </Form>
