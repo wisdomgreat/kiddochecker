@@ -133,25 +133,37 @@ const ParentRegistration = () => {
       
       // Generate a fake email from the phone number for authentication
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const fakeEmail = `${cleanedPhone}@example.com`;
+      
+      // Use a proper domain to avoid validation errors
+      const fakeEmail = `parent_${cleanedPhone}@churchcheck.org`;
       
       // Create user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: fakeEmail,
         password: pin,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: cleanedPhone
+          }
+        }
       });
       
       if (authError) throw authError;
+      
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
+      }
       
       // Create family record
       let familyId = null;
       
       // Using the stored procedure via function call
       try {
-        const { data: familyData, error: familyError } = await supabase.functions.invoke("create_family", {
-          body: {
-            family_name: `${lastName} Family`
-          }
+        const { data: familyData, error: familyError } = await supabase.rpc("create_organization", {
+          org_name: `${lastName} Family`,
+          creator_id: authData.user.id
         });
         
         if (familyError) throw familyError;
@@ -174,7 +186,7 @@ const ParentRegistration = () => {
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
-          id: authData.user?.id,
+          id: authData.user.id,
           first_name: firstName,
           last_name: lastName,
           email: email || fakeEmail,
@@ -197,7 +209,7 @@ const ParentRegistration = () => {
             special_needs: child.specialNeeds || null,
             medical_info: child.medicalInfo || null,
             family_id: familyId,
-            parent_id: authData.user?.id
+            parent_id: authData.user.id
           })
           .select('id')
           .single();
@@ -206,12 +218,10 @@ const ParentRegistration = () => {
         
         // Link parent to child
         try {
-          const { error: linkError } = await supabase.functions.invoke("link_parent_child", {
-            body: {
-              p_parent_id: authData.user?.id,
-              p_child_id: childData.id,
-              p_relationship: 'parent'
-            }
+          const { error: linkError } = await supabase.rpc("link_parent_child", {
+            p_parent_id: authData.user.id,
+            p_child_id: childData.id,
+            p_relationship: 'parent'
           });
           
           if (linkError) throw linkError;
@@ -222,7 +232,7 @@ const ParentRegistration = () => {
           const { error: linkError } = await supabase
             .from('parent_children')
             .insert({
-              parent_id: authData.user?.id,
+              parent_id: authData.user.id,
               child_id: childData.id,
               relationship: 'parent'
             });

@@ -44,6 +44,7 @@ const OrganizationSetup = () => {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -78,6 +79,7 @@ const OrganizationSetup = () => {
   const onSubmit = async (values: OrganizationFormValues) => {
     try {
       setIsSubmitting(true);
+      setError(null);
       
       // Log the submission attempt
       console.log("Organization setup submission started", values);
@@ -128,14 +130,14 @@ const OrganizationSetup = () => {
       // 3. Set user as super admin
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({
+        .insert({
+          user_id: authData.user.id,
           role: 'admin',
           is_super_admin: true
-        })
-        .eq('user_id', authData.user.id);
+        });
         
       if (roleError) {
-        console.error("Role update error:", roleError);
+        console.error("Role insertion error:", roleError);
         throw roleError;
       }
       
@@ -199,6 +201,7 @@ const OrganizationSetup = () => {
       
     } catch (error: any) {
       console.error("Organization setup error:", error);
+      setError(error.message);
       toast({
         title: "Setup Failed",
         description: error.message || "Failed to create organization. Please try again.",
@@ -219,6 +222,12 @@ const OrganizationSetup = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
+              {error}
+            </div>
+          )}
+          
           <Tabs value={currentStep} onValueChange={setCurrentStep}>
             <TabsList className="grid grid-cols-3 mb-6">
               <TabsTrigger value="organization">Organization</TabsTrigger>

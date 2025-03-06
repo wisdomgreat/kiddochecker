@@ -50,7 +50,8 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       
       // In a real app with phone auth, this would use phone authentication
       // For demo, we're using email+password with a fake email derived from phone
-      const fakeEmail = `${phoneNumber.replace(/\D/g, '')}@example.com`;
+      const cleanedPhone = phoneNumber.replace(/\D/g, '');
+      const fakeEmail = `${cleanedPhone}@example.com`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: fakeEmail,

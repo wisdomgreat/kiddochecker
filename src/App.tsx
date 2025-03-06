@@ -14,6 +14,7 @@ import UserProfile from '@/pages/UserProfile';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
 import LandingPage from '@/pages/LandingPage';
+import LoginPage from '@/pages/LoginPage';
 import ParentRegistration from '@/pages/ParentRegistration';
 import CheckInProcess from '@/pages/CheckInProcess';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
@@ -65,6 +66,7 @@ function App() {
     <Routes>
       {/* Public routes - accessible to everyone */}
       <Route path="/landing" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
       <Route path="/organization-setup" element={<OrganizationSetup />} />
       <Route path="/parent-registration" element={<ParentRegistration />} />
