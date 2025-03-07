@@ -347,6 +347,14 @@ export type Database = {
         }
         Returns: string
       }
+      create_user_role: {
+        Args: {
+          p_user_id: string
+          p_role?: Database["public"]["Enums"]["app_role"]
+          p_is_super_admin?: boolean
+        }
+        Returns: string
+      }
       get_staff_members: {
         Args: Record<PropertyKey, never>
         Returns: {

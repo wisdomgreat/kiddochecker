@@ -106,32 +106,24 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 2. Use the new secure function to create user_role entry
-      const { data: roleData, error: roleError } = await supabase.rpc(
-        'create_user_role',
-        {
-          p_user_id: authData.user.id,
-          p_role: 'admin',
-          p_is_super_admin: true
-        }
-      );
+      // 2. Create user role entry manually instead of using RPC
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: 'admin',
+          is_super_admin: true
+        })
+        .select();
         
       if (roleError) {
         console.error("User role creation error:", roleError);
         throw roleError;
       }
       
-      console.log("Admin role assigned using secure function:", roleData);
+      console.log("Admin role assigned:", roleData);
       
       // 3. Create organization settings using the create_organization function
-      // Ensure parameters match the function definition order
-      console.log("Creating organization with parameters:", {
-        org_name: values.organizationName,
-        primary_color: values.primaryColor,
-        font_family: values.fontFamily,
-        creator_id: authData.user.id
-      });
-      
       const { data: orgData, error: orgError } = await supabase.rpc(
         'create_organization',
         {
