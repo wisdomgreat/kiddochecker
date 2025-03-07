@@ -127,30 +127,36 @@ const StaffManagement = () => {
 
   const onSubmit = async (values: StaffFormValues) => {
     try {
-      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: values.firstName,
-          last_name: values.lastName,
-          phone: values.phone,
+        options: {
+          data: {
+            first_name: values.firstName,
+            last_name: values.lastName,
+            phone: values.phone,
+          }
         }
       });
       
-      if (userError) throw userError;
+      if (authError) throw authError;
       
-      if (!userData.user) throw new Error("Failed to create user");
+      if (!authData.user) throw new Error("Failed to create user");
+      
+      console.log("User created:", authData.user);
       
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({
+        .insert([{
+          user_id: authData.user.id,
           role: values.role,
           is_super_admin: values.isSuperAdmin
-        })
-        .eq('user_id', userData.user.id);
+        }]);
         
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error("Role insertion error:", roleError);
+        throw new Error(`Failed to set user role: ${roleError.message}`);
+      }
       
       toast({
         title: "Staff Member Created",

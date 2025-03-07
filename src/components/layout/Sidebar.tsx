@@ -8,9 +8,12 @@ import {
   BarChart3,
   Settings,
   QrCode,
+  UserCog,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -29,32 +32,33 @@ const SidebarItem = ({ icon, label, path, isActive }: SidebarItemProps) => (
 const Sidebar = () => {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const currentUser = {
-    name: "John Smith",
-    role: "Admin",
-    avatar: "/lovable-uploads/029d2e1a-eb1f-4149-89ea-500a876d3568.png"
-  };
-
+  const { user, userRole } = useAuth();
+  
   const mainNavItems = [
     { 
       icon: <LayoutDashboard size={20} />, 
       label: "Dashboard", 
-      path: "/" 
+      path: userRole === 'admin' ? "/admin-dashboard" : userRole === 'staff' ? "/teacher-dashboard" : "/parent-dashboard"
     },
     { 
       icon: <GraduationCap size={20} />, 
       label: "Classes", 
-      path: "/classes" 
+      path: "/classes-management" 
     },
     { 
       icon: <Users size={20} />, 
       label: "Users", 
-      path: "/users" 
+      path: "/users-management" 
+    },
+    { 
+      icon: <UserCog size={20} />, 
+      label: "Staff", 
+      path: "/staff-management" 
     },
     { 
       icon: <BarChart3 size={20} />, 
       label: "Reports", 
-      path: "/reports" 
+      path: "/reports-dashboard" 
     },
     { 
       icon: <Settings size={20} />, 
@@ -67,14 +71,19 @@ const Sidebar = () => {
     { 
       icon: <QrCode size={20} />, 
       label: "Check-in Kiosk", 
-      path: "/check-in" 
+      path: "/check-in-kiosk" 
     },
     { 
       icon: <QrCode size={20} />, 
       label: "Check-out Station", 
-      path: "/check-out" 
+      path: "/check-out-station" 
     },
   ];
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = "/login"; // Force a full page reload to clear state
+  };
 
   return (
     <div className="h-screen flex flex-col bg-sidebar w-64 border-r border-gray-200 animate-slide-in">
@@ -131,16 +140,23 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <div className="p-4 border-t border-gray-200 flex items-center gap-3">
-        <img
-          src={currentUser.avatar}
-          alt={currentUser.name}
-          className="w-8 h-8 rounded-full bg-gray-200 object-cover"
-        />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{currentUser.name}</p>
-          <p className="text-xs text-gray-500 truncate">{currentUser.role}</p>
+      <div className="p-4 border-t border-gray-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+            {user?.email?.charAt(0).toUpperCase() || "U"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{user?.email}</p>
+            <p className="text-xs text-gray-500 truncate capitalize">{userRole || "User"}</p>
+          </div>
         </div>
+        <button 
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+        >
+          <LogOut size={16} />
+          <span>Sign out</span>
+        </button>
       </div>
     </div>
   );

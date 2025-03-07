@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -106,7 +105,23 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 2. Create organization settings using the create_organization function
+      // 2. Manually create user_role entry to ensure it's created properly
+      const { error: userRoleError } = await supabase
+        .from('user_roles')
+        .insert([{
+          user_id: authData.user.id,
+          role: 'admin',
+          is_super_admin: true
+        }]);
+        
+      if (userRoleError) {
+        console.error("User role creation error:", userRoleError);
+        throw userRoleError;
+      }
+      
+      console.log("Admin role assigned manually");
+      
+      // 3. Create organization settings using the create_organization function
       // Important: Using proper parameter order to match the SQL function definition
       console.log("Creating organization with parameters:", {
         org_name: values.organizationName,
@@ -132,28 +147,24 @@ const OrganizationSetup = () => {
       
       console.log("Organization created:", orgData);
       
-      // 3. Set user as admin - explicitly specify all column names to avoid ambiguity
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'admin',
-          is_super_admin: true
-        });
-        
-      if (roleError) {
-        console.error("Role insertion error:", roleError);
-        throw roleError;
-      }
-      
-      console.log("Admin role assigned");
-      
       // 4. Upload logo if provided - use fully qualified references for bucket operations
       if (logoFile && orgData) {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `org-logo-${orgData}.${fileExt}`;
         
         console.log(`Uploading logo to organization_assets/${fileName}`);
+        
+        // Create storage bucket if it doesn't exist
+        const { error: bucketError } = await supabase.storage
+          .createBucket('organization_assets', {
+            public: true,
+            fileSizeLimit: 10485760 // 10MB
+          });
+          
+        if (bucketError) {
+          console.log("Bucket may already exist or error:", bucketError);
+          // Continue anyway, as the bucket might already exist
+        }
         
         const { error: uploadError } = await supabase.storage
           .from('organization_assets')
