@@ -1,73 +1,85 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { useNavigate, useLocation } from "react-router-dom";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle, 
+  CardFooter 
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, LogIn, UserPlus } from "lucide-react";
+
+const loginSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+});
+
+type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const [activeTab, setActiveTab] = useState<"email" | "phone">("email");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [pin, setPin] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
   const { user, userRole } = useAuth();
-
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const isStaffLogin = location.state?.staffLogin || false;
+  
+  const form = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+  
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      const defaultPath = userRole === 'admin' 
-        ? '/admin-dashboard' 
-        : userRole === 'staff' 
-          ? '/teacher-dashboard' 
-          : '/parent-dashboard';
-          
-      navigate(defaultPath, { replace: true });
+      const returnPath = sessionStorage.getItem("returnPath");
+      let targetRoute = "/parent-dashboard";
+      
+      if (userRole === "admin") {
+        targetRoute = "/admin-dashboard";
+      } else if (userRole === "staff") {
+        targetRoute = "/teacher-dashboard";
+      }
+      
+      navigate(returnPath || targetRoute, { replace: true });
     }
   }, [user, userRole, navigate]);
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both email and password",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+  
+  const onSubmit = async (values: LoginValues) => {
     try {
       setIsLoading(true);
       
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: values.email,
+        password: values.password,
       });
       
       if (error) throw error;
       
       toast({
-        title: "Login Successful",
-        description: "Welcome back!",
+        title: "Login successful",
+        description: "You are now logged in",
       });
       
-      // Auth state listener in AuthContext will handle navigation based on role
+      // Auth context will handle redirection
       
     } catch (error: any) {
       toast({
-        title: "Login Failed",
+        title: "Login failed",
         description: error.message,
         variant: "destructive",
       });
@@ -76,199 +88,115 @@ const LoginPage = () => {
     }
   };
   
-  const handlePhoneLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!phoneNumber || !pin) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both phone number and PIN",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      
-      // For phone login, we use a fake email derived from phone
-      const cleanPhone = phoneNumber.replace(/\D/g, '');
-      const fakeEmail = `${cleanPhone}@example.com`;
-      
-      const { error } = await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: pin,
-      });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
-      
-      // Auth state listener in AuthContext will handle navigation based on role
-      
-    } catch (error: any) {
-      toast({
-        title: "Login Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleBackToLanding = () => {
+    navigate("/landing");
   };
   
-  // Format phone number as user types
-  const formatPhoneNumber = (value: string) => {
-    // Strip all non-numeric characters
-    const cleaned = value.replace(/\D/g, '');
-    
-    // Format as (XXX) XXX-XXXX
-    let formatted = '';
-    if (cleaned.length > 0) {
-      formatted += '(' + cleaned.substring(0, 3);
-      if (cleaned.length > 3) {
-        formatted += ') ' + cleaned.substring(3, 6);
-        if (cleaned.length > 6) {
-          formatted += '-' + cleaned.substring(6, 10);
-        }
-      }
-    }
-    
-    return formatted.trim();
+  const handleParentRegistration = () => {
+    navigate("/parent-registration");
   };
   
-  const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setPhoneNumber(formatted);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="absolute top-4 left-4">
+        <Button 
+          variant="ghost" 
+          onClick={handleBackToLanding} 
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Button>
+      </div>
+      
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <Button 
-            variant="ghost" 
-            className="absolute left-4 top-4"
-            onClick={() => navigate('/')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <CardTitle className="text-2xl font-bold text-blue-600">Sign In</CardTitle>
-          <CardDescription>
-            Access your account to manage check-ins and view dashboards
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-center">
+            {isStaffLogin ? "Staff Login" : "Log In to Your Account"}
+          </CardTitle>
+          <CardDescription className="text-center">
+            {isStaffLogin 
+              ? "Log in with your staff credentials" 
+              : "Welcome back! Please enter your details"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "email" | "phone")}>
-            <TabsList className="grid grid-cols-2 mb-6">
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="phone">Phone</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="email">
-              <form onSubmit={handleEmailLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="name@example.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <button 
-                      type="button"
-                      className="text-sm text-blue-600 hover:underline" 
-                      onClick={() => toast({
-                        title: "Reset Password",
-                        description: "Please contact your administrator to reset your password.",
-                      })}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Input 
-                      id="password" 
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••" 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full bg-blue-600 hover:bg-blue-700" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="phone">
-              <form onSubmit={handlePhoneLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input 
-                    id="phone" 
-                    type="tel" 
-                    placeholder="(555) 123-4567" 
-                    value={phoneNumber}
-                    onChange={handlePhoneNumberChange}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="pin">PIN</Label>
-                  <Input 
-                    id="pin" 
-                    type="password" 
-                    placeholder="Enter your PIN" 
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full bg-blue-600 hover:bg-blue-700" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
-          
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-500">
-              Are you here to check in your children? Visit the in-person check-in kiosk.
-            </p>
-          </div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter your email" 
+                        type="email" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter your password" 
+                        type="password" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    Logging in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Log In
+                  </>
+                )}
+              </Button>
+            </form>
+          </Form>
         </CardContent>
+        
+        {!isStaffLogin && (
+          <CardFooter className="flex justify-center border-t pt-4">
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-2">
+                Don't have an account?
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={handleParentRegistration}
+                className="w-full"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Register as a Parent
+              </Button>
+            </div>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

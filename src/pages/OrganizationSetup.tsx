@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -105,24 +106,25 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 2. Manually create user_role entry to ensure it's created properly
-      const { error: userRoleError } = await supabase
-        .from('user_roles')
-        .insert([{
-          user_id: authData.user.id,
-          role: 'admin',
-          is_super_admin: true
-        }]);
+      // 2. Use the new secure function to create user_role entry
+      const { data: roleData, error: roleError } = await supabase.rpc(
+        'create_user_role',
+        {
+          p_user_id: authData.user.id,
+          p_role: 'admin',
+          p_is_super_admin: true
+        }
+      );
         
-      if (userRoleError) {
-        console.error("User role creation error:", userRoleError);
-        throw userRoleError;
+      if (roleError) {
+        console.error("User role creation error:", roleError);
+        throw roleError;
       }
       
-      console.log("Admin role assigned manually");
+      console.log("Admin role assigned using secure function:", roleData);
       
       // 3. Create organization settings using the create_organization function
-      // Important: Using proper parameter order to match the SQL function definition
+      // Ensure parameters match the function definition order
       console.log("Creating organization with parameters:", {
         org_name: values.organizationName,
         primary_color: values.primaryColor,
@@ -147,25 +149,14 @@ const OrganizationSetup = () => {
       
       console.log("Organization created:", orgData);
       
-      // 4. Upload logo if provided - use fully qualified references for bucket operations
+      // 4. Upload logo if provided
       if (logoFile && orgData) {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `org-logo-${orgData}.${fileExt}`;
         
         console.log(`Uploading logo to organization_assets/${fileName}`);
         
-        // Create storage bucket if it doesn't exist
-        const { error: bucketError } = await supabase.storage
-          .createBucket('organization_assets', {
-            public: true,
-            fileSizeLimit: 10485760 // 10MB
-          });
-          
-        if (bucketError) {
-          console.log("Bucket may already exist or error:", bucketError);
-          // Continue anyway, as the bucket might already exist
-        }
-        
+        // Upload the logo
         const { error: uploadError } = await supabase.storage
           .from('organization_assets')
           .upload(fileName, logoFile);

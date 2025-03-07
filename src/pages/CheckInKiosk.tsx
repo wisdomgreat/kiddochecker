@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { User, ArrowLeft } from "lucide-react";
+import { User, ArrowLeft, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,7 @@ const CheckInKiosk = () => {
   const [isChecking, setIsChecking] = useState(true);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [deviceLocation, setDeviceLocation] = useState<string>("Main Entrance");
+  const [deviceType, setDeviceType] = useState<string>("check-in");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -71,18 +72,25 @@ const CheckInKiosk = () => {
       if (savedLocation) {
         setDeviceLocation(savedLocation);
       }
+      
+      // Get the saved device type, if any
+      const savedType = localStorage.getItem('device_type');
+      if (savedType) {
+        setDeviceType(savedType);
+      }
     } else {
       // Generate a new unique device ID
       const newDeviceId = crypto.randomUUID();
       localStorage.setItem('device_id', newDeviceId);
       setDeviceId(newDeviceId);
       
-      // Set default location
+      // Set default location and type
       localStorage.setItem('device_location', deviceLocation);
+      localStorage.setItem('device_type', deviceType);
     }
     
     checkOrganization();
-  }, [navigate, toast, deviceLocation]);
+  }, [navigate, toast, deviceLocation, deviceType]);
 
   // Redirect authenticated users based on role
   useEffect(() => {
@@ -110,20 +118,31 @@ const CheckInKiosk = () => {
     navigate("/parent-registration");
   };
   
+  const handleStaffLogin = () => {
+    navigate("/login", { state: { staffLogin: true } });
+  };
+  
   const handleBackToLanding = () => {
     navigate("/landing");
   };
   
-  const handleUpdateLocation = () => {
-    const location = prompt("Enter the location of this check-in device:", deviceLocation);
+  const handleUpdateDeviceSettings = () => {
+    const location = prompt("Enter the location of this device:", deviceLocation);
     if (location && location.trim()) {
       setDeviceLocation(location.trim());
       localStorage.setItem('device_location', location.trim());
-      toast({
-        title: "Location Updated",
-        description: `This device is now set to: ${location.trim()}`,
-      });
     }
+    
+    const type = prompt("Enter the type of this device (check-in or check-out):", deviceType);
+    if (type && (type.trim() === 'check-in' || type.trim() === 'check-out')) {
+      setDeviceType(type.trim());
+      localStorage.setItem('device_type', type.trim());
+    }
+    
+    toast({
+      title: "Device Settings Updated",
+      description: `This device is now set as: ${deviceType} at ${deviceLocation}`,
+    });
   };
 
   if (isChecking) {
@@ -137,14 +156,35 @@ const CheckInKiosk = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-background">
-      <Button 
-        variant="ghost" 
-        onClick={handleBackToLanding} 
-        className="absolute top-4 left-4 text-gray-500 hover:text-gray-700"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Home
-      </Button>
+      <div className="absolute top-4 left-4 flex space-x-2">
+        <Button 
+          variant="ghost" 
+          onClick={handleBackToLanding} 
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Button>
+        
+        <Button
+          variant="ghost"
+          onClick={handleStaffLogin}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          Staff Login
+        </Button>
+      </div>
+      
+      <div className="absolute top-4 right-4">
+        <Button
+          variant="ghost"
+          onClick={handleUpdateDeviceSettings}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <Settings className="mr-2 h-4 w-4" />
+          Device Settings
+        </Button>
+      </div>
     
       <div className="w-full max-w-2xl mx-auto text-center mb-6">
         <h1 className="text-3xl font-bold text-blue-500 mb-2">Welcome to {organizationName}</h1>
@@ -152,12 +192,9 @@ const CheckInKiosk = () => {
         <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mb-4">
           <span>Device ID: {deviceId && deviceId.substring(0, 8)}...</span>
           <span>•</span>
-          <button 
-            onClick={handleUpdateLocation}
-            className="text-blue-400 hover:text-blue-500 hover:underline"
-          >
-            Location: {deviceLocation}
-          </button>
+          <span>Location: {deviceLocation}</span>
+          <span>•</span>
+          <span>Type: {deviceType}</span>
         </div>
       </div>
       

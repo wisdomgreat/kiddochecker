@@ -74,7 +74,9 @@ function App() {
       <Route path="/404" element={<NotFound />} />
       
       {/* Root path redirect */}
-      <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
+      <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+      <Route path="" element={<Navigate to={getDefaultRoute()} replace />} />
+      <Route path="index" element={<Navigate to={getDefaultRoute()} replace />} />
       
       {/* Admin routes */}
       <Route path="/admin-dashboard" element={

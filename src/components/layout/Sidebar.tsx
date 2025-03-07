@@ -20,14 +20,23 @@ interface SidebarItemProps {
   label: string;
   path: string;
   isActive: boolean;
+  userRole?: string | null;
+  allowedRoles?: string[];
 }
 
-const SidebarItem = ({ icon, label, path, isActive }: SidebarItemProps) => (
-  <Link to={path} className={cn("sidebar-item", isActive && "active")}>
-    {icon}
-    <span className="text-sm">{label}</span>
-  </Link>
-);
+const SidebarItem = ({ icon, label, path, isActive, userRole, allowedRoles }: SidebarItemProps) => {
+  // Don't render the item if user doesn't have required role
+  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
+    return null;
+  }
+  
+  return (
+    <Link to={path} className={cn("sidebar-item", isActive && "active")}>
+      {icon}
+      <span className="text-sm">{label}</span>
+    </Link>
+  );
+};
 
 const Sidebar = () => {
   const location = useLocation();
@@ -38,32 +47,38 @@ const Sidebar = () => {
     { 
       icon: <LayoutDashboard size={20} />, 
       label: "Dashboard", 
-      path: userRole === 'admin' ? "/admin-dashboard" : userRole === 'staff' ? "/teacher-dashboard" : "/parent-dashboard"
+      path: userRole === 'admin' ? "/admin-dashboard" : userRole === 'staff' ? "/teacher-dashboard" : "/parent-dashboard",
+      allowedRoles: ['admin', 'staff', 'parent']
     },
     { 
       icon: <GraduationCap size={20} />, 
       label: "Classes", 
-      path: "/classes-management" 
+      path: "/classes-management",
+      allowedRoles: ['admin', 'staff']
     },
     { 
       icon: <Users size={20} />, 
       label: "Users", 
-      path: "/users-management" 
+      path: "/users-management",
+      allowedRoles: ['admin']
     },
     { 
       icon: <UserCog size={20} />, 
       label: "Staff", 
-      path: "/staff-management" 
+      path: "/staff-management",
+      allowedRoles: ['admin']
     },
     { 
       icon: <BarChart3 size={20} />, 
       label: "Reports", 
-      path: "/reports-dashboard" 
+      path: "/reports-dashboard",
+      allowedRoles: ['admin', 'staff']
     },
     { 
       icon: <Settings size={20} />, 
       label: "Settings", 
-      path: "/settings" 
+      path: "/settings",
+      allowedRoles: ['admin']
     },
   ];
 
@@ -71,18 +86,20 @@ const Sidebar = () => {
     { 
       icon: <QrCode size={20} />, 
       label: "Check-in Kiosk", 
-      path: "/check-in-kiosk" 
+      path: "/check-in-kiosk",
+      allowedRoles: ['admin', 'staff', 'parent']
     },
     { 
       icon: <QrCode size={20} />, 
       label: "Check-out Station", 
-      path: "/check-out-station" 
+      path: "/check-out-station",
+      allowedRoles: ['admin', 'staff']
     },
   ];
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/login"; // Force a full page reload to clear state
+    window.location.href = "/landing"; // Redirect to landing page after sign out
   };
 
   return (
@@ -118,6 +135,8 @@ const Sidebar = () => {
               label={item.label}
               path={item.path}
               isActive={location.pathname === item.path}
+              userRole={userRole}
+              allowedRoles={item.allowedRoles}
             />
           ))}
         </nav>
@@ -134,6 +153,8 @@ const Sidebar = () => {
                 label={item.label}
                 path={item.path}
                 isActive={location.pathname === item.path}
+                userRole={userRole}
+                allowedRoles={item.allowedRoles}
               />
             ))}
           </nav>
