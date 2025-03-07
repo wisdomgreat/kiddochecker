@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, getUserRole } from '@/integrations/supabase/client';
+import { supabase, getUserRole, isSetupCompleted } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -10,6 +10,8 @@ interface AuthContextType {
   user: User | null;
   userRole: string | null;
   isLoading: boolean;
+  isInitialized: boolean;
+  isSetupComplete: boolean | null;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -19,6 +21,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
   isLoading: true,
+  isInitialized: false,
+  isSetupComplete: null,
   signOut: async () => {},
   refreshSession: async () => {},
 });
@@ -34,6 +38,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,6 +56,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const checkSetupStatus = async () => {
+    try {
+      const setupCompleted = await isSetupCompleted();
+      setIsSetupComplete(setupCompleted);
+      return setupCompleted;
+    } catch (error) {
+      console.error("Error checking setup status:", error);
+      return false;
+    }
+  };
+
   const refreshSession = async () => {
     try {
       const { data } = await supabase.auth.getSession();
@@ -60,6 +77,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (data.session?.user) {
         await fetchUserRole(data.session.user.id);
       }
+
+      await checkSetupStatus();
     } catch (error) {
       console.error("Error refreshing session:", error);
     }
@@ -78,10 +97,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (data.session?.user) {
           await fetchUserRole(data.session.user.id);
         }
+
+        await checkSetupStatus();
       } catch (error) {
         console.error('Error checking auth session:', error);
       } finally {
         setIsLoading(false);
+        setIsInitialized(true);
       }
     };
 
@@ -99,14 +121,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           const role = await fetchUserRole(newSession.user.id);
           console.log("User role:", role);
           
+          // Check if setup is complete
+          const setupComplete = await checkSetupStatus();
+          
           // Handle redirects based on events and roles
           if (event === "SIGNED_IN") {
             // Save current path for potential return after login
             const currentPath = location.pathname;
-            const isPublicRoute = ["/check-in-kiosk", "/landing", "/login", "/check-out-station", "/parent-registration", "/organization-setup"].includes(currentPath);
+            const publicRoutes = ["/check-in-kiosk", "/landing", "/login", "/check-out-station", "/parent-registration", "/organization-setup"];
+            const isPublicRoute = publicRoutes.includes(currentPath);
+            
+            // If setup is not complete, redirect to organization setup
+            if (!setupComplete && role === 'admin' && !currentPath.includes('organization-setup')) {
+              navigate("/organization-setup");
+              return;
+            }
             
             // Redirect based on role if on a public route
-            if (isPublicRoute) {
+            if (isPublicRoute && setupComplete) {
               if (role === "admin") {
                 navigate("/admin-dashboard");
               } else if (role === "staff") {
@@ -163,7 +195,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       session, 
       user, 
       userRole, 
-      isLoading, 
+      isLoading,
+      isInitialized,
+      isSetupComplete,
       signOut,
       refreshSession
     }}>

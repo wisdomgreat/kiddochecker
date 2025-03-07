@@ -9,7 +9,12 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-  }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });
 
 // Helper functions for session management
@@ -72,5 +77,71 @@ export const getUserRole = async () => {
   } catch (error) {
     console.error("Error in getUserRole:", error);
     return null;
+  }
+};
+
+// Check if a device is registered as a kiosk
+export const getDeviceProfile = async (deviceId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('device_profiles')
+      .select('*')
+      .eq('device_id', deviceId)
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Error fetching device profile:", error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in getDeviceProfile:", error);
+    return null;
+  }
+};
+
+// Register a device as a kiosk
+export const registerDevice = async (deviceInfo: {
+  device_id: string;
+  name: string;
+  type: 'check_in_kiosk' | 'check_out_station';
+  location?: string;
+}) => {
+  try {
+    const { data, error } = await supabase
+      .from('device_profiles')
+      .upsert(deviceInfo, { onConflict: 'device_id' })
+      .select()
+      .single();
+      
+    if (error) {
+      console.error("Error registering device:", error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error in registerDevice:", error);
+    return null;
+  }
+};
+
+// Check if setup is completed (organization exists)
+export const isSetupCompleted = async () => {
+  try {
+    const { count, error } = await supabase
+      .from('organization_settings')
+      .select('*', { count: 'exact', head: true });
+      
+    if (error) {
+      console.error("Error checking setup status:", error);
+      return false;
+    }
+    
+    return count ? count > 0 : false;
+  } catch (error) {
+    console.error("Error in isSetupCompleted:", error);
+    return false;
   }
 };

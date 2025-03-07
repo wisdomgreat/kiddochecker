@@ -36,11 +36,16 @@ const Unauthorized = () => (
 );
 
 function App() {
-  const { user, userRole, isLoading } = useAuth();
+  const { user, userRole, isLoading, isSetupComplete } = useAuth();
 
   // Default redirect based on user role
   const getDefaultRoute = () => {
     if (!user) return '/landing';
+    
+    // If setup is not complete, direct admin to setup
+    if (isSetupComplete === false && userRole === 'admin') {
+      return '/organization-setup';
+    }
     
     switch(userRole) {
       case 'admin':
