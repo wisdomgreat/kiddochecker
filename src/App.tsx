@@ -48,8 +48,9 @@ function App() {
       case 'staff':
         return '/teacher-dashboard';
       case 'parent':
-      default:
         return '/parent-dashboard';
+      default:
+        return '/landing';
     }
   };
 
@@ -68,6 +69,7 @@ function App() {
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+      <Route path="/check-out-station" element={<CheckOutStation />} />
       <Route path="/organization-setup" element={<OrganizationSetup />} />
       <Route path="/parent-registration" element={<ParentRegistration />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
@@ -119,11 +121,6 @@ function App() {
       <Route path="/teacher-profile" element={
         <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <TeacherProfile />
-        </ProtectedRoute>
-      } />
-      <Route path="/check-out-station" element={
-        <ProtectedRoute allowedRoles={['admin', 'staff']}>
-          <CheckOutStation />
         </ProtectedRoute>
       } />
       

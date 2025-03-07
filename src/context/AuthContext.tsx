@@ -53,6 +53,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const refreshSession = async () => {
     try {
       const { data } = await supabase.auth.getSession();
+      console.log("Refreshed session:", data.session);
       setSession(data.session);
       setUser(data.session?.user || null);
       
@@ -70,6 +71,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         setIsLoading(true);
         const { data } = await supabase.auth.getSession();
+        console.log("Initial auth session:", data.session);
         setSession(data.session);
         setUser(data.session?.user || null);
         
@@ -88,28 +90,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Set up auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log("Auth state changed:", event);
+        console.log("Auth state changed:", event, newSession?.user?.id);
         setSession(newSession);
         setUser(newSession?.user || null);
 
         // Handle session changed events
         if (newSession?.user) {
           const role = await fetchUserRole(newSession.user.id);
+          console.log("User role:", role);
           
           // Handle redirects based on events and roles
           if (event === "SIGNED_IN") {
-            const returnPath = sessionStorage.getItem("returnPath") || "/";
-            sessionStorage.removeItem("returnPath");
+            // Save current path for potential return after login
+            const currentPath = location.pathname;
+            const isPublicRoute = ["/check-in-kiosk", "/landing", "/login", "/check-out-station", "/parent-registration", "/organization-setup"].includes(currentPath);
             
-            // Redirect based on role
-            if (role === "admin") {
-              navigate("/admin-dashboard");
-            } else if (role === "staff") {
-              navigate("/teacher-dashboard");
-            } else if (role === "parent") {
-              navigate("/parent-dashboard");
-            } else {
-              navigate(returnPath !== location.pathname ? returnPath : "/");
+            // Redirect based on role if on a public route
+            if (isPublicRoute) {
+              if (role === "admin") {
+                navigate("/admin-dashboard");
+              } else if (role === "staff") {
+                navigate("/teacher-dashboard");
+              } else if (role === "parent") {
+                navigate("/parent-dashboard");
+              }
             }
             
             toast({
@@ -120,11 +124,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         } else if (event === "SIGNED_OUT") {
           setUserRole(null);
           
-          // If on a protected route, redirect to login
-          const publicRoutes = ["/landing", "/check-in-kiosk", "/parent-registration", "/organization-setup", "/unauthorized", "/404"];
+          // If on a protected route, redirect to landing page
+          const publicRoutes = ["/landing", "/check-in-kiosk", "/login", "/check-out-station", "/parent-registration", "/organization-setup", "/unauthorized", "/404"];
           if (!publicRoutes.includes(location.pathname)) {
-            navigate("/check-in-kiosk");
+            navigate("/landing");
           }
+          
+          toast({
+            title: "Signed out",
+            description: "You have been logged out",
+          });
         }
       }
     );
@@ -139,11 +148,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      toast({
-        title: "Signed out successfully",
-        description: "You have been logged out of your account",
-      });
-      navigate("/check-in-kiosk");
+      navigate("/landing");
     } catch (error: any) {
       toast({
         title: "Error signing out",

@@ -82,7 +82,25 @@ const OrganizationSetup = () => {
       // Log the submission attempt for debugging
       console.log("Organization setup submission started", values);
       
-      // 1. Create user account for admin
+      // 1. Create organization settings first to establish the church
+      const { data: orgData, error: orgError } = await supabase.rpc(
+        'create_organization',
+        {
+          org_name: values.organizationName,
+          primary_color: values.primaryColor,
+          font_family: values.fontFamily,
+          creator_id: null // We'll update this after user creation
+        }
+      );
+        
+      if (orgError) {
+        console.error("Organization creation error:", orgError);
+        throw orgError;
+      }
+      
+      console.log("Organization created:", orgData);
+      
+      // 2. Create user account for admin
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.adminEmail,
         password: values.adminPassword,
@@ -106,7 +124,7 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 2. Create user role entry manually instead of using RPC
+      // 3. Create admin role with direct insert using service role
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -123,25 +141,18 @@ const OrganizationSetup = () => {
       
       console.log("Admin role assigned:", roleData);
       
-      // 3. Create organization settings using the create_organization function
-      const { data: orgData, error: orgError } = await supabase.rpc(
-        'create_organization',
-        {
-          org_name: values.organizationName,
-          primary_color: values.primaryColor,
-          font_family: values.fontFamily,
-          creator_id: authData.user.id
-        }
-      );
+      // 4. Update organization with creator ID
+      const { error: updateOrgError } = await supabase
+        .from('organization_settings')
+        .update({ created_by: authData.user.id })
+        .eq('id', orgData);
         
-      if (orgError) {
-        console.error("Organization creation error:", orgError);
-        throw orgError;
+      if (updateOrgError) {
+        console.error("Organization update error:", updateOrgError);
+        // Non-critical error, continue
       }
       
-      console.log("Organization created:", orgData);
-      
-      // 4. Upload logo if provided
+      // 5. Upload logo if provided
       if (logoFile && orgData) {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `org-logo-${orgData}.${fileExt}`;

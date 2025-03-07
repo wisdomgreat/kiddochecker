@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -127,6 +128,7 @@ const StaffManagement = () => {
 
   const onSubmit = async (values: StaffFormValues) => {
     try {
+      // Create user account first
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -145,6 +147,7 @@ const StaffManagement = () => {
       
       console.log("User created:", authData.user);
       
+      // Then create the user role entry
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert([{
