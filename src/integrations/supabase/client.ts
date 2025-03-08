@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
@@ -83,11 +82,9 @@ export const getUserRole = async () => {
 // Check if a device is registered as a kiosk
 export const getDeviceProfile = async (deviceId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('device_profiles')
-      .select('*')
-      .eq('device_id', deviceId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('get_device_profile', {
+      p_device_id: deviceId
+    });
       
     if (error) {
       console.error("Error fetching device profile:", error);
@@ -109,11 +106,12 @@ export const registerDevice = async (deviceInfo: {
   location?: string;
 }) => {
   try {
-    const { data, error } = await supabase
-      .from('device_profiles')
-      .upsert(deviceInfo, { onConflict: 'device_id' })
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('register_device', {
+      p_device_id: deviceInfo.device_id,
+      p_name: deviceInfo.name,
+      p_type: deviceInfo.type,
+      p_location: deviceInfo.location || null
+    });
       
     if (error) {
       console.error("Error registering device:", error);

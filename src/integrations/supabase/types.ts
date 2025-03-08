@@ -149,6 +149,36 @@ export type Database = {
         }
         Relationships: []
       }
+      device_profiles: {
+        Row: {
+          created_at: string | null
+          device_id: string
+          id: string
+          location: string | null
+          name: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id: string
+          id?: string
+          location?: string | null
+          name: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string
+          id?: string
+          location?: string | null
+          name?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           created_at: string
@@ -355,6 +385,12 @@ export type Database = {
         }
         Returns: string
       }
+      get_device_profile: {
+        Args: {
+          p_device_id: string
+        }
+        Returns: Json
+      }
       get_staff_members: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -374,6 +410,15 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
         }
         Returns: boolean
+      }
+      register_device: {
+        Args: {
+          p_device_id: string
+          p_name: string
+          p_type: string
+          p_location?: string
+        }
+        Returns: Json
       }
     }
     Enums: {
