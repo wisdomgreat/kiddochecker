@@ -1,103 +1,36 @@
+
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
+import { useNavigate, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SearchForm from "@/components/check-out/SearchForm";
 import CheckoutTable from "@/components/check-out/CheckoutTable";
 import HelpSection from "@/components/check-out/HelpSection";
 import QrCodeScanner from "@/components/check-out/QrCodeScanner";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertTriangle, Info, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { v4 as uuidv4 } from 'uuid';
-import { getDeviceProfile, registerDevice, isSetupCompleted } from "@/integrations/supabase/client";
+import { useDeviceRegistration } from "@/hooks/useDeviceRegistration";
 
 const CheckOutStation = () => {
   const [results, setResults] = useState([]);
   const [activeTab, setActiveTab] = useState<string>("search");
-  const [deviceId, setDeviceId] = useState<string>("");
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [deviceName, setDeviceName] = useState("");
-  const [showDeviceSetup, setShowDeviceSetup] = useState(false);
-  const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const initializeDevice = async () => {
-      setIsLoading(true);
-      try {
-        const setupComplete = await isSetupCompleted();
-        setIsSetupComplete(setupComplete);
-
-        if (!setupComplete) {
-          setIsLoading(false);
-          return;
-        }
-
-        let storedDeviceId = localStorage.getItem('device_id');
-        if (!storedDeviceId) {
-          storedDeviceId = uuidv4();
-          localStorage.setItem('device_id', storedDeviceId);
-        }
-        setDeviceId(storedDeviceId);
-
-        const deviceProfile = await getDeviceProfile(storedDeviceId);
-        if (deviceProfile) {
-          setIsRegistered(true);
-          setDeviceName(deviceProfile.name || "Check-out Station");
-        } else {
-          setIsRegistered(false);
-          setShowDeviceSetup(true);
-        }
-      } catch (error) {
-        console.error("Error initializing device:", error);
-        toast({
-          title: "Error",
-          description: "Failed to initialize check-out station",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeDevice();
-  }, [toast]);
-
-  const handleRegisterDevice = async () => {
-    if (!deviceName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please provide a name for this check-out station",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const result = await registerDevice({
-        device_id: deviceId,
-        name: deviceName,
-        type: 'check_out_station',
-      });
-
-      if (result) {
-        setIsRegistered(true);
-        setShowDeviceSetup(false);
-        toast({
-          title: "Success",
-          description: "Check-out station registered successfully",
-        });
-      }
-    } catch (error) {
-      console.error("Error registering device:", error);
-      toast({
-        title: "Error",
-        description: "Failed to register check-out station",
-        variant: "destructive",
-      });
-    }
-  };
+  const { 
+    deviceId,
+    isRegistered,
+    deviceName,
+    showDeviceSetup,
+    isSetupComplete,
+    isLoading,
+    handleRegisterDevice,
+    updateDeviceName
+  } = useDeviceRegistration({
+    deviceType: 'check_out_station',
+    defaultDeviceName: "Check-out Station"
+  });
 
   if (isLoading) {
     return (
@@ -165,7 +98,7 @@ const CheckOutStation = () => {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="e.g., Main Exit Station"
                   value={deviceName}
-                  onChange={(e) => setDeviceName(e.target.value)}
+                  onChange={(e) => updateDeviceName(e.target.value)}
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Give this check-out station a descriptive name to identify it
@@ -173,7 +106,7 @@ const CheckOutStation = () => {
               </div>
               
               <Button 
-                onClick={handleRegisterDevice}
+                onClick={() => handleRegisterDevice()}
                 className="w-full"
               >
                 Register Station
@@ -229,11 +162,11 @@ const CheckOutStation = () => {
                     <TabsTrigger value="search">Search Child</TabsTrigger>
                   </TabsList>
                   <TabsContent value="scan" className="space-y-4">
-                    <QrCodeScanner onSuccess={(data) => console.log(data)} />
+                    <QrCodeScanner onScanComplete={(data) => console.log(data)} />
                   </TabsContent>
                   <TabsContent value="search" className="space-y-4">
-                    <SearchForm onResultsFound={(results) => setResults(results)} />
-                    {results.length > 0 && <CheckoutTable data={results} />}
+                    <SearchForm onSearchResults={(results) => setResults(results)} onReset={() => setResults([])} />
+                    {results.length > 0 && <CheckoutTable data={results} title="Search Results" showClearButton onClear={() => setResults([])} />}
                   </TabsContent>
                 </Tabs>
               </CardContent>

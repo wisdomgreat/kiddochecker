@@ -62,11 +62,17 @@ export function useDeviceRegistration({
         const deviceProfile = await getDeviceProfile(storedDeviceId);
         
         if (deviceProfile) {
+          // Properly handle the deviceProfile data
+          const deviceName = 
+            typeof deviceProfile === 'object' && deviceProfile !== null 
+              ? (deviceProfile as any).name || defaultDeviceName || (deviceType === 'check_in_kiosk' ? "Check-in Kiosk" : "Check-out Station") 
+              : defaultDeviceName || (deviceType === 'check_in_kiosk' ? "Check-in Kiosk" : "Check-out Station");
+              
           setState(prev => ({
             ...prev,
             deviceId: storedDeviceId,
             isRegistered: true,
-            deviceName: deviceProfile.name || defaultDeviceName || deviceType === 'check_in_kiosk' ? "Check-in Kiosk" : "Check-out Station",
+            deviceName,
             isSetupComplete: setupComplete,
           }));
         } else {
