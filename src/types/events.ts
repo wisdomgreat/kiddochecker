@@ -16,8 +16,8 @@ export interface Event {
 export interface EventFormValues {
   title: string;
   description?: string;
-  startDate: Date | string;
-  endDate?: Date | string;
+  startDate: Date;
+  endDate?: Date;
   location?: string;
   organizer?: string;
   isPublic: boolean;

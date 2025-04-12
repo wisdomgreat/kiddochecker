@@ -28,15 +28,25 @@ const UpcomingEventsList = ({ limit = 3 }: UpcomingEventsListProps) => {
     queryFn: async () => {
       const today = new Date().toISOString();
       
-      const { data, error } = await supabase
+      // First check if the events table exists
+      const { data: tableExists, error: checkError } = await supabase
         .from('events')
-        .select('id, title, start_date, end_date, location')
-        .gte('start_date', today)
-        .eq('is_public', true)
-        .order('start_date', { ascending: true })
-        .limit(limit);
+        .select('count', { count: 'exact', head: true })
+        .limit(1);
       
-      if (error) throw error;
+      if (checkError) {
+        console.error("Error checking events table:", checkError);
+        return [];
+      }
+      
+      const { data, error } = await supabase
+        .rpc('get_upcoming_events', { limit_count: limit })
+        .select('*');
+      
+      if (error) {
+        console.error("Error fetching events:", error);
+        return [];
+      }
       
       return (data || []).map(event => ({
         id: event.id,

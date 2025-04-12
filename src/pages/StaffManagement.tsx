@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -118,7 +117,6 @@ const StaffManagement = () => {
 
   const onSubmit = async (values: StaffFormValues) => {
     try {
-      // Create user account first
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -135,16 +133,12 @@ const StaffManagement = () => {
       
       if (!authData.user) throw new Error("Failed to create user");
       
-      console.log("User created:", authData.user);
-      
-      // Then create the user role entry
       const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert([{
-          user_id: authData.user.id,
-          role: values.role,
-          is_super_admin: values.isSuperAdmin
-        }]);
+        .rpc('set_user_role', {
+          p_user_id: authData.user.id,
+          p_role: values.role,
+          p_is_super_admin: values.isSuperAdmin
+        });
         
       if (roleError) {
         console.error("Role insertion error:", roleError);
@@ -172,9 +166,10 @@ const StaffManagement = () => {
   const handleRoleChange = async (userId: string, newRole: AppRole) => {
     try {
       const { error } = await supabase
-        .from('user_roles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
+        .rpc('update_user_role', {
+          p_user_id: userId,
+          p_role: newRole
+        });
         
       if (error) throw error;
       
@@ -201,9 +196,10 @@ const StaffManagement = () => {
   const handleSuperAdminToggle = async (userId: string, isSuperAdmin: boolean) => {
     try {
       const { error } = await supabase
-        .from('user_roles')
-        .update({ is_super_admin: isSuperAdmin })
-        .eq('user_id', userId);
+        .rpc('set_super_admin_status', {
+          p_user_id: userId,
+          p_is_super_admin: isSuperAdmin
+        });
         
       if (error) throw error;
       

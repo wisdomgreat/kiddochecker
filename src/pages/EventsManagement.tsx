@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -91,11 +90,14 @@ const EventsManagement = () => {
     queryKey: ['events'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('start_date', { ascending: true });
+        .rpc('get_all_events')
+        .select('*');
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching events:", error);
+        return [];
+      }
+      
       return (data || []).map(event => ({
         id: event.id,
         title: event.title,
@@ -118,21 +120,19 @@ const EventsManagement = () => {
       if (!user) throw new Error("User not authenticated");
       
       const { data, error } = await supabase
-        .from('events')
-        .insert([{
-          title: newEvent.title,
-          description: newEvent.description,
-          start_date: newEvent.startDate,
-          end_date: newEvent.endDate,
-          location: newEvent.location,
-          organizer: newEvent.organizer,
-          is_public: newEvent.isPublic,
-          created_by: user.id
-        }])
-        .select();
+        .rpc('create_event', {
+          p_title: newEvent.title,
+          p_description: newEvent.description || null,
+          p_start_date: newEvent.startDate.toISOString(),
+          p_end_date: newEvent.endDate ? newEvent.endDate.toISOString() : null,
+          p_location: newEvent.location || null,
+          p_organizer: newEvent.organizer || null,
+          p_is_public: newEvent.isPublic,
+          p_user_id: user.id
+        });
 
       if (error) throw error;
-      return data[0];
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -156,21 +156,19 @@ const EventsManagement = () => {
   const updateEventMutation = useMutation({
     mutationFn: async (updatedEvent: { id: string, data: EventFormValues }) => {
       const { data, error } = await supabase
-        .from('events')
-        .update({
-          title: updatedEvent.data.title,
-          description: updatedEvent.data.description,
-          start_date: updatedEvent.data.startDate,
-          end_date: updatedEvent.data.endDate,
-          location: updatedEvent.data.location,
-          organizer: updatedEvent.data.organizer,
-          is_public: updatedEvent.data.isPublic,
-        })
-        .eq('id', updatedEvent.id)
-        .select();
+        .rpc('update_event', {
+          p_id: updatedEvent.id,
+          p_title: updatedEvent.data.title,
+          p_description: updatedEvent.data.description || null,
+          p_start_date: updatedEvent.data.startDate.toISOString(),
+          p_end_date: updatedEvent.data.endDate ? updatedEvent.data.endDate.toISOString() : null,
+          p_location: updatedEvent.data.location || null,
+          p_organizer: updatedEvent.data.organizer || null,
+          p_is_public: updatedEvent.data.isPublic
+        });
 
       if (error) throw error;
-      return data[0];
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -195,9 +193,7 @@ const EventsManagement = () => {
   const deleteEventMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', id);
+        .rpc('delete_event', { p_id: id });
 
       if (error) throw error;
     },

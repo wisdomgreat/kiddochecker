@@ -13,8 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/card";
-import QRCode from "qrcode.react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import QRCode from 'qrcode.react';
 
 const ParentDashboard = () => {
   const { user } = useAuth();
