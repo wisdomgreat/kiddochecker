@@ -62,7 +62,7 @@ export function useDeviceRegistration({
         const deviceProfile = await getDeviceProfile(storedDeviceId);
         
         if (deviceProfile) {
-          // Properly handle the deviceProfile data
+          // Fix: Check if deviceProfile is an object and properly access its properties
           const deviceName = 
             typeof deviceProfile === 'object' && deviceProfile !== null 
               ? (deviceProfile as any).name || defaultDeviceName || (deviceType === 'check_in_kiosk' ? "Check-in Kiosk" : "Check-out Station") 

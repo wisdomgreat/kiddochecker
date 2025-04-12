@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,9 +19,10 @@ export interface CheckoutItem {
 interface SearchFormProps {
   onSearchResults: (results: CheckoutItem[]) => void;
   onReset: () => void;
+  onResultsFound?: (results: CheckoutItem[]) => void; // Added property to match usage in CheckOutStation
 }
 
-const SearchForm = ({ onSearchResults, onReset }: SearchFormProps) => {
+const SearchForm = ({ onSearchResults, onReset, onResultsFound }: SearchFormProps) => {
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [childName, setChildName] = useState("");
@@ -132,6 +132,7 @@ const SearchForm = ({ onSearchResults, onReset }: SearchFormProps) => {
         });
         
         onSearchResults(results);
+        if (onResultsFound) onResultsFound(results); // Call the callback if provided
       } else if (childName) {
         // Search by child's name
         const { data: children, error: childrenError } = await supabase
@@ -183,6 +184,7 @@ const SearchForm = ({ onSearchResults, onReset }: SearchFormProps) => {
         });
         
         onSearchResults(results);
+        if (onResultsFound) onResultsFound(results); // Call the callback if provided
       }
     } catch (error: any) {
       toast({
@@ -191,6 +193,7 @@ const SearchForm = ({ onSearchResults, onReset }: SearchFormProps) => {
         variant: "destructive",
       });
       onSearchResults([]);
+      if (onResultsFound) onResultsFound([]); // Call the callback with empty array if provided
     } finally {
       setIsSearching(false);
     }

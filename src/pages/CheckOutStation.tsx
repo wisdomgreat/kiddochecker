@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,109 @@ import QrCodeScanner from "@/components/check-out/QrCodeScanner";
 import { CheckCircle, AlertTriangle, Info, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDeviceRegistration } from "@/hooks/useDeviceRegistration";
+import { CheckoutItem } from "@/components/check-out/SearchForm";
 
+// Create a DeviceSetup component to handle the device registration flow
+const DeviceSetup = ({ 
+  deviceName, 
+  updateDeviceName, 
+  handleRegisterDevice 
+}: { 
+  deviceName: string, 
+  updateDeviceName: (name: string) => void, 
+  handleRegisterDevice: () => void 
+}) => {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+      <Card className="max-w-lg w-full">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-blue-100 rounded-full p-2">
+              <Info className="h-6 w-6 text-blue-600" />
+            </div>
+            <div className="text-left">
+              <h2 className="text-xl font-semibold">Check-out Station Setup</h2>
+              <p className="text-sm text-gray-500">This device needs to be registered</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4 mt-4">
+            <div>
+              <label htmlFor="deviceName" className="block text-sm font-medium text-gray-700">
+                Station Name
+              </label>
+              <input
+                type="text"
+                id="deviceName"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="e.g., Main Exit Station"
+                value={deviceName}
+                onChange={(e) => updateDeviceName(e.target.value)}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Give this check-out station a descriptive name to identify it
+              </p>
+            </div>
+            
+            <Button 
+              onClick={handleRegisterDevice}
+              className="w-full"
+            >
+              Register Station
+            </Button>
+            
+            <p className="text-center text-sm text-gray-500">
+              Note: This is a one-time setup for this device
+            </p>
+            
+            <div className="pt-2 border-t border-gray-200">
+              <Link to="/login" className="flex items-center justify-center text-sm text-blue-600 hover:text-blue-800">
+                <LogIn className="h-4 w-4 mr-1" />
+                Staff Login
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Create a SetupRequired component for when organization setup is incomplete
+const SetupRequired = ({ navigate }: { navigate: any }) => {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+      <Card className="max-w-lg w-full">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="bg-amber-100 rounded-full p-2">
+              <Info className="h-6 w-6 text-amber-600" />
+            </div>
+            <div className="text-left">
+              <h2 className="text-xl font-semibold">Setup Required</h2>
+              <p className="text-sm text-gray-500">The system has not been set up yet</p>
+            </div>
+          </div>
+          
+          <p className="mb-4 text-gray-600">
+            Please complete the organization setup process before using the check-out station.
+          </p>
+          
+          <Button 
+            onClick={() => navigate('/organization-setup')}
+            className="w-full"
+          >
+            Go to Organization Setup
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Main component for the Check Out Station
 const CheckOutStation = () => {
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<CheckoutItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>("search");
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -32,6 +132,17 @@ const CheckOutStation = () => {
     defaultDeviceName: "Check-out Station"
   });
 
+  // Handle QR code scanning
+  const handleScanComplete = (attendanceId: string) => {
+    console.log("QR Code scanned:", attendanceId);
+    // Implement the checkout process using the scanned attendance ID
+    toast({
+      title: "QR Code Scanned",
+      description: `Processing attendance ID: ${attendanceId}`,
+    });
+  };
+  
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -41,94 +152,23 @@ const CheckOutStation = () => {
     );
   }
 
+  // Organization setup required
   if (isSetupComplete === false) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-        <Card className="max-w-lg w-full">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-amber-100 rounded-full p-2">
-                <Info className="h-6 w-6 text-amber-600" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-xl font-semibold">Setup Required</h2>
-                <p className="text-sm text-gray-500">The system has not been set up yet</p>
-              </div>
-            </div>
-            
-            <p className="mb-4 text-gray-600">
-              Please complete the organization setup process before using the check-out station.
-            </p>
-            
-            <Button 
-              onClick={() => navigate('/organization-setup')}
-              className="w-full"
-            >
-              Go to Organization Setup
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <SetupRequired navigate={navigate} />;
   }
 
+  // Device setup required
   if (showDeviceSetup) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-        <Card className="max-w-lg w-full">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-blue-100 rounded-full p-2">
-                <Info className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-xl font-semibold">Check-out Station Setup</h2>
-                <p className="text-sm text-gray-500">This device needs to be registered</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4 mt-4">
-              <div>
-                <label htmlFor="deviceName" className="block text-sm font-medium text-gray-700">
-                  Station Name
-                </label>
-                <input
-                  type="text"
-                  id="deviceName"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="e.g., Main Exit Station"
-                  value={deviceName}
-                  onChange={(e) => updateDeviceName(e.target.value)}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Give this check-out station a descriptive name to identify it
-                </p>
-              </div>
-              
-              <Button 
-                onClick={() => handleRegisterDevice()}
-                className="w-full"
-              >
-                Register Station
-              </Button>
-              
-              <p className="text-center text-sm text-gray-500">
-                Note: This is a one-time setup for this device
-              </p>
-              
-              <div className="pt-2 border-t border-gray-200">
-                <Link to="/login" className="flex items-center justify-center text-sm text-blue-600 hover:text-blue-800">
-                  <LogIn className="h-4 w-4 mr-1" />
-                  Staff Login
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <DeviceSetup 
+        deviceName={deviceName} 
+        updateDeviceName={updateDeviceName} 
+        handleRegisterDevice={() => handleRegisterDevice()}
+      />
     );
   }
 
+  // Main checkout station interface
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
@@ -162,11 +202,22 @@ const CheckOutStation = () => {
                     <TabsTrigger value="search">Search Child</TabsTrigger>
                   </TabsList>
                   <TabsContent value="scan" className="space-y-4">
-                    <QrCodeScanner onScanComplete={(data) => console.log(data)} />
+                    <QrCodeScanner onScanComplete={handleScanComplete} />
                   </TabsContent>
                   <TabsContent value="search" className="space-y-4">
-                    <SearchForm onSearchResults={(results) => setResults(results)} onReset={() => setResults([])} />
-                    {results.length > 0 && <CheckoutTable data={results} title="Search Results" showClearButton onClear={() => setResults([])} />}
+                    <SearchForm 
+                      onSearchResults={setResults} 
+                      onReset={() => setResults([])} 
+                      onResultsFound={setResults} 
+                    />
+                    {results.length > 0 && (
+                      <CheckoutTable 
+                        data={results} 
+                        title="Search Results" 
+                        showClearButton 
+                        onClear={() => setResults([])} 
+                      />
+                    )}
                   </TabsContent>
                 </Tabs>
               </CardContent>

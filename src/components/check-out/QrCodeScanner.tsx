@@ -7,15 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface QrCodeScannerProps {
   onScanComplete: (attendanceId: string) => void;
+  onSuccess?: (data: any) => void; // Added the onSuccess prop to fix the error
 }
 
-const QrCodeScanner = ({ onScanComplete }: QrCodeScannerProps) => {
+const QrCodeScanner = ({ onScanComplete, onSuccess }: QrCodeScannerProps) => {
   const [manualCode, setManualCode] = useState("");
   const [showManualEntry, setShowManualEntry] = useState(false);
   
   const handleManualSubmit = () => {
     if (manualCode.trim()) {
       onScanComplete(manualCode.trim());
+      if (onSuccess) onSuccess(manualCode.trim()); // Use onSuccess if provided
       setManualCode("");
     }
   };

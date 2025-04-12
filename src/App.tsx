@@ -1,4 +1,3 @@
-
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import AdminDashboard from '@/pages/AdminDashboard';
@@ -21,7 +20,6 @@ import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import OrganizationSetup from '@/pages/OrganizationSetup';
 import StaffManagement from '@/pages/StaffManagement';
 
-// Pages that we might create later
 const Unauthorized = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4">
     <h1 className="text-2xl font-bold mb-4">Unauthorized Access</h1>
@@ -38,11 +36,9 @@ const Unauthorized = () => (
 function App() {
   const { user, userRole, isLoading, isSetupComplete } = useAuth();
 
-  // Default redirect based on user role
   const getDefaultRoute = () => {
     if (!user) return '/landing';
     
-    // If setup is not complete, direct admin to setup
     if (isSetupComplete === false && userRole === 'admin') {
       return '/organization-setup';
     }
@@ -70,7 +66,6 @@ function App() {
 
   return (
     <Routes>
-      {/* Public routes - accessible to everyone */}
       <Route path="/landing" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
@@ -80,75 +75,76 @@ function App() {
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route path="/404" element={<NotFound />} />
       
-      {/* Root path redirect */}
       <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
       <Route path="" element={<Navigate to={getDefaultRoute()} replace />} />
       <Route path="index" element={<Navigate to={getDefaultRoute()} replace />} />
       
-      {/* Admin routes */}
       <Route path="/admin-dashboard" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminDashboard />
         </ProtectedRoute>
       } />
+      
       <Route path="/users-management" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <UsersManagement />
         </ProtectedRoute>
       } />
+      
       <Route path="/staff-management" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <StaffManagement />
         </ProtectedRoute>
       } />
+      
       <Route path="/classes-management" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <ClassesManagement />
         </ProtectedRoute>
       } />
+      
       <Route path="/reports-dashboard" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <ReportsDashboard />
         </ProtectedRoute>
       } />
+      
       <Route path="/settings" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <Settings />
         </ProtectedRoute>
       } />
       
-      {/* Teacher/Staff routes */}
       <Route path="/teacher-dashboard" element={
         <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <TeacherDashboard />
         </ProtectedRoute>
       } />
+      
       <Route path="/teacher-profile" element={
         <ProtectedRoute allowedRoles={['admin', 'staff']}>
           <TeacherProfile />
         </ProtectedRoute>
       } />
       
-      {/* Parent routes */}
       <Route path="/parent-dashboard" element={
         <ProtectedRoute allowedRoles={['admin', 'parent']}>
           <ParentDashboard />
         </ProtectedRoute>
       } />
+      
       <Route path="/check-in-process" element={
         <ProtectedRoute allowedRoles={['admin', 'parent']}>
           <CheckInProcess />
         </ProtectedRoute>
       } />
       
-      {/* Common routes accessible to all authenticated users */}
       <Route path="/user-profile" element={
         <ProtectedRoute>
           <UserProfile />
         </ProtectedRoute>
       } />
       
-      {/* Fall-through route */}
       <Route path="*" element={<Navigate to="/404" replace />} />
     </Routes>
   );
