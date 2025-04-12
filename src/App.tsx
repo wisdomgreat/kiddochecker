@@ -1,3 +1,4 @@
+
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import AdminDashboard from '@/pages/AdminDashboard';
@@ -46,7 +47,7 @@ function App() {
     switch(userRole) {
       case 'admin':
         return '/admin-dashboard';
-      case 'staff':
+      case 'teacher':
         return '/teacher-dashboard';
       case 'parent':
         return '/parent-dashboard';
@@ -116,13 +117,13 @@ function App() {
       } />
       
       <Route path="/teacher-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'staff']}>
+        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
           <TeacherDashboard />
         </ProtectedRoute>
       } />
       
       <Route path="/teacher-profile" element={
-        <ProtectedRoute allowedRoles={['admin', 'staff']}>
+        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
           <TeacherProfile />
         </ProtectedRoute>
       } />

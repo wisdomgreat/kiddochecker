@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface QrCodeScannerProps {
   onScanComplete: (attendanceId: string) => void;
-  onSuccess?: (data: any) => void; // Added the onSuccess prop to fix the error
+  onSuccess?: (data: any) => void;
 }
 
 const QrCodeScanner = ({ onScanComplete, onSuccess }: QrCodeScannerProps) => {

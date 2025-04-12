@@ -54,14 +54,14 @@ const Sidebar = () => {
     { 
       icon: <LayoutDashboard size={20} />, 
       label: "Dashboard", 
-      path: userRole === 'admin' ? "/admin-dashboard" : userRole === 'staff' ? "/teacher-dashboard" : "/parent-dashboard",
-      allowedRoles: ['admin', 'staff', 'parent']
+      path: userRole === 'admin' ? "/admin-dashboard" : userRole === 'teacher' ? "/teacher-dashboard" : "/parent-dashboard",
+      allowedRoles: ['admin', 'teacher', 'parent']
     },
     { 
       icon: <GraduationCap size={20} />, 
       label: "Classes", 
       path: "/classes-management",
-      allowedRoles: ['admin', 'staff']
+      allowedRoles: ['admin', 'teacher']
     },
     { 
       icon: <Users size={20} />, 
@@ -79,7 +79,7 @@ const Sidebar = () => {
       icon: <BarChart3 size={20} />, 
       label: "Reports", 
       path: "/reports-dashboard",
-      allowedRoles: ['admin', 'staff']
+      allowedRoles: ['admin', 'teacher']
     },
     { 
       icon: <Settings size={20} />, 
@@ -94,13 +94,13 @@ const Sidebar = () => {
       icon: <QrCode size={20} />, 
       label: "Check-in Kiosk", 
       path: "/check-in-kiosk",
-      allowedRoles: ['admin', 'staff', 'parent']
+      allowedRoles: ['admin', 'teacher', 'parent']
     },
     { 
       icon: <QrCode size={20} />, 
       label: "Check-out Station", 
       path: "/check-out-station",
-      allowedRoles: ['admin', 'staff']
+      allowedRoles: ['admin', 'teacher']
     },
   ];
 

@@ -28,7 +28,7 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
     if (user) {
       const defaultPath = userRole === 'admin' 
         ? '/admin-dashboard' 
-        : userRole === 'staff' 
+        : userRole === 'teacher' 
           ? '/teacher-dashboard' 
           : '/parent-dashboard';
           
