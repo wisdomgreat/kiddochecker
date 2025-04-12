@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,11 +12,15 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
+import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/card";
+import QRCode from "qrcode.react";
 
 const ParentDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
 
   // Fetch parent's children
   const { data: childrenData = [], isLoading: childrenLoading } = useQuery({
@@ -117,7 +122,7 @@ const ParentDashboard = () => {
           variant="outline"
           size="sm"
           className="text-blue-600 hover:text-blue-800"
-          onClick={() => {/* View child details */}}
+          onClick={() => handleViewChildDetails(item.id)}
         >
           View Details
         </Button>
@@ -153,6 +158,29 @@ const ParentDashboard = () => {
       ),
     },
   ];
+
+  const handleAddChild = () => {
+    toast({
+      title: "Coming soon",
+      description: "The add child functionality will be available soon!",
+    });
+  };
+
+  const handleViewChildDetails = (childId: string) => {
+    toast({
+      title: "Child Details",
+      description: `Viewing details for child ID: ${childId}`,
+    });
+    // Implement child details view
+  };
+
+  const handleContactSupport = () => {
+    toast({
+      title: "Support Request Sent",
+      description: "A support representative will contact you shortly.",
+    });
+    // Implement contact support functionality
+  };
 
   return (
     <MainLayout>
@@ -198,15 +226,38 @@ const ParentDashboard = () => {
           className="bg-white"
         />
         
-        <div className="bg-purple-50 rounded-lg p-4 flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-purple-900">Check-in QR Code</h3>
-            <p className="text-sm text-purple-700">Quick check-in for your children</p>
-          </div>
-          <Button className="bg-purple-600 hover:bg-purple-700">
-            <QrCode size={16} className="mr-2" /> View Code
-          </Button>
-        </div>
+        <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+          <DialogTrigger asChild>
+            <div className="bg-purple-50 rounded-lg p-4 flex items-center justify-between cursor-pointer hover:bg-purple-100 transition-colors">
+              <div>
+                <h3 className="font-bold text-purple-900">Check-in QR Code</h3>
+                <p className="text-sm text-purple-700">Quick check-in for your children</p>
+              </div>
+              <Button className="bg-purple-600 hover:bg-purple-700" onClick={() => setIsQrDialogOpen(true)}>
+                <QrCode size={16} className="mr-2" /> View Code
+              </Button>
+            </div>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Your Check-in QR Code</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center p-4">
+              <div className="bg-white p-4 rounded-lg shadow-inner mb-4">
+                <QRCode
+                  value={user?.id || "no-user-id"}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                  renderAs="svg"
+                />
+              </div>
+              <p className="text-center text-gray-600">
+                Present this QR code at the check-in kiosk for quick and easy check-in for all your children.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
       
       <div className="mb-8">
@@ -214,7 +265,7 @@ const ParentDashboard = () => {
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Your Children</h2>
-              <Button className="bg-blue-600 hover:bg-blue-700">
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleAddChild}>
                 <UserPlus size={16} className="mr-2" /> Add Child
               </Button>
             </div>
@@ -233,7 +284,7 @@ const ParentDashboard = () => {
                 <Users size={48} className="mx-auto text-gray-400 mb-2" />
                 <h3 className="text-lg font-medium text-gray-700 mb-1">No Children Added Yet</h3>
                 <p className="text-gray-500 mb-4">Add your children to manage their attendance</p>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleAddChild}>
                   <UserPlus size={16} className="mr-2" /> Add Your First Child
                 </Button>
               </div>
@@ -266,7 +317,10 @@ const ParentDashboard = () => {
             ) : attendanceRecords.length > 0 ? (
               <DataTable
                 columns={attendanceColumns}
-                data={attendanceRecords}
+                data={attendanceRecords.filter(record => 
+                  record.childName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  record.class.toLowerCase().includes(searchTerm.toLowerCase())
+                )}
                 keyExtractor={(item) => item.id}
                 searchable={false}
               />
@@ -281,31 +335,21 @@ const ParentDashboard = () => {
         </Card>
       </div>
       
-      <Card className="bg-white p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <Card className="bg-white p-6">
           <div>
             <h2 className="text-xl font-bold mb-4">Need Assistance?</h2>
             <p className="text-gray-600 mb-4">
               If you have any questions or need help with the check-in process, please contact our staff.
             </p>
-            <Button variant="outline">Contact Support</Button>
+            <Button variant="outline" onClick={handleContactSupport}>Contact Support</Button>
           </div>
-          
-          <div>
-            <h2 className="text-xl font-bold mb-4">Upcoming Events</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium">Sunday School</span>
-                <span className="text-sm text-gray-500">This Sunday, 9:00 AM</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium">Summer Camp Registration</span>
-                <span className="text-sm text-gray-500">May 15, 2025</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
+        </Card>
+        
+        <Card className="bg-white p-6">
+          <UpcomingEventsList />
+        </Card>
+      </div>
     </MainLayout>
   );
 };

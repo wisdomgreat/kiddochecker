@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { UserPlus, Users, School, PieChart, Settings, LogOut } from "lucide-react";
+import { UserPlus, Users, School, PieChart, Settings, LogOut, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,7 @@ import StatCards from "@/components/dashboard/StatCards";
 import ClassStatus from "@/components/dashboard/ClassStatus";
 import ActivityTable from "@/components/dashboard/ActivityTable";
 import AlertsPanel from "@/components/dashboard/AlertsPanel";
+import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
 import { useDashboardStats, useClassStatus, useRecentActivity, useRealtimeUpdates } from "@/hooks/useDashboardData";
 
 const AdminDashboard = () => {
@@ -83,7 +84,7 @@ const AdminDashboard = () => {
           <ClassStatus classData={classData || []} isLoading={classLoading} />
         </div>
         <div>
-          <AlertsPanel />
+          <UpcomingEventsList />
         </div>
       </div>
       
@@ -92,7 +93,7 @@ const AdminDashboard = () => {
       </div>
       
       {/* Quick access cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
         <Link to="/users-management">
           <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
             <CardContent className="p-4 flex items-center">
@@ -117,10 +118,22 @@ const AdminDashboard = () => {
           </Card>
         </Link>
         
+        <Link to="/events-management">
+          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+            <CardContent className="p-4 flex items-center">
+              <Calendar className="h-8 w-8 text-green-500 mr-4" />
+              <div>
+                <h3 className="font-medium">Events</h3>
+                <p className="text-sm text-gray-500">Manage upcoming events</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        
         <Link to="/reports-dashboard">
           <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
             <CardContent className="p-4 flex items-center">
-              <PieChart className="h-8 w-8 text-green-500 mr-4" />
+              <PieChart className="h-8 w-8 text-amber-500 mr-4" />
               <div>
                 <h3 className="font-medium">Reports</h3>
                 <p className="text-sm text-gray-500">View attendance reports</p>
@@ -140,6 +153,10 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </Link>
+      </div>
+      
+      <div className="mt-6">
+        <AlertsPanel />
       </div>
     </MainLayout>
   );

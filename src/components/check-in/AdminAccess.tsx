@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AppRole } from "@/types/supabase";
 
 export const AdminAccess = () => {
   const [showLoginForm, setShowLoginForm] = useState(false);
@@ -49,7 +50,7 @@ export const AdminAccess = () => {
         .single();
       
       // Use type assertion to handle our updated enum values
-      const userRole = roleData?.role as string;
+      const userRole = roleData?.role as AppRole;
       
       if (userRole === 'admin') {
         toast({

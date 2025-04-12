@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import MainLayout from "@/components/layout/MainLayout";
+import { AppRole, StaffMember } from "@/types/supabase";
 
 const staffFormSchema = z.object({
   email: z.string().email({
@@ -49,22 +50,11 @@ const staffFormSchema = z.object({
     message: "Password must be at least 8 characters",
   }),
   phone: z.string().optional(),
-  role: z.enum(["admin", "staff"]),
+  role: z.enum(["admin", "teacher", "assistant"]),
   isSuperAdmin: z.boolean().default(false),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
-
-interface StaffMember {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  role: "admin" | "staff" | "parent";
-  isSuperAdmin: boolean;
-  isActive: boolean;
-}
 
 const StaffManagement = () => {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -82,7 +72,7 @@ const StaffManagement = () => {
       lastName: "",
       password: "",
       phone: "",
-      role: "staff",
+      role: "teacher",
       isSuperAdmin: false,
     },
   });
@@ -107,18 +97,18 @@ const StaffManagement = () => {
           firstName: staff.first_name || '',
           lastName: staff.last_name || '',
           phone: staff.phone || '',
-          role: staff.role as "admin" | "staff" | "parent",
+          role: staff.role as AppRole,
           isSuperAdmin: staff.is_super_admin || false,
           isActive: staff.is_active
         }));
         
         setStaffMembers(formattedStaff);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching staff members:", error);
       toast({
         title: "Failed to load staff members",
-        description: "Please try again later",
+        description: "Please try again later: " + error.message,
         variant: "destructive",
       });
     } finally {
@@ -179,7 +169,7 @@ const StaffManagement = () => {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: "admin" | "staff") => {
+  const handleRoleChange = async (userId: string, newRole: AppRole) => {
     try {
       const { error } = await supabase
         .from('user_roles')
@@ -198,11 +188,11 @@ const StaffManagement = () => {
         title: "Role Updated",
         description: `User role has been updated to ${newRole}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating role:", error);
       toast({
         title: "Role Update Failed",
-        description: "Please try again",
+        description: "Please try again: " + error.message,
         variant: "destructive",
       });
     }
@@ -227,11 +217,11 @@ const StaffManagement = () => {
         title: isSuperAdmin ? "Super Admin Granted" : "Super Admin Revoked",
         description: `User's super admin status has been updated`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating super admin status:", error);
       toast({
         title: "Status Update Failed",
-        description: "Please try again",
+        description: "Please try again: " + error.message,
         variant: "destructive",
       });
     }
@@ -357,12 +347,13 @@ const StaffManagement = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="staff">Staff</SelectItem>
+                          <SelectItem value="teacher">Teacher</SelectItem>
+                          <SelectItem value="assistant">Assistant</SelectItem>
                           <SelectItem value="admin">Administrator</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        Staff can only access assigned classes. Administrators have full system access.
+                        Teachers can manage classes. Administrators have full system access.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -463,9 +454,12 @@ const StaffManagement = () => {
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       staff.role === 'admin' 
                         ? 'bg-purple-100 text-purple-800' 
-                        : 'bg-blue-100 text-blue-800'
+                        : staff.role === 'teacher'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-green-100 text-green-800'
                     }`}>
-                      {staff.role === 'admin' ? 'Administrator' : 'Staff'}
+                      {staff.role === 'admin' ? 'Administrator' : 
+                       staff.role === 'teacher' ? 'Teacher' : 'Assistant'}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -489,15 +483,20 @@ const StaffManagement = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {staff.role === 'staff' ? (
+                        {staff.role === 'teacher' ? (
                           <DropdownMenuItem onClick={() => handleRoleChange(staff.id, 'admin')}>
                             <Shield className="h-4 w-4 mr-2" />
                             Make Administrator
                           </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => handleRoleChange(staff.id, 'staff')}>
+                        ) : staff.role === 'admin' ? (
+                          <DropdownMenuItem onClick={() => handleRoleChange(staff.id, 'teacher')}>
                             <Shield className="h-4 w-4 mr-2" />
-                            Make Staff
+                            Make Teacher
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleRoleChange(staff.id, 'teacher')}>
+                            <Shield className="h-4 w-4 mr-2" />
+                            Make Teacher
                           </DropdownMenuItem>
                         )}
                         {staff.isSuperAdmin ? (
