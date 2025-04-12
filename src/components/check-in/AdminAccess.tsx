@@ -48,13 +48,16 @@ export const AdminAccess = () => {
         .eq('user_id', data.user.id)
         .single();
       
-      if (roleData?.role === 'admin') {
+      // Use type assertion to handle our updated enum values
+      const userRole = roleData?.role as string;
+      
+      if (userRole === 'admin') {
         toast({
           title: "Admin Login Successful",
           description: "Welcome to the admin dashboard",
         });
         navigate("/admin-dashboard");
-      } else if (roleData?.role === 'teacher') {
+      } else if (userRole === 'teacher') {
         toast({
           title: "Teacher Login Successful",
           description: "Welcome to the teacher dashboard",

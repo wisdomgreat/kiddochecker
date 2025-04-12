@@ -4,11 +4,12 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase, getUserRole, isSetupCompleted } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { AppRole } from '@/types/supabase';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  userRole: string | null;
+  userRole: AppRole | null;
   isLoading: boolean;
   isInitialized: boolean;
   isSetupComplete: boolean | null;
@@ -36,7 +37,7 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
