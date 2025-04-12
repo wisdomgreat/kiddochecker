@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Printer, CheckCircle, QrCode } from "lucide-react";
+import { Printer, CheckCircle, QrCode, Tag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -59,6 +59,7 @@ export const NameTagPrinter = ({
                 border-bottom: 1px solid #eee;
                 padding-bottom: 5px;
                 margin-bottom: 5px;
+                font-weight: bold;
               }
               .name {
                 font-size: 24px;
@@ -107,11 +108,20 @@ export const NameTagPrinter = ({
                 justify-content: space-between;
                 align-items: center;
               }
+              .barcode {
+                width: 100%;
+                text-align: center;
+                margin: 8px 0;
+                font-family: 'Libre Barcode 39', cursive;
+                font-size: 42px;
+                line-height: 1;
+              }
             </style>
+            <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
           </head>
           <body>
             <div class="name-tag">
-              <div class="header">ChurchCheck - Children's Ministry</div>
+              <div class="header">Children's Ministry Check-in</div>
               <div class="name">${childName}</div>
               <div class="flex-row">
                 <div>
@@ -129,6 +139,7 @@ export const NameTagPrinter = ({
                   )}" alt="QR Code" />
                 </div>
               </div>
+              <div class="barcode">*${childId.substring(0, 10)}*</div>
               <div class="security-code">Security Code: ${securityCode}</div>
               <div class="footer">Parents: Please keep your security code for pickup</div>
             </div>
@@ -206,6 +217,10 @@ export const NameTagPrinter = ({
               level="H"
             />
           </div>
+        </div>
+        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-center">
+          <Tag className="h-4 w-4 mr-1 text-gray-500" />
+          <div className="text-xs font-mono bg-gray-50 px-2 py-1 rounded">{childId.substring(0, 10)}</div>
         </div>
         {securityCode && (
           <div className="mt-2 pt-2 border-t border-gray-100">

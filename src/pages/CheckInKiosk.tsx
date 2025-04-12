@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import LoginForm from "@/components/check-in/LoginForm";
@@ -7,99 +7,26 @@ import RegistrationPrompt from "@/components/check-in/RegistrationPrompt";
 import { useNavigate, Link } from "react-router-dom";
 import { Info, Users, ArrowRight, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { v4 as uuidv4 } from 'uuid';
-import { getDeviceProfile, registerDevice, isSetupCompleted } from "@/integrations/supabase/client";
+import { useDeviceRegistration } from "@/hooks/useDeviceRegistration";
 
 const CheckInKiosk = () => {
   const [showRegistration, setShowRegistration] = useState(false);
-  const [deviceId, setDeviceId] = useState<string>("");
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [deviceName, setDeviceName] = useState("");
-  const [showDeviceSetup, setShowDeviceSetup] = useState(false);
-  const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const initializeDevice = async () => {
-      setIsLoading(true);
-      try {
-        // Check if organization setup is completed
-        const setupComplete = await isSetupCompleted();
-        setIsSetupComplete(setupComplete);
-
-        if (!setupComplete) {
-          setIsLoading(false);
-          return;
-        }
-
-        // Get or create device ID from local storage
-        let storedDeviceId = localStorage.getItem('device_id');
-        if (!storedDeviceId) {
-          storedDeviceId = uuidv4();
-          localStorage.setItem('device_id', storedDeviceId);
-        }
-        setDeviceId(storedDeviceId);
-
-        // Check if device is registered
-        const deviceProfile = await getDeviceProfile(storedDeviceId);
-        if (deviceProfile) {
-          setIsRegistered(true);
-          setDeviceName(deviceProfile.name || "Check-in Kiosk");
-        } else {
-          setIsRegistered(false);
-          setShowDeviceSetup(true);
-        }
-      } catch (error) {
-        console.error("Error initializing device:", error);
-        toast({
-          title: "Error",
-          description: "Failed to initialize kiosk",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeDevice();
-  }, [toast]);
-
-  const handleRegisterDevice = async () => {
-    if (!deviceName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please provide a name for this kiosk",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const result = await registerDevice({
-        device_id: deviceId,
-        name: deviceName,
-        type: 'check_in_kiosk',
-      });
-
-      if (result) {
-        setIsRegistered(true);
-        setShowDeviceSetup(false);
-        toast({
-          title: "Success",
-          description: "Kiosk registered successfully",
-        });
-      }
-    } catch (error) {
-      console.error("Error registering device:", error);
-      toast({
-        title: "Error",
-        description: "Failed to register kiosk",
-        variant: "destructive",
-      });
-    }
-  };
+  
+  const { 
+    deviceId,
+    isRegistered,
+    deviceName,
+    showDeviceSetup,
+    isSetupComplete,
+    isLoading,
+    handleRegisterDevice,
+    updateDeviceName
+  } = useDeviceRegistration({
+    deviceType: 'check_in_kiosk',
+    defaultDeviceName: "Check-in Kiosk"
+  });
 
   const handleRegister = () => {
     navigate("/parent-registration");
@@ -171,7 +98,7 @@ const CheckInKiosk = () => {
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="e.g., Main Entrance Kiosk"
                   value={deviceName}
-                  onChange={(e) => setDeviceName(e.target.value)}
+                  onChange={(e) => updateDeviceName(e.target.value)}
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Give this check-in kiosk a descriptive name to identify it
@@ -179,7 +106,7 @@ const CheckInKiosk = () => {
               </div>
               
               <Button 
-                onClick={handleRegisterDevice}
+                onClick={() => handleRegisterDevice()}
                 className="w-full"
               >
                 Register Kiosk

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,14 +16,12 @@ const LandingPage = () => {
   useEffect(() => {
     const checkOrganization = async () => {
       try {
-        // Use raw query since organization_settings is not in types yet
         const { count, error } = await supabase
           .from('organization_settings')
           .select('*', { count: 'exact', head: true });
           
         if (error) throw error;
         
-        // If no organization exists, update state
         setHasOrganization(count !== 0);
       } catch (error) {
         console.error("Error checking organization:", error);
@@ -37,7 +34,6 @@ const LandingPage = () => {
     checkOrganization();
   }, [navigate]);
 
-  // Redirect authenticated users based on role
   useEffect(() => {
     if (user && userRole) {
       let targetRoute = "/parent-dashboard";
@@ -63,7 +59,6 @@ const LandingPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Header/Navigation */}
       <header className="bg-white shadow-sm py-4">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center">
@@ -71,7 +66,7 @@ const LandingPage = () => {
           </div>
           <div>
             <Button 
-              onClick={() => navigate('/check-in-kiosk')}
+              onClick={() => navigate('/login')}
               variant="ghost"
               className="mr-2"
             >
@@ -87,14 +82,13 @@ const LandingPage = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50">
         <div className="max-w-4xl text-center mb-12">
           <h1 className="text-4xl md:text-6xl font-bold text-blue-600 mb-6">
             Secure Children's Check-in System
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            A simple, secure, and efficient way to check children in and out of your church or organization's children's ministry
+            A simple, secure, and efficient way to check children in and out of your church's children's ministry
           </p>
           
           <div className="flex flex-wrap justify-center gap-4">
@@ -103,11 +97,11 @@ const LandingPage = () => {
               className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
               size="lg"
             >
-              Create an Organization
+              Set Up Your Church
             </Button>
             
             <Button 
-              onClick={() => navigate('/check-in-kiosk')}
+              onClick={() => navigate('/login')}
               variant="outline"
               className="border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-6 text-lg"
               size="lg"
@@ -118,31 +112,30 @@ const LandingPage = () => {
         </div>
       </div>
       
-      {/* Features Section */}
       <div className="py-20 px-4 bg-white">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Powerful Features</h2>
+          <h2 className="text-3xl font-bold text-center mb-4">Made for Your Church</h2>
           <p className="text-center text-gray-600 mb-16 max-w-2xl mx-auto">
-            Everything you need to manage your children's ministry check-in process efficiently and securely
+            Everything your church needs to manage children's ministry check-in process efficiently and securely
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             <FeatureCard 
               icon={<QrCode className="h-8 w-8 text-blue-500" />}
-              title="QR Code Check-in/out"
-              description="Fast and secure check-in and check-out process with QR code technology"
+              title="Quick Check-in/out"
+              description="Fast and secure check-in and check-out process with QR codes and barcodes"
             />
             
             <FeatureCard 
               icon={<Printer className="h-8 w-8 text-blue-500" />}
               title="Name Tag Printing"
-              description="Automatic printing of name tags with security codes and allergy information"
+              description="Print custom name tags with barcodes, security codes, and allergy information"
             />
             
             <FeatureCard 
               icon={<Shield className="h-8 w-8 text-blue-500" />}
-              title="Secure System"
-              description="Role-based access and security measures to keep children's data safe"
+              title="Local Security"
+              description="Local deployment with secure authentication for your church's specific needs"
             />
             
             <FeatureCard 
@@ -166,7 +159,6 @@ const LandingPage = () => {
         </div>
       </div>
       
-      {/* Testimonials/Social Proof */}
       <div className="py-16 px-4 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Why Choose ChurchCheck</h2>
@@ -239,7 +231,6 @@ const LandingPage = () => {
         </div>
       </div>
       
-      {/* Call to Action */}
       <div className="py-20 px-4 bg-blue-600">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-white mb-6">Ready to Transform Your Check-in Process?</h2>
@@ -257,7 +248,7 @@ const LandingPage = () => {
             </Button>
             
             <Button 
-              onClick={() => navigate('/check-in-kiosk')}
+              onClick={() => navigate('/login')}
               variant="outline"
               className="border-white text-white hover:bg-blue-700 px-8 py-6 text-lg"
               size="lg"
@@ -268,7 +259,6 @@ const LandingPage = () => {
         </div>
       </div>
       
-      {/* Footer */}
       <footer className="py-12 px-4 bg-gray-900 text-white">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between mb-8">

@@ -1,17 +1,14 @@
-
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SearchForm } from "@/components/check-out/SearchForm";
-import { CheckoutTable } from "@/components/check-out/CheckoutTable";
-import { HelpSection } from "@/components/check-out/HelpSection";
-import { QrCodeScanner } from "@/components/check-out/QrCodeScanner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Info, LogIn } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import SearchForm from "@/components/check-out/SearchForm";
+import CheckoutTable from "@/components/check-out/CheckoutTable";
+import HelpSection from "@/components/check-out/HelpSection";
+import QrCodeScanner from "@/components/check-out/QrCodeScanner";
+import { CheckCircle, AlertTriangle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { getDeviceProfile, registerDevice, isSetupCompleted } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 const CheckOutStation = () => {
   const [results, setResults] = useState([]);
@@ -29,7 +26,6 @@ const CheckOutStation = () => {
     const initializeDevice = async () => {
       setIsLoading(true);
       try {
-        // Check if organization setup is completed
         const setupComplete = await isSetupCompleted();
         setIsSetupComplete(setupComplete);
 
@@ -38,7 +34,6 @@ const CheckOutStation = () => {
           return;
         }
 
-        // Get or create device ID from local storage
         let storedDeviceId = localStorage.getItem('device_id');
         if (!storedDeviceId) {
           storedDeviceId = uuidv4();
@@ -46,7 +41,6 @@ const CheckOutStation = () => {
         }
         setDeviceId(storedDeviceId);
 
-        // Check if device is registered
         const deviceProfile = await getDeviceProfile(storedDeviceId);
         if (deviceProfile) {
           setIsRegistered(true);
@@ -204,7 +198,6 @@ const CheckOutStation = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
         <div className="flex items-center">
           <h1 className="text-2xl font-bold text-gray-800">Child Check-out Station</h1>
