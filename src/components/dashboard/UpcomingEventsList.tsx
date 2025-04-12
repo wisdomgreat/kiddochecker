@@ -28,33 +28,49 @@ const UpcomingEventsList = ({ limit = 3 }: UpcomingEventsListProps) => {
     queryFn: async () => {
       const today = new Date().toISOString();
       
-      // First check if the events table exists
-      const { data: tableExists, error: checkError } = await supabase
-        .from('events')
-        .select('count', { count: 'exact', head: true })
-        .limit(1);
-      
-      if (checkError) {
-        console.error("Error checking events table:", checkError);
+      try {
+        // Check if the functions exist
+        const { data: functionsExist, error: funcError } = await supabase
+          .rpc('get_upcoming_events', { limit_count: limit })
+          .select();
+        
+        if (funcError) {
+          console.log("Using direct query as RPC function is not available:", funcError);
+          
+          // Fallback to direct query if the function doesn't exist
+          const { data, error } = await supabase
+            .from('events')
+            .select('*')
+            .gte('start_date', today)
+            .order('start_date', { ascending: true })
+            .limit(limit);
+          
+          if (error) {
+            console.error("Error fetching events:", error);
+            return [];
+          }
+          
+          return (data || []).map(event => ({
+            id: event.id,
+            title: event.title,
+            startDate: event.start_date,
+            endDate: event.end_date,
+            location: event.location
+          }));
+        } else {
+          // Use the RPC function if it exists
+          return (functionsExist || []).map(event => ({
+            id: event.id,
+            title: event.title,
+            startDate: event.start_date,
+            endDate: event.end_date,
+            location: event.location
+          }));
+        }
+      } catch (error) {
+        console.error("Error in event query:", error);
         return [];
       }
-      
-      const { data, error } = await supabase
-        .rpc('get_upcoming_events', { limit_count: limit })
-        .select('*');
-      
-      if (error) {
-        console.error("Error fetching events:", error);
-        return [];
-      }
-      
-      return (data || []).map(event => ({
-        id: event.id,
-        title: event.title,
-        startDate: event.start_date,
-        endDate: event.end_date,
-        location: event.location
-      }));
     }
   });
 

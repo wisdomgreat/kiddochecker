@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer, CheckCircle, QrCode, Tag } from "lucide-react";
@@ -23,7 +22,6 @@ export const NameTagPrinter = ({
   const [printed, setPrinted] = useState(false);
   const { toast } = useToast();
 
-  // Create a unique identifier for the QR code
   const qrCodeValue = `CHILD:${childId}|CODE:${securityCode}`;
 
   const handlePrint = () => {
@@ -148,7 +146,6 @@ export const NameTagPrinter = ({
       `);
       printWindow.document.close();
       
-      // Wait for content to load before printing
       printWindow.onload = function() {
         printWindow.print();
         printWindow.onafterprint = function() {
@@ -189,7 +186,6 @@ export const NameTagPrinter = ({
         </Button>
       </div>
 
-      {/* Hidden QR code for printing */}
       <div className="hidden">
         <QRCodeSVG
           id="qr-code-to-print"

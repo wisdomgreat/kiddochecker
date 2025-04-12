@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -14,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from "qrcode.react";
 
 const ParentDashboard = () => {
   const { user } = useAuth();
@@ -22,7 +21,6 @@ const ParentDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
 
-  // Fetch parent's children
   const { data: childrenData = [], isLoading: childrenLoading } = useQuery({
     queryKey: ['parent-children', user?.id],
     queryFn: async () => {
@@ -43,7 +41,6 @@ const ParentDashboard = () => {
     enabled: !!user,
   });
   
-  // Fetch recent attendance for parent's children
   const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
     queryKey: ['parent-attendance', user?.id],
     queryFn: async () => {
@@ -83,7 +80,6 @@ const ParentDashboard = () => {
     enabled: !!user && childrenData.length > 0,
   });
   
-  // Stats calculations
   const totalChildren = childrenData.length;
   const childrenInAttendance = new Set(
     attendanceRecords
@@ -91,7 +87,6 @@ const ParentDashboard = () => {
       .map(record => record.childName)
   ).size;
   
-  // Column definitions for children
   const childrenColumns = [
     {
       key: "first_name" as const,
@@ -130,7 +125,6 @@ const ParentDashboard = () => {
     },
   ];
   
-  // Column definitions for attendance history
   const attendanceColumns = [
     {
       key: "childName" as const,
@@ -244,12 +238,11 @@ const ParentDashboard = () => {
             </DialogHeader>
             <div className="flex flex-col items-center p-4">
               <div className="bg-white p-4 rounded-lg shadow-inner mb-4">
-                <QRCode
+                <QRCodeSVG
                   value={user?.id || "no-user-id"}
                   size={200}
                   level="H"
                   includeMargin={true}
-                  renderAs="svg"
                 />
               </div>
               <p className="text-center text-gray-600">
