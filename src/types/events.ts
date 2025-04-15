@@ -1,4 +1,3 @@
-
 export interface EventItem {
   id: string;
   title: string;
@@ -19,3 +18,5 @@ export interface EventFormValues {
   organizer?: string;
   isPublic?: boolean;
 }
+
+export type AppRole = "admin" | "teacher" | "parent" | "staff" | "super_admin";

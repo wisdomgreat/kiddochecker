@@ -10,6 +10,7 @@ export interface StatCardProps {
   actionLabel?: string;
   actionLink?: string;
   onClickAction?: () => void;
+  className?: string; // Adding className prop to fix errors
 }
 
 const StatCard = ({
@@ -20,6 +21,7 @@ const StatCard = ({
   actionLabel,
   actionLink,
   onClickAction,
+  className,
 }: StatCardProps) => {
   const handleActionClick = (e: React.MouseEvent) => {
     if (onClickAction) {
@@ -29,7 +31,7 @@ const StatCard = ({
   };
 
   return (
-    <Card>
+    <Card className={className}>
       <CardContent className="p-6">
         <div className="flex justify-between items-start">
           <div>

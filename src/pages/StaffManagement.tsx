@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -38,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState as useStateTeachingState } from "react";
+import { AppRole } from "@/types/events";
 import {
   UserPlus,
   Search,
@@ -58,7 +58,7 @@ const staffMemberSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.enum(["admin", "teacher"], {
+  role: z.enum(["admin", "staff"], {
     required_error: "Please select a role",
   }),
   phone: z.string().optional(),
@@ -80,7 +80,7 @@ const StaffManagement = () => {
       email: "",
       firstName: "",
       lastName: "",
-      role: "teacher",
+      role: "staff",
       phone: "",
       isSuperAdmin: false,
     },
@@ -92,7 +92,7 @@ const StaffManagement = () => {
       email: "",
       firstName: "",
       lastName: "",
-      role: "teacher",
+      role: "staff",
       phone: "",
       isSuperAdmin: false,
     },
@@ -183,7 +183,14 @@ const StaffManagement = () => {
       });
       
       setIsAddDialogOpen(false);
-      staffMemberForm.reset();
+      staffMemberForm.reset({
+        email: "",
+        firstName: "",
+        lastName: "",
+        role: "staff",
+        phone: "",
+        isSuperAdmin: false,
+      });
       queryClient.invalidateQueries({ queryKey: ["staff-members"] });
     } catch (error: any) {
       console.error("Error adding staff member:", error);
@@ -457,7 +464,7 @@ const StaffManagement = () => {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="teacher">Teacher</SelectItem>
+                            <SelectItem value="staff">Staff</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormDescription>
@@ -643,7 +650,7 @@ const StaffManagement = () => {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="teacher">Teacher</SelectItem>
+                        <SelectItem value="staff">Staff</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

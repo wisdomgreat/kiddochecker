@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -22,7 +21,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Trash2, Pencil, Plus, RefreshCw, Qr, MonitorSmartphone, Settings, CheckCircle } from "lucide-react";
+import {
+  Monitor,
+  Smartphone,
+  QrCode,
+  RefreshCcw,
+  MoreHorizontal,
+  Info,
+  Check,
+  X,
+  Tablet,
+  Wifi,
+  WifiOff,
+  Settings,
+  Trash2,
+  Power,
+  Edit,
+} from "lucide-react";
 
 // Device form schema
 const deviceSchema = z.object({
@@ -282,12 +297,12 @@ const KioskManagement = () => {
             <CardContent className="pt-0">
               {isLoading ? (
                 <div className="flex justify-center items-center h-32">
-                  <RefreshCw className="h-6 w-6 animate-spin text-purple-600" />
+                  <RefreshCcw className="h-6 w-6 animate-spin text-purple-600" />
                   <span className="ml-2">Loading devices...</span>
                 </div>
               ) : checkInDevices.length === 0 ? (
                 <div className="py-8 text-center">
-                  <MonitorSmartphone className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+                  <Monitor className="h-12 w-12 mx-auto text-gray-400 mb-2" />
                   <h3 className="text-lg font-medium text-gray-900 mb-1">
                     No check-in kiosks registered
                   </h3>
@@ -319,12 +334,12 @@ const KioskManagement = () => {
             <CardContent className="pt-0">
               {isLoading ? (
                 <div className="flex justify-center items-center h-32">
-                  <RefreshCw className="h-6 w-6 animate-spin text-purple-600" />
+                  <RefreshCcw className="h-6 w-6 animate-spin text-purple-600" />
                   <span className="ml-2">Loading devices...</span>
                 </div>
               ) : checkOutDevices.length === 0 ? (
                 <div className="py-8 text-center">
-                  <MonitorSmartphone className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+                  <Monitor className="h-12 w-12 mx-auto text-gray-400 mb-2" />
                   <h3 className="text-lg font-medium text-gray-900 mb-1">
                     No check-out stations registered
                   </h3>
@@ -394,7 +409,7 @@ const KioskManagement = () => {
         </CardContent>
         <CardFooter className="bg-gray-50 border-t flex items-center justify-between">
           <div className="flex items-center">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+            <Check className="h-5 w-5 text-green-500 mr-2" />
             <span className="text-sm">Device registration is automatic once the kiosk is set up.</span>
           </div>
           <Button variant="outline" size="sm">
@@ -497,7 +512,7 @@ const KioskManagement = () => {
                         onClick={generateRandomDeviceId}
                         className="flex-shrink-0"
                       >
-                        <RefreshCw className="h-4 w-4 mr-2" />
+                        <RefreshCcw className="h-4 w-4 mr-2" />
                         Generate
                       </Button>
                     </div>

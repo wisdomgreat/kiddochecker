@@ -137,19 +137,19 @@ const RolesManagement = () => {
   const handleEditRole = async (values: RoleFormValues) => {
     try {
       // Update user role
-      const { error: roleError } = await supabase.rpc("update_user_role", {
-        p_user_id: values.userId,
-        p_role: values.role,
-      });
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .update({ role: values.role })
+        .eq("user_id", values.userId);
 
       if (roleError) throw roleError;
 
       // Update super admin status if the role is admin
       if (values.role === "admin") {
-        const { error: adminError } = await supabase.rpc("set_super_admin_status", {
-          p_user_id: values.userId,
-          p_is_super_admin: values.isSuperAdmin,
-        });
+        const { error: adminError } = await supabase
+          .from("user_roles")
+          .update({ is_super_admin: values.isSuperAdmin })
+          .eq("user_id", values.userId);
 
         if (adminError) throw adminError;
       }
