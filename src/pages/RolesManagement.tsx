@@ -59,8 +59,9 @@ import { AppRole } from "@/types/supabase";
 // The special handling is needed because we can't modify the Supabase types file
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  // Use z.enum with our AppRole type but cast as a const array to avoid type issues
-  role: z.enum(["admin", "staff", "parent", "super_admin", "teacher"] as const, {
+  // Define a specific subset of roles that match what the database expects
+  // This needs to be explicitly "admin", "staff", "parent", "super_admin" without "teacher"
+  role: z.enum(["admin", "staff", "parent", "super_admin"] as const, {
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),
