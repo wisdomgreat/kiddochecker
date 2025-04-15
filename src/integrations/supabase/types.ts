@@ -179,6 +179,45 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_public: boolean | null
+          location: string | null
+          organizer: string | null
+          start_date: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_public?: boolean | null
+          location?: string | null
+          organizer?: string | null
+          start_date: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_public?: boolean | null
+          location?: string | null
+          organizer?: string | null
+          start_date?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       families: {
         Row: {
           created_at: string
@@ -385,6 +424,21 @@ export type Database = {
         }
         Returns: string
       }
+      get_all_events: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_public: boolean | null
+          location: string | null
+          organizer: string | null
+          start_date: string
+          title: string
+          updated_at: string | null
+        }[]
+      }
       get_device_profile: {
         Args: { p_device_id: string }
         Returns: Json
@@ -400,6 +454,21 @@ export type Database = {
           role: string
           is_super_admin: boolean
           is_active: boolean
+        }[]
+      }
+      get_upcoming_events: {
+        Args: { limit_count?: number }
+        Returns: {
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_public: boolean | null
+          location: string | null
+          organizer: string | null
+          start_date: string
+          title: string
+          updated_at: string | null
         }[]
       }
       has_role: {

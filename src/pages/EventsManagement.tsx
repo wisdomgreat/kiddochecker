@@ -131,17 +131,19 @@ const EventsManagement = () => {
 
   const handleCreateEvent = async (values: z.infer<typeof eventSchema>) => {
     try {
-      const { data, error } = await supabase.from("events").insert([
-        {
-          title: values.title,
-          description: values.description,
-          start_date: values.startDate.toISOString(),
-          end_date: values.endDate ? values.endDate.toISOString() : null,
-          location: values.location,
-          organizer: values.organizer,
-          is_public: values.isPublic,
-        },
-      ]);
+      const { data, error } = await supabase
+        .from("events")
+        .insert([
+          {
+            title: values.title,
+            description: values.description,
+            start_date: values.startDate.toISOString(),
+            end_date: values.endDate ? values.endDate.toISOString() : null,
+            location: values.location,
+            organizer: values.organizer,
+            is_public: values.isPublic,
+          },
+        ]);
 
       if (error) throw error;
 

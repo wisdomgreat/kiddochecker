@@ -7,14 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-
-export interface EventItem {
-  id: string;
-  title: string;
-  startDate: string;
-  endDate?: string;
-  location?: string;
-}
+import { EventItem } from "@/types/events";
 
 interface UpcomingEventsListProps {
   limit?: number;
