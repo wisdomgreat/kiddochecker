@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -52,11 +53,11 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { AppRole } from "@/types/supabase";
+import { AppRole } from "@/types/events";
 
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  role: z.enum(["admin", "parent", "staff"] as const, {
+  role: z.enum(["admin", "parent", "staff", "teacher", "assistant", "super_admin"] as const, {
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),
