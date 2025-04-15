@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -54,9 +55,11 @@ import {
 } from "lucide-react";
 import { AppRole } from "@/types/supabase";
 
-// Update the roleSchema to match the database's app_role enum including 'teacher'
+// Define a type that's strictly limited to the database enum values
+// The special handling is needed because we can't modify the Supabase types file
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
+  // Use z.enum with our AppRole type but cast as a const array to avoid type issues
   role: z.enum(["admin", "staff", "parent", "super_admin", "teacher"] as const, {
     required_error: "Role is required",
   }),
