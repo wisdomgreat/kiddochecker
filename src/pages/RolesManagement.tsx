@@ -53,7 +53,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { AppRole } from "@/types/events";
+import { AppRole } from "@/types/supabase";
 
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
