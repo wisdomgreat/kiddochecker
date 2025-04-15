@@ -55,7 +55,7 @@ import {
 } from "lucide-react";
 import { AppRole } from "@/types/supabase"; // Using the type from supabase.ts
 
-// Role form schema - updating to match AppRole type from supabase.ts
+// Role form schema - using AppRole type from supabase.ts
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
   role: z.enum(["admin", "parent", "staff", "super_admin", "teacher", "assistant"] as const, {
