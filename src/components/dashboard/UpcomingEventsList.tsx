@@ -29,10 +29,25 @@ const UpcomingEventsList = ({ limit = 3 }: UpcomingEventsListProps) => {
       const today = new Date().toISOString();
       
       try {
-        // Direct query to events table
+        // Use the RPC function if available, otherwise fall back to direct query
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_upcoming_events', { limit_count: limit });
+        
+        if (rpcData && !rpcError) {
+          return rpcData.map((event: any) => ({
+            id: event.id,
+            title: event.title,
+            startDate: event.start_date,
+            endDate: event.end_date,
+            location: event.location
+          }));
+        }
+        
+        // Direct query to events table as fallback
+        // This is just for development until the events table is properly set up
         const { data, error } = await supabase
           .from('events')
-          .select('*')
+          .select('id, title, start_date, end_date, location')
           .gte('start_date', today)
           .order('start_date', { ascending: true })
           .limit(limit);

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { 
@@ -29,7 +28,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-// Mock data for class roster
 const rosterData = [
   { id: "1", name: "Emma Wilson", age: 4, status: "Checked in", time: "9:45 AM", allergies: "None", parentName: "Sarah & James Wilson", parentContact: "555-123-4567" },
   { id: "2", name: "Noah Johnson", age: 5, status: "Checked in", time: "9:48 AM", allergies: "Peanuts", parentName: "Michael Johnson", parentContact: "555-234-5678" },
@@ -39,12 +37,6 @@ const rosterData = [
   { id: "6", name: "Ethan Miller", age: 3, status: "Absent", time: "", allergies: "None", parentName: "Jennifer Miller", parentContact: "555-678-9012" },
   { id: "7", name: "Isabella Garcia", age: 4, status: "Checked in", time: "9:42 AM", allergies: "None", parentName: "Maria Garcia", parentContact: "555-789-0123" },
   { id: "8", name: "Mason Rodriguez", age: 5, status: "Checked in", time: "9:58 AM", allergies: "Dairy", parentName: "Carlos Rodriguez", parentContact: "555-890-1234" }
-];
-
-// Teacher data for the selected class
-const teacherData = [
-  { id: "1", name: "Sarah Johnson", role: "Lead Teacher", experience: "5 years", certified: true, contact: "555-111-2222" },
-  { id: "2", name: "Michael Chen", role: "Assistant Teacher", experience: "2 years", certified: true, contact: "555-333-4444" }
 ];
 
 const ClassesManagement = () => {
@@ -57,7 +49,6 @@ const ClassesManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Fetch classes
   const { data: classes = [], isLoading: isLoadingClasses } = useQuery({
     queryKey: ["classes"],
     queryFn: async () => {
@@ -77,7 +68,7 @@ const ClassesManagement = () => {
           room: classItem.room,
           description: classItem.description,
           teachers: "Loading...",
-          schedule: "Sunday, 9:30 AM - 11:30 AM", // This would come from a schedule table
+          schedule: "Sunday, 9:30 AM - 11:30 AM",
           location: classItem.room,
           status: true
         }));
@@ -93,31 +84,37 @@ const ClassesManagement = () => {
     }
   });
   
-  // Fetch teachers for each class
   const { data: teachersData = {}, isLoading: isLoadingTeachers } = useQuery({
     queryKey: ["class-teachers"],
     queryFn: async () => {
       try {
         const { data, error } = await supabase
           .from("teachers")
-          .select(`
-            user_id,
-            class_id,
-            profiles(first_name, last_name)
-          `);
+          .select("user_id, class_id");
           
         if (error) throw error;
         
-        // Organize teachers by class_id
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name");
+          
+        if (profilesError) throw profilesError;
+        
         const teachersByClass: Record<string, string[]> = {};
+        
         data.forEach((teacher) => {
           const classId = teacher.class_id;
-          const teacherName = `${teacher.profiles?.first_name || ''} ${teacher.profiles?.last_name || ''}`.trim();
           
           if (classId) {
+            const profile = profilesData.find(p => p.id === teacher.user_id);
+            const teacherName = profile 
+              ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+              : "Unknown Teacher";
+            
             if (!teachersByClass[classId]) {
               teachersByClass[classId] = [];
             }
+            
             if (teacherName) {
               teachersByClass[classId].push(teacherName);
             }
@@ -133,7 +130,6 @@ const ClassesManagement = () => {
     enabled: classes.length > 0
   });
   
-  // Combine classes with their teachers
   const classesWithTeachers = classes.map((classItem) => ({
     ...classItem,
     teachers: teachersData[classItem.id] 
@@ -141,7 +137,6 @@ const ClassesManagement = () => {
       : "No teachers assigned"
   }));
 
-  // Get teachers for selected class
   const teachersForSelectedClass = selectedClass && teachersData[selectedClass.id] 
     ? teachersData[selectedClass.id].map((name, index) => ({
         id: `teacher-${index}`,
@@ -153,7 +148,6 @@ const ClassesManagement = () => {
       }))
     : [];
   
-  // Class columns for data table
   const classColumns = [
     {
       key: "name" as const,
@@ -232,7 +226,6 @@ const ClassesManagement = () => {
     },
   ];
 
-  // Roster columns for data table
   const rosterColumns = [
     {
       key: "name" as const,
@@ -288,7 +281,6 @@ const ClassesManagement = () => {
     },
   ];
 
-  // Filter classes based on search term
   const filteredClasses = classesWithTeachers.filter(cls => 
     cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (cls.ageGroup && cls.ageGroup.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -453,8 +445,9 @@ const ClassesManagement = () => {
                   : "0"}
                 description="Assigned to class"
                 icon={<Users size={24} />}
-                onActionClick={() => setIsAssignTeacherOpen(true)}
                 actionLabel="Manage Teachers"
+                actionLink="#"
+                onClickAction={() => setIsAssignTeacherOpen(true)}
               />
               
               <StatCard

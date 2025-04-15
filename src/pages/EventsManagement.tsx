@@ -105,14 +105,32 @@ const EventsManagement = () => {
     queryKey: ["events"],
     queryFn: async () => {
       try {
+        // Use RPC function if available, otherwise fall back to direct query
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_all_events');
+        
+        if (rpcData && !rpcError) {
+          return rpcData.map((event: any) => ({
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            startDate: event.start_date,
+            endDate: event.end_date,
+            location: event.location,
+            organizer: event.organizer,
+            isPublic: event.is_public,
+          }));
+        }
+        
+        // Direct query as fallback
         const { data, error } = await supabase
-          .from("events")
-          .select("*")
-          .order("start_date", { ascending: true });
-
+          .from('events')
+          .select('id, title, description, start_date, end_date, location, organizer, is_public')
+          .order('start_date', { ascending: true });
+        
         if (error) throw error;
 
-        return (data || []).map((event) => ({
+        return (data || []).map(event => ({
           id: event.id,
           title: event.title,
           description: event.description,
