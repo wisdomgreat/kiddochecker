@@ -1,6 +1,6 @@
 
 // Match the exact definition in database app_role enum
-export type AppRole = 'admin' | 'staff' | 'parent' | 'super_admin';
+export type AppRole = 'admin' | 'staff' | 'parent' | 'super_admin' | 'teacher';
 
 // Interface for user role data returned from Supabase
 export interface UserRoleData {

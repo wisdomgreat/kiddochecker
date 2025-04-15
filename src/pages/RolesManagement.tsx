@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -55,10 +54,10 @@ import {
 } from "lucide-react";
 import { AppRole } from "@/types/supabase";
 
-// Update the roleSchema to match the database's app_role enum
+// Update the roleSchema to match the database's app_role enum including 'teacher'
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  role: z.enum(["admin", "staff", "parent", "super_admin"] as const, {
+  role: z.enum(["admin", "staff", "parent", "super_admin", "teacher"] as const, {
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),
