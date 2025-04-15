@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,10 +50,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { EventItem, EventFormValues } from "@/types/events";
+import { EventItem } from "@/types/events";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Event form schema
 const eventSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
@@ -76,7 +74,6 @@ const EventsManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Create form
   const createForm = useForm<z.infer<typeof eventSchema>>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
@@ -88,7 +85,6 @@ const EventsManagement = () => {
     },
   });
 
-  // Edit form
   const editForm = useForm<z.infer<typeof eventSchema>>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
@@ -100,29 +96,10 @@ const EventsManagement = () => {
     },
   });
 
-  // Fetch events
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
       try {
-        // Use RPC function if available, otherwise fall back to direct query
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('get_all_events');
-        
-        if (rpcData && !rpcError) {
-          return rpcData.map((event: any) => ({
-            id: event.id,
-            title: event.title,
-            description: event.description,
-            startDate: event.start_date,
-            endDate: event.end_date,
-            location: event.location,
-            organizer: event.organizer,
-            isPublic: event.is_public,
-          }));
-        }
-        
-        // Direct query as fallback
         const { data, error } = await supabase
           .from('events')
           .select('id, title, description, start_date, end_date, location, organizer, is_public')
@@ -152,7 +129,6 @@ const EventsManagement = () => {
     },
   });
 
-  // Handle create event submission
   const handleCreateEvent = async (values: z.infer<typeof eventSchema>) => {
     try {
       const { data, error } = await supabase.from("events").insert([
@@ -187,7 +163,6 @@ const EventsManagement = () => {
     }
   };
 
-  // Handle edit event submission
   const handleEditEvent = async (values: z.infer<typeof eventSchema>) => {
     if (!selectedEvent) return;
 
@@ -225,7 +200,6 @@ const EventsManagement = () => {
     }
   };
 
-  // Handle delete event
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
 
@@ -255,7 +229,6 @@ const EventsManagement = () => {
     }
   };
 
-  // Open edit dialog and populate form
   const openEditDialog = (event: EventItem) => {
     setSelectedEvent(event);
     editForm.reset({
@@ -270,13 +243,11 @@ const EventsManagement = () => {
     setIsEditOpen(true);
   };
 
-  // Open delete dialog
   const openDeleteDialog = (event: EventItem) => {
     setSelectedEvent(event);
     setIsDeleteOpen(true);
   };
 
-  // Filter events based on search term
   const filteredEvents = events.filter(
     (event) =>
       event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -288,7 +259,6 @@ const EventsManagement = () => {
         event.organizer.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Event columns for data table
   const eventColumns = [
     {
       key: "title" as const,
@@ -441,7 +411,6 @@ const EventsManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Create Event Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
           <DialogHeader>
@@ -647,7 +616,6 @@ const EventsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Event Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
           <DialogHeader>
@@ -853,7 +821,6 @@ const EventsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Event Dialog */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

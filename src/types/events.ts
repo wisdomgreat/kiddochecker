@@ -15,7 +15,7 @@ export interface EventFormValues {
   description?: string;
   location?: string;
   startDate?: Date;
-  endDate?: Date;
+  endDate?: Date | null;
   organizer?: string;
   isPublic?: boolean;
 }
