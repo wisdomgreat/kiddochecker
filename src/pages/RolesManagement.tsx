@@ -57,7 +57,7 @@ import {
 // Role form schema
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  role: z.enum(["admin", "teacher", "parent"], {
+  role: z.enum(["admin", "teacher", "parent", "staff"], {
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),

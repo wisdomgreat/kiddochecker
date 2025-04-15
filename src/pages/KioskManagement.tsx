@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -37,6 +38,8 @@ import {
   Trash2,
   Power,
   Edit,
+  Pencil,
+  Plus,
 } from "lucide-react";
 
 // Device form schema
