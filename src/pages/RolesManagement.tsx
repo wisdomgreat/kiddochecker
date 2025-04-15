@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -53,12 +52,11 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { AppRole } from "@/types/supabase"; // Using the type from supabase.ts
+import { AppRole } from "@/types/supabase";
 
-// Role form schema - using AppRole type from supabase.ts
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  role: z.enum(["admin", "parent", "staff", "super_admin", "teacher", "assistant"] as const, {
+  role: z.enum(["admin", "parent", "staff"] as const, {
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),
@@ -73,7 +71,6 @@ const RolesManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Edit form
   const editForm = useForm<RoleFormValues>({
     resolver: zodResolver(roleSchema),
     defaultValues: {
@@ -83,17 +80,14 @@ const RolesManagement = () => {
     },
   });
 
-  // Fetch users with roles
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users-with-roles"],
     queryFn: async () => {
       try {
-        // Get all users with their roles
         const { data: staffData, error: staffError } = await supabase.rpc("get_staff_members");
         
         if (staffError) throw staffError;
         
-        // Fetch parent users from user_roles table
         const { data: parentRoles, error: parentError } = await supabase
           .from("user_roles")
           .select("*, profiles(*)")
@@ -101,7 +95,6 @@ const RolesManagement = () => {
           
         if (parentError) throw parentError;
         
-        // Combine the data
         const staffMembers = staffData.map((staff: any) => ({
           id: staff.user_id,
           email: staff.email,
@@ -114,7 +107,7 @@ const RolesManagement = () => {
         
         const parentMembers = (parentRoles || []).map((parent: any) => ({
           id: parent.user_id,
-          email: '', // Email not available in this query
+          email: '',
           firstName: parent.profiles?.first_name || '',
           lastName: parent.profiles?.last_name || '',
           role: 'parent',
@@ -137,7 +130,6 @@ const RolesManagement = () => {
 
   const handleEditRole = async (values: RoleFormValues) => {
     try {
-      // Update user role
       const { error: roleError } = await supabase
         .from("user_roles")
         .update({ role: values.role })
@@ -145,7 +137,6 @@ const RolesManagement = () => {
 
       if (roleError) throw roleError;
 
-      // Update super admin status if the role is admin
       if (values.role === "admin") {
         const { error: adminError } = await supabase
           .from("user_roles")
@@ -183,7 +174,6 @@ const RolesManagement = () => {
     setIsEditOpen(true);
   };
 
-  // Filter users based on search term
   const filteredUsers = users.filter(
     (user) =>
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -508,7 +498,6 @@ const RolesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Role Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
