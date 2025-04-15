@@ -1,4 +1,5 @@
 
+
 export interface EventItem {
   id: string;
   title: string;
@@ -20,5 +21,5 @@ export interface EventFormValues {
   isPublic?: boolean;
 }
 
-// Updated to match the definition in src/types/supabase.ts
-export type AppRole = 'admin' | 'teacher' | 'parent' | 'staff' | 'super_admin' | 'assistant';
+// Updated to match exactly the definition in src/types/supabase.ts
+export type AppRole = 'admin' | 'staff' | 'parent' | 'super_admin' | 'teacher' | 'assistant';
