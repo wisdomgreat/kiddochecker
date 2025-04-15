@@ -1,208 +1,258 @@
 
-import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  GraduationCap,
-  Users,
-  BarChart3,
-  Settings,
-  QrCode,
-  UserCog,
-  LogOut,
-  ArrowLeftRight,
-} from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useMobile } from "@/hooks/use-mobile";
+import {
+  CalendarCheck,
+  Users,
+  Home,
+  GraduationCap,
+  BarChart2,
+  Settings,
+  Tent,
+  LogOut,
+  UserCircle,
+  UserCog,
+  Calendar,
+  ShieldCheck,
+  MonitorSmartphone
+} from "lucide-react";
 
-interface SidebarItemProps {
-  icon: React.ReactNode;
-  label: string;
-  path: string;
-  isActive: boolean;
-  userRole?: string | null;
-  allowedRoles?: string[];
-}
+const Sidebar = ({
+  className,
+  collapsed = false,
+}: {
+  className?: string;
+  collapsed?: boolean;
+}) => {
+  const { userRole, signOut } = useAuth();
+  const isMobile = useMobile();
 
-const SidebarItem = ({ icon, label, path, isActive, userRole, allowedRoles }: SidebarItemProps) => {
-  // Don't render the item if user doesn't have required role
-  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
-    return null;
-  }
-  
-  return (
-    <Link to={path} className={cn(
-      "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-      isActive 
-        ? "bg-purple-100 text-purple-900" 
-        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-    )}>
-      {icon}
-      <span className="text-sm">{label}</span>
-    </Link>
+  const mainLinks = [
+    {
+      href: "/admin-dashboard",
+      label: "Dashboard",
+      icon: <Home size={20} />,
+      roles: ["admin"],
+    },
+    {
+      href: "/teacher-dashboard",
+      label: "Dashboard",
+      icon: <Home size={20} />,
+      roles: ["teacher"],
+    },
+    {
+      href: "/parent-dashboard",
+      label: "Dashboard",
+      icon: <Home size={20} />,
+      roles: ["parent"],
+    },
+    {
+      href: "/events-management",
+      label: "Events",
+      icon: <Calendar size={20} />,
+      roles: ["admin", "teacher"],
+    },
+    {
+      href: "/classes-management",
+      label: "Classes",
+      icon: <GraduationCap size={20} />,
+      roles: ["admin", "teacher"],
+    },
+    {
+      href: "/users-management",
+      label: "Users",
+      icon: <Users size={20} />,
+      roles: ["admin"],
+    },
+    {
+      href: "/reports-dashboard",
+      label: "Reports",
+      icon: <BarChart2 size={20} />,
+      roles: ["admin"],
+    },
+  ];
+
+  const managementLinks = [
+    {
+      href: "/staff-management",
+      label: "Staff",
+      icon: <UserCog size={20} />,
+      roles: ["admin"],
+    },
+    {
+      href: "/roles-management",
+      label: "Roles",
+      icon: <ShieldCheck size={20} />,
+      roles: ["admin"],
+    },
+    {
+      href: "/kiosk-management",
+      label: "Kiosks",
+      icon: <MonitorSmartphone size={20} />,
+      roles: ["admin"],
+    },
+    {
+      href: "/settings",
+      label: "Settings",
+      icon: <Settings size={20} />,
+      roles: ["admin"],
+    },
+  ];
+
+  const userLinks = [
+    {
+      href: "/user-profile",
+      label: "Profile",
+      icon: <UserCircle size={20} />,
+      roles: ["admin", "teacher", "parent"],
+    },
+    {
+      href: "/check-in-process",
+      label: "Check-in",
+      icon: <CalendarCheck size={20} />,
+      roles: ["admin", "parent"],
+    },
+  ];
+
+  const filteredMainLinks = mainLinks.filter((link) =>
+    link.roles.includes(userRole || "")
   );
-};
-
-const Sidebar = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const { user, userRole, signOut } = useAuth();
   
-  const mainNavItems = [
-    { 
-      icon: <LayoutDashboard size={20} />, 
-      label: "Dashboard", 
-      path: userRole === 'admin' ? "/admin-dashboard" : userRole === 'teacher' ? "/teacher-dashboard" : "/parent-dashboard",
-      allowedRoles: ['admin', 'teacher', 'parent']
-    },
-    { 
-      icon: <GraduationCap size={20} />, 
-      label: "Classes", 
-      path: "/classes-management",
-      allowedRoles: ['admin', 'teacher']
-    },
-    { 
-      icon: <Users size={20} />, 
-      label: "Users", 
-      path: "/users-management",
-      allowedRoles: ['admin']
-    },
-    { 
-      icon: <UserCog size={20} />, 
-      label: "Staff", 
-      path: "/staff-management",
-      allowedRoles: ['admin']
-    },
-    { 
-      icon: <BarChart3 size={20} />, 
-      label: "Reports", 
-      path: "/reports-dashboard",
-      allowedRoles: ['admin', 'teacher']
-    },
-    { 
-      icon: <Settings size={20} />, 
-      label: "Settings", 
-      path: "/settings",
-      allowedRoles: ['admin']
-    },
-  ];
-
-  const quickAccessItems = [
-    { 
-      icon: <QrCode size={20} />, 
-      label: "Check-in Kiosk", 
-      path: "/check-in-kiosk",
-      allowedRoles: ['admin', 'teacher', 'parent']
-    },
-    { 
-      icon: <QrCode size={20} />, 
-      label: "Check-out Station", 
-      path: "/check-out-station",
-      allowedRoles: ['admin', 'teacher']
-    },
-  ];
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate("/landing");
-    } catch (error) {
-      console.error("Sign out error:", error);
-    }
-  };
+  const filteredManagementLinks = managementLinks.filter((link) =>
+    link.roles.includes(userRole || "")
+  );
+  
+  const filteredUserLinks = userLinks.filter((link) =>
+    link.roles.includes(userRole || "")
+  );
 
   return (
-    <div className={cn(
-      "h-screen flex flex-col bg-white border-r border-gray-200 transition-all duration-300",
-      isCollapsed ? "w-20" : "w-64"
-    )}>
-      <div className="p-4 flex items-center justify-between border-b border-gray-200">
-        {!isCollapsed ? (
-          <Link to="/" className="text-xl font-medium text-purple-600">
-            ChurchCheck
-          </Link>
-        ) : (
-          <Link to="/" className="w-full flex justify-center text-xl font-medium text-purple-600">
-            CC
-          </Link>
+    <aside
+      className={cn(
+        "flex flex-col bg-white border-r border-gray-200 h-full py-4",
+        collapsed ? "w-[70px]" : "w-[250px]",
+        className
+      )}
+    >
+      <div className="px-3 mb-6 flex items-center">
+        <Tent className="h-6 w-6 text-purple-600 flex-shrink-0" />
+        {!collapsed && (
+          <span className="font-bold text-xl ml-2">KidCheck</span>
         )}
-        <button 
-          className="p-1 rounded-full hover:bg-gray-100"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          <ArrowLeftRight size={18} className="text-gray-500" />
-        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-6">
-        <nav className="flex flex-col gap-1">
-          {mainNavItems.map((item) => (
-            <SidebarItem
-              key={item.path}
-              icon={item.icon}
-              label={isCollapsed ? "" : item.label}
-              path={item.path}
-              isActive={location.pathname === item.path}
-              userRole={userRole}
-              allowedRoles={item.allowedRoles}
-            />
-          ))}
-        </nav>
-
-        <div>
-          {!isCollapsed && (
-            <h3 className="text-xs uppercase text-gray-500 font-medium mb-2 px-3">
-              Quick Access
-            </h3>
-          )}
-          <nav className="flex flex-col gap-1">
-            {quickAccessItems.map((item) => (
-              <SidebarItem
-                key={item.path}
-                icon={item.icon}
-                label={isCollapsed ? "" : item.label}
-                path={item.path}
-                isActive={location.pathname === item.path}
-                userRole={userRole}
-                allowedRoles={item.allowedRoles}
-              />
-            ))}
-          </nav>
-        </div>
-      </div>
-
-      <div className="p-4 border-t border-gray-200">
-        {!isCollapsed ? (
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              {user?.email?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.email}</p>
-              <p className="text-xs text-gray-500 truncate capitalize">{userRole || "User"}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex justify-center mb-4">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              {user?.email?.charAt(0).toUpperCase() || "U"}
-            </div>
-          </div>
-        )}
-        <button 
-          onClick={handleSignOut}
+      <div className="space-y-1 px-3">
+        <h2
           className={cn(
-            "flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors w-full",
-            isCollapsed && "justify-center"
+            "text-xs font-semibold text-gray-400 px-2 py-1.5",
+            collapsed && "sr-only"
           )}
         >
-          <LogOut size={16} />
-          {!isCollapsed && <span>Sign out</span>}
-        </button>
+          MAIN MENU
+        </h2>
+        {filteredMainLinks.map((link) => (
+          <NavLink
+            key={link.href}
+            to={link.href}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
+                isActive
+                  ? "bg-purple-100 text-purple-700"
+                  : "text-gray-700 hover:bg-gray-100",
+                collapsed && "justify-center"
+              )
+            }
+          >
+            <span className={cn("mr-2", collapsed && "mr-0")}>{link.icon}</span>
+            {!collapsed && link.label}
+          </NavLink>
+        ))}
       </div>
-    </div>
+
+      {filteredManagementLinks.length > 0 && (
+        <div className="mt-6 space-y-1 px-3">
+          <h2
+            className={cn(
+              "text-xs font-semibold text-gray-400 px-2 py-1.5",
+              collapsed && "sr-only"
+            )}
+          >
+            MANAGEMENT
+          </h2>
+          {filteredManagementLinks.map((link) => (
+            <NavLink
+              key={link.href}
+              to={link.href}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
+                  isActive
+                    ? "bg-purple-100 text-purple-700"
+                    : "text-gray-700 hover:bg-gray-100",
+                  collapsed && "justify-center"
+                )
+              }
+            >
+              <span className={cn("mr-2", collapsed && "mr-0")}>
+                {link.icon}
+              </span>
+              {!collapsed && link.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+
+      {filteredUserLinks.length > 0 && (
+        <div className="mt-6 space-y-1 px-3">
+          <h2
+            className={cn(
+              "text-xs font-semibold text-gray-400 px-2 py-1.5",
+              collapsed && "sr-only"
+            )}
+          >
+            MY ACCOUNT
+          </h2>
+          {filteredUserLinks.map((link) => (
+            <NavLink
+              key={link.href}
+              to={link.href}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
+                  isActive
+                    ? "bg-purple-100 text-purple-700"
+                    : "text-gray-700 hover:bg-gray-100",
+                  collapsed && "justify-center"
+                )
+              }
+            >
+              <span className={cn("mr-2", collapsed && "mr-0")}>
+                {link.icon}
+              </span>
+              {!collapsed && link.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-auto px-3">
+        <Button
+          variant="ghost"
+          className={cn(
+            "flex items-center w-full rounded-md px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100",
+            collapsed && "justify-center"
+          )}
+          onClick={signOut}
+        >
+          <LogOut size={20} className={cn("mr-2", collapsed && "mr-0")} />
+          {!collapsed && "Sign Out"}
+        </Button>
+      </div>
+    </aside>
   );
 };
 

@@ -1,24 +1,21 @@
 
-export interface Event {
+export interface EventItem {
   id: string;
   title: string;
-  description?: string;
-  startDate: Date | string;
-  endDate?: Date | string;
-  location?: string;
-  organizer?: string;
-  isPublic: boolean;
-  createdBy: string;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+  startDate: string;
+  endDate?: string | null;
+  location?: string | null;
+  description?: string | null;
+  organizer?: string | null;
+  isPublic?: boolean;
 }
 
 export interface EventFormValues {
   title: string;
   description?: string;
-  startDate: Date;
-  endDate?: Date;
   location?: string;
+  startDate?: Date;
+  endDate?: Date;
   organizer?: string;
-  isPublic: boolean;
+  isPublic?: boolean;
 }

@@ -19,80 +19,15 @@ import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import StatCard from "@/components/ui/stat-card";
 import { DataTable } from "@/components/ui/data-table";
-
-// Mock data for classes
-const classesData = [
-  { 
-    id: "1", 
-    name: "Preschool Class", 
-    ageGroup: "Ages 3-5", 
-    capacity: "15/20",
-    teachers: "Sarah Johnson, Michael Chen",
-    schedule: "Sunday, 9:30 AM - 11:30 AM",
-    location: "Room 103",
-    status: true 
-  },
-  { 
-    id: "2", 
-    name: "Toddler Class", 
-    ageGroup: "Ages 1-2", 
-    capacity: "8/12",
-    teachers: "Emma Rodriguez",
-    schedule: "Sunday, 9:30 AM - 11:30 AM",
-    location: "Room 101",
-    status: true 
-  },
-  { 
-    id: "3", 
-    name: "Elementary Class", 
-    ageGroup: "Ages 6-10", 
-    capacity: "15/25",
-    teachers: "Robert Miller, Jessica Wong",
-    schedule: "Sunday, 9:30 AM - 11:30 AM",
-    location: "Room 205",
-    status: true 
-  },
-  { 
-    id: "4", 
-    name: "Middle School Class", 
-    ageGroup: "Ages 11-13", 
-    capacity: "12/20",
-    teachers: "David Thompson",
-    schedule: "Sunday, 9:30 AM - 11:30 AM",
-    location: "Room 208",
-    status: true 
-  },
-  { 
-    id: "5", 
-    name: "High School Class", 
-    ageGroup: "Ages 14-18", 
-    capacity: "10/15",
-    teachers: "Jennifer Adams, Brian Scott",
-    schedule: "Sunday, 9:30 AM - 11:30 AM",
-    location: "Youth Room",
-    status: true 
-  },
-  { 
-    id: "6", 
-    name: "Special Needs Class", 
-    ageGroup: "All ages", 
-    capacity: "5/8",
-    teachers: "Linda Harris, Marco Gomez",
-    schedule: "Sunday, 9:30 AM - 11:30 AM",
-    location: "Room 104",
-    status: true 
-  },
-  { 
-    id: "7", 
-    name: "Nursery", 
-    ageGroup: "Ages 0-1", 
-    capacity: "6/10",
-    teachers: "Patricia Lee",
-    schedule: "Sunday, 9:30 AM - 11:30 AM",
-    location: "Nursery Room",
-    status: true 
-  }
-];
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import AddClassForm from "@/components/classes/AddClassForm";
+import AssignTeacherForm from "@/components/classes/AssignTeacherForm";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data for class roster
 const rosterData = [
@@ -115,15 +50,115 @@ const teacherData = [
 const ClassesManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("active");
-  const [selectedClass, setSelectedClass] = useState(classesData[0]);
+  const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [activeClassTab, setActiveClassTab] = useState("roster");
+  const [isAddClassOpen, setIsAddClassOpen] = useState(false);
+  const [isAssignTeacherOpen, setIsAssignTeacherOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Fetch classes
+  const { data: classes = [], isLoading: isLoadingClasses } = useQuery({
+    queryKey: ["classes"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("classes")
+          .select("*")
+          .order("created_at", { ascending: false });
+          
+        if (error) throw error;
+        
+        return data.map((classItem) => ({
+          id: classItem.id,
+          name: classItem.name,
+          ageGroup: classItem.age_range,
+          capacity: `0/${classItem.capacity || "∞"}`,
+          room: classItem.room,
+          description: classItem.description,
+          teachers: "Loading...",
+          schedule: "Sunday, 9:30 AM - 11:30 AM", // This would come from a schedule table
+          location: classItem.room,
+          status: true
+        }));
+      } catch (error: any) {
+        console.error("Error fetching classes:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load classes",
+          variant: "destructive",
+        });
+        return [];
+      }
+    }
+  });
+  
+  // Fetch teachers for each class
+  const { data: teachersData = {}, isLoading: isLoadingTeachers } = useQuery({
+    queryKey: ["class-teachers"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("teachers")
+          .select(`
+            user_id,
+            class_id,
+            profiles(first_name, last_name)
+          `);
+          
+        if (error) throw error;
+        
+        // Organize teachers by class_id
+        const teachersByClass: Record<string, string[]> = {};
+        data.forEach((teacher) => {
+          const classId = teacher.class_id;
+          const teacherName = `${teacher.profiles?.first_name || ''} ${teacher.profiles?.last_name || ''}`.trim();
+          
+          if (classId) {
+            if (!teachersByClass[classId]) {
+              teachersByClass[classId] = [];
+            }
+            if (teacherName) {
+              teachersByClass[classId].push(teacherName);
+            }
+          }
+        });
+        
+        return teachersByClass;
+      } catch (error: any) {
+        console.error("Error fetching teachers:", error);
+        return {};
+      }
+    },
+    enabled: classes.length > 0
+  });
+  
+  // Combine classes with their teachers
+  const classesWithTeachers = classes.map((classItem) => ({
+    ...classItem,
+    teachers: teachersData[classItem.id] 
+      ? teachersData[classItem.id].join(", ") 
+      : "No teachers assigned"
+  }));
+
+  // Get teachers for selected class
+  const teachersForSelectedClass = selectedClass && teachersData[selectedClass.id] 
+    ? teachersData[selectedClass.id].map((name, index) => ({
+        id: `teacher-${index}`,
+        name,
+        role: index === 0 ? "Lead Teacher" : "Assistant Teacher",
+        experience: "Not specified",
+        certified: true,
+        contact: "Not specified"
+      }))
+    : [];
   
   // Class columns for data table
   const classColumns = [
     {
       key: "name" as const,
       header: "Class Name",
-      render: (value: string, item: typeof classesData[0]) => (
+      render: (value: string, item: typeof classes[0]) => (
         <div className="flex items-center">
           <div className="rounded-full bg-purple-100 p-2 mr-3">
             <GraduationCap size={16} className="text-purple-600" />
@@ -156,7 +191,11 @@ const ClassesManagement = () => {
                   : "bg-green-500"
               }`}
               style={{
-                width: `${(parseInt(value.split('/')[0]) / parseInt(value.split('/')[1])) * 100}%`,
+                width: `${
+                  isNaN(parseInt(value.split('/')[1])) 
+                    ? 0 
+                    : (parseInt(value.split('/')[0]) / parseInt(value.split('/')[1])) * 100
+                }%`,
               }}
             ></div>
           </div>
@@ -170,7 +209,13 @@ const ClassesManagement = () => {
       render: (value: string) => (
         <div className="flex items-center">
           <Users size={16} className="text-gray-400 mr-2" />
-          <span className="text-sm">{value.split(',')[0]}{value.split(',').length > 1 ? ` +${value.split(',').length - 1}` : ''}</span>
+          <span className="text-sm">{
+            value === "Loading..." 
+              ? "Loading..." 
+              : value === "No teachers assigned" 
+                ? "No teachers assigned" 
+                : `${value.split(',')[0]}${value.split(',').length > 1 ? ` +${value.split(',').length - 1}` : ''}`
+          }</span>
         </div>
       ),
     },
@@ -244,9 +289,9 @@ const ClassesManagement = () => {
   ];
 
   // Filter classes based on search term
-  const filteredClasses = classesData.filter(cls => 
+  const filteredClasses = classesWithTeachers.filter(cls => 
     cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.ageGroup.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (cls.ageGroup && cls.ageGroup.toLowerCase().includes(searchTerm.toLowerCase())) ||
     cls.teachers.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
@@ -263,22 +308,22 @@ const ClassesManagement = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Classes Management</h1>
         <div className="flex gap-2">
-          <button className="px-3 py-2 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50">
+          <Button variant="outline" className="flex items-center gap-1">
             <Filter size={16} />
             <span>Filter</span>
-          </button>
-          <button className="px-3 py-2 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50">
+          </Button>
+          <Button variant="outline" className="flex items-center gap-1">
             <Download size={16} />
             <span>Export</span>
-          </button>
-          <button className="px-3 py-2 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700">
+          </Button>
+          <Button className="flex items-center gap-1" onClick={() => setIsAddClassOpen(true)}>
             <Plus size={16} />
             <span>Add New Class</span>
-          </button>
+          </Button>
         </div>
       </div>
       
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 animate-fade-in">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
         <div className="flex border-b border-gray-200">
           <button
             className={`px-6 py-3 font-medium text-sm ${
@@ -332,18 +377,39 @@ const ClassesManagement = () => {
             />
           </div>
           
-          <DataTable
-            columns={classColumns}
-            data={filteredClasses}
-            keyExtractor={(item) => item.id}
-            searchable={false}
-            onRowClick={(item) => setSelectedClass(item)}
-          />
+          {isLoadingClasses || isLoadingTeachers ? (
+            <div className="flex justify-center items-center py-10">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-purple-600"></div>
+              <span className="ml-3 text-gray-600">Loading classes...</span>
+            </div>
+          ) : filteredClasses.length === 0 ? (
+            <div className="text-center py-12">
+              <GraduationCap size={48} className="mx-auto text-gray-400 mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No classes found</h3>
+              <p className="text-gray-500 mb-4">
+                {searchTerm 
+                  ? "No classes match your search criteria." 
+                  : "Start by adding your first class."}
+              </p>
+              <Button onClick={() => setIsAddClassOpen(true)}>
+                <Plus size={16} className="mr-1" />
+                Add New Class
+              </Button>
+            </div>
+          ) : (
+            <DataTable
+              columns={classColumns}
+              data={filteredClasses}
+              keyExtractor={(item) => item.id}
+              searchable={false}
+              onRowClick={(item) => setSelectedClass(item)}
+            />
+          )}
         </div>
       </div>
       
       {selectedClass && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 animate-fade-in">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
           <div className="p-6">
             <div className="flex items-start mb-6">
               <div className="rounded-full bg-purple-100 p-3 mr-4">
@@ -358,14 +424,14 @@ const ClassesManagement = () => {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="px-3 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50">
+                    <Button variant="outline" className="flex items-center gap-1">
                       <Edit size={16} />
                       <span>Edit</span>
-                    </button>
-                    <button className="px-3 py-1.5 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700">
+                    </Button>
+                    <Button className="flex items-center gap-1">
                       <FileText size={16} />
                       <span>Class Details</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -382,9 +448,12 @@ const ClassesManagement = () => {
               
               <StatCard
                 title="TEACHERS"
-                value={selectedClass.teachers.split(',').length.toString()}
+                value={selectedClass.teachers !== "No teachers assigned" && selectedClass.teachers !== "Loading..." 
+                  ? String(selectedClass.teachers.split(',').length)
+                  : "0"}
                 description="Assigned to class"
                 icon={<Users size={24} />}
+                onActionClick={() => setIsAssignTeacherOpen(true)}
                 actionLabel="Manage Teachers"
               />
               
@@ -455,14 +524,14 @@ const ClassesManagement = () => {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold">Class Roster</h3>
                   <div className="flex gap-2">
-                    <button className="px-2.5 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50 text-sm">
+                    <Button variant="outline" className="flex items-center gap-1 text-sm">
                       <Download size={14} />
                       <span>Export Roster</span>
-                    </button>
-                    <button className="px-2.5 py-1.5 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700 text-sm">
+                    </Button>
+                    <Button className="flex items-center gap-1 text-sm">
                       <Plus size={14} />
                       <span>Add Student</span>
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 
@@ -480,42 +549,54 @@ const ClassesManagement = () => {
               <>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold">Teachers</h3>
-                  <button className="px-2.5 py-1.5 rounded-md bg-purple-600 text-white flex items-center gap-1 hover:bg-purple-700 text-sm">
+                  <Button onClick={() => setIsAssignTeacherOpen(true)} className="flex items-center gap-1 text-sm">
                     <Plus size={14} />
                     <span>Assign Teacher</span>
-                  </button>
+                  </Button>
                 </div>
                 
                 <div className="space-y-4">
-                  {teacherData.map((teacher) => (
-                    <div key={teacher.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
-                            <Users size={20} className="text-purple-600" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium">{teacher.name}</h4>
-                            <p className="text-sm text-gray-500">{teacher.role} • {teacher.experience}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${teacher.certified ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
-                            {teacher.certified ? "Certified" : "Not Certified"}
-                          </span>
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <Edit size={16} />
-                          </button>
-                          <button className="text-gray-400 hover:text-red-600">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-sm text-gray-500">
-                        <p>Contact: {teacher.contact}</p>
-                      </div>
+                  {teachersForSelectedClass.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed border-gray-300 rounded-lg">
+                      <Users size={48} className="mx-auto text-gray-400 mb-2" />
+                      <h3 className="font-medium text-gray-900 mb-1">No teachers assigned</h3>
+                      <p className="text-gray-500 mb-4">Assign teachers to this class to get started.</p>
+                      <Button onClick={() => setIsAssignTeacherOpen(true)} variant="outline" size="sm">
+                        <Plus size={14} className="mr-1" />
+                        Assign Teacher
+                      </Button>
                     </div>
-                  ))}
+                  ) : (
+                    teachersForSelectedClass.map((teacher) => (
+                      <div key={teacher.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between">
+                          <div className="flex items-center">
+                            <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                              <Users size={20} className="text-purple-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium">{teacher.name}</h4>
+                              <p className="text-sm text-gray-500">{teacher.role} • {teacher.experience}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${teacher.certified ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+                              {teacher.certified ? "Certified" : "Not Certified"}
+                            </span>
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <Edit size={16} />
+                            </button>
+                            <button className="text-gray-400 hover:text-red-600">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-sm text-gray-500">
+                          <p>Contact: {teacher.contact}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </>
             )}
@@ -578,7 +659,7 @@ const ClassesManagement = () => {
                     <input 
                       type="number" 
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500" 
-                      defaultValue={selectedClass.capacity.split('/')[1]}
+                      defaultValue={parseInt(selectedClass.capacity.split('/')[1]) || ""}
                     />
                   </div>
                 </div>
@@ -626,6 +707,35 @@ const ClassesManagement = () => {
             
           </div>
         </div>
+      )}
+      
+      <AddClassForm 
+        open={isAddClassOpen} 
+        onOpenChange={setIsAddClassOpen} 
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['classes'] });
+          toast({
+            title: "Success",
+            description: "Class created successfully",
+          });
+        }}
+      />
+      
+      {selectedClass && (
+        <AssignTeacherForm
+          open={isAssignTeacherOpen}
+          onOpenChange={setIsAssignTeacherOpen}
+          classId={selectedClass.id}
+          className={selectedClass.name}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['classes'] });
+            queryClient.invalidateQueries({ queryKey: ['class-teachers'] });
+            toast({
+              title: "Success",
+              description: "Teacher assigned successfully",
+            });
+          }}
+        />
       )}
     </MainLayout>
   );

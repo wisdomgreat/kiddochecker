@@ -21,6 +21,8 @@ import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import OrganizationSetup from '@/pages/OrganizationSetup';
 import StaffManagement from '@/pages/StaffManagement';
 import EventsManagement from '@/pages/EventsManagement';
+import KioskManagement from '@/pages/KioskManagement';
+import RolesManagement from '@/pages/RolesManagement';
 
 const Unauthorized = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -120,6 +122,18 @@ function App() {
       <Route path="/settings" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <Settings />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/kiosk-management" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <KioskManagement />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/roles-management" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <RolesManagement />
         </ProtectedRoute>
       } />
       
