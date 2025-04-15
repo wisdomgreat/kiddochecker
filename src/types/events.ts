@@ -20,5 +20,5 @@ export interface EventFormValues {
   isPublic?: boolean;
 }
 
-// Updated to match exactly the definition in src/types/supabase.ts
-export type AppRole = 'admin' | 'staff' | 'parent' | 'super_admin' | 'teacher' | 'assistant';
+// Match the exact definition in database
+export type AppRole = 'admin' | 'staff' | 'parent' | 'super_admin';

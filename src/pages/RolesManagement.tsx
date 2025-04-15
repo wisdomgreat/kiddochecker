@@ -55,10 +55,10 @@ import {
 } from "lucide-react";
 import { AppRole } from "@/types/supabase";
 
-// Update the roleSchema to match the AppRole type
+// Update the roleSchema to match the database's app_role enum
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  role: z.enum(["admin", "staff", "parent", "super_admin", "teacher", "assistant"] as const, {
+  role: z.enum(["admin", "staff", "parent", "super_admin"] as const, {
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),
