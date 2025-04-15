@@ -53,11 +53,12 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { AppRole } from "@/types/supabase"; // Using the type from supabase.ts
 
 // Role form schema
 const roleSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  role: z.enum(["admin", "teacher", "parent", "staff"], {
+  role: z.enum(["admin", "teacher", "parent", "staff"] as const, {
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),
