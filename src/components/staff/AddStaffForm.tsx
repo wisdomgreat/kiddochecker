@@ -42,7 +42,7 @@ const staffMemberSchema = z.object({
   lastName: z.string().min(1, { message: "Last name is required" }),
   role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin'] as const, {
     required_error: "Please select a role",
-  }),
+  }) as z.ZodType<AppRole>,
   phone: z.string().optional(),
   isSuperAdmin: z.boolean().default(false),
 });

@@ -38,7 +38,7 @@ import { StaffMember, AppRole } from "@/types/supabase";
 const staffSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin'] as const), 
+  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin'] as const) as z.ZodType<AppRole>,
   phone: z.string().optional(),
   isSuperAdmin: z.boolean().default(false),
 });
