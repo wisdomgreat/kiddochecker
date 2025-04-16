@@ -188,7 +188,6 @@ const CheckInOutManagement = () => {
                       <div className="py-4">
                         <h3 className="text-lg font-medium mb-4">Select Child</h3>
                         <ChildRegistrationForm 
-                          phoneNumber={phoneNumber} 
                           onComplete={(data) => handleNextCheckInStep("class", data)}
                           onBack={() => setActiveCheckInStep("phone")}
                         />
@@ -200,7 +199,6 @@ const CheckInOutManagement = () => {
                         <h3 className="text-lg font-medium mb-4">Select Class</h3>
                         {childData && (
                           <ClassSelectionForm 
-                            childData={childData}
                             onComplete={(data) => handleNextCheckInStep("print", data)} 
                             onBack={() => setActiveCheckInStep("child")}
                           />
@@ -214,8 +212,11 @@ const CheckInOutManagement = () => {
                         {childData && classData && (
                           <div className="space-y-8">
                             <NameTagPrinter 
-                              childData={childData} 
-                              classData={classData} 
+                              childName={childData.name}
+                              childId={childData.id}
+                              className={classData.name}
+                              allergies={childData.allergies}
+                              securityCode={childData.securityCode || "12345"}
                               onPrintComplete={handlePrintComplete}
                               onBack={() => setActiveCheckInStep("class")}
                             />
@@ -223,8 +224,8 @@ const CheckInOutManagement = () => {
                             <div className="mt-8 border-t pt-6">
                               <h4 className="font-medium mb-4">Security QR Code</h4>
                               <QRCodeGenerator 
-                                childData={childData} 
-                                classData={classData} 
+                                userId={childData.id} 
+                                userName={childData.name}
                               />
                             </div>
                           </div>
