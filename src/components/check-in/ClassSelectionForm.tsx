@@ -1,251 +1,71 @@
-
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import React from 'react';
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
-interface ClassOption {
-  id: string;
-  name: string;
-  age_range: string | null;
-  capacity: number | null;
-  room: string | null;
-  description: string | null;
-  currentAttendance?: number;
+export interface ClassSelectionFormProps {
+  onComplete?: (data: any) => void;
+  onBack?: () => void;
 }
 
-interface ClassSelectionFormProps {
-  childId: string;
-  childAge: number;
-  onClassSelected: (classId: string, className: string) => void;
-  selectedClassId?: string;
-}
-
-export const ClassSelectionForm = ({
-  childId,
-  childAge,
-  onClassSelected,
-  selectedClassId,
-}: ClassSelectionFormProps) => {
-  const [classes, setClasses] = useState<ClassOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    const fetchClasses = async () => {
-      try {
-        setLoading(true);
-        
-        // Get classes from database
-        const { data: classesData, error: classesError } = await supabase
-          .from('classes')
-          .select('*');
-          
-        if (classesError) throw classesError;
-        
-        // Get current attendance counts for each class
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Fetch attendance counts for each class separately to avoid the parsing error
-        const classAttendanceCounts = [];
-        
-        for (const classItem of classesData) {
-          const { data: attendanceData, error: attendanceError } = await supabase
-            .from('attendance')
-            .select('id')
-            .eq('attendance_date', today)
-            .eq('class_id', classItem.id)
-            .is('checked_out_at', null);
-            
-          if (attendanceError) throw attendanceError;
-          
-          classAttendanceCounts.push({
-            class_id: classItem.id,
-            count: attendanceData ? attendanceData.length : 0
-          });
-        }
-        
-        // Map attendance counts to classes
-        const classesWithAttendance = classesData.map(classItem => {
-          const attendanceRecord = classAttendanceCounts.find(a => a.class_id === classItem.id);
-          return {
-            ...classItem,
-            currentAttendance: attendanceRecord ? attendanceRecord.count : 0
-          };
-        });
-        
-        setClasses(classesWithAttendance);
-      } catch (error: any) {
-        console.error("Error fetching classes:", error);
-        toast({
-          title: "Failed to load classes",
-          description: error.message,
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchClasses();
-  }, [toast]);
-
-  // Filter classes by age appropriateness
-  const getAppropriateClasses = () => {
-    return classes.filter(classItem => {
-      if (!classItem.age_range) return true;
-      
-      try {
-        const [minAge, maxAge] = classItem.age_range.split('-').map(Number);
-        return childAge >= minAge && childAge <= maxAge;
-      } catch {
-        return true; // If age range is improperly formatted, include the class
-      }
-    });
+const ClassSelectionForm: React.FC<ClassSelectionFormProps> = ({ onComplete, onBack }) => {
+  const [selectedClass, setSelectedClass] = React.useState<string | null>(null);
+  
+  const classes = [
+    { id: "1", name: "Toddlers", room: "Room 101", ageRange: "1-2 years" },
+    { id: "2", name: "Preschool", room: "Room 102", ageRange: "3-4 years" },
+    { id: "3", name: "Kindergarten", room: "Room 103", ageRange: "5-6 years" },
+    { id: "4", name: "Elementary", room: "Room 104", ageRange: "7-10 years" },
+  ];
+  
+  const handleSubmit = () => {
+    if (selectedClass && onComplete) {
+      const classData = classes.find(c => c.id === selectedClass);
+      onComplete(classData);
+    }
   };
-
-  const appropriateClasses = getAppropriateClasses();
-  const otherClasses = classes.filter(c => !appropriateClasses.includes(c));
-
-  // Function to check if a class is at capacity
-  const isAtCapacity = (classItem: ClassOption) => {
-    if (!classItem.capacity) return false;
-    return (classItem.currentAttendance || 0) >= classItem.capacity;
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold">Select a Class</h3>
-      
-      {appropriateClasses.length === 0 ? (
-        <p className="text-sm text-gray-500">No age-appropriate classes found.</p>
-      ) : (
-        <>
-          <p className="text-sm text-gray-500">Age-appropriate classes:</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {appropriateClasses.map((classItem) => (
-              <Card 
-                key={classItem.id} 
-                className={`cursor-pointer transition-colors ${
-                  selectedClassId === classItem.id 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : isAtCapacity(classItem)
-                    ? 'border-red-200 bg-red-50 opacity-60'
-                    : 'hover:border-blue-200'
-                }`}
-                onClick={() => {
-                  if (!isAtCapacity(classItem)) {
-                    onClassSelected(classItem.id, classItem.name);
-                  } else {
-                    toast({
-                      title: "Class at capacity",
-                      description: `${classItem.name} is full. Please select another class.`,
-                      variant: "destructive",
-                    });
-                  }
-                }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">{classItem.name}</h4>
-                      {classItem.age_range && (
-                        <p className="text-sm text-gray-500">Ages: {classItem.age_range}</p>
-                      )}
-                      {classItem.room && (
-                        <p className="text-sm text-gray-500">Room: {classItem.room}</p>
-                      )}
-                      <div className="mt-1 flex items-center text-sm">
-                        <Users className="h-3.5 w-3.5 mr-1 text-gray-400" />
-                        <span className="text-gray-500">
-                          {classItem.currentAttendance || 0}
-                          {classItem.capacity ? ` / ${classItem.capacity}` : ''}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {selectedClassId === classItem.id && (
-                      <CheckCircle2 className="h-5 w-5 text-blue-500" />
-                    )}
+    <div className="space-y-4">
+      <RadioGroup value={selectedClass || ""} onValueChange={setSelectedClass}>
+        <div className="grid grid-cols-1 gap-4">
+          {classes.map((classItem) => (
+            <Card key={classItem.id} className={`p-4 cursor-pointer ${
+              selectedClass === classItem.id ? 'ring-2 ring-purple-500' : ''
+            }`}>
+              <div className="flex items-start space-x-3">
+                <RadioGroupItem value={classItem.id} id={`class-${classItem.id}`} />
+                <div className="flex-1">
+                  <Label htmlFor={`class-${classItem.id}`} className="text-base font-medium">
+                    {classItem.name}
+                  </Label>
+                  <div className="text-sm text-gray-500">
+                    <p>{classItem.room}</p>
+                    <p>Ages: {classItem.ageRange}</p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </RadioGroup>
       
-      {otherClasses.length > 0 && (
-        <>
-          <p className="text-sm text-gray-500 mt-4">Other available classes:</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {otherClasses.map((classItem) => (
-              <Card 
-                key={classItem.id} 
-                className={`cursor-pointer transition-colors ${
-                  selectedClassId === classItem.id 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : isAtCapacity(classItem)
-                    ? 'border-red-200 bg-red-50 opacity-60'
-                    : 'hover:border-blue-200'
-                }`}
-                onClick={() => {
-                  if (!isAtCapacity(classItem)) {
-                    onClassSelected(classItem.id, classItem.name);
-                  } else {
-                    toast({
-                      title: "Class at capacity",
-                      description: `${classItem.name} is full. Please select another class.`,
-                      variant: "destructive",
-                    });
-                  }
-                }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">{classItem.name}</h4>
-                      {classItem.age_range && (
-                        <p className="text-sm text-gray-500">Ages: {classItem.age_range}</p>
-                      )}
-                      {classItem.room && (
-                        <p className="text-sm text-gray-500">Room: {classItem.room}</p>
-                      )}
-                      <div className="mt-1 flex items-center text-sm">
-                        <Users className="h-3.5 w-3.5 mr-1 text-gray-400" />
-                        <span className="text-gray-500">
-                          {classItem.currentAttendance || 0}
-                          {classItem.capacity ? ` / ${classItem.capacity}` : ''}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {selectedClassId === classItem.id && (
-                      <CheckCircle2 className="h-5 w-5 text-blue-500" />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
+      <div className="flex justify-between pt-4">
+        {onBack && (
+          <Button type="button" variant="outline" onClick={onBack}>
+            Back
+          </Button>
+        )}
+        <Button 
+          type="button" 
+          onClick={handleSubmit}
+          disabled={!selectedClass}
+          className="ml-auto"
+        >
+          Continue
+        </Button>
+      </div>
     </div>
   );
 };

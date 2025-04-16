@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer, CheckCircle, QrCode, Tag } from "lucide-react";
@@ -10,6 +11,8 @@ interface NameTagPrinterProps {
   className: string;
   allergies?: string;
   securityCode: string;
+  onPrintComplete?: () => void;
+  onBack?: () => void;
 }
 
 export const NameTagPrinter = ({
@@ -18,6 +21,8 @@ export const NameTagPrinter = ({
   className,
   allergies,
   securityCode,
+  onPrintComplete,
+  onBack,
 }: NameTagPrinterProps) => {
   const [printed, setPrinted] = useState(false);
   const { toast } = useToast();
@@ -154,6 +159,7 @@ export const NameTagPrinter = ({
             title: "Name tag printed successfully",
             description: "Remember the security code for child pickup",
           });
+          if (onPrintComplete) onPrintComplete();
         };
       };
     }
@@ -167,23 +173,30 @@ export const NameTagPrinter = ({
           <p className="text-sm text-gray-600">Print name tag for {childName}</p>
         </div>
         
-        <Button 
-          onClick={handlePrint} 
-          variant={printed ? "outline" : "default"}
-          className={printed ? "bg-green-50 text-green-600 border-green-200" : ""}
-        >
-          {printed ? (
-            <>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Printed
-            </>
-          ) : (
-            <>
-              <Printer className="mr-2 h-4 w-4" />
-              Print Name Tag
-            </>
+        <div className="space-x-2">
+          {onBack && (
+            <Button variant="outline" onClick={onBack}>
+              Back
+            </Button>
           )}
-        </Button>
+          <Button 
+            onClick={handlePrint} 
+            variant={printed ? "outline" : "default"}
+            className={printed ? "bg-green-50 text-green-600 border-green-200" : ""}
+          >
+            {printed ? (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Printed
+              </>
+            ) : (
+              <>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Name Tag
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="hidden">
