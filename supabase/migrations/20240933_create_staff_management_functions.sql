@@ -32,7 +32,7 @@ BEGIN
     LEFT JOIN 
       public.profiles ON ur.user_id = profiles.id
     WHERE 
-      ur.role IN ('admin', 'staff')
+      ur.role IN ('admin', 'staff', 'teacher')
     ORDER BY 
       profiles.last_name, profiles.first_name;
 END;
