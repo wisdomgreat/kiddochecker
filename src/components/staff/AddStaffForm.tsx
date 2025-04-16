@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,7 +43,7 @@ const staffMemberSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.enum(["admin", "staff", "teacher"] as const, {
+  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin'] as const, {
     required_error: "Please select a role",
   }),
   phone: z.string().optional(),
@@ -100,7 +99,9 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
         // that matches what's defined in the database
         const validRole: AppRole = values.role === "admin" || 
                                  values.role === "staff" || 
-                                 values.role === "teacher" ? 
+                                 values.role === "teacher" || 
+                                 values.role === "parent" || 
+                                 values.role === "super_admin" ? 
                                  values.role : "staff";
         
         const { error: roleError } = await supabase.rpc("create_user_role", {
@@ -225,6 +226,8 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="staff">Staff</SelectItem>
                       <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="parent">Parent</SelectItem>
+                      <SelectItem value="super_admin">Super Admin</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
