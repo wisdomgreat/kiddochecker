@@ -66,6 +66,7 @@ function App() {
     }
   };
 
+  // Show loading indicator only during the initial app load
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">

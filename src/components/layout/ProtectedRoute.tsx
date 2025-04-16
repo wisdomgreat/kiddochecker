@@ -22,12 +22,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     }
   }, [user, isLoading, location.pathname]);
 
-  // Refresh session on route change to ensure up-to-date auth state
+  // Only refresh session on mount, not on each route change to prevent loops
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !user) {
       refreshSession();
     }
-  }, [location.pathname, refreshSession, isLoading]);
+  }, []);
 
   // Log access attempt for debugging
   useEffect(() => {
@@ -61,7 +61,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     });
     
     // Redirect to login page if not authenticated
-    return <Navigate to="/check-in-kiosk" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // If there are allowed roles and the user's role is not in the list, redirect to unauthorized page

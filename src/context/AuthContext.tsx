@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Separate function to fetch user role
   const fetchUserRole = async (userId: string) => {
     try {
       const role = await getUserRole();
@@ -55,12 +56,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Error fetching user role:", error);
       setUserRole(null);
       return null;
-    } finally {
-      // Always set loading to false after role fetch completes (success or error)
-      setIsLoading(false);
     }
   };
 
+  // Separate function to check if setup is completed
   const checkSetupStatus = async () => {
     try {
       const setupCompleted = await isSetupCompleted();
@@ -68,7 +67,67 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return setupCompleted;
     } catch (error) {
       console.error("Error checking setup status:", error);
-      return false;
+      return null;
+    }
+  };
+
+  // Get the default redirect path based on user role
+  const getDefaultRedirectPath = (role: AppRole | null): string => {
+    if (!role) return '/landing';
+    
+    switch (role) {
+      case 'admin':
+      case 'super_admin':
+        return '/admin-dashboard';
+      case 'teacher':
+      case 'teacher_assistant':
+      case 'staff':
+        return '/teacher-dashboard';
+      case 'parent':
+        return '/parent-dashboard';
+      default:
+        return '/landing';
+    }
+  };
+
+  // Handle redirects based on authentication state and role
+  const handleAuthStateChange = async (event: string, newSession: Session | null) => {
+    console.log("Auth state changed:", event, newSession?.user?.id);
+    
+    // Update session and user state
+    setSession(newSession);
+    setUser(newSession?.user || null);
+    
+    if (newSession?.user) {
+      // Fetch role and setup status
+      const role = await fetchUserRole(newSession.user.id);
+      const setupComplete = await checkSetupStatus();
+      setIsLoading(false);
+      
+      if (event === "SIGNED_IN" && isPublicRoute(location.pathname)) {
+        // Handle successful sign-in
+        if (!setupComplete && role === 'admin') {
+          navigate("/organization-setup", { replace: true });
+        } else {
+          const returnPath = sessionStorage.getItem("returnPath");
+          const defaultPath = getDefaultRedirectPath(role);
+          navigate(returnPath || defaultPath, { replace: true });
+          sessionStorage.removeItem("returnPath"); // Clear return path after use
+        }
+        
+        toast({
+          title: "Signed in successfully",
+          description: "Welcome back!"
+        });
+      }
+    } else {
+      setUserRole(null);
+      setIsLoading(false);
+      
+      // If on protected route and not authenticated, redirect to landing
+      if (event === "SIGNED_OUT" || (!newSession && !isPublicRoute(location.pathname))) {
+        navigate("/landing", { replace: true });
+      }
     }
   };
 
@@ -76,134 +135,76 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setIsLoading(true);
       const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setUser(data.session?.user || null);
       
       if (data.session?.user) {
+        setSession(data.session);
+        setUser(data.session.user);
         await fetchUserRole(data.session.user.id);
+        await checkSetupStatus();
       } else {
+        setSession(null);
+        setUser(null);
         setUserRole(null);
-        setIsLoading(false);
       }
-
-      await checkSetupStatus();
     } catch (error) {
       console.error("Error refreshing session:", error);
+    } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    // Initial session check
     const initializeAuth = async () => {
+      setIsLoading(true);
+      
       try {
-        setIsLoading(true);
+        // Set up auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
         
-        // Set up auth state change listener first
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (event, newSession) => {
-            console.log("Auth state changed:", event, newSession?.user?.id);
-            
-            // Update session and user state immediately
-            setSession(newSession);
-            setUser(newSession?.user || null);
-
-            // Handle session changed events
-            if (newSession?.user) {
-              // Defer role fetching to avoid blocking UI
-              setTimeout(async () => {
-                const role = await fetchUserRole(newSession.user.id);
-                const setupComplete = await checkSetupStatus();
-                
-                // Handle redirects based on events and roles
-                if (event === "SIGNED_IN") {
-                  if (setupComplete) {
-                    handleRoleBasedRedirect(role);
-                  } else if (role === 'admin') {
-                    navigate("/organization-setup", { replace: true });
-                  }
-                  
-                  toast({
-                    title: "Signed in successfully",
-                    description: "Welcome back!",
-                  });
-                }
-              }, 0);
-            } else {
-              setUserRole(null);
-              setIsLoading(false);
-            }
-          }
-        );
-
-        // Then check for existing session
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error("Error getting session:", error);
-          setIsLoading(false);
-          setIsInitialized(true);
-          return;
-        }
-
-        setSession(data.session);
-        setUser(data.session?.user || null);
-        
+        // Get initial session
+        const { data } = await supabase.auth.getSession();
         if (data.session?.user) {
-          const role = await fetchUserRole(data.session.user.id);
-          const setupComplete = await checkSetupStatus();
+          setSession(data.session);
+          setUser(data.session.user);
           
-          if (role && isPublicRoute(location.pathname)) {
-            if (setupComplete) {
-              handleRoleBasedRedirect(role);
-            } else if (role === 'admin') {
-              navigate("/organization-setup", { replace: true });
-            }
+          const role = await fetchUserRole(data.session.user.id);
+          await checkSetupStatus();
+          
+          // Only redirect if on a public route and already authenticated
+          if (isPublicRoute(location.pathname) && role) {
+            const defaultPath = getDefaultRedirectPath(role);
+            navigate(defaultPath, { replace: true });
           }
         } else {
-          setIsLoading(false);
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          
+          // If on protected route and not authenticated, redirect to landing
+          if (!isPublicRoute(location.pathname)) {
+            navigate("/landing", { replace: true });
+          }
         }
-
+        
         setIsInitialized(true);
-
+        setIsLoading(false);
+        
         return () => {
           subscription.unsubscribe();
         };
       } catch (error) {
-        console.error('Error checking auth session:', error);
+        console.error('Error initializing auth:', error);
         setIsLoading(false);
         setIsInitialized(true);
       }
     };
-
+    
     initializeAuth();
-  }, [navigate, toast, location.pathname]);
+  }, []); // Empty dependency array - only run on mount
 
-  const handleRoleBasedRedirect = (role: AppRole | null) => {
-    if (!role) return;
-    
-    // Get return path from session storage if available
-    const returnPath = sessionStorage.getItem("returnPath");
-    
-    let targetRoute = "/parent-dashboard";
-    switch(role) {
-      case "admin":
-      case "super_admin":
-        targetRoute = "/admin-dashboard";
-        break;
-      case "teacher":
-      case "teacher_assistant":
-      case "staff":
-        targetRoute = "/teacher-dashboard";
-        break;
-      default:
-        targetRoute = "/parent-dashboard";
-    }
-    
-    navigate(returnPath || targetRoute, { replace: true });
-  };
-
-  const isPublicRoute = (path: string) => {
+  const isPublicRoute = (path: string): boolean => {
     const publicRoutes = [
+      "/",
       "/landing", 
       "/login", 
       "/check-in-kiosk", 
@@ -213,7 +214,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       "/unauthorized", 
       "/404"
     ];
-    return publicRoutes.includes(path) || path === "/";
+    return publicRoutes.includes(path);
   };
 
   const signOut = async () => {
@@ -223,19 +224,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setSession(null);
       setUser(null);
       setUserRole(null);
-      setIsLoading(false);
       navigate("/landing", { replace: true });
       toast({
         title: "Signed out successfully",
         description: "You have been logged out",
       });
     } catch (error: any) {
-      setIsLoading(false);
       toast({
         title: "Error signing out",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

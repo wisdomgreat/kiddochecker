@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { HelpCircle, ArrowRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,15 +25,17 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) {
-      const defaultPath = userRole === 'admin' 
-        ? '/admin-dashboard' 
-        : userRole === 'teacher' 
-          ? '/teacher-dashboard' 
-          : '/parent-dashboard';
-          
-      const returnPath = sessionStorage.getItem("returnPath") || defaultPath;
-      navigate(returnPath, { replace: true });
+    if (user && userRole) {
+      let defaultPath = '/parent-dashboard';
+      
+      if (userRole === 'admin' || userRole === 'super_admin') {
+        defaultPath = '/admin-dashboard';
+      } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
+        defaultPath = '/teacher-dashboard';
+      }
+      
+      const returnPath = sessionStorage.getItem("returnPath");
+      navigate(returnPath || defaultPath, { replace: true });
     }
   }, [user, userRole, navigate]);
 
