@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -92,10 +91,9 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
 
       // Set the user's role if user was created successfully
       if (data.user) {
-        // The role from the form is already compatible with AppRole type
         const { error: roleError } = await supabase.rpc("create_user_role", {
           p_user_id: data.user.id,
-          p_role: values.role,
+          p_role: values.role as AppRole,
           p_is_super_admin: values.isSuperAdmin,
         });
 

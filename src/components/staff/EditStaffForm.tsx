@@ -89,7 +89,7 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
       const { error: roleError } = await supabase
         .from("user_roles")
         .update({
-          role: values.role,
+          role: values.role as AppRole,
           is_super_admin: values.isSuperAdmin,
         })
         .eq("user_id", staffMember.id);
