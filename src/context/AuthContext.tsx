@@ -55,6 +55,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Error fetching user role:", error);
       setUserRole(null);
       return null;
+    } finally {
+      // Always set loading to false after role fetch completes (success or error)
+      setIsLoading(false);
     }
   };
 
@@ -80,10 +83,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         await fetchUserRole(data.session.user.id);
       } else {
         setUserRole(null);
+        setIsLoading(false);
       }
 
       await checkSetupStatus();
-      setIsLoading(false);
     } catch (error) {
       console.error("Error refreshing session:", error);
       setIsLoading(false);
@@ -125,8 +128,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     description: "Welcome back!",
                   });
                 }
-                
-                setIsLoading(false);
               }, 0);
             } else {
               setUserRole(null);
@@ -136,7 +137,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         );
 
         // Then check for existing session
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error("Error getting session:", error);
+          setIsLoading(false);
+          setIsInitialized(true);
+          return;
+        }
+
         setSession(data.session);
         setUser(data.session?.user || null);
         
@@ -151,9 +159,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               navigate("/organization-setup", { replace: true });
             }
           }
+        } else {
+          setIsLoading(false);
         }
 
-        setIsLoading(false);
         setIsInitialized(true);
 
         return () => {

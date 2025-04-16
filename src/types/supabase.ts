@@ -60,3 +60,29 @@ export interface DeviceProfile {
   createdAt: string;
   updatedAt: string;
 }
+
+// Interface for custom role
+export interface CustomRole {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+}
+
+// Interface for permission
+export interface Permission {
+  id: string;
+  name: string;
+  description?: string;
+  resource: string;
+  action: string;
+  created_at: string;
+}
+
+// Interface for role permission
+export interface RolePermission {
+  id: string;
+  role_id: string;
+  permission_id: string;
+  created_at?: string;
+}

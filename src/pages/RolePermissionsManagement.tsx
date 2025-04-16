@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -52,56 +51,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useAuth } from "@/context/AuthContext";
-import { AppRole } from "@/types/supabase";
-
-// Custom role schema
-const customRoleSchema = z.object({
-  name: z.string().min(3, { message: "Role name must be at least 3 characters" }),
-  description: z.string().optional(),
-});
-
-type CustomRoleFormValues = z.infer<typeof customRoleSchema>;
-
-// Permission schema
-const permissionSchema = z.object({
-  name: z.string().min(3, { message: "Permission name must be at least 3 characters" }),
-  description: z.string().optional(),
-  resource: z.string().min(1, { message: "Resource is required" }),
-  action: z.string().min(1, { message: "Action is required" }),
-});
-
-type PermissionFormValues = z.infer<typeof permissionSchema>;
-
-// Permission assignment schema
-const permissionAssignmentSchema = z.object({
-  roleId: z.string().uuid({ message: "Role is required" }),
-  permissions: z.array(z.string().uuid()),
-});
-
-type PermissionAssignmentFormValues = z.infer<typeof permissionAssignmentSchema>;
-
-// Interfaces
-interface Permission {
-  id: string;
-  name: string;
-  description?: string;
-  resource: string;
-  action: string;
-  created_at: string;
-}
-
-interface CustomRole {
-  id: string;
-  name: string;
-  description?: string;
-  created_at: string;
-}
-
-interface RolePermission {
-  id: string;
-  role_id: string;
-  permission_id: string;
-}
+import { AppRole, CustomRole, Permission, RolePermission } from "@/types/supabase";
 
 const RolePermissionsManagement = () => {
   const { toast } = useToast();
@@ -112,9 +62,7 @@ const RolePermissionsManagement = () => {
   const [isAddPermissionOpen, setIsAddPermissionOpen] = useState(false);
   const [isAssignPermissionsOpen, setIsAssignPermissionsOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<CustomRole | null>(null);
-  const [selectedPermission, setSelectedPermission] = useState<Permission | null>(null);
 
-  // Check if user has access to this page
   useEffect(() => {
     if (userRole !== "admin" && userRole !== "super_admin") {
       toast({
@@ -122,11 +70,9 @@ const RolePermissionsManagement = () => {
         description: "You don't have permission to access this page",
         variant: "destructive",
       });
-      // Could redirect here
     }
   }, [userRole, toast]);
 
-  // Forms
   const roleForm = useForm<CustomRoleFormValues>({
     resolver: zodResolver(customRoleSchema),
     defaultValues: {
@@ -153,7 +99,6 @@ const RolePermissionsManagement = () => {
     },
   });
 
-  // Fetch custom roles
   const { data: customRoles = [], isLoading: isLoadingRoles } = useQuery({
     queryKey: ["custom-roles"],
     queryFn: async () => {
@@ -177,7 +122,6 @@ const RolePermissionsManagement = () => {
     },
   });
 
-  // Fetch permissions
   const { data: permissions = [], isLoading: isLoadingPermissions } = useQuery({
     queryKey: ["permissions"],
     queryFn: async () => {
@@ -201,7 +145,6 @@ const RolePermissionsManagement = () => {
     },
   });
 
-  // Fetch role-permission assignments
   const { data: rolePermissions = [], isLoading: isLoadingRolePermissions } = useQuery({
     queryKey: ["role-permissions"],
     queryFn: async () => {
@@ -219,7 +162,6 @@ const RolePermissionsManagement = () => {
     },
   });
 
-  // Add new custom role
   const handleAddRole = async (values: CustomRoleFormValues) => {
     try {
       const { data, error } = await supabase
@@ -249,7 +191,6 @@ const RolePermissionsManagement = () => {
     }
   };
 
-  // Add new permission
   const handleAddPermission = async (values: PermissionFormValues) => {
     try {
       const { data, error } = await supabase
@@ -281,10 +222,8 @@ const RolePermissionsManagement = () => {
     }
   };
 
-  // Assign permissions to role
   const handleAssignPermissions = async (values: PermissionAssignmentFormValues) => {
     try {
-      // First, delete existing permissions for this role
       const { error: deleteError } = await supabase
         .from("role_permissions")
         .delete()
@@ -292,7 +231,6 @@ const RolePermissionsManagement = () => {
 
       if (deleteError) throw deleteError;
 
-      // Then insert new permissions
       if (values.permissions.length > 0) {
         const insertData = values.permissions.map(permissionId => ({
           role_id: values.roleId,
@@ -322,7 +260,6 @@ const RolePermissionsManagement = () => {
     }
   };
 
-  // Delete a role
   const handleDeleteRole = async (roleId: string) => {
     try {
       const { error } = await supabase
@@ -347,7 +284,6 @@ const RolePermissionsManagement = () => {
     }
   };
 
-  // Delete a permission
   const handleDeletePermission = async (permissionId: string) => {
     try {
       const { error } = await supabase
@@ -372,11 +308,9 @@ const RolePermissionsManagement = () => {
     }
   };
 
-  // Open assign permissions dialog
   const handleOpenAssignPermissions = (role: CustomRole) => {
     setSelectedRole(role);
     
-    // Get current permissions for this role
     const currentPermissions = rolePermissions
       .filter(rp => rp.role_id === role.id)
       .map(rp => rp.permission_id);
@@ -389,7 +323,6 @@ const RolePermissionsManagement = () => {
     setIsAssignPermissionsOpen(true);
   };
 
-  // Table columns
   const roleColumns = [
     {
       key: "name" as const,
@@ -480,7 +413,6 @@ const RolePermissionsManagement = () => {
     },
   ];
 
-  // Assign permissions form
   const handlePermissionCheckboxChange = (permissionId: string) => {
     const currentPermissions = assignPermissionsForm.getValues("permissions") || [];
     const updatedPermissions = currentPermissions.includes(permissionId)
@@ -695,7 +627,6 @@ const RolePermissionsManagement = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Add Role Dialog */}
       <Dialog open={isAddRoleOpen} onOpenChange={setIsAddRoleOpen}>
         <DialogContent>
           <DialogHeader>
@@ -747,7 +678,6 @@ const RolePermissionsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Permission Dialog */}
       <Dialog open={isAddPermissionOpen} onOpenChange={setIsAddPermissionOpen}>
         <DialogContent>
           <DialogHeader>
@@ -833,7 +763,6 @@ const RolePermissionsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Assign Permissions Dialog */}
       {selectedRole && (
         <Dialog open={isAssignPermissionsOpen} onOpenChange={setIsAssignPermissionsOpen}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

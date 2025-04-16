@@ -28,7 +28,7 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -45,7 +45,7 @@ const LoginPage = () => {
   
   // Redirect if already logged in
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       const returnPath = sessionStorage.getItem("returnPath");
       let targetRoute = "/parent-dashboard";
       
@@ -57,7 +57,7 @@ const LoginPage = () => {
       
       navigate(returnPath || targetRoute, { replace: true });
     }
-  }, [user, userRole, navigate]);
+  }, [user, userRole, authLoading, navigate]);
   
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -135,7 +135,7 @@ const LoginPage = () => {
                         placeholder="Enter your email" 
                         type="email" 
                         {...field} 
-                        disabled={isLoading}
+                        disabled={isLoading || authLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -154,7 +154,7 @@ const LoginPage = () => {
                         placeholder="Enter your password" 
                         type="password" 
                         {...field} 
-                        disabled={isLoading}
+                        disabled={isLoading || authLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -165,9 +165,9 @@ const LoginPage = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading}
+                disabled={isLoading || authLoading}
               >
-                {isLoading ? (
+                {isLoading || authLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
@@ -193,6 +193,7 @@ const LoginPage = () => {
                 variant="outline" 
                 onClick={handleParentRegistration}
                 className="w-full"
+                disabled={isLoading || authLoading}
               >
                 <UserPlus className="mr-2 h-4 w-4" />
                 Register as a Parent

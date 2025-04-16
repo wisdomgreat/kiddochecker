@@ -149,6 +149,27 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       device_profiles: {
         Row: {
           created_at: string | null
@@ -307,6 +328,33 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          action: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          resource: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          resource: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          resource?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -346,6 +394,42 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "custom_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teachers: {
         Row: {
           class_id: string | null
@@ -378,11 +462,41 @@ export type Database = {
           },
         ]
       }
+      user_custom_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_custom_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "custom_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
           id: string
           is_super_admin: boolean | null
+          is_volunteer: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -390,6 +504,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_super_admin?: boolean | null
+          is_volunteer?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -397,6 +512,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_super_admin?: boolean | null
+          is_volunteer?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
@@ -417,11 +533,18 @@ export type Database = {
         Returns: string
       }
       create_user_role: {
-        Args: {
-          p_user_id: string
-          p_role?: Database["public"]["Enums"]["app_role"]
-          p_is_super_admin?: boolean
-        }
+        Args:
+          | {
+              p_user_id: string
+              p_role?: Database["public"]["Enums"]["app_role"]
+              p_is_super_admin?: boolean
+              p_is_volunteer?: boolean
+            }
+          | {
+              p_user_id: string
+              p_role?: Database["public"]["Enums"]["app_role"]
+              p_is_super_admin?: boolean
+            }
         Returns: string
       }
       get_all_events: {
@@ -453,6 +576,7 @@ export type Database = {
           phone: string
           role: string
           is_super_admin: boolean
+          is_volunteer: boolean
           is_active: boolean
         }[]
       }
@@ -471,6 +595,10 @@ export type Database = {
           updated_at: string | null
         }[]
       }
+      has_permission: {
+        Args: { p_user_id: string; p_resource: string; p_action: string }
+        Returns: boolean
+      }
       has_role: {
         Args: { user_id: string; role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
@@ -486,7 +614,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "staff" | "parent" | "super_admin"
+      app_role:
+        | "admin"
+        | "staff"
+        | "parent"
+        | "super_admin"
+        | "teacher"
+        | "teacher_assistant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -602,7 +736,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff", "parent", "super_admin"],
+      app_role: [
+        "admin",
+        "staff",
+        "parent",
+        "super_admin",
+        "teacher",
+        "teacher_assistant",
+      ],
     },
   },
 } as const

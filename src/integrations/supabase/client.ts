@@ -1,5 +1,7 @@
+
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { AppRole, CustomRole, Permission, RolePermission } from '@/types/supabase';
 
 const SUPABASE_URL = "https://pxqztqcukuilqdermblq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4cXp0cWN1a3VpbHFkZXJtYmxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA4MzYwODgsImV4cCI6MjA1NjQxMjA4OH0.2mZ8Dn2DX5SAQw2dHwPdHy6bQK5OhNTVI-1HVvXXlOs";
@@ -55,7 +57,7 @@ export const getCurrentUserWithProfile = async () => {
   }
 };
 
-export const getUserRole = async () => {
+export const getUserRole = async (): Promise<AppRole | null> => {
   try {
     const user = await getCurrentUser();
     
@@ -76,6 +78,63 @@ export const getUserRole = async () => {
   } catch (error) {
     console.error("Error in getUserRole:", error);
     return null;
+  }
+};
+
+// Custom roles and permissions functions
+export const getCustomRoles = async (): Promise<CustomRole[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('custom_roles')
+      .select('*')
+      .order('name');
+      
+    if (error) {
+      console.error("Error fetching custom roles:", error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error in getCustomRoles:", error);
+    return [];
+  }
+};
+
+export const getPermissions = async (): Promise<Permission[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('permissions')
+      .select('*')
+      .order('name');
+      
+    if (error) {
+      console.error("Error fetching permissions:", error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error in getPermissions:", error);
+    return [];
+  }
+};
+
+export const getRolePermissions = async (): Promise<RolePermission[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select('*');
+      
+    if (error) {
+      console.error("Error fetching role permissions:", error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error in getRolePermissions:", error);
+    return [];
   }
 };
 
@@ -140,6 +199,31 @@ export const isSetupCompleted = async () => {
     return count ? count > 0 : false;
   } catch (error) {
     console.error("Error in isSetupCompleted:", error);
+    return false;
+  }
+};
+
+// Check if user has specific permission
+export const checkUserPermission = async (resource: string, action: string): Promise<boolean> => {
+  try {
+    const user = await getCurrentUser();
+    
+    if (!user) return false;
+    
+    const { data, error } = await supabase.rpc('has_permission', {
+      p_user_id: user.id,
+      p_resource: resource,
+      p_action: action
+    });
+    
+    if (error) {
+      console.error("Error checking permission:", error);
+      return false;
+    }
+    
+    return data || false;
+  } catch (error) {
+    console.error("Error in checkUserPermission:", error);
     return false;
   }
 };

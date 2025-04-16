@@ -32,17 +32,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { StaffMember, AppRole } from "@/types/supabase";
+import { StaffMember } from "@/types/supabase";
 
-// Define the valid roles for staff forms
-const validStaffRoles = ['admin', 'staff', 'teacher', 'parent', 'super_admin', 'teacher_assistant'] as const;
-type StaffFormRole = typeof validStaffRoles[number];
-
-// Define a schema that matches what the database expects
+// Define the schema for staff form values
 const staffSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.enum(validStaffRoles),
+  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin', 'teacher_assistant'] as const),
   phone: z.string().optional(),
   isSuperAdmin: z.boolean().default(false),
   isVolunteer: z.boolean().default(false),
@@ -66,7 +62,7 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
     defaultValues: {
       firstName: staffMember.firstName || "",
       lastName: staffMember.lastName || "",
-      role: (staffMember.role as StaffFormRole) || "staff",
+      role: staffMember.role || "staff",
       phone: staffMember.phone || "",
       isSuperAdmin: staffMember.isSuperAdmin || false,
       isVolunteer: staffMember.isVolunteer || false,
