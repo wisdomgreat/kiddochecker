@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -39,7 +40,11 @@ const staffMemberSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin'] as const) as z.ZodType<AppRole>,
+  role: z.custom<AppRole>((val) => {
+    return ['admin', 'staff', 'teacher', 'parent', 'super_admin'].includes(val as string);
+  }, {
+    message: "Please select a valid role"
+  }),
   phone: z.string().optional(),
   isSuperAdmin: z.boolean().default(false),
 });
