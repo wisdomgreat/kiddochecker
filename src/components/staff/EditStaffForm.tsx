@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -62,7 +63,7 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
     defaultValues: {
       firstName: staffMember.firstName || "",
       lastName: staffMember.lastName || "",
-      role: (staffMember.role as "admin" | "staff" | "teacher" | "parent" | "super_admin") || "staff",
+      role: staffMember.role || "staff",
       phone: staffMember.phone || "",
       isSuperAdmin: staffMember.isSuperAdmin || false,
     },
@@ -85,12 +86,9 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
       if (profileError) throw profileError;
 
       // Update user role
-      const validRole: AppRole = values.role === "admin" || 
-                               values.role === "staff" || 
-                               values.role === "teacher" || 
-                               values.role === "parent" || 
-                               values.role === "super_admin" ? 
-                               values.role : "staff";
+      // The role from the form is already compatible with AppRole type
+      // since we've updated the type definition
+      const validRole: AppRole = values.role;
                                
       const { error: roleError } = await supabase
         .from("user_roles")
