@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +36,6 @@ const ChildrenManagement = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Fetch children for the current user
   const { data: children = [], isLoading } = useQuery({
     queryKey: ["children", user?.id],
     queryFn: async () => {
@@ -85,7 +83,6 @@ const ChildrenManagement = () => {
     if (!selectedChild) return;
     
     try {
-      // First delete the parent_children relationship
       const { error: relationshipError } = await supabase
         .from("parent_children")
         .delete()
@@ -93,7 +90,6 @@ const ChildrenManagement = () => {
       
       if (relationshipError) throw relationshipError;
       
-      // Then delete the child
       const { error } = await supabase
         .from("children")
         .delete()
@@ -121,7 +117,7 @@ const ChildrenManagement = () => {
 
   const childColumns = [
     {
-      key: "name" as const,
+      key: "firstName" as const,
       header: "Name",
       render: (value: string, child: Child) => (
         <div>
@@ -133,7 +129,7 @@ const ChildrenManagement = () => {
       ),
     },
     {
-      key: "allergies" as const,
+      key: "medicalInfo" as const,
       header: "Health Info",
       render: (value: string | null, child: Child) => (
         <div className="space-y-1">
@@ -230,14 +226,12 @@ const ChildrenManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Add Child Dialog */}
       <AddChildForm 
         open={isAddDialogOpen} 
         onOpenChange={setIsAddDialogOpen}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["children"] })}
       />
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -249,7 +243,7 @@ const ChildrenManagement = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={handleDeleteChild}>
+            <AlertDialogAction onClick={handleDeleteChild} className="bg-red-600 hover:bg-red-700">
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>

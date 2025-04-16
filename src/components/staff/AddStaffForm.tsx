@@ -96,12 +96,16 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
 
       // Set the user's role if user was created successfully
       if (data.user) {
-        // Convert the role to the AppRole type
-        const appRole = values.role as AppRole;
+        // Convert the role to the AppRole type - making sure it's a valid role
+        // that matches what's defined in the database
+        const validRole: AppRole = values.role === "admin" || 
+                                 values.role === "staff" || 
+                                 values.role === "teacher" ? 
+                                 values.role : "staff";
         
         const { error: roleError } = await supabase.rpc("create_user_role", {
           p_user_id: data.user.id,
-          p_role: appRole,
+          p_role: validRole,
           p_is_super_admin: values.isSuperAdmin,
         });
 

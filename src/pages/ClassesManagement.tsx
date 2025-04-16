@@ -115,9 +115,9 @@ const ClassesManagement = () => {
       sortable: true,
     },
     {
-      key: "info" as const,
+      key: "description" as const, // Changed from "info" to "description"
       header: "Details",
-      render: (value: any, classItem: ClassItem) => (
+      render: (value: string | null, classItem: ClassItem) => (
         <div className="space-y-1">
           {classItem.description && (
             <div className="text-sm line-clamp-2">
@@ -154,7 +154,7 @@ const ClassesManagement = () => {
       sortable: true,
     },
     {
-      key: "status" as const,
+      key: "studentCount" as const, // Changed from "status" to "studentCount"
       header: "Status",
       render: (value: any, classItem: ClassItem) => {
         // Determine class status based on capacity
@@ -166,9 +166,9 @@ const ClassesManagement = () => {
             {isFull ? (
               <Badge variant="destructive">Full</Badge>
             ) : isNearCapacity ? (
-              <Badge variant="warning">Almost Full</Badge>
+              <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-200">Almost Full</Badge>
             ) : (
-              <Badge variant="success">Available</Badge>
+              <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200">Available</Badge>
             )}
           </div>
         );

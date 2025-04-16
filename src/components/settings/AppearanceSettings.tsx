@@ -115,11 +115,20 @@ const AppearanceSettings = () => {
   };
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    // Ensure theme is defined before saving
+    const themeSettings: ThemeSettings = {
+      theme: values.theme,
+      colorScheme: values.colorScheme,
+      highContrast: values.highContrast,
+      largeText: values.largeText,
+      animations: values.animations
+    };
+    
     // Save settings to localStorage
-    localStorage.setItem("themeSettings", JSON.stringify(values));
+    localStorage.setItem("themeSettings", JSON.stringify(themeSettings));
     
     // Apply the theme settings
-    applyThemeSettings(values);
+    applyThemeSettings(themeSettings);
     
     toast({
       title: "Appearance updated",
