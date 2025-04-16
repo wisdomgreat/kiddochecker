@@ -53,6 +53,27 @@ import * as z from "zod";
 import { useAuth } from "@/context/AuthContext";
 import { AppRole, CustomRole, Permission, RolePermission } from "@/types/supabase";
 
+const customRoleSchema = z.object({
+  name: z.string().min(2, { message: "Role name must be at least 2 characters" }),
+  description: z.string().optional(),
+});
+
+const permissionSchema = z.object({
+  name: z.string().min(2, { message: "Permission name must be at least 2 characters" }),
+  resource: z.string().min(1, { message: "Resource is required" }),
+  action: z.string().min(1, { message: "Action is required" }),
+  description: z.string().optional(),
+});
+
+const permissionAssignmentSchema = z.object({
+  roleId: z.string().uuid({ message: "Invalid role ID" }),
+  permissions: z.array(z.string().uuid({ message: "Invalid permission ID" })),
+});
+
+type CustomRoleFormValues = z.infer<typeof customRoleSchema>;
+type PermissionFormValues = z.infer<typeof permissionSchema>;
+type PermissionAssignmentFormValues = z.infer<typeof permissionAssignmentSchema>;
+
 const RolePermissionsManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
