@@ -86,14 +86,10 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
       if (profileError) throw profileError;
 
       // Update user role
-      // The role from the form is already compatible with AppRole type
-      // since we've updated the type definition
-      const validRole: AppRole = values.role;
-                               
       const { error: roleError } = await supabase
         .from("user_roles")
         .update({
-          role: validRole,
+          role: values.role,
           is_super_admin: values.isSuperAdmin,
         })
         .eq("user_id", staffMember.id);

@@ -35,11 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppRole } from "@/types/supabase";
 
-// Use AppRole from types/supabase but exclude "parent"
-const staffRoles = ["admin", "staff", "teacher"] as const;
-type StaffRole = typeof staffRoles[number];
-
-// Define a role type that is compatible with what the database expects
+// Define a schema that matches what the database expects
 const staffMemberSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   firstName: z.string().min(1, { message: "First name is required" }),
@@ -97,12 +93,9 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
       // Set the user's role if user was created successfully
       if (data.user) {
         // The role from the form is already compatible with AppRole type
-        // since we've updated the type definition
-        const validRole: AppRole = values.role;
-        
         const { error: roleError } = await supabase.rpc("create_user_role", {
           p_user_id: data.user.id,
-          p_role: validRole,
+          p_role: values.role,
           p_is_super_admin: values.isSuperAdmin,
         });
 
