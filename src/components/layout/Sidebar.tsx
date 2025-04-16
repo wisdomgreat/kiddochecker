@@ -1,3 +1,4 @@
+
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,9 @@ import {
   UserCog,
   Calendar,
   ShieldCheck,
-  MonitorSmartphone
+  MonitorSmartphone,
+  Laptop,
+  QrCode
 } from "lucide-react";
 
 const Sidebar = ({
@@ -61,6 +64,12 @@ const Sidebar = ({
       roles: ["admin", "teacher"],
     },
     {
+      href: "/check-in-out",
+      label: "Check In/Out",
+      icon: <QrCode size={20} />,
+      roles: ["admin", "teacher", "staff"],
+    },
+    {
       href: "/users-management",
       label: "Users",
       icon: <Users size={20} />,
@@ -88,8 +97,14 @@ const Sidebar = ({
       roles: ["admin"],
     },
     {
+      href: "/device-management",
+      label: "Devices & Kiosks",
+      icon: <Laptop size={20} />,
+      roles: ["admin"],
+    },
+    {
       href: "/kiosk-management",
-      label: "Kiosks",
+      label: "Kiosk Settings",
       icon: <MonitorSmartphone size={20} />,
       roles: ["admin"],
     },

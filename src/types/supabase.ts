@@ -47,3 +47,14 @@ export interface OrganizationSettings {
   primaryColor: string;
   fontFamily: string;
 }
+
+// Interface for device profile
+export interface DeviceProfile {
+  id: string;
+  deviceId: string;
+  name: string;
+  type: 'check_in_kiosk' | 'check_out_station';
+  location?: string;
+  createdAt: string;
+  updatedAt: string;
+}

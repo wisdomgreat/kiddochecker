@@ -32,15 +32,13 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { StaffMember, AppRole } from "@/types/supabase";
+import { StaffMember } from "@/types/supabase";
 
 // Define a schema that matches what the database expects
 const staffSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin'] as const, {
-    required_error: "Please select a role",
-  }),
+  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin']), 
   phone: z.string().optional(),
   isSuperAdmin: z.boolean().default(false),
 });
