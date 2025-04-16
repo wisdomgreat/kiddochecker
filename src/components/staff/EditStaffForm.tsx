@@ -34,17 +34,18 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { StaffMember, AppRole } from "@/types/supabase";
 
+// Define the valid roles for staff forms
+const validStaffRoles = ['admin', 'staff', 'teacher', 'parent', 'super_admin', 'teacher_assistant'] as const;
+type StaffFormRole = typeof validStaffRoles[number];
+
 // Define a schema that matches what the database expects
 const staffSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.custom<AppRole>((val) => {
-    return ['admin', 'staff', 'teacher', 'parent', 'super_admin'].includes(val as string);
-  }, {
-    message: "Please select a valid role"
-  }),
+  role: z.enum(validStaffRoles),
   phone: z.string().optional(),
   isSuperAdmin: z.boolean().default(false),
+  isVolunteer: z.boolean().default(false),
 });
 
 type StaffFormValues = z.infer<typeof staffSchema>;
@@ -65,9 +66,10 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
     defaultValues: {
       firstName: staffMember.firstName || "",
       lastName: staffMember.lastName || "",
-      role: staffMember.role || "staff",
+      role: (staffMember.role as StaffFormRole) || "staff",
       phone: staffMember.phone || "",
       isSuperAdmin: staffMember.isSuperAdmin || false,
+      isVolunteer: staffMember.isVolunteer || false,
     },
   });
 
@@ -93,6 +95,7 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
         .update({
           role: values.role,
           is_super_admin: values.isSuperAdmin,
+          is_volunteer: values.isVolunteer,
         })
         .eq("user_id", staffMember.id);
 
@@ -193,6 +196,7 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="staff">Staff</SelectItem>
                       <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
                       <SelectItem value="parent">Parent</SelectItem>
                       <SelectItem value="super_admin">Super Admin</SelectItem>
                     </SelectContent>
@@ -204,6 +208,32 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
                 </FormItem>
               )}
             />
+            
+            {(watchRole === "teacher" || watchRole === "teacher_assistant") && (
+              <FormField
+                control={form.control}
+                name="isVolunteer"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Volunteer
+                      </FormLabel>
+                      <FormDescription>
+                        Mark this staff member as a volunteer (otherwise treated as paid staff)
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            )}
+            
             {watchRole === "admin" && (
               <FormField
                 control={form.control}

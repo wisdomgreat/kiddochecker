@@ -23,6 +23,7 @@ import StaffManagement from '@/pages/StaffManagement';
 import EventsManagement from '@/pages/EventsManagement';
 import KioskManagement from '@/pages/KioskManagement';
 import RolesManagement from '@/pages/RolesManagement';
+import RolePermissionsManagement from '@/pages/RolePermissionsManagement';
 import DeviceManagement from '@/pages/DeviceManagement';
 import CheckInOutManagement from '@/pages/CheckInOutManagement';
 import { CircularProgress } from '@/components/ui/circular-progress';
@@ -55,6 +56,7 @@ function App() {
       case 'super_admin':
         return '/admin-dashboard';
       case 'teacher':
+      case 'teacher_assistant':
       case 'staff':
         return '/teacher-dashboard';
       case 'parent':
@@ -108,13 +110,13 @@ function App() {
       } />
       
       <Route path="/classes-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant']}>
           <ClassesManagement />
         </ProtectedRoute>
       } />
       
       <Route path="/events-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'staff']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
           <EventsManagement />
         </ProtectedRoute>
       } />
@@ -142,6 +144,12 @@ function App() {
           <RolesManagement />
         </ProtectedRoute>
       } />
+      
+      <Route path="/role-permissions" element={
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+          <RolePermissionsManagement />
+        </ProtectedRoute>
+      } />
 
       <Route path="/device-management" element={
         <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
@@ -150,20 +158,20 @@ function App() {
       } />
 
       <Route path="/check-in-out" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'staff']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
           <CheckInOutManagement />
         </ProtectedRoute>
       } />
       
       {/* Teacher Routes */}
       <Route path="/teacher-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'staff']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
           <TeacherDashboard />
         </ProtectedRoute>
       } />
       
       <Route path="/teacher-profile" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'staff']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
           <TeacherProfile />
         </ProtectedRoute>
       } />

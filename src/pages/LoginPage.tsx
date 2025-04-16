@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, LogIn, UserPlus } from "lucide-react";
+import { ArrowLeft, LogIn, UserPlus, Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -49,9 +49,9 @@ const LoginPage = () => {
       const returnPath = sessionStorage.getItem("returnPath");
       let targetRoute = "/parent-dashboard";
       
-      if (userRole === "admin") {
+      if (userRole === "admin" || userRole === "super_admin") {
         targetRoute = "/admin-dashboard";
-      } else if (userRole === "staff") {
+      } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
         targetRoute = "/teacher-dashboard";
       }
       
@@ -63,7 +63,7 @@ const LoginPage = () => {
     try {
       setIsLoading(true);
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
@@ -78,6 +78,7 @@ const LoginPage = () => {
       // Auth context will handle redirection
       
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -134,6 +135,7 @@ const LoginPage = () => {
                         placeholder="Enter your email" 
                         type="email" 
                         {...field} 
+                        disabled={isLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -152,6 +154,7 @@ const LoginPage = () => {
                         placeholder="Enter your password" 
                         type="password" 
                         {...field} 
+                        disabled={isLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -166,7 +169,7 @@ const LoginPage = () => {
               >
                 {isLoading ? (
                   <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
                   </>
                 ) : (

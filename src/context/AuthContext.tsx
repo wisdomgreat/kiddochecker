@@ -96,9 +96,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         setIsLoading(true);
         
-        // Set up auth state change listener
+        // Set up auth state change listener first
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, newSession) => {
+          (event, newSession) => {
             console.log("Auth state changed:", event, newSession?.user?.id);
             
             // Update session and user state immediately
@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
             // Handle session changed events
             if (newSession?.user) {
-              // Fetch role in separate operation to avoid blocking UI
+              // Defer role fetching to avoid blocking UI
               setTimeout(async () => {
                 const role = await fetchUserRole(newSession.user.id);
                 const setupComplete = await checkSetupStatus();
@@ -125,9 +125,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     description: "Welcome back!",
                   });
                 }
+                
+                setIsLoading(false);
               }, 0);
             } else {
               setUserRole(null);
+              setIsLoading(false);
             }
           }
         );
@@ -179,6 +182,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         targetRoute = "/admin-dashboard";
         break;
       case "teacher":
+      case "teacher_assistant":
       case "staff":
         targetRoute = "/teacher-dashboard";
         break;
@@ -205,16 +209,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       await supabase.auth.signOut();
       setSession(null);
       setUser(null);
       setUserRole(null);
+      setIsLoading(false);
       navigate("/landing", { replace: true });
       toast({
         title: "Signed out successfully",
         description: "You have been logged out",
       });
     } catch (error: any) {
+      setIsLoading(false);
       toast({
         title: "Error signing out",
         description: error.message,

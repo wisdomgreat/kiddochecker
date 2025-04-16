@@ -1,10 +1,12 @@
+
 // Match the exact definition in database app_role enum
-export type AppRole = 'admin' | 'staff' | 'teacher' | 'parent' | 'super_admin';
+export type AppRole = 'admin' | 'staff' | 'teacher' | 'parent' | 'super_admin' | 'teacher_assistant';
 
 // Interface for user role data returned from Supabase
 export interface UserRoleData {
   role: AppRole;
   is_super_admin?: boolean;
+  is_volunteer?: boolean;
 }
 
 // Interface for staff members
@@ -16,6 +18,7 @@ export interface StaffMember {
   phone?: string;
   role: AppRole;
   isSuperAdmin: boolean;
+  isVolunteer?: boolean;
   isActive: boolean;
 }
 
