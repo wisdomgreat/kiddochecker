@@ -229,9 +229,9 @@ const ReportsDashboard = () => {
                   <div className="flex items-center justify-center h-full">
                     <p className="text-gray-500">Coming soon: Check-in time distribution chart</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
         
@@ -247,9 +247,9 @@ const ReportsDashboard = () => {
                   <div className="flex items-center justify-center h-full">
                     <p className="text-gray-500">Coming soon: Age distribution chart</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
             
             <Card>
               <CardHeader>
@@ -261,9 +261,9 @@ const ReportsDashboard = () => {
                   <div className="flex items-center justify-center h-full">
                     <p className="text-gray-500">Coming soon: Gender distribution chart</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
             
             <Card>
               <CardHeader>
@@ -275,106 +275,107 @@ const ReportsDashboard = () => {
                   <div className="flex items-center justify-center h-full">
                     <p className="text-gray-500">Coming soon: New vs. returning children chart</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="trends">
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Attendance Trend (Last 2 Weeks)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart
-                      data={attendanceTrend}
-                      margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="attendance"
-                        stroke="#8884d8"
-                        activeDot={{ r: 8 }}
-                      />
-                    </RechartsLineChart>
-                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Growth Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    {/* Placeholder for growth rate chart */}
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">Coming soon: Attendance growth rate chart</p>
-                    </div>
-                  </CardContent>
-                </Card>
+          </div>
+        </TabsContent>
+          
+        <TabsContent value="trends">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Attendance Trend (Last 2 Weeks)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsLineChart
+                    data={attendanceTrend}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="attendance"
+                      stroke="#8884d8"
+                      activeDot={{ r: 8 }}
+                    />
+                  </RechartsLineChart>
+                </ResponsiveContainer>
               </div>
+            </CardContent>
+          </Card>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Growth Rate</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-72">
+                  {/* Placeholder for growth rate chart */}
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">Coming soon: Attendance growth rate chart</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
               
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Seasonal Patterns</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    {/* Placeholder for seasonal patterns chart */}
-                    <div className="flex items-center justify-center h-full">
-                      <p className="text-gray-500">Coming soon: Seasonal attendance patterns chart</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </MainLayout>
-    );
-  };
-  
-  // Stats card component
-  interface StatsCardProps {
-    title: string;
-    value: string | number | null;
-    trend: string;
-    trendPositive: boolean;
-  }
-  
-  const StatsCard: React.FC<StatsCardProps> = ({ title, value, trend, trendPositive }) => (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex flex-col">
-          <span className="text-sm text-gray-500">{title}</span>
-          {value === null ? (
-            <div className="py-2">
-              <CircularProgress size="small" />
-            </div>
-          ) : (
-            <span className="text-2xl font-bold">{value}</span>
-          )}
-          <span className={`text-xs ${trendPositive ? 'text-green-500' : 'text-red-500'} mt-1`}>
-            {trend}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Seasonal Patterns</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-72">
+                  {/* Placeholder for seasonal patterns chart */}
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">Coming soon: Seasonal attendance patterns chart</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </MainLayout>
   );
+};
   
-  export default ReportsDashboard;
+// Stats card component
+interface StatsCardProps {
+  title: string;
+  value: string | number | null;
+  trend: string;
+  trendPositive: boolean;
+}
+  
+const StatsCard: React.FC<StatsCardProps> = ({ title, value, trend, trendPositive }) => (
+  <Card>
+    <CardContent className="p-4">
+      <div className="flex flex-col">
+        <span className="text-sm text-gray-500">{title}</span>
+        {value === null ? (
+          <div className="py-2">
+            <CircularProgress size="small" />
+          </div>
+        ) : (
+          <span className="text-2xl font-bold">{value}</span>
+        )}
+        <span className={`text-xs ${trendPositive ? 'text-green-500' : 'text-red-500'} mt-1`}>
+          {trend}
+        </span>
+      </div>
+    </CardContent>
+  </Card>
+);
+  
+export default ReportsDashboard;
