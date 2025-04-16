@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,10 +8,21 @@ import { Label } from "@/components/ui/label";
 export interface ClassSelectionFormProps {
   onComplete?: (data: any) => void;
   onBack?: () => void;
+  childId?: string;
+  childAge?: number;
+  onClassSelected?: (classId: string, className: string) => void;
+  selectedClassId?: string;
 }
 
-const ClassSelectionForm: React.FC<ClassSelectionFormProps> = ({ onComplete, onBack }) => {
-  const [selectedClass, setSelectedClass] = React.useState<string | null>(null);
+const ClassSelectionForm: React.FC<ClassSelectionFormProps> = ({ 
+  onComplete, 
+  onBack, 
+  childId,
+  childAge,
+  onClassSelected,
+  selectedClassId
+}) => {
+  const [selectedClass, setSelectedClass] = React.useState<string | null>(selectedClassId || null);
   
   const classes = [
     { id: "1", name: "Toddlers", room: "Room 101", ageRange: "1-2 years" },
@@ -20,9 +32,17 @@ const ClassSelectionForm: React.FC<ClassSelectionFormProps> = ({ onComplete, onB
   ];
   
   const handleSubmit = () => {
-    if (selectedClass && onComplete) {
+    if (selectedClass) {
       const classData = classes.find(c => c.id === selectedClass);
-      onComplete(classData);
+      
+      if (onClassSelected && classData) {
+        onClassSelected(classData.id, classData.name);
+        return;
+      }
+      
+      if (onComplete && classData) {
+        onComplete(classData);
+      }
     }
   };
   
