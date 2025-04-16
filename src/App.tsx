@@ -23,6 +23,7 @@ import StaffManagement from '@/pages/StaffManagement';
 import EventsManagement from '@/pages/EventsManagement';
 import KioskManagement from '@/pages/KioskManagement';
 import RolesManagement from '@/pages/RolesManagement';
+import { CircularProgress } from '@/components/ui/circular-progress';
 
 const Unauthorized = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -49,8 +50,10 @@ function App() {
     
     switch(userRole) {
       case 'admin':
+      case 'super_admin':
         return '/admin-dashboard';
       case 'teacher':
+      case 'staff':
         return '/teacher-dashboard';
       case 'parent':
         return '/parent-dashboard';
@@ -61,9 +64,9 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        <span className="ml-2 text-gray-600">Loading application...</span>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <CircularProgress size="large" />
+        <span className="mt-4 text-gray-600">Loading application...</span>
       </div>
     );
   }
@@ -83,84 +86,88 @@ function App() {
       <Route path="" element={<Navigate to={getDefaultRoute()} replace />} />
       <Route path="index" element={<Navigate to={getDefaultRoute()} replace />} />
       
+      {/* Admin Routes */}
       <Route path="/admin-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <AdminDashboard />
         </ProtectedRoute>
       } />
       
       <Route path="/users-management" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <UsersManagement />
         </ProtectedRoute>
       } />
       
       <Route path="/staff-management" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <StaffManagement />
         </ProtectedRoute>
       } />
       
       <Route path="/classes-management" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher']}>
           <ClassesManagement />
         </ProtectedRoute>
       } />
       
       <Route path="/events-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'staff']}>
           <EventsManagement />
         </ProtectedRoute>
       } />
       
       <Route path="/reports-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <ReportsDashboard />
         </ProtectedRoute>
       } />
       
       <Route path="/settings" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <Settings />
         </ProtectedRoute>
       } />
       
       <Route path="/kiosk-management" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <KioskManagement />
         </ProtectedRoute>
       } />
       
       <Route path="/roles-management" element={
-        <ProtectedRoute allowedRoles={['admin']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <RolesManagement />
         </ProtectedRoute>
       } />
       
+      {/* Teacher Routes */}
       <Route path="/teacher-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'staff']}>
           <TeacherDashboard />
         </ProtectedRoute>
       } />
       
       <Route path="/teacher-profile" element={
-        <ProtectedRoute allowedRoles={['admin', 'teacher']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'staff']}>
           <TeacherProfile />
         </ProtectedRoute>
       } />
       
+      {/* Parent Routes */}
       <Route path="/parent-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'parent']}>
           <ParentDashboard />
         </ProtectedRoute>
       } />
       
       <Route path="/check-in-process" element={
-        <ProtectedRoute allowedRoles={['admin', 'parent']}>
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'parent']}>
           <CheckInProcess />
         </ProtectedRoute>
       } />
       
+      {/* Common Routes */}
       <Route path="/user-profile" element={
         <ProtectedRoute>
           <UserProfile />

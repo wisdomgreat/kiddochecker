@@ -19,3 +19,31 @@ export interface StaffMember {
   isSuperAdmin: boolean;
   isActive: boolean;
 }
+
+// Interface for activity logs
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  action: string;
+  details?: string;
+  timestamp: string;
+  userName?: string;
+}
+
+// Interface for settings
+export interface ThemeSettings {
+  theme: 'light' | 'dark' | 'system';
+  colorScheme: 'purple' | 'blue' | 'green' | 'orange';
+  highContrast: boolean;
+  largeText: boolean;
+  animations: boolean;
+}
+
+// Interface for organization settings
+export interface OrganizationSettings {
+  id: string;
+  name: string;
+  logoUrl?: string;
+  primaryColor: string;
+  fontFamily: string;
+}

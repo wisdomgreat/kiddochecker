@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Moon, Sun, Monitor, Check } from "lucide-react";
+import { ThemeSettings } from "@/types/supabase";
 
 const formSchema = z.object({
   theme: z.enum(["light", "dark", "system"]),
@@ -23,6 +24,7 @@ type ColorOption = {
   value: string;
   label: string;
   color: string;
+  primaryColor: string;
 };
 
 const AppearanceSettings = () => {
@@ -30,11 +32,26 @@ const AppearanceSettings = () => {
   const [selectedColor, setSelectedColor] = useState<string>("purple");
 
   const colorOptions: ColorOption[] = [
-    { value: "purple", label: "Purple", color: "bg-purple-600" },
-    { value: "blue", label: "Blue", color: "bg-blue-600" },
-    { value: "green", label: "Green", color: "bg-green-600" },
-    { value: "orange", label: "Orange", color: "bg-orange-600" },
+    { value: "purple", label: "Purple", color: "bg-purple-600", primaryColor: "#9b87f5" },
+    { value: "blue", label: "Blue", color: "bg-blue-600", primaryColor: "#3b82f6" },
+    { value: "green", label: "Green", color: "bg-green-600", primaryColor: "#22c55e" },
+    { value: "orange", label: "Orange", color: "bg-orange-600", primaryColor: "#f97316" },
   ];
+
+  // Load saved settings from localStorage
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem("themeSettings");
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings) as ThemeSettings;
+        form.reset(settings);
+        setSelectedColor(settings.colorScheme);
+        applyThemeSettings(settings);
+      }
+    } catch (error) {
+      console.error("Error loading theme settings", error);
+    }
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,8 +64,63 @@ const AppearanceSettings = () => {
     },
   });
 
+  // Function to apply theme settings
+  const applyThemeSettings = (settings: ThemeSettings) => {
+    // Theme (light/dark)
+    const root = document.documentElement;
+    if (settings.theme === "dark") {
+      root.classList.add("dark");
+    } else if (settings.theme === "light") {
+      root.classList.remove("dark");
+    } else if (settings.theme === "system") {
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        root.classList.add("dark");
+      } else {
+        root.classList.remove("dark");
+      }
+    }
+    
+    // Color scheme
+    const colorOption = colorOptions.find(c => c.value === settings.colorScheme);
+    if (colorOption) {
+      const style = document.documentElement.style;
+      style.setProperty("--primary-color", colorOption.primaryColor);
+      
+      // Update button styles
+      document.querySelectorAll('.btn-primary').forEach((el) => {
+        (el as HTMLElement).style.backgroundColor = colorOption.primaryColor;
+      });
+    }
+    
+    // Text size
+    if (settings.largeText) {
+      root.classList.add("text-lg");
+    } else {
+      root.classList.remove("text-lg");
+    }
+    
+    // High contrast
+    if (settings.highContrast) {
+      root.classList.add("high-contrast");
+    } else {
+      root.classList.remove("high-contrast");
+    }
+    
+    // Animations
+    if (!settings.animations) {
+      root.classList.add("reduce-motion");
+    } else {
+      root.classList.remove("reduce-motion");
+    }
+  };
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+    // Save settings to localStorage
+    localStorage.setItem("themeSettings", JSON.stringify(values));
+    
+    // Apply the theme settings
+    applyThemeSettings(values);
+    
     toast({
       title: "Appearance updated",
       description: "Your appearance settings have been saved.",

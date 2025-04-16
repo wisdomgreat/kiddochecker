@@ -25,18 +25,18 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 const childSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  age: z.coerce.number().min(0, "Age must be positive").max(18, "Age must be 18 or under"),
+  firstName: z.string().min(1, "Child's first name is required"),
+  lastName: z.string().min(1, "Child's last name is required"),
+  age: z.coerce.number().int().min(1, "Age must be at least 1").optional(),
   allergies: z.string().optional(),
   medicalInfo: z.string().optional(),
-  notes: z.string().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactPhone: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export type ChildFormValues = z.infer<typeof childSchema>;
@@ -49,9 +49,9 @@ interface AddChildFormProps {
 
 export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
   const { toast } = useToast();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const form = useForm<ChildFormValues>({
     resolver: zodResolver(childSchema),
@@ -61,9 +61,9 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
       age: undefined,
       allergies: "",
       medicalInfo: "",
-      notes: "",
       emergencyContactName: "",
       emergencyContactPhone: "",
+      notes: "",
     },
   });
 
@@ -80,35 +80,37 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
     setIsSubmitting(true);
 
     try {
-      // Insert the child record
-      const { data: childData, error: childError } = await supabase
+      // Add child to the database
+      const { data: childData, error } = await supabase
         .from("children")
         .insert({
           first_name: values.firstName,
           last_name: values.lastName,
-          age: values.age,
+          age: values.age || null,
           allergies: values.allergies || null,
           medical_info: values.medicalInfo || null,
-          notes: values.notes || null,
           emergency_contact_name: values.emergencyContactName || null,
           emergency_contact_phone: values.emergencyContactPhone || null,
-          parent_id: user.id,
+          notes: values.notes || null,
+          parent_id: user.id, // Link to the current user (parent)
         })
-        .select();
+        .select()
+        .single();
 
-      if (childError) throw childError;
+      if (error) throw error;
 
-      // Create parent-child relationship
-      if (childData && childData.length > 0) {
-        const { error: relationError } = await supabase
+      // Add relationship in the parent_children junction table
+      if (childData) {
+        const { error: relationshipError } = await supabase
           .from("parent_children")
           .insert({
             parent_id: user.id,
-            child_id: childData[0].id,
-            relationship: "Parent",
+            child_id: childData.id,
+            relationship: "Parent", // Default relationship
+            is_authorized_pickup: true,
           });
 
-        if (relationError) throw relationError;
+        if (relationshipError) throw relationshipError;
       }
 
       toast({
@@ -119,9 +121,8 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
       form.reset();
       onOpenChange(false);
       
-      // Invalidate related queries
+      // Invalidate children query
       queryClient.invalidateQueries({ queryKey: ["children"] });
-      queryClient.invalidateQueries({ queryKey: ["family"] });
       
       if (onSuccess) onSuccess();
     } catch (error: any) {
@@ -140,15 +141,15 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Add a Child</DialogTitle>
+          <DialogTitle>Add New Child</DialogTitle>
           <DialogDescription>
-            Enter your child's information below. Fields marked with * are required.
+            Add a child to your family. This information will be used for check-in and class assignments.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="firstName"
@@ -156,13 +157,12 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                   <FormItem>
                     <FormLabel>First Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="First name" {...field} />
+                      <Input placeholder="Child's first name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
               <FormField
                 control={form.control}
                 name="lastName"
@@ -170,7 +170,7 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                   <FormItem>
                     <FormLabel>Last Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Last name" {...field} />
+                      <Input placeholder="Child's last name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -183,12 +183,12 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
               name="age"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Age *</FormLabel>
+                  <FormLabel>Age</FormLabel>
                   <FormControl>
                     <Input 
                       type="number" 
-                      placeholder="Age" 
-                      {...field} 
+                      placeholder="Child's age" 
+                      {...field}
                       onChange={e => field.onChange(e.target.valueAsNumber)}
                     />
                   </FormControl>
@@ -204,11 +204,8 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                 <FormItem>
                   <FormLabel>Allergies</FormLabel>
                   <FormControl>
-                    <Input placeholder="List any allergies" {...field} />
+                    <Input placeholder="Any allergies or sensitivities" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    List any food or other allergies your child has
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -222,17 +219,20 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                   <FormLabel>Medical Information</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Any medical conditions or medications" 
+                      placeholder="Important medical information" 
                       {...field}
                       className="resize-none"
                     />
                   </FormControl>
+                  <FormDescription>
+                    Include any medical conditions, medications, or special needs.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="emergencyContactName"
@@ -240,7 +240,7 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                   <FormItem>
                     <FormLabel>Emergency Contact Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Emergency contact name" {...field} />
+                      <Input placeholder="Name of emergency contact" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -254,7 +254,7 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                   <FormItem>
                     <FormLabel>Emergency Contact Phone</FormLabel>
                     <FormControl>
-                      <Input placeholder="Emergency contact phone" {...field} />
+                      <Input placeholder="Phone number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -270,7 +270,7 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                   <FormLabel>Additional Notes</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Any additional notes" 
+                      placeholder="Any additional information" 
                       {...field}
                       className="resize-none"
                     />
@@ -280,7 +280,7 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
               )}
             />
             
-            <DialogFooter>
+            <DialogFooter className="pt-4">
               <Button 
                 type="button" 
                 variant="outline" 

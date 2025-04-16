@@ -48,6 +48,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const fetchUserRole = async (userId: string) => {
     try {
       const role = await getUserRole();
+      console.log("Fetched user role:", role);
       setUserRole(role);
       return role;
     } catch (error) {
@@ -70,6 +71,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const refreshSession = async () => {
     try {
+      setIsLoading(true);
       const { data } = await supabase.auth.getSession();
       console.log("Refreshed session:", data.session);
       setSession(data.session);
@@ -80,8 +82,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       await checkSetupStatus();
+      setIsLoading(false);
     } catch (error) {
       console.error("Error refreshing session:", error);
+      setIsLoading(false);
     }
   };
 
@@ -90,16 +94,64 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
+        
+        // Set up auth state change listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, newSession) => {
+            console.log("Auth state changed:", event, newSession?.user?.id);
+            setSession(newSession);
+            setUser(newSession?.user || null);
+
+            // Handle session changed events
+            if (newSession?.user) {
+              const role = await fetchUserRole(newSession.user.id);
+              console.log("User role from listener:", role);
+              
+              // Check if setup is complete
+              const setupComplete = await checkSetupStatus();
+              
+              // Handle redirects based on events and roles
+              if (event === "SIGNED_IN") {
+                // Redirect based on role
+                if (setupComplete) {
+                  handleRoleBasedRedirect(role);
+                } else if (role === 'admin') {
+                  navigate("/organization-setup", { replace: true });
+                }
+                
+                toast({
+                  title: "Signed in successfully",
+                  description: "Welcome back!",
+                });
+              }
+            }
+          }
+        );
+
+        // Then check for existing session
         const { data } = await supabase.auth.getSession();
         console.log("Initial auth session:", data.session);
         setSession(data.session);
         setUser(data.session?.user || null);
         
         if (data.session?.user) {
-          await fetchUserRole(data.session.user.id);
+          const role = await fetchUserRole(data.session.user.id);
+          console.log("User role from initial check:", role);
+          const setupComplete = await checkSetupStatus();
+          
+          // If already signed in, redirect based on role
+          if (role && isPublicRoute(location.pathname)) {
+            if (setupComplete) {
+              handleRoleBasedRedirect(role);
+            } else if (role === 'admin') {
+              navigate("/organization-setup", { replace: true });
+            }
+          }
         }
 
-        await checkSetupStatus();
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error('Error checking auth session:', error);
       } finally {
@@ -109,79 +161,55 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     initializeAuth();
-
-    // Set up auth state change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        console.log("Auth state changed:", event, newSession?.user?.id);
-        setSession(newSession);
-        setUser(newSession?.user || null);
-
-        // Handle session changed events
-        if (newSession?.user) {
-          const role = await fetchUserRole(newSession.user.id);
-          console.log("User role:", role);
-          
-          // Check if setup is complete
-          const setupComplete = await checkSetupStatus();
-          
-          // Handle redirects based on events and roles
-          if (event === "SIGNED_IN") {
-            // Save current path for potential return after login
-            const currentPath = location.pathname;
-            const publicRoutes = ["/check-in-kiosk", "/landing", "/login", "/check-out-station", "/parent-registration", "/organization-setup"];
-            const isPublicRoute = publicRoutes.includes(currentPath);
-            
-            // If setup is not complete, redirect to organization setup
-            if (!setupComplete && role === 'admin' && !currentPath.includes('organization-setup')) {
-              navigate("/organization-setup");
-              return;
-            }
-            
-            // Redirect based on role if on a public route
-            if (isPublicRoute && setupComplete) {
-              if (role === "admin") {
-                navigate("/admin-dashboard");
-              } else if (role === "staff") {
-                navigate("/teacher-dashboard");
-              } else if (role === "parent") {
-                navigate("/parent-dashboard");
-              }
-            }
-            
-            toast({
-              title: "Signed in successfully",
-              description: "Welcome back!",
-            });
-          }
-        } else if (event === "SIGNED_OUT") {
-          setUserRole(null);
-          
-          // If on a protected route, redirect to landing page
-          const publicRoutes = ["/landing", "/check-in-kiosk", "/login", "/check-out-station", "/parent-registration", "/organization-setup", "/unauthorized", "/404"];
-          if (!publicRoutes.includes(location.pathname)) {
-            navigate("/landing");
-          }
-          
-          toast({
-            title: "Signed out",
-            description: "You have been logged out",
-          });
-        }
-      }
-    );
-
-    return () => {
-      if (authListener && authListener.subscription) {
-        authListener.subscription.unsubscribe();
-      }
-    };
   }, [navigate, toast, location.pathname]);
+
+  const handleRoleBasedRedirect = (role: AppRole | null) => {
+    if (!role) return;
+    
+    switch(role) {
+      case "admin":
+      case "super_admin":
+        navigate("/admin-dashboard", { replace: true });
+        break;
+      case "teacher":
+        navigate("/teacher-dashboard", { replace: true });
+        break;
+      case "staff":
+        navigate("/teacher-dashboard", { replace: true });
+        break;
+      case "parent":
+        navigate("/parent-dashboard", { replace: true });
+        break;
+      default:
+        navigate("/landing", { replace: true });
+    }
+  };
+
+  const isPublicRoute = (path: string) => {
+    const publicRoutes = [
+      "/landing", 
+      "/login", 
+      "/check-in-kiosk", 
+      "/check-out-station", 
+      "/parent-registration", 
+      "/organization-setup", 
+      "/unauthorized", 
+      "/404"
+    ];
+    return publicRoutes.includes(path);
+  };
 
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      navigate("/landing");
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
+      navigate("/landing", { replace: true });
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out",
+      });
     } catch (error: any) {
       toast({
         title: "Error signing out",
