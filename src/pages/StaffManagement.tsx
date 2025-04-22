@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -44,38 +43,21 @@ const StaffManagement = () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select(`
-            id,
-            user_id,
-            role,
-            is_super_admin,
-            profiles:user_id (
-              first_name, 
-              last_name,
-              phone
-            ),
-            users:user_id (
-              email,
-              confirmed_at
-            )
-          `)
-          .in('role', ['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']);
+        const { data, error } = await supabase.rpc('get_staff_members');
 
         if (error) {
           throw error;
         }
 
-        return data.map((member) => ({
+        return data.map((member: any) => ({
           id: member.user_id,
-          email: member.users?.email || "",
-          firstName: member.profiles?.first_name || "",
-          lastName: member.profiles?.last_name || "",
-          phone: member.profiles?.phone || "",
+          email: member.email || "",
+          firstName: member.first_name || "",
+          lastName: member.last_name || "",
+          phone: member.phone || "",
           role: member.role || "",
           isSuperAdmin: member.is_super_admin || false,
-          isActive: member.users?.confirmed_at !== null,
+          isActive: member.is_active || false,
         }));
       } catch (error: any) {
         console.error("Error fetching staff members:", error);
@@ -283,6 +265,7 @@ const StaffManagement = () => {
               data={filteredStaffMembers}
               keyExtractor={(item) => item.id}
               searchable={false}
+              loading={isLoadingStaff}
             />
           )}
         </CardContent>

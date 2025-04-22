@@ -46,34 +46,79 @@ const UsersManagement = () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
-        const { data: userData, error } = await supabase
+        // First, get the list of user IDs and roles
+        const { data: userRoles, error: rolesError } = await supabase
           .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            profiles:user_id (
-              first_name, 
-              last_name,
-              phone
-            ),
-            users:user_id (
-              email,
-              created_at,
-              last_sign_in_at
-            )
-          `);
+          .select('user_id, role');
+          
+        if (rolesError) throw rolesError;
+        
+        // Get user data from auth.users table via profiles
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, phone');
+          
+        if (profilesError) throw profilesError;
+        
+        // Get user login information
+        const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+        
+        if (userError) {
+          // Fallback to getting minimal data if admin access is not available
+          console.warn("Cannot access user data via admin API. Using limited data set.");
+          
+          // Count children for parent users
+          const { data: parentChildData, error: parentChildError } = await supabase
+            .from('parent_children')
+            .select('parent_id, child_id');
 
-        if (error) throw error;
-
+          if (parentChildError) throw parentChildError;
+          
+          // Map the parent-child relationships
+          const childrenCount: Record<string, number> = {};
+          
+          if (parentChildData) {
+            parentChildData.forEach(relation => {
+              if (!childrenCount[relation.parent_id]) {
+                childrenCount[relation.parent_id] = 0;
+              }
+              childrenCount[relation.parent_id]++;
+            });
+          }
+          
+          // Combine data from profiles and user_roles
+          return userRoles.map((roleRecord) => {
+            const profile = profilesData.find(p => p.id === roleRecord.user_id) || {
+              first_name: '',
+              last_name: '',
+              phone: ''
+            };
+            
+            return {
+              id: roleRecord.user_id,
+              name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User',
+              email: '',  // We don't have access to emails without admin API
+              phone: profile.phone || '',
+              role: roleRecord.role,
+              status: 'Active',  // Assume active since we can't check
+              lastActive: 'Unknown',
+              joinDate: 'Unknown',
+              children: childrenCount[roleRecord.user_id] || 0
+            };
+          });
+        }
+        
+        // If we have admin access, we can combine all data
         // Count children for parent users
         const { data: parentChildData, error: parentChildError } = await supabase
           .from('parent_children')
           .select('parent_id, child_id');
 
         if (parentChildError) throw parentChildError;
-
+        
         // Map the parent-child relationships
         const childrenCount: Record<string, number> = {};
+        
         if (parentChildData) {
           parentChildData.forEach(relation => {
             if (!childrenCount[relation.parent_id]) {
@@ -82,19 +127,29 @@ const UsersManagement = () => {
             childrenCount[relation.parent_id]++;
           });
         }
-
-        // Format the user data
-        return userData.map(u => ({
-          id: u.user_id,
-          name: `${u.profiles?.first_name || ''} ${u.profiles?.last_name || ''}`.trim() || 'Unnamed User',
-          email: u.users?.email || '',
-          phone: u.profiles?.phone || '',
-          role: u.role,
-          status: 'Active', // We could improve this with actual status data
-          lastActive: u.users?.last_sign_in_at ? new Date(u.users.last_sign_in_at).toLocaleDateString() : 'Never',
-          joinDate: u.users?.created_at ? new Date(u.users.created_at).toLocaleDateString() : 'Unknown',
-          children: childrenCount[u.user_id] || 0
-        }));
+        
+        // Format the user data by combining from multiple sources
+        return userRoles.map(roleRecord => {
+          const profile = profilesData.find(p => p.id === roleRecord.user_id) || {
+            first_name: '',
+            last_name: '',
+            phone: ''
+          };
+          
+          const authUser = userData?.users?.find(u => u.id === roleRecord.user_id);
+          
+          return {
+            id: roleRecord.user_id,
+            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User',
+            email: authUser?.email || '',
+            phone: profile.phone || '',
+            role: roleRecord.role,
+            status: authUser?.email_confirmed_at ? 'Active' : 'Pending',
+            lastActive: authUser?.last_sign_in_at ? new Date(authUser.last_sign_in_at).toLocaleDateString() : 'Never',
+            joinDate: authUser?.created_at ? new Date(authUser.created_at).toLocaleDateString() : 'Unknown',
+            children: childrenCount[roleRecord.user_id] || 0
+          };
+        });
       } catch (error: any) {
         console.error("Error fetching users:", error);
         toast({
@@ -341,7 +396,7 @@ const UsersManagement = () => {
             data={filteredUsers}
             keyExtractor={(item) => item.id}
             searchable={false}
-            isLoading={isLoading}
+            loading={isLoading}
           />
         </div>
       </div>
