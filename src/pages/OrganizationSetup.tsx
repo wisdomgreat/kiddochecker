@@ -83,15 +83,15 @@ const OrganizationSetup = () => {
       console.log("Organization setup submission started", values);
       
       // 1. Create organization settings first to establish the church
-      const { data: orgData, error: orgError } = await supabase.rpc(
-        'create_organization',
-        {
-          org_name: values.organizationName,
+      const { data: orgData, error: orgError } = await supabase
+        .from('organization_settings')
+        .insert({
+          name: values.organizationName,
           primary_color: values.primaryColor,
-          font_family: values.fontFamily,
-          creator_id: null // We'll update this after user creation
-        }
-      );
+          font_family: values.fontFamily
+        })
+        .select('id')
+        .single();
         
       if (orgError) {
         console.error("Organization creation error:", orgError);
@@ -124,7 +124,7 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 3. Create admin role with direct insert using service role
+      // 3. Create admin role directly in the table
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -145,7 +145,7 @@ const OrganizationSetup = () => {
       const { error: updateOrgError } = await supabase
         .from('organization_settings')
         .update({ created_by: authData.user.id })
-        .eq('id', orgData);
+        .eq('id', orgData.id);
         
       if (updateOrgError) {
         console.error("Organization update error:", updateOrgError);
@@ -153,9 +153,9 @@ const OrganizationSetup = () => {
       }
       
       // 5. Upload logo if provided
-      if (logoFile && orgData) {
+      if (logoFile && orgData.id) {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `org-logo-${orgData}.${fileExt}`;
+        const fileName = `org-logo-${orgData.id}.${fileExt}`;
         
         console.log(`Uploading logo to organization_assets/${fileName}`);
         
@@ -182,7 +182,7 @@ const OrganizationSetup = () => {
           const { error: updateLogoError } = await supabase
             .from('organization_settings')
             .update({ logo_url: publicUrlData.publicUrl })
-            .eq('id', orgData);
+            .eq('id', orgData.id);
             
           if (updateLogoError) {
             console.error("Logo URL update error:", updateLogoError);
@@ -209,8 +209,10 @@ const OrganizationSetup = () => {
         navigate("/login");
       } else {
         console.log("Sign in successful, redirecting to admin dashboard");
-        // Redirect to admin dashboard
-        navigate("/admin-dashboard");
+        // Force a short delay to ensure authentication state is updated
+        setTimeout(() => {
+          navigate("/admin-dashboard");
+        }, 1000);
       }
       
     } catch (error: any) {

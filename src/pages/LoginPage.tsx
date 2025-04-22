@@ -43,23 +43,37 @@ const LoginPage = () => {
     },
   });
   
-  // Redirect if already logged in - with a delay to ensure role is loaded
+  // Redirect if already logged in
   useEffect(() => {
-    if (user && userRole && !authLoading && !isLoading) {
-      console.log("LoginPage: Already logged in as:", userRole);
-      const returnPath = sessionStorage.getItem("returnPath");
-      let targetRoute = "/parent-dashboard";
-      
-      if (userRole === "admin" || userRole === "super_admin") {
-        targetRoute = "/admin-dashboard";
-      } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
-        targetRoute = "/teacher-dashboard";
+    const checkAuthAndRedirect = async () => {
+      if (!user && !authLoading && !isLoading) {
+        return; // Not logged in, stay on login page
       }
       
-      console.log("LoginPage: Redirecting to:", returnPath || targetRoute);
-      navigate(returnPath || targetRoute, { replace: true });
-    }
-  }, [user, userRole, authLoading, isLoading, navigate]);
+      if (user && !authLoading && !isLoading) {
+        console.log("LoginPage: Already logged in, refreshing session to get role");
+        await refreshSession(); // Ensure we have the latest role
+      }
+      
+      if (user && userRole && !authLoading && !isLoading) {
+        console.log("LoginPage: Already logged in as:", userRole);
+        const returnPath = sessionStorage.getItem("returnPath");
+        let targetRoute = "/parent-dashboard";
+        
+        if (userRole === "admin" || userRole === "super_admin") {
+          targetRoute = "/admin-dashboard";
+        } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
+          targetRoute = "/teacher-dashboard";
+        }
+        
+        console.log("LoginPage: Redirecting to:", returnPath || targetRoute);
+        navigate(returnPath || targetRoute, { replace: true });
+        sessionStorage.removeItem("returnPath");
+      }
+    };
+    
+    checkAuthAndRedirect();
+  }, [user, userRole, authLoading, isLoading, navigate, refreshSession]);
   
   const onSubmit = async (values: LoginValues) => {
     try {

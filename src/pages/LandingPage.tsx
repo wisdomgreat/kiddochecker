@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/AuthContext";
-import { Check, LucideBarChart2, Shield, Users, MessageCircle, QrCode, Printer } from "lucide-react";
+import { Check, LucideBarChart2, Shield, Users, MessageCircle, QrCode, Printer, Loader } from "lucide-react";
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [hasOrganization, setHasOrganization] = useState(true);
-  const { user, userRole } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   
   useEffect(() => {
     const checkOrganization = async () => {
@@ -32,27 +32,29 @@ const LandingPage = () => {
     };
     
     checkOrganization();
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
-    if (user && userRole) {
+    if (!authLoading && user && userRole) {
+      console.log("LandingPage: User authenticated with role:", userRole);
       let targetRoute = "/parent-dashboard";
       
-      if (userRole === "admin") {
+      if (userRole === "admin" || userRole === "super_admin") {
         targetRoute = "/admin-dashboard";
-      } else if (userRole === "staff") {
+      } else if (userRole === "teacher" || userRole === "teacher_assistant" || userRole === "staff") {
         targetRoute = "/teacher-dashboard";
       }
       
-      navigate(targetRoute);
+      console.log("LandingPage: Redirecting to", targetRoute);
+      navigate(targetRoute, { replace: true });
     }
-  }, [user, userRole, navigate]);
+  }, [user, userRole, authLoading, navigate]);
   
-  if (loading) {
+  if (loading || authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-        <span>Loading...</span>
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <Loader className="h-8 w-8 text-blue-500 animate-spin mr-2" />
+        <span className="text-gray-600">Loading...</span>
       </div>
     );
   }
@@ -162,7 +164,6 @@ const LandingPage = () => {
       <div className="py-16 px-4 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Why Choose ChurchCheck</h2>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="p-6 bg-white rounded-lg shadow-sm border">
               <div className="flex gap-3 mb-4">

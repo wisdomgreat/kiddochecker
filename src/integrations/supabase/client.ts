@@ -61,22 +61,33 @@ export const getUserRole = async (): Promise<AppRole | null> => {
   try {
     const user = await getCurrentUser();
     
-    if (!user) return null;
+    if (!user) {
+      console.log("getUserRole: No authenticated user found");
+      return null;
+    }
     
     console.log("Getting role for user:", user.id);
+    
+    // Use the direct query approach for user_roles
     const { data: roleData, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .maybeSingle();
+      .limit(1)
+      .single();
       
     if (error) {
+      if (error.code === 'PGRST116') {
+        console.log("No role found for user");
+        return null;
+      }
       console.error("Error fetching user role:", error);
       return null;
     }
     
-    console.log("Fetched role data:", roleData);  
-    return roleData?.role || null;
+    console.log("Fetched role data:", roleData);
+    return roleData?.role as AppRole || null;
+    
   } catch (error) {
     console.error("Error in getUserRole:", error);
     return null;
@@ -198,7 +209,9 @@ export const isSetupCompleted = async () => {
       return false;
     }
     
-    return count ? count > 0 : false;
+    const setupComplete = count ? count > 0 : false;
+    console.log("Setup completed:", setupComplete);
+    return setupComplete;
   } catch (error) {
     console.error("Error in isSetupCompleted:", error);
     return false;
@@ -212,18 +225,37 @@ export const checkUserPermission = async (resource: string, action: string): Pro
     
     if (!user) return false;
     
-    const { data, error } = await supabase.rpc('has_permission', {
-      p_user_id: user.id,
-      p_resource: resource,
-      p_action: action
-    });
+    // Check if the user is an admin (has all permissions)
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('is_super_admin, role')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single();
+      
+    if (roleData?.is_super_admin || roleData?.role === 'super_admin') {
+      return true;
+    }
+    
+    // Check specific permission
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select(`
+        permission_id,
+        permissions:permission_id (
+          resource,
+          action
+        )
+      `)
+      .eq('permissions.resource', resource)
+      .eq('permissions.action', action);
     
     if (error) {
       console.error("Error checking permission:", error);
       return false;
     }
     
-    return data || false;
+    return (data && data.length > 0) || false;
   } catch (error) {
     console.error("Error in checkUserPermission:", error);
     return false;

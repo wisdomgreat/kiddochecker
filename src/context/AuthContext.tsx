@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Separate function to fetch user role
+  // Fetch user role without causing infinite loop
   const fetchUserRole = async (userId: string) => {
     try {
       console.log("Fetching role for user:", userId);
@@ -60,10 +60,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  // Separate function to check if setup is completed
+  // Check if setup is completed
   const checkSetupStatus = async () => {
     try {
       const setupCompleted = await isSetupCompleted();
+      console.log("Setup completed:", setupCompleted);
       setIsSetupComplete(setupCompleted);
       return setupCompleted;
     } catch (error) {
@@ -73,8 +74,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   // Get the default redirect path based on user role
-  const getDefaultRedirectPath = (role: AppRole | null): string => {
+  const getDefaultRedirectPath = (role: AppRole | null, setupComplete: boolean | null): string => {
     if (!role) return '/landing';
+    
+    // If setup is not completed and user is admin, redirect to setup
+    if (setupComplete === false && (role === 'admin' || role === 'super_admin')) {
+      return '/organization-setup';
+    }
     
     switch(role) {
       case 'admin':
@@ -101,30 +107,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     if (newSession?.user) {
       // Fetch role and setup status
-      setIsLoading(true); // Make sure we show loading while getting user role
       const role = await fetchUserRole(newSession.user.id);
-      await checkSetupStatus();
+      const setupCompleted = await checkSetupStatus();
       
       if (event === "SIGNED_IN") {
-        // Handle successful sign-in
-        console.log("Signed in with role:", role);
+        console.log("Signed in with role:", role, "Setup completed:", setupCompleted);
         
         if (isPublicRoute(location.pathname)) {
-          // Properly redirect based on role and setup status
-          if (!isSetupComplete && (role === 'admin' || role === 'super_admin')) {
-            console.log("Redirecting to organization setup");
-            navigate("/organization-setup", { replace: true });
-          } else {
-            const returnPath = sessionStorage.getItem("returnPath");
-            const defaultPath = getDefaultRedirectPath(role);
-            console.log("Redirecting after login to:", returnPath || defaultPath);
-            
-            // Add slight delay to ensure role is properly set
-            setTimeout(() => {
-              navigate(returnPath || defaultPath, { replace: true });
-              sessionStorage.removeItem("returnPath"); // Clear return path after use
-            }, 100);
-          }
+          const returnPath = sessionStorage.getItem("returnPath");
+          const defaultPath = getDefaultRedirectPath(role, setupCompleted);
+          console.log("Redirecting after login to:", returnPath || defaultPath);
+          
+          navigate(returnPath || defaultPath, { replace: true });
+          sessionStorage.removeItem("returnPath");
           
           toast({
             title: "Signed in successfully",
@@ -132,17 +127,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           });
         }
       }
-      
-      setIsLoading(false);
     } else {
       setUserRole(null);
-      setIsLoading(false);
       
-      // If on protected route and not authenticated, redirect to landing
       if (event === "SIGNED_OUT" && !isPublicRoute(location.pathname)) {
         navigate("/landing", { replace: true });
       }
     }
+    
+    // Always set loading to false after handling auth state
+    setIsLoading(false);
   };
 
   const refreshSession = async () => {
@@ -170,31 +164,56 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const isPublicRoute = (path: string): boolean => {
+    const publicRoutes = [
+      "/", "/index.html",
+      "/landing", 
+      "/login", 
+      "/check-in-kiosk", 
+      "/check-out-station", 
+      "/parent-registration", 
+      "/organization-setup", 
+      "/unauthorized", 
+      "/404"
+    ];
+    return publicRoutes.includes(path);
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       console.log("Initializing auth...");
       setIsLoading(true);
       
       try {
-        // Set up auth state change listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+        // Set up auth state change listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          (event, session) => {
+            // Use setTimeout to prevent any potential recursion or race conditions
+            setTimeout(() => {
+              handleAuthStateChange(event, session);
+            }, 0);
+          }
+        );
         
         // Get initial session
         const { data } = await supabase.auth.getSession();
+        
         if (data.session?.user) {
           console.log("Initial session found for user:", data.session.user.email);
           setSession(data.session);
           setUser(data.session.user);
           
           const role = await fetchUserRole(data.session.user.id);
-          await checkSetupStatus();
+          const setupCompleted = await checkSetupStatus();
           
           // Only redirect if on a public route and already authenticated
           if (isPublicRoute(location.pathname) && role) {
-            const defaultPath = getDefaultRedirectPath(role);
+            const defaultPath = getDefaultRedirectPath(role, setupCompleted);
             console.log("Initial redirect to:", defaultPath);
             navigate(defaultPath, { replace: true });
           }
+          
+          setIsLoading(false);
         } else {
           console.log("No initial session found");
           setSession(null);
@@ -205,10 +224,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (!isPublicRoute(location.pathname)) {
             navigate("/landing", { replace: true });
           }
+          
+          setIsLoading(false);
         }
         
         setIsInitialized(true);
-        setIsLoading(false);
         
         return () => {
           subscription.unsubscribe();
@@ -221,22 +241,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
     
     initializeAuth();
-  }, [navigate, location.pathname]); // Add these dependencies
-
-  const isPublicRoute = (path: string): boolean => {
-    const publicRoutes = [
-      "/",
-      "/landing", 
-      "/login", 
-      "/check-in-kiosk", 
-      "/check-out-station", 
-      "/parent-registration", 
-      "/organization-setup", 
-      "/unauthorized", 
-      "/404"
-    ];
-    return publicRoutes.includes(path);
-  };
+  }, []); // Remove dependencies to prevent re-initialization
+  
+  // Handle location changes to protect routes
+  useEffect(() => {
+    if (isInitialized && !isLoading) {
+      if (!user && !isPublicRoute(location.pathname)) {
+        console.log("Redirecting unauthenticated user from protected route to landing");
+        navigate("/landing", { replace: true });
+      }
+    }
+  }, [location.pathname, isInitialized, isLoading, user]);
 
   const signOut = async () => {
     try {

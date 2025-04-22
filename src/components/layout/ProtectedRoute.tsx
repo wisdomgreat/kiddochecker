@@ -24,10 +24,14 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
 
   // Refresh session only once when the component mounts
   useEffect(() => {
-    if (!isLoading && !user) {
-      refreshSession();
-    }
-  }, [refreshSession, isLoading, user]);
+    const checkAuth = async () => {
+      if (!isLoading && !user) {
+        await refreshSession();
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   // Debug logging
   useEffect(() => {
