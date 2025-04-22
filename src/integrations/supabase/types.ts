@@ -538,12 +538,12 @@ export type Database = {
               p_user_id: string
               p_role?: Database["public"]["Enums"]["app_role"]
               p_is_super_admin?: boolean
-              p_is_volunteer?: boolean
             }
           | {
               p_user_id: string
               p_role?: Database["public"]["Enums"]["app_role"]
               p_is_super_admin?: boolean
+              p_is_volunteer?: boolean
             }
         Returns: string
       }

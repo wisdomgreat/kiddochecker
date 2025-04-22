@@ -101,31 +101,37 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (newSession?.user) {
       // Fetch role and setup status
       const role = await fetchUserRole(newSession.user.id);
-      const setupComplete = await checkSetupStatus();
-      setIsLoading(false);
+      await checkSetupStatus();
       
-      if (event === "SIGNED_IN" && isPublicRoute(location.pathname)) {
+      if (event === "SIGNED_IN") {
         // Handle successful sign-in
-        if (!setupComplete && role === 'admin') {
-          navigate("/organization-setup", { replace: true });
-        } else {
-          const returnPath = sessionStorage.getItem("returnPath");
-          const defaultPath = getDefaultRedirectPath(role);
-          navigate(returnPath || defaultPath, { replace: true });
-          sessionStorage.removeItem("returnPath"); // Clear return path after use
-        }
+        console.log("Signed in with role:", role);
         
-        toast({
-          title: "Signed in successfully",
-          description: "Welcome back!"
-        });
+        if (isPublicRoute(location.pathname)) {
+          if (!isSetupComplete && role === 'admin') {
+            navigate("/organization-setup", { replace: true });
+          } else {
+            const returnPath = sessionStorage.getItem("returnPath");
+            const defaultPath = getDefaultRedirectPath(role);
+            console.log("Redirecting to:", returnPath || defaultPath);
+            navigate(returnPath || defaultPath, { replace: true });
+            sessionStorage.removeItem("returnPath"); // Clear return path after use
+          }
+          
+          toast({
+            title: "Signed in successfully",
+            description: "Welcome back!"
+          });
+        }
       }
+      
+      setIsLoading(false);
     } else {
       setUserRole(null);
       setIsLoading(false);
       
       // If on protected route and not authenticated, redirect to landing
-      if (event === "SIGNED_OUT" || (!newSession && !isPublicRoute(location.pathname))) {
+      if (event === "SIGNED_OUT" && !isPublicRoute(location.pathname)) {
         navigate("/landing", { replace: true });
       }
     }
@@ -133,6 +139,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const refreshSession = async () => {
     try {
+      console.log("Refreshing session...");
       setIsLoading(true);
       const { data } = await supabase.auth.getSession();
       
@@ -141,7 +148,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(data.session.user);
         await fetchUserRole(data.session.user.id);
         await checkSetupStatus();
+        console.log("Session refreshed successfully");
       } else {
+        console.log("No active session found during refresh");
         setSession(null);
         setUser(null);
         setUserRole(null);
@@ -155,6 +164,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      console.log("Initializing auth...");
       setIsLoading(true);
       
       try {
@@ -164,6 +174,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Get initial session
         const { data } = await supabase.auth.getSession();
         if (data.session?.user) {
+          console.log("Initial session found for user:", data.session.user.email);
           setSession(data.session);
           setUser(data.session.user);
           
@@ -173,9 +184,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Only redirect if on a public route and already authenticated
           if (isPublicRoute(location.pathname) && role) {
             const defaultPath = getDefaultRedirectPath(role);
+            console.log("Initial redirect to:", defaultPath);
             navigate(defaultPath, { replace: true });
           }
         } else {
+          console.log("No initial session found");
           setSession(null);
           setUser(null);
           setUserRole(null);

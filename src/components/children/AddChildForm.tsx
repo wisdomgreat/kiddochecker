@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 
 const childSchema = z.object({
   firstName: z.string().min(1, "Child's first name is required"),
@@ -78,6 +79,7 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
     }
 
     setIsSubmitting(true);
+    console.log("Adding child with values:", values);
 
     try {
       // Add child to the database
@@ -97,7 +99,12 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error adding child:", error);
+        throw error;
+      }
+
+      console.log("Child added successfully:", childData);
 
       // Add relationship in the parent_children junction table
       if (childData) {
@@ -110,7 +117,10 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
             is_authorized_pickup: true,
           });
 
-        if (relationshipError) throw relationshipError;
+        if (relationshipError) {
+          console.error("Error adding parent-child relationship:", relationshipError);
+          throw relationshipError;
+        }
       }
 
       toast({
@@ -189,7 +199,8 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                       type="number" 
                       placeholder="Child's age" 
                       {...field}
-                      onChange={e => field.onChange(e.target.valueAsNumber)}
+                      value={field.value || ''}
+                      onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                     />
                   </FormControl>
                   <FormMessage />
@@ -290,7 +301,12 @@ export const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProp
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Child"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : "Add Child"}
               </Button>
             </DialogFooter>
           </form>

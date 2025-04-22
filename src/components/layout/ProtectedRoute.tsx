@@ -22,17 +22,17 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     }
   }, [user, isLoading, location.pathname]);
 
-  // Only refresh session on mount, not on each route change to prevent loops
+  // Refresh session only once when the component mounts
   useEffect(() => {
     if (!isLoading && !user) {
       refreshSession();
     }
   }, []);
 
-  // Log access attempt for debugging
+  // Debug logging
   useEffect(() => {
     if (!isLoading) {
-      console.log('Access check:', {
+      console.log('ProtectedRoute access check:', {
         path: location.pathname,
         user: user ? 'authenticated' : 'unauthenticated',
         userRole,
@@ -72,7 +72,18 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
       variant: "destructive"
     });
     
-    return <Navigate to="/unauthorized" replace />;
+    // Determine where to redirect based on user's role
+    let redirectPath = '/unauthorized';
+    
+    if (userRole === 'admin' || userRole === 'super_admin') {
+      redirectPath = '/admin-dashboard';
+    } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
+      redirectPath = '/teacher-dashboard';
+    } else if (userRole === 'parent') {
+      redirectPath = '/parent-dashboard';
+    }
+    
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;

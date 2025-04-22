@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
 import { useAuth } from "@/context/AuthContext";
@@ -20,12 +20,12 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, userRole } = useAuth();
+  const { user, userRole, refreshSession } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
     if (user && userRole) {
+      console.log("LoginForm: User already logged in with role:", userRole);
       let defaultPath = '/parent-dashboard';
       
       if (userRole === 'admin' || userRole === 'super_admin') {
@@ -35,7 +35,9 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       }
       
       const returnPath = sessionStorage.getItem("returnPath");
+      console.log("LoginForm: Redirecting to:", returnPath || defaultPath);
       navigate(returnPath || defaultPath, { replace: true });
+      sessionStorage.removeItem("returnPath"); // Clear return path after use
     }
   }, [user, userRole, navigate]);
 
@@ -55,6 +57,8 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
       const fakeEmail = `${cleanedPhone}@example.com`;
       
+      console.log("LoginForm: Attempting login with:", fakeEmail);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: fakeEmail,
         password: pin,
@@ -68,7 +72,8 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
         variant: "default",
       });
       
-      // Auth state listener in AuthContext will handle navigation
+      // Refresh session to get updated role
+      await refreshSession();
       
     } catch (error: any) {
       // If login failed, it might be because user doesn't exist
