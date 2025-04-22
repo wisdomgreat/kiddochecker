@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -49,7 +50,7 @@ const StaffManagement = () => {
           throw error;
         }
 
-        return data.map((member: any) => ({
+        return data ? data.map((member: any) => ({
           id: member.user_id,
           email: member.email || "",
           firstName: member.first_name || "",
@@ -58,7 +59,7 @@ const StaffManagement = () => {
           role: member.role || "",
           isSuperAdmin: member.is_super_admin || false,
           isActive: member.is_active || false,
-        }));
+        })) : [];
       } catch (error: any) {
         console.error("Error fetching staff members:", error);
         toast({

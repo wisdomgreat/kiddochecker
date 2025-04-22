@@ -63,7 +63,7 @@ const UsersManagement = () => {
         // Get user login information
         const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
         
-        if (userError) {
+        if (userError || !userData?.users) {
           // Fallback to getting minimal data if admin access is not available
           console.warn("Cannot access user data via admin API. Using limited data set.");
           
@@ -394,7 +394,7 @@ const UsersManagement = () => {
           <DataTable
             columns={userColumns}
             data={filteredUsers}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: UserData) => item.id}
             searchable={false}
             loading={isLoading}
           />
