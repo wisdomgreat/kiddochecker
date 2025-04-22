@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -37,7 +36,6 @@ const StaffManagement = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Fetch staff members
   const { data: staffMembers = [], isLoading: isLoadingStaff } = useQuery({
     queryKey: ["staff-members"],
     queryFn: async () => {
@@ -50,7 +48,7 @@ const StaffManagement = () => {
           throw error;
         }
 
-        return data ? data.map((member: any) => ({
+        return data ? data.map((member: any): StaffMember => ({
           id: member.user_id,
           email: member.email || "",
           firstName: member.first_name || "",
@@ -70,10 +68,9 @@ const StaffManagement = () => {
         return [];
       }
     },
-    enabled: !!user, // Only run query when user is authenticated
+    enabled: !!user,
   });
 
-  // Filter staff based on active tab and search term
   const filteredStaffMembers = staffMembers.filter((member) => {
     const searchMatch =
       member.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -244,7 +241,7 @@ const StaffManagement = () => {
               <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
               <span>Loading staff members...</span>
             </div>
-          ) : filteredStaffMembers.length === 0 ? (
+          ) : staffMembers.length === 0 ? (
             <div className="text-center py-8">
               <User className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No staff members found</h3>
@@ -263,7 +260,7 @@ const StaffManagement = () => {
           ) : (
             <DataTable
               columns={staffColumns}
-              data={filteredStaffMembers}
+              data={staffMembers}
               keyExtractor={(item) => item.id}
               searchable={false}
               loading={isLoadingStaff}
@@ -272,14 +269,12 @@ const StaffManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Add Staff Member Dialog */}
       <AddStaffForm 
         open={isAddDialogOpen} 
         onOpenChange={setIsAddDialogOpen}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["staff-members"] })}
       />
 
-      {/* Edit Staff Member Dialog */}
       {selectedStaffMember && (
         <EditStaffForm
           open={isEditDialogOpen}

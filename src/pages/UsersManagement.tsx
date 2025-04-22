@@ -87,8 +87,8 @@ const UsersManagement = () => {
           }
           
           // Combine data from profiles and user_roles
-          return userRoles.map((roleRecord) => {
-            const profile = profilesData.find(p => p.id === roleRecord.user_id) || {
+          const result: UserData[] = userRoles.map((roleRecord: any) => {
+            const profile = profilesData.find((p: any) => p.id === roleRecord.user_id) || {
               first_name: '',
               last_name: '',
               phone: ''
@@ -106,6 +106,8 @@ const UsersManagement = () => {
               children: childrenCount[roleRecord.user_id] || 0
             };
           });
+          
+          return result;
         }
         
         // If we have admin access, we can combine all data
@@ -129,14 +131,14 @@ const UsersManagement = () => {
         }
         
         // Format the user data by combining from multiple sources
-        return userRoles.map(roleRecord => {
-          const profile = profilesData.find(p => p.id === roleRecord.user_id) || {
+        const result: UserData[] = userRoles.map((roleRecord: any) => {
+          const profile = profilesData.find((p: any) => p.id === roleRecord.user_id) || {
             first_name: '',
             last_name: '',
             phone: ''
           };
           
-          const authUser = userData?.users?.find(u => u.id === roleRecord.user_id);
+          const authUser = userData?.users?.find((u: any) => u.id === roleRecord.user_id);
           
           return {
             id: roleRecord.user_id,
@@ -150,6 +152,8 @@ const UsersManagement = () => {
             children: childrenCount[roleRecord.user_id] || 0
           };
         });
+        
+        return result;
       } catch (error: any) {
         console.error("Error fetching users:", error);
         toast({
