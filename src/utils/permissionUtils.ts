@@ -26,18 +26,23 @@ export const hasPermission = async (resource: string, action: string): Promise<b
     }
     
     // Check for specific permission through the permissions table
-    const { data, error } = await supabase.rpc('has_permission', { 
-      p_user_id: user.id,
-      p_resource: resource,
-      p_action: action
-    });
+    const { data, error } = await supabase
+      .from('role_permissions')
+      .select(`
+        permissions:permission_id (
+          resource,
+          action
+        )
+      `)
+      .eq('permissions.resource', resource)
+      .eq('permissions.action', action);
     
     if (error) {
       console.error("Error checking permission:", error);
       return false;
     }
     
-    return data || false;
+    return data && data.length > 0;
   } catch (error) {
     console.error("Error in hasPermission:", error);
     return false;

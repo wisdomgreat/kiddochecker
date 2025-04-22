@@ -38,7 +38,7 @@ const ClassesManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
 
   // Determine if user can add/edit classes
   const canManageClasses = ["admin", "super_admin"].includes(userRole || "");
@@ -48,13 +48,23 @@ const ClassesManagement = () => {
     queryKey: ["classes"],
     queryFn: async () => {
       try {
+        if (!user) throw new Error("User not authenticated");
+
         const { data, error } = await supabase
           .from("classes")
-          .select("*");
+          .select(`
+            id,
+            name,
+            description,
+            age_range,
+            capacity,
+            room,
+            teachers:teachers(id)
+          `);
 
         if (error) throw error;
 
-        // Add counts (in a real implementation, these would come from proper joins)
+        // Process the data and include counts for teachers and students
         return data.map((classItem) => ({
           id: classItem.id,
           name: classItem.name,
@@ -62,19 +72,20 @@ const ClassesManagement = () => {
           ageRange: classItem.age_range,
           capacity: classItem.capacity,
           room: classItem.room,
-          teacherCount: 0, // Placeholder
-          studentCount: 0, // Placeholder
+          teacherCount: Array.isArray(classItem.teachers) ? classItem.teachers.length : 0,
+          studentCount: 0, // We'll implement this later by querying attendance
         }));
       } catch (error: any) {
         console.error("Error fetching classes:", error);
         toast({
           title: "Error",
-          description: "Failed to load classes",
+          description: "Failed to load classes: " + (error.message || "Unknown error"),
           variant: "destructive",
         });
         return [];
       }
     },
+    enabled: !!user, // Only run query when user is authenticated
   });
 
   // Filter classes based on search term
@@ -115,7 +126,7 @@ const ClassesManagement = () => {
       sortable: true,
     },
     {
-      key: "description" as const, // Changed from "info" to "description"
+      key: "description" as const,
       header: "Details",
       render: (value: string | null, classItem: ClassItem) => (
         <div className="space-y-1">
@@ -154,7 +165,7 @@ const ClassesManagement = () => {
       sortable: true,
     },
     {
-      key: "studentCount" as const, // Changed from "status" to "studentCount"
+      key: "studentCount" as const,
       header: "Status",
       render: (value: any, classItem: ClassItem) => {
         // Determine class status based on capacity

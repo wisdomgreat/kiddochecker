@@ -1,43 +1,37 @@
 
-import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 
-export interface CircularProgressProps {
-  size?: 'small' | 'medium' | 'large';
-  color?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info';
+type CircularProgressProps = {
+  size?: "small" | "medium" | "large";
+  color?: "primary" | "secondary" | "default";
   className?: string;
-}
+};
 
-export const CircularProgress: React.FC<CircularProgressProps> = ({
-  size = 'medium',
-  color = 'primary',
+export const CircularProgress = ({
+  size = "medium",
+  color = "primary",
   className,
-}) => {
-  const sizeClasses = {
-    small: 'h-4 w-4 border-2',
-    medium: 'h-8 w-8 border-2',
-    large: 'h-12 w-12 border-3',
+}: CircularProgressProps) => {
+  const sizeMap = {
+    small: "h-6 w-6",
+    medium: "h-10 w-10",
+    large: "h-16 w-16",
   };
 
-  const colorClasses = {
-    primary: 'border-t-blue-600',
-    secondary: 'border-t-purple-600',
-    success: 'border-t-green-600',
-    danger: 'border-t-red-600',
-    warning: 'border-t-amber-500',
-    info: 'border-t-sky-500',
+  const colorMap = {
+    primary: "border-purple-500",
+    secondary: "border-blue-500",
+    default: "border-gray-300",
   };
 
   return (
     <div
       className={cn(
-        'animate-spin rounded-full border-solid border-gray-200',
-        sizeClasses[size],
-        colorClasses[color],
+        "rounded-full border-4 border-t-transparent animate-spin",
+        sizeMap[size],
+        colorMap[color],
         className
       )}
     />
   );
 };
-
-export default CircularProgress;

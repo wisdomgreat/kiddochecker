@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { UserPlus, Users, School, PieChart, Settings, LogOut, Calendar } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { User, UserPlus, Users, School, BarChart2, Settings, Calendar, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -19,6 +20,7 @@ const AdminDashboard = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Fetch dashboard data using the hooks
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -55,25 +57,32 @@ const AdminDashboard = () => {
     checkSuperAdmin();
   }, [user]);
 
+  // Navigation handlers for clickable cards
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
+
   return (
     <MainLayout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         <div className="flex gap-3">
           {isSuperAdmin && (
-            <Link to="/staff-management">
-              <Button variant="outline">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Manage Staff
-              </Button>
-            </Link>
-          )}
-          <Link to="/settings">
-            <Button variant="outline">
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
+            <Button 
+              variant="outline"
+              onClick={() => handleNavigate('/staff-management')}
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              Manage Staff
             </Button>
-          </Link>
+          )}
+          <Button 
+            variant="outline"
+            onClick={() => handleNavigate('/settings')}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
         </div>
       </div>
 
@@ -94,65 +103,70 @@ const AdminDashboard = () => {
       
       {/* Quick access cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
-        <Link to="/users-management">
-          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-            <CardContent className="p-4 flex items-center">
-              <Users className="h-8 w-8 text-purple-500 mr-4" />
-              <div>
-                <h3 className="font-medium">User Management</h3>
-                <p className="text-sm text-gray-500">Manage families and children</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <Card 
+          className="hover:bg-gray-50 transition-colors cursor-pointer"
+          onClick={() => handleNavigate('/users-management')}
+        >
+          <CardContent className="p-4 flex items-center">
+            <Users className="h-8 w-8 text-purple-500 mr-4" />
+            <div>
+              <h3 className="font-medium">User Management</h3>
+              <p className="text-sm text-gray-500">Manage families and children</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        <Link to="/classes-management">
-          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-            <CardContent className="p-4 flex items-center">
-              <School className="h-8 w-8 text-blue-500 mr-4" />
-              <div>
-                <h3 className="font-medium">Classes</h3>
-                <p className="text-sm text-gray-500">Organize classes and teachers</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <Card 
+          className="hover:bg-gray-50 transition-colors cursor-pointer"
+          onClick={() => handleNavigate('/classes-management')}
+        >
+          <CardContent className="p-4 flex items-center">
+            <School className="h-8 w-8 text-blue-500 mr-4" />
+            <div>
+              <h3 className="font-medium">Classes</h3>
+              <p className="text-sm text-gray-500">Organize classes and teachers</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        <Link to="/events-management">
-          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-            <CardContent className="p-4 flex items-center">
-              <Calendar className="h-8 w-8 text-green-500 mr-4" />
-              <div>
-                <h3 className="font-medium">Events</h3>
-                <p className="text-sm text-gray-500">Manage upcoming events</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <Card 
+          className="hover:bg-gray-50 transition-colors cursor-pointer"
+          onClick={() => handleNavigate('/events-management')}
+        >
+          <CardContent className="p-4 flex items-center">
+            <Calendar className="h-8 w-8 text-green-500 mr-4" />
+            <div>
+              <h3 className="font-medium">Events</h3>
+              <p className="text-sm text-gray-500">Manage upcoming events</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        <Link to="/reports-dashboard">
-          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-            <CardContent className="p-4 flex items-center">
-              <PieChart className="h-8 w-8 text-amber-500 mr-4" />
-              <div>
-                <h3 className="font-medium">Reports</h3>
-                <p className="text-sm text-gray-500">View attendance reports</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <Card 
+          className="hover:bg-gray-50 transition-colors cursor-pointer"
+          onClick={() => handleNavigate('/reports-dashboard')}
+        >
+          <CardContent className="p-4 flex items-center">
+            <BarChart2 className="h-8 w-8 text-amber-500 mr-4" />
+            <div>
+              <h3 className="font-medium">Reports</h3>
+              <p className="text-sm text-gray-500">View attendance reports</p>
+            </div>
+          </CardContent>
+        </Card>
         
-        <Link to="/check-in-kiosk">
-          <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-            <CardContent className="p-4 flex items-center">
-              <LogOut className="h-8 w-8 text-orange-500 mr-4" />
-              <div>
-                <h3 className="font-medium">Check-in Kiosk</h3>
-                <p className="text-sm text-gray-500">Open the check-in screen</p>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        <Card 
+          className="hover:bg-gray-50 transition-colors cursor-pointer"
+          onClick={() => handleNavigate('/check-in-kiosk')}
+        >
+          <CardContent className="p-4 flex items-center">
+            <CheckCircle className="h-8 w-8 text-orange-500 mr-4" />
+            <div>
+              <h3 className="font-medium">Check-in Kiosk</h3>
+              <p className="text-sm text-gray-500">Open the check-in screen</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
       <div className="mt-6">

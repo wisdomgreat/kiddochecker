@@ -28,11 +28,12 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const { user, userRole, isLoading: authLoading, refreshSession } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const isStaffLogin = location.state?.staffLogin || false;
   
   const form = useForm<LoginValues>({
@@ -45,35 +46,23 @@ const LoginPage = () => {
   
   // Redirect if already logged in
   useEffect(() => {
-    const checkAuthAndRedirect = async () => {
-      if (!user && !authLoading && !isLoading) {
-        return; // Not logged in, stay on login page
+    if (shouldRedirect && user && userRole && !authLoading && !isLoading) {
+      console.log("LoginPage: Already logged in as:", userRole);
+      const returnPath = sessionStorage.getItem("returnPath");
+      let targetRoute = "/parent-dashboard";
+      
+      if (userRole === "admin" || userRole === "super_admin") {
+        targetRoute = "/admin-dashboard";
+      } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
+        targetRoute = "/teacher-dashboard";
       }
       
-      if (user && !authLoading && !isLoading) {
-        console.log("LoginPage: Already logged in, refreshing session to get role");
-        await refreshSession(); // Ensure we have the latest role
-      }
-      
-      if (user && userRole && !authLoading && !isLoading) {
-        console.log("LoginPage: Already logged in as:", userRole);
-        const returnPath = sessionStorage.getItem("returnPath");
-        let targetRoute = "/parent-dashboard";
-        
-        if (userRole === "admin" || userRole === "super_admin") {
-          targetRoute = "/admin-dashboard";
-        } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
-          targetRoute = "/teacher-dashboard";
-        }
-        
-        console.log("LoginPage: Redirecting to:", returnPath || targetRoute);
-        navigate(returnPath || targetRoute, { replace: true });
-        sessionStorage.removeItem("returnPath");
-      }
-    };
-    
-    checkAuthAndRedirect();
-  }, [user, userRole, authLoading, isLoading, navigate, refreshSession]);
+      console.log("LoginPage: Redirecting to:", returnPath || targetRoute);
+      navigate(returnPath || targetRoute, { replace: true });
+      sessionStorage.removeItem("returnPath");
+      setShouldRedirect(false);
+    }
+  }, [user, userRole, authLoading, isLoading, navigate, shouldRedirect]);
   
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -90,11 +79,8 @@ const LoginPage = () => {
         title: "Login successful",
         description: "You are now logged in",
       });
-      
-      // Manually refresh the session to ensure we have the latest role
-      await refreshSession();
-      
-      // Auth context will handle redirection
+
+      setShouldRedirect(true);
       
     } catch (error: any) {
       console.error("Login error:", error);

@@ -16,15 +16,16 @@ import {
   UserPlus,
   Search,
   CheckCircle,
-  XCircle,
+  X,
   RefreshCcw,
   Filter,
   Download,
-  UserCog,
+  User,
   Mail,
   Phone,
   Shield,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const StaffManagement = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -34,38 +35,59 @@ const StaffManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   // Fetch staff members
   const { data: staffMembers = [], isLoading: isLoadingStaff } = useQuery({
     queryKey: ["staff-members"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc("get_staff_members");
+        if (!user) throw new Error("User not authenticated");
+        
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select(`
+            id,
+            user_id,
+            role,
+            is_super_admin,
+            profiles:user_id (
+              first_name, 
+              last_name,
+              phone
+            ),
+            users:user_id (
+              email,
+              confirmed_at
+            )
+          `)
+          .in('role', ['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']);
 
         if (error) {
           throw error;
         }
 
-        return data.map((member: any) => ({
+        return data.map((member) => ({
           id: member.user_id,
-          email: member.email,
-          firstName: member.first_name,
-          lastName: member.last_name,
-          phone: member.phone,
-          role: member.role,
-          isSuperAdmin: member.is_super_admin,
-          isActive: member.is_active,
+          email: member.users?.email || "",
+          firstName: member.profiles?.first_name || "",
+          lastName: member.profiles?.last_name || "",
+          phone: member.profiles?.phone || "",
+          role: member.role || "",
+          isSuperAdmin: member.is_super_admin || false,
+          isActive: member.users?.confirmed_at !== null,
         }));
       } catch (error: any) {
         console.error("Error fetching staff members:", error);
         toast({
           title: "Error",
-          description: "Failed to load staff members",
+          description: "Failed to load staff members: " + (error.message || "Unknown error"),
           variant: "destructive",
         });
         return [];
       }
     },
+    enabled: !!user, // Only run query when user is authenticated
   });
 
   // Filter staff based on active tab and search term
@@ -115,7 +137,7 @@ const StaffManagement = () => {
             value === "admin" ? "bg-purple-100" : 
             value === "teacher" ? "bg-blue-100" : "bg-green-100"
           }`}>
-            <UserCog size={16} className={`${
+            <User size={16} className={`${
               value === "admin" ? "text-purple-600" : 
               value === "teacher" ? "text-blue-600" : "text-green-600"
             }`} />
@@ -167,7 +189,7 @@ const StaffManagement = () => {
             </>
           ) : (
             <>
-              <XCircle size={16} className="text-gray-400 mr-1" />
+              <X size={16} className="text-gray-400 mr-1" />
               <span>Inactive</span>
             </>
           )}
@@ -241,7 +263,7 @@ const StaffManagement = () => {
             </div>
           ) : filteredStaffMembers.length === 0 ? (
             <div className="text-center py-8">
-              <UserCog className="mx-auto h-12 w-12 text-gray-400" />
+              <User className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No staff members found</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {searchTerm 

@@ -5,21 +5,18 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  CalendarCheck,
+  Calendar,
+  User,
   Users,
   Home,
-  GraduationCap,
+  School,
   BarChart2,
   Settings,
-  Tent,
   LogOut,
-  UserCircle,
-  UserCog,
-  Calendar,
-  ShieldCheck,
-  MonitorSmartphone,
+  UserPlus,
+  CheckCircle,
+  Shield,
   Laptop,
-  QrCode
 } from "lucide-react";
 
 const Sidebar = ({
@@ -37,13 +34,13 @@ const Sidebar = ({
       href: "/admin-dashboard",
       label: "Dashboard",
       icon: <Home size={20} />,
-      roles: ["admin"],
+      roles: ["admin", "super_admin"],
     },
     {
       href: "/teacher-dashboard",
       label: "Dashboard",
       icon: <Home size={20} />,
-      roles: ["teacher"],
+      roles: ["teacher", "teacher_assistant", "staff"],
     },
     {
       href: "/parent-dashboard",
@@ -55,31 +52,31 @@ const Sidebar = ({
       href: "/events-management",
       label: "Events",
       icon: <Calendar size={20} />,
-      roles: ["admin", "teacher"],
+      roles: ["admin", "super_admin", "teacher", "teacher_assistant", "staff"],
     },
     {
       href: "/classes-management",
       label: "Classes",
-      icon: <GraduationCap size={20} />,
-      roles: ["admin", "teacher"],
+      icon: <School size={20} />,
+      roles: ["admin", "super_admin", "teacher", "teacher_assistant"],
     },
     {
       href: "/check-in-out",
       label: "Check In/Out",
-      icon: <QrCode size={20} />,
-      roles: ["admin", "teacher", "staff"],
+      icon: <CheckCircle size={20} />,
+      roles: ["admin", "super_admin", "teacher", "teacher_assistant", "staff"],
     },
     {
       href: "/users-management",
       label: "Users",
       icon: <Users size={20} />,
-      roles: ["admin"],
+      roles: ["admin", "super_admin"],
     },
     {
       href: "/reports-dashboard",
       label: "Reports",
       icon: <BarChart2 size={20} />,
-      roles: ["admin"],
+      roles: ["admin", "super_admin"],
     },
   ];
 
@@ -87,32 +84,26 @@ const Sidebar = ({
     {
       href: "/staff-management",
       label: "Staff",
-      icon: <UserCog size={20} />,
-      roles: ["admin"],
+      icon: <UserPlus size={20} />,
+      roles: ["admin", "super_admin"],
     },
     {
       href: "/roles-management",
       label: "Roles",
-      icon: <ShieldCheck size={20} />,
-      roles: ["admin"],
+      icon: <Shield size={20} />,
+      roles: ["admin", "super_admin"],
     },
     {
       href: "/device-management",
       label: "Devices & Kiosks",
       icon: <Laptop size={20} />,
-      roles: ["admin"],
-    },
-    {
-      href: "/kiosk-management",
-      label: "Kiosk Settings",
-      icon: <MonitorSmartphone size={20} />,
-      roles: ["admin"],
+      roles: ["admin", "super_admin"],
     },
     {
       href: "/settings",
       label: "Settings",
       icon: <Settings size={20} />,
-      roles: ["admin"],
+      roles: ["admin", "super_admin"],
     },
   ];
 
@@ -120,14 +111,8 @@ const Sidebar = ({
     {
       href: "/user-profile",
       label: "Profile",
-      icon: <UserCircle size={20} />,
-      roles: ["admin", "teacher", "parent"],
-    },
-    {
-      href: "/check-in-process",
-      label: "Check-in",
-      icon: <CalendarCheck size={20} />,
-      roles: ["admin", "parent"],
+      icon: <User size={20} />,
+      roles: ["admin", "super_admin", "teacher", "teacher_assistant", "staff", "parent"],
     },
   ];
 
@@ -143,6 +128,16 @@ const Sidebar = ({
     link.roles.includes(userRole || "")
   );
 
+  // Add fake links if the lists are empty (for demo purposes)
+  if (filteredMainLinks.length === 0) {
+    filteredMainLinks.push({
+      href: "/landing",
+      label: "Home",
+      icon: <Home size={20} />,
+      roles: ["any"],
+    });
+  }
+
   return (
     <aside
       className={cn(
@@ -152,7 +147,9 @@ const Sidebar = ({
       )}
     >
       <div className="px-3 mb-6 flex items-center">
-        <Tent className="h-6 w-6 text-purple-600 flex-shrink-0" />
+        <div className="h-6 w-6 rounded-full bg-purple-600 flex items-center justify-center">
+          <span className="text-white font-bold text-sm">K</span>
+        </div>
         {!collapsed && (
           <span className="font-bold text-xl ml-2">KidCheck</span>
         )}

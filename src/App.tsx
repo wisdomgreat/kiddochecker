@@ -23,8 +23,6 @@ import StaffManagement from '@/pages/StaffManagement';
 import EventsManagement from '@/pages/EventsManagement';
 import KioskManagement from '@/pages/KioskManagement';
 import RolesManagement from '@/pages/RolesManagement';
-import RolePermissionsManagement from '@/pages/RolePermissionsManagement';
-import DeviceManagement from '@/pages/DeviceManagement';
 import CheckInOutManagement from '@/pages/CheckInOutManagement';
 import { CircularProgress } from '@/components/ui/circular-progress';
 
@@ -145,18 +143,6 @@ function App() {
       <Route path="/roles-management" element={
         <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <RolesManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/role-permissions" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <RolePermissionsManagement />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/device-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <DeviceManagement />
         </ProtectedRoute>
       } />
 
