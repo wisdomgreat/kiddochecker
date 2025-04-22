@@ -48,6 +48,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Separate function to fetch user role
   const fetchUserRole = async (userId: string) => {
     try {
+      console.log("Fetching role for user:", userId);
       const role = await getUserRole();
       console.log("Fetched user role:", role);
       setUserRole(role);
@@ -75,7 +76,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const getDefaultRedirectPath = (role: AppRole | null): string => {
     if (!role) return '/landing';
     
-    switch (role) {
+    switch(role) {
       case 'admin':
       case 'super_admin':
         return '/admin-dashboard';
@@ -100,6 +101,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     if (newSession?.user) {
       // Fetch role and setup status
+      setIsLoading(true); // Make sure we show loading while getting user role
       const role = await fetchUserRole(newSession.user.id);
       await checkSetupStatus();
       
@@ -108,19 +110,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         console.log("Signed in with role:", role);
         
         if (isPublicRoute(location.pathname)) {
-          if (!isSetupComplete && role === 'admin') {
+          // Properly redirect based on role and setup status
+          if (!isSetupComplete && (role === 'admin' || role === 'super_admin')) {
+            console.log("Redirecting to organization setup");
             navigate("/organization-setup", { replace: true });
           } else {
             const returnPath = sessionStorage.getItem("returnPath");
             const defaultPath = getDefaultRedirectPath(role);
-            console.log("Redirecting to:", returnPath || defaultPath);
-            navigate(returnPath || defaultPath, { replace: true });
-            sessionStorage.removeItem("returnPath"); // Clear return path after use
+            console.log("Redirecting after login to:", returnPath || defaultPath);
+            
+            // Add slight delay to ensure role is properly set
+            setTimeout(() => {
+              navigate(returnPath || defaultPath, { replace: true });
+              sessionStorage.removeItem("returnPath"); // Clear return path after use
+            }, 100);
           }
           
           toast({
             title: "Signed in successfully",
-            description: "Welcome back!"
+            description: `Welcome back! Logged in as ${role || 'user'}`
           });
         }
       }
@@ -213,7 +221,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
     
     initializeAuth();
-  }, []); // Empty dependency array - only run on mount
+  }, [navigate, location.pathname]); // Add these dependencies
 
   const isPublicRoute = (path: string): boolean => {
     const publicRoutes = [

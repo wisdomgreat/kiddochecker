@@ -44,10 +44,12 @@ const Unauthorized = () => (
 function App() {
   const { user, userRole, isLoading, isSetupComplete } = useAuth();
 
+  console.log("App.tsx - Current user role:", userRole);
+
   const getDefaultRoute = () => {
     if (!user) return '/landing';
     
-    if (isSetupComplete === false && userRole === 'admin') {
+    if (isSetupComplete === false && (userRole === 'admin' || userRole === 'super_admin')) {
       return '/organization-setup';
     }
     

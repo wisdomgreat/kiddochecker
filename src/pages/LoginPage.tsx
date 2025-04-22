@@ -28,7 +28,7 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const { user, userRole, isLoading: authLoading } = useAuth();
+  const { user, userRole, isLoading: authLoading, refreshSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -43,9 +43,10 @@ const LoginPage = () => {
     },
   });
   
-  // Redirect if already logged in
+  // Redirect if already logged in - with a delay to ensure role is loaded
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && userRole && !authLoading && !isLoading) {
+      console.log("LoginPage: Already logged in as:", userRole);
       const returnPath = sessionStorage.getItem("returnPath");
       let targetRoute = "/parent-dashboard";
       
@@ -55,9 +56,10 @@ const LoginPage = () => {
         targetRoute = "/teacher-dashboard";
       }
       
+      console.log("LoginPage: Redirecting to:", returnPath || targetRoute);
       navigate(returnPath || targetRoute, { replace: true });
     }
-  }, [user, userRole, authLoading, navigate]);
+  }, [user, userRole, authLoading, isLoading, navigate]);
   
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -74,6 +76,9 @@ const LoginPage = () => {
         title: "Login successful",
         description: "You are now logged in",
       });
+      
+      // Manually refresh the session to ensure we have the latest role
+      await refreshSession();
       
       // Auth context will handle redirection
       

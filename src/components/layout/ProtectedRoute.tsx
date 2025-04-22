@@ -27,7 +27,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     if (!isLoading && !user) {
       refreshSession();
     }
-  }, []);
+  }, [refreshSession, isLoading, user]);
 
   // Debug logging
   useEffect(() => {
@@ -66,6 +66,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
 
   // If there are allowed roles and the user's role is not in the list, redirect to unauthorized page
   if (allowedRoles.length > 0 && userRole && !allowedRoles.includes(userRole)) {
+    console.log('Access denied for path:', location.pathname, 'User role:', userRole, 'Required roles:', allowedRoles);
+    
     toast({
       title: "Access denied",
       description: `You need ${allowedRoles.join(' or ')} permissions to view this page`,

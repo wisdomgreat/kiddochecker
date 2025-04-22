@@ -63,6 +63,7 @@ export const getUserRole = async (): Promise<AppRole | null> => {
     
     if (!user) return null;
     
+    console.log("Getting role for user:", user.id);
     const { data: roleData, error } = await supabase
       .from('user_roles')
       .select('role')
@@ -73,7 +74,8 @@ export const getUserRole = async (): Promise<AppRole | null> => {
       console.error("Error fetching user role:", error);
       return null;
     }
-      
+    
+    console.log("Fetched role data:", roleData);  
     return roleData?.role || null;
   } catch (error) {
     console.error("Error in getUserRole:", error);
