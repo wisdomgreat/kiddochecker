@@ -13,6 +13,21 @@ import { useToast } from "@/hooks/use-toast";
 import { Clock, CalendarCheck, Users, CheckCircle, History, Info, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+// Define the interface for class data to fix type errors
+interface ClassInfo {
+  id?: string;
+  name: string;
+  description: string;
+  age_range?: string;
+  room?: string;
+}
+
+interface ChildClassData {
+  childName: string;
+  childId: string;
+  class: ClassInfo;
+}
+
 const ParentDashboard = () => {
   const [activeTab, setActiveTab] = useState("children");
   const navigate = useNavigate();
@@ -65,7 +80,7 @@ const ParentDashboard = () => {
   });
   
   // Fetch class information
-  const { data: classesData, isLoading: classesLoading } = useQuery({
+  const { data: classesData, isLoading: classesLoading } = useQuery<ChildClassData[]>({
     queryKey: ["classes", user?.id],
     queryFn: async () => {
       if (!user) return [];
