@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -40,7 +39,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { DeviceProfile } from "@/types/supabase";
 import { Laptop, Smartphone, Monitor, RefreshCcw, Printer, QrCode } from "lucide-react";
 
-// Define schema for the device form
 const deviceSchema = z.object({
   name: z.string().min(3, { message: "Name must be at least 3 characters" }),
   type: z.enum(["check_in_kiosk", "check_out_station"], {
@@ -59,7 +57,6 @@ const DeviceManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch devices
   const { data: devices = [], isLoading } = useQuery({
     queryKey: ["device-profiles"],
     queryFn: async () => {
@@ -72,12 +69,12 @@ const DeviceManagement = () => {
 
         return data.map((device: any) => ({
           id: device.id,
-          deviceId: device.device_id,
+          device_id: device.device_id,
           name: device.name,
           type: device.type,
           location: device.location,
-          createdAt: device.created_at,
-          updatedAt: device.updated_at,
+          created_at: device.created_at,
+          updated_at: device.updated_at,
         })) as DeviceProfile[];
       } catch (error: any) {
         console.error("Error fetching device profiles:", error);
@@ -233,7 +230,7 @@ const DeviceManagement = () => {
       sortable: true,
     },
     {
-      key: "deviceId" as const,
+      key: "device_id" as const,
       header: "Device ID",
       render: (value: string) => <span className="font-mono text-sm">{value}</span>,
     },
@@ -243,7 +240,7 @@ const DeviceManagement = () => {
       render: (value: string) => value || "Not specified",
     },
     {
-      key: "createdAt" as const,
+      key: "created_at" as const,
       header: "Registered On",
       render: (value: string) => new Date(value).toLocaleDateString(),
       sortable: true,
@@ -318,7 +315,6 @@ const DeviceManagement = () => {
     },
   ];
 
-  // Mock printer data - would connect to system printers in production
   const printers = [
     { id: "1", name: "Label Printer", status: "connected", ip: "192.168.1.101" },
     { id: "2", name: "Name Tag Printer", status: "disconnected", ip: "192.168.1.102" },
@@ -348,7 +344,6 @@ const DeviceManagement = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Kiosks & Stations Tab */}
         <TabsContent value="kiosks" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
@@ -390,7 +385,6 @@ const DeviceManagement = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {/* In a real app, you'd count tags from the database */}
                   --
                 </div>
                 <p className="text-sm text-gray-500">Active tags</p>
@@ -424,7 +418,73 @@ const DeviceManagement = () => {
                 </div>
               ) : (
                 <DataTable
-                  columns={deviceColumns}
+                  columns={[
+                    {
+                      key: "name" as const,
+                      header: "Device Name",
+                      render: (value: string, item: DeviceProfile) => (
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-full ${
+                            item.type === "check_in_kiosk" ? "bg-blue-100" : "bg-green-100"
+                          }`}>
+                            {item.type === "check_in_kiosk" ? (
+                              <Monitor className="h-5 w-5 text-blue-600" />
+                            ) : (
+                              <Laptop className="h-5 w-5 text-green-600" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium">{value}</div>
+                            <div className="text-sm text-gray-500">
+                              {item.type === "check_in_kiosk" ? "Check-in Kiosk" : "Check-out Station"}
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                      sortable: true,
+                    },
+                    {
+                      key: "device_id" as const,
+                      header: "Device ID",
+                      render: (value: string) => <span className="font-mono text-sm">{value}</span>,
+                    },
+                    {
+                      key: "location" as const,
+                      header: "Location",
+                      render: (value: string) => value || "Not specified",
+                    },
+                    {
+                      key: "created_at" as const,
+                      header: "Registered On",
+                      render: (value: string) => new Date(value).toLocaleDateString(),
+                      sortable: true,
+                    },
+                    {
+                      key: "actions" as const,
+                      header: "Actions",
+                      render: (value: any, item: DeviceProfile) => (
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              setSelectedDevice(item);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleDeleteDevice(item.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      ),
+                    },
+                  ]}
                   data={devices}
                   keyExtractor={(item) => item.id}
                 />
@@ -464,7 +524,6 @@ const DeviceManagement = () => {
           </Card>
         </TabsContent>
         
-        {/* Printers Tab */}
         <TabsContent value="printers" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
@@ -552,7 +611,6 @@ const DeviceManagement = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Add Device Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -651,7 +709,6 @@ const DeviceManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Device Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

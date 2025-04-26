@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -51,15 +50,17 @@ const StaffManagement = () => {
           throw error;
         }
 
-        return data ? data.map((member: any): StaffMember => ({
-          id: member.user_id,
-          email: member.email || "",
-          firstName: member.first_name || "",
-          lastName: member.last_name || "",
-          phone: member.phone || "",
-          role: member.role || "",
-          isSuperAdmin: member.is_super_admin || false,
-          isActive: member.is_active || false,
+        return data ? data.map((staff: any): StaffMember => ({
+          id: staff.user_id,
+          email: staff.email,
+          first_name: staff.first_name,
+          last_name: staff.last_name,
+          role: staff.role as AppRole,
+          phone: staff.phone || '',
+          is_active: staff.is_active,
+          is_super_admin: staff.is_super_admin,
+          is_volunteer: staff.is_volunteer,
+          created_at: new Date().toISOString(),
         })) : [];
       } catch (error: any) {
         console.error("Error fetching staff members:", error);
@@ -76,8 +77,8 @@ const StaffManagement = () => {
 
   const filteredStaffMembers = staffMembers.filter((member) => {
     const searchMatch =
-      member.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.role?.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -100,12 +101,12 @@ const StaffManagement = () => {
         <div className="flex items-center space-x-2">
           <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
             <span className="text-purple-600 font-medium">
-              {item.firstName?.[0] || ""}{item.lastName?.[0] || ""}
+              {item.first_name?.[0] || ""}{item.last_name?.[0] || ""}
             </span>
           </div>
           <div>
-            <div className="font-medium">{item.firstName} {item.lastName}</div>
-            <div className="text-xs text-gray-500">{item.email}</div>
+            <div className="font-medium">{item.first_name} {item.last_name}</div>
+            <div className="text-sm text-gray-500">{item.email}</div>
           </div>
         </div>
       ),

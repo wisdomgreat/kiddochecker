@@ -1,7 +1,7 @@
 
 import { AppRole } from "./events";
 
-export { AppRole };
+export type { AppRole };
 
 export interface UserRoleData {
   role: AppRole;
@@ -33,8 +33,13 @@ export interface RolePermission {
 }
 
 export interface ThemeSettings {
-  primaryColor: string;
-  fontFamily: string;
+  theme: "light" | "dark" | "system";
+  colorScheme: "purple" | "blue" | "green" | "orange";
+  highContrast: boolean;
+  largeText: boolean;
+  animations: boolean;
+  primaryColor?: string;
+  fontFamily?: string;
   logoUrl?: string;
 }
 
@@ -45,6 +50,7 @@ export interface ActivityLog {
   resource: string;
   timestamp: string;
   details?: string;
+  userName?: string;
 }
 
 export interface StaffMember {
@@ -57,6 +63,7 @@ export interface StaffMember {
   phone?: string;
   is_active: boolean;
   is_super_admin?: boolean;
+  is_volunteer?: boolean;
   created_at: string;
 }
 

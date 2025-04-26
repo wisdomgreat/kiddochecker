@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,7 +33,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { StaffMember } from "@/types/supabase";
 
-// Define the schema for staff form values
 const staffSchema = z.object({
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
@@ -60,12 +58,12 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffSchema),
     defaultValues: {
-      firstName: staffMember.firstName || "",
-      lastName: staffMember.lastName || "",
+      firstName: staffMember.first_name || "",
+      lastName: staffMember.last_name || "",
       role: staffMember.role || "staff",
       phone: staffMember.phone || "",
-      isSuperAdmin: staffMember.isSuperAdmin || false,
-      isVolunteer: staffMember.isVolunteer || false,
+      isSuperAdmin: staffMember.is_super_admin || false,
+      isVolunteer: staffMember.is_volunteer || false,
     },
   });
 
@@ -73,7 +71,6 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
     setIsSubmitting(true);
 
     try {
-      // Update profile data
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
@@ -85,7 +82,6 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
 
       if (profileError) throw profileError;
 
-      // Update user role
       const { error: roleError } = await supabase
         .from("user_roles")
         .update({
@@ -124,7 +120,7 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
         <DialogHeader>
           <DialogTitle>Edit Staff Member</DialogTitle>
           <DialogDescription>
-            Update information for {staffMember.firstName} {staffMember.lastName}.
+            Update information for {staffMember.first_name} {staffMember.last_name}.
           </DialogDescription>
         </DialogHeader>
 

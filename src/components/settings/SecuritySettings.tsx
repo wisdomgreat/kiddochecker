@@ -1,4 +1,3 @@
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -210,7 +209,7 @@ const SecuritySettings = () => {
         const mockActivity: ActivityLog[] = [
           {
             id: "1",
-            userId: user.id,
+            user_id: user.id,
             action: "Login",
             details: "Successful login from Chrome on Windows",
             timestamp: new Date(now.getTime() - 60000).toISOString(),
@@ -218,7 +217,7 @@ const SecuritySettings = () => {
           },
           {
             id: "2",
-            userId: user.id,
+            user_id: user.id,
             action: "Password Change",
             details: "Password successfully changed",
             timestamp: new Date(now.getTime() - 3600000).toISOString(),
@@ -226,7 +225,7 @@ const SecuritySettings = () => {
           },
           {
             id: "3",
-            userId: user.id,
+            user_id: user.id,
             action: "Login",
             details: "Successful login from Safari on macOS",
             timestamp: new Date(now.getTime() - 86400000).toISOString(),
@@ -234,7 +233,7 @@ const SecuritySettings = () => {
           },
           {
             id: "4",
-            userId: user.id,
+            user_id: user.id,
             action: "Profile Update",
             details: "Profile information updated",
             timestamp: new Date(now.getTime() - 259200000).toISOString(),
