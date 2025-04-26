@@ -38,21 +38,6 @@ const AppearanceSettings = () => {
     { value: "orange", label: "Orange", color: "bg-orange-600", primaryColor: "#f97316" },
   ];
 
-  // Load saved settings from localStorage
-  useEffect(() => {
-    try {
-      const savedSettings = localStorage.getItem("themeSettings");
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings) as ThemeSettings;
-        form.reset(settings);
-        setSelectedColor(settings.colorScheme);
-        applyThemeSettings(settings);
-      }
-    } catch (error) {
-      console.error("Error loading theme settings", error);
-    }
-  }, []);
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,30 +49,41 @@ const AppearanceSettings = () => {
     },
   });
 
+  // Load saved settings from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem("themeSettings");
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings) as ThemeSettings;
+        form.reset(settings);
+        setSelectedColor(settings.colorScheme);
+        
+        // Apply saved settings immediately on load
+        applyThemeSettings(settings);
+      }
+    } catch (error) {
+      console.error("Error loading theme settings", error);
+    }
+  }, []);
+
   // Function to apply theme settings
   const applyThemeSettings = (settings: ThemeSettings) => {
-    // Theme (light/dark)
+    // Apply theme (light/dark/system)
     const root = document.documentElement;
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     
-    if (settings.theme === "dark") {
+    if (settings.theme === "dark" || (settings.theme === "system" && prefersDark)) {
       root.classList.add("dark");
       document.body.classList.add("dark");
-    } else if (settings.theme === "light") {
+    } else {
       root.classList.remove("dark");
       document.body.classList.remove("dark");
-    } else if (settings.theme === "system") {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      if (prefersDark) {
-        root.classList.add("dark");
-        document.body.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
-        document.body.classList.remove("dark");
-      }
-      
-      // Listen for system theme changes
+    }
+    
+    // Apply system theme listener if needed
+    if (settings.theme === "system") {
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      mediaQuery.addEventListener("change", (e) => {
+      const handleChange = (e: MediaQueryListEvent) => {
         if (e.matches) {
           root.classList.add("dark");
           document.body.classList.add("dark");
@@ -95,55 +91,171 @@ const AppearanceSettings = () => {
           root.classList.remove("dark");
           document.body.classList.remove("dark");
         }
-      });
+      };
+      
+      // Clean up old listener if exists
+      mediaQuery.removeEventListener("change", handleChange);
+      mediaQuery.addEventListener("change", handleChange);
     }
     
-    // Color scheme
+    // Apply color scheme
     const colorOption = colorOptions.find(c => c.value === settings.colorScheme);
     if (colorOption) {
       const style = document.documentElement.style;
-      style.setProperty("--primary", colorOption.primaryColor);
       
-      // Update CSS variables for the primary color
+      // Convert hex to HSL for CSS variables
       const hslColor = hexToHSL(colorOption.primaryColor);
       if (hslColor) {
         style.setProperty("--primary", `${hslColor.h} ${hslColor.s}% ${hslColor.l}%`);
+        
+        // Add primary color to buttons for immediate visual feedback
+        document.querySelectorAll('.btn-primary').forEach((el) => {
+          (el as HTMLElement).style.backgroundColor = colorOption.primaryColor;
+        });
       }
-      
-      // Set button primary class
-      document.querySelectorAll('.btn-primary').forEach((el) => {
-        (el as HTMLElement).style.backgroundColor = colorOption.primaryColor;
-      });
     }
     
-    // Text size
-    if (settings.largeText) {
-      root.classList.add("large-text");
-      document.body.classList.add("text-lg");
-    } else {
-      root.classList.remove("large-text");
-      document.body.classList.remove("text-lg");
-    }
+    // Apply accessibility settings
+    applyAccessibilitySettings(settings);
+  };
+  
+  // Apply accessibility-specific settings
+  const applyAccessibilitySettings = (settings: ThemeSettings) => {
+    const { highContrast, largeText, animations } = settings;
+    const root = document.documentElement;
     
-    // High contrast
-    if (settings.highContrast) {
+    // High contrast mode
+    if (highContrast) {
       root.classList.add("high-contrast");
       document.body.classList.add("high-contrast");
+      applyHighContrastStyles();
     } else {
       root.classList.remove("high-contrast");
       document.body.classList.remove("high-contrast");
+      removeHighContrastStyles();
+    }
+    
+    // Large text mode
+    if (largeText) {
+      root.classList.add("large-text");
+      document.body.classList.add("text-lg");
+      applyLargeTextStyles();
+    } else {
+      root.classList.remove("large-text");
+      document.body.classList.remove("text-lg");
+      removeLargeTextStyles();
     }
     
     // Animations
-    if (!settings.animations) {
+    if (!animations) {
       root.classList.add("reduce-motion");
       document.body.classList.add("reduce-motion");
+      applyReduceMotionStyles();
     } else {
       root.classList.remove("reduce-motion");
       document.body.classList.remove("reduce-motion");
+      removeReduceMotionStyles();
     }
   };
-
+  
+  // Style management functions
+  const applyHighContrastStyles = () => {
+    let styleEl = document.getElementById('high-contrast-styles');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'high-contrast-styles';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      .high-contrast {
+        --background: #000000;
+        --foreground: #ffffff;
+        --muted: #444444;
+        --muted-foreground: #eeeeee;
+        --border: #ffffff;
+        --input: #333333;
+      }
+      .high-contrast p, .high-contrast h1, .high-contrast h2, .high-contrast h3, 
+      .high-contrast h4, .high-contrast span, .high-contrast div {
+        color: #ffffff;
+      }
+      .high-contrast .card {
+        background-color: #222222;
+        border: 1px solid #ffffff;
+      }
+      .high-contrast button {
+        border: 2px solid white;
+      }
+      .high-contrast input, .high-contrast select {
+        background-color: #333333;
+        color: white;
+        border: 1px solid white;
+      }
+    `;
+  };
+  
+  const removeHighContrastStyles = () => {
+    const styleEl = document.getElementById('high-contrast-styles');
+    if (styleEl) {
+      styleEl.textContent = '';
+    }
+  };
+  
+  const applyLargeTextStyles = () => {
+    let styleEl = document.getElementById('large-text-styles');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'large-text-styles';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      .large-text {
+        font-size: 18px;
+      }
+      .large-text h1 {
+        font-size: 2.5rem;
+      }
+      .large-text h2 {
+        font-size: 2rem;
+      }
+      .large-text h3 {
+        font-size: 1.75rem;
+      }
+      .large-text button, .large-text input, .large-text select {
+        font-size: 1.1rem;
+      }
+    `;
+  };
+  
+  const removeLargeTextStyles = () => {
+    const styleEl = document.getElementById('large-text-styles');
+    if (styleEl) {
+      styleEl.textContent = '';
+    }
+  };
+  
+  const applyReduceMotionStyles = () => {
+    let styleEl = document.getElementById('reduce-motion-styles');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'reduce-motion-styles';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      .reduce-motion * {
+        transition: none !important;
+        animation: none !important;
+      }
+    `;
+  };
+  
+  const removeReduceMotionStyles = () => {
+    const styleEl = document.getElementById('reduce-motion-styles');
+    if (styleEl) {
+      styleEl.textContent = '';
+    }
+  };
+  
   // Convert hex color to HSL for CSS variables
   const hexToHSL = (hex: string): { h: number; s: number; l: number } | null => {
     // Remove the # if it exists
@@ -182,7 +294,7 @@ const AppearanceSettings = () => {
   };
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Ensure theme is defined before saving
+    // Save settings to localStorage
     const themeSettings: ThemeSettings = {
       theme: values.theme,
       colorScheme: values.colorScheme,
@@ -191,7 +303,6 @@ const AppearanceSettings = () => {
       animations: values.animations
     };
     
-    // Save settings to localStorage
     localStorage.setItem("themeSettings", JSON.stringify(themeSettings));
     
     // Apply the theme settings
@@ -199,97 +310,8 @@ const AppearanceSettings = () => {
     
     toast({
       title: "Appearance updated",
-      description: "Your appearance settings have been saved.",
+      description: "Your appearance settings have been saved and applied.",
     });
-
-    // Add CSS to head for high contrast mode
-    if (values.highContrast) {
-      let styleEl = document.getElementById('high-contrast-styles');
-      if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = 'high-contrast-styles';
-        document.head.appendChild(styleEl);
-      }
-      styleEl.textContent = `
-        .high-contrast {
-          --background: #000000;
-          --foreground: #ffffff;
-          --muted: #444444;
-          --muted-foreground: #eeeeee;
-          --border: #ffffff;
-          --input: #333333;
-        }
-        .high-contrast p, .high-contrast h1, .high-contrast h2, .high-contrast h3, 
-        .high-contrast h4, .high-contrast span, .high-contrast div {
-          color: #ffffff;
-        }
-        .high-contrast .card {
-          background-color: #222222;
-          border: 1px solid #ffffff;
-        }
-        .high-contrast button {
-          border: 2px solid white;
-        }
-      `;
-    } else {
-      const styleEl = document.getElementById('high-contrast-styles');
-      if (styleEl) {
-        styleEl.textContent = '';
-      }
-    }
-
-    // Add CSS for large text
-    if (values.largeText) {
-      let styleEl = document.getElementById('large-text-styles');
-      if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = 'large-text-styles';
-        document.head.appendChild(styleEl);
-      }
-      styleEl.textContent = `
-        .large-text {
-          font-size: 18px;
-        }
-        .large-text h1 {
-          font-size: 2.5rem;
-        }
-        .large-text h2 {
-          font-size: 2rem;
-        }
-        .large-text h3 {
-          font-size: 1.75rem;
-        }
-        .large-text button, .large-text input, .large-text select {
-          font-size: 1.1rem;
-        }
-      `;
-    } else {
-      const styleEl = document.getElementById('large-text-styles');
-      if (styleEl) {
-        styleEl.textContent = '';
-      }
-    }
-
-    // Add CSS for reduce motion
-    if (!values.animations) {
-      let styleEl = document.getElementById('reduce-motion-styles');
-      if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = 'reduce-motion-styles';
-        document.head.appendChild(styleEl);
-      }
-      styleEl.textContent = `
-        .reduce-motion * {
-          transition: none !important;
-          animation: none !important;
-        }
-      `;
-    } else {
-      const styleEl = document.getElementById('reduce-motion-styles');
-      if (styleEl) {
-        styleEl.textContent = '';
-      }
-    }
   }
 
   return (
@@ -307,8 +329,13 @@ const AppearanceSettings = () => {
                 <FormItem className="space-y-4">
                   <FormControl>
                     <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Preview theme change immediately
+                        const currentSettings = form.getValues();
+                        applyThemeSettings({...currentSettings, theme: value as "light" | "dark" | "system"});
+                      }}
+                      value={field.value}
                       className="grid grid-cols-3 gap-4"
                     >
                       <FormItem>
@@ -373,6 +400,10 @@ const AppearanceSettings = () => {
                         onClick={() => {
                           field.onChange(option.value);
                           setSelectedColor(option.value);
+                          
+                          // Preview color change immediately
+                          const currentSettings = form.getValues();
+                          applyThemeSettings({...currentSettings, colorScheme: option.value});
                         }}
                       >
                         <div 
@@ -416,7 +447,13 @@ const AppearanceSettings = () => {
                   <FormControl>
                     <Switch
                       checked={field.value}
-                      onCheckedChange={field.onChange}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked);
+                        
+                        // Preview contrast change immediately
+                        const currentSettings = form.getValues();
+                        applyThemeSettings({...currentSettings, highContrast: checked});
+                      }}
                     />
                   </FormControl>
                 </FormItem>
@@ -436,7 +473,13 @@ const AppearanceSettings = () => {
                   <FormControl>
                     <Switch
                       checked={field.value}
-                      onCheckedChange={field.onChange}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked);
+                        
+                        // Preview text size change immediately
+                        const currentSettings = form.getValues();
+                        applyThemeSettings({...currentSettings, largeText: checked});
+                      }}
                     />
                   </FormControl>
                 </FormItem>
@@ -456,7 +499,13 @@ const AppearanceSettings = () => {
                   <FormControl>
                     <Switch
                       checked={field.value}
-                      onCheckedChange={field.onChange}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked);
+                        
+                        // Preview animation change immediately
+                        const currentSettings = form.getValues();
+                        applyThemeSettings({...currentSettings, animations: checked});
+                      }}
                     />
                   </FormControl>
                 </FormItem>
