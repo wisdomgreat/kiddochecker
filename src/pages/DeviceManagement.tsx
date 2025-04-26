@@ -37,7 +37,7 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeviceProfile } from "@/types/supabase";
-import { TabletSmartphone, Monitor, Smartphone, RefreshCcw, Printer, QrCode } from "lucide-react";
+import { TabletSmartphone, Monitor, Smartphone, RefreshCcw, Printer, QrCode, Laptop } from "lucide-react";
 
 const deviceSchema = z.object({
   name: z.string().min(3, { message: "Name must be at least 3 characters" }),
