@@ -37,7 +37,7 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DeviceProfile } from "@/types/supabase";
-import { Laptop, Smartphone, Monitor, RefreshCcw, Printer, QrCode } from "lucide-react";
+import { TabletSmartphone, Monitor, Smartphone, RefreshCcw, Printer, QrCode } from "lucide-react";
 
 const deviceSchema = z.object({
   name: z.string().min(3, { message: "Name must be at least 3 characters" }),
@@ -45,7 +45,7 @@ const deviceSchema = z.object({
     required_error: "Please select a device type",
   }),
   location: z.string().optional(),
-  deviceId: z.string().min(6, { message: "Device ID must be at least 6 characters" }),
+  device_id: z.string().min(6, { message: "Device ID must be at least 6 characters" }),
 });
 
 type DeviceFormValues = z.infer<typeof deviceSchema>;
@@ -94,7 +94,7 @@ const DeviceManagement = () => {
       name: "",
       type: "check_in_kiosk",
       location: "",
-      deviceId: "",
+      device_id: "",
     },
   });
 
@@ -104,7 +104,7 @@ const DeviceManagement = () => {
       name: "",
       type: "check_in_kiosk",
       location: "",
-      deviceId: "",
+      device_id: "",
     },
   });
 
@@ -114,7 +114,7 @@ const DeviceManagement = () => {
         name: selectedDevice.name,
         type: selectedDevice.type as "check_in_kiosk" | "check_out_station",
         location: selectedDevice.location || "",
-        deviceId: selectedDevice.deviceId,
+        device_id: selectedDevice.device_id,
       });
     }
   }, [selectedDevice, editForm]);
@@ -122,7 +122,7 @@ const DeviceManagement = () => {
   const handleAddDevice = async (values: DeviceFormValues) => {
     try {
       const { data, error } = await supabase.rpc("register_device", {
-        p_device_id: values.deviceId,
+        p_device_id: values.device_id,
         p_name: values.name,
         p_type: values.type,
         p_location: values.location || null,
@@ -153,7 +153,7 @@ const DeviceManagement = () => {
 
     try {
       const { data, error } = await supabase.rpc("register_device", {
-        p_device_id: values.deviceId,
+        p_device_id: values.device_id,
         p_name: values.name,
         p_type: values.type,
         p_location: values.location || null,
@@ -206,33 +206,27 @@ const DeviceManagement = () => {
 
   const deviceColumns = [
     {
-      key: "name" as const,
+      key: "name" as keyof DeviceProfile,
       header: "Device Name",
       render: (value: string, item: DeviceProfile) => (
-        <div className="flex items-center space-x-3">
-          <div className={`p-2 rounded-full ${
-            item.type === "check_in_kiosk" ? "bg-blue-100" : "bg-green-100"
-          }`}>
-            {item.type === "check_in_kiosk" ? (
-              <Monitor className="h-5 w-5 text-blue-600" />
-            ) : (
-              <Laptop className="h-5 w-5 text-green-600" />
-            )}
+        <div className="flex items-center space-x-2">
+          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+            {item.type === 'tablet' ? <TabletSmartphone className="h-4 w-4 text-blue-600" /> : 
+             item.type === 'kiosk' ? <Monitor className="h-4 w-4 text-purple-600" /> : 
+             <Smartphone className="h-4 w-4 text-green-600" />}
           </div>
           <div>
             <div className="font-medium">{value}</div>
-            <div className="text-sm text-gray-500">
-              {item.type === "check_in_kiosk" ? "Check-in Kiosk" : "Check-out Station"}
-            </div>
+            <div className="text-xs text-gray-500">{item.device_id}</div>
           </div>
         </div>
       ),
       sortable: true,
     },
     {
-      key: "device_id" as const,
+      key: "device_id" as keyof DeviceProfile,
       header: "Device ID",
-      render: (value: string) => <span className="font-mono text-sm">{value}</span>,
+      render: (value: string) => <div className="font-mono text-xs">{value}</div>,
     },
     {
       key: "location" as const,
@@ -641,7 +635,7 @@ const DeviceManagement = () => {
               
               <FormField
                 control={addForm.control}
-                name="deviceId"
+                name="device_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Device ID</FormLabel>
@@ -736,7 +730,7 @@ const DeviceManagement = () => {
               
               <FormField
                 control={editForm.control}
-                name="deviceId"
+                name="device_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Device ID</FormLabel>

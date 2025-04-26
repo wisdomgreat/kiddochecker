@@ -99,28 +99,17 @@ const ClassesManagement = () => {
         if (teachersError) throw teachersError;
         
         // Format attendance data
-        const studentCounts = await supabase
-          .from("attendance")
-          .select("class_id, count")
-          .is('checked_out_at', null)
-          .then(result => {
-            if (result.error) throw result.error;
-            
-            const counts = new Map();
-            if (result.data) {
-              result.data.forEach(record => {
-                if (record.class_id) {
-                  const currentCount = counts.get(record.class_id) || 0;
-                  counts.set(record.class_id, currentCount + 1);
-                }
-              });
-            }
-            
-            return Array.from(counts.entries()).map(([class_id, count]) => ({ 
-              class_id, 
-              count 
-            }));
-          });
+        const studentCounts = await Promise.all(
+          data.map(async (classItem) => {
+            const { count, error } = await supabase
+              .from("attendance")
+              .select("*", { count: 'exact' })
+              .eq('class_id', classItem.id)
+              .is('checked_out_at', null);
+              
+            return { class_id: classItem.id, count: count || 0 };
+          })
+        );
         
         return data.map((item): ClassItem => {
           const classTeachers = teachersData?.filter(teacher => teacher.class_id === item.id) || [];

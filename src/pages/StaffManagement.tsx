@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -10,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import AddStaffForm from "@/components/staff/AddStaffForm";
 import EditStaffForm from "@/components/staff/EditStaffForm";
-import { StaffMember } from "@/types/supabase";
+import { StaffMember, AppRole } from "@/types/supabase";
 import {
   UserPlus,
   Search,
@@ -52,6 +53,7 @@ const StaffManagement = () => {
 
         return data ? data.map((staff: any): StaffMember => ({
           id: staff.user_id,
+          user_id: staff.user_id,
           email: staff.email,
           first_name: staff.first_name,
           last_name: staff.last_name,

@@ -27,6 +27,17 @@ import {
   X,
   Phone
 } from "lucide-react";
+import { format } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface UserProfile {
   id: string;
@@ -101,7 +112,8 @@ const UsersManagement = () => {
         
         const childrenCounts = await Promise.all(
           data.filter(u => {
-            return u.user_roles && typeof u.user_roles === 'object' && u.user_roles.role === 'parent';
+            return u.user_roles && typeof u.user_roles === 'object' && 
+                  u.user_roles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
               .from('parent_children')
@@ -112,30 +124,30 @@ const UsersManagement = () => {
           })
         );
         
-        return data.map((item: ProfileData): UserProfile => {
-          const usersData = item.users || {};
-          const userRoles = item.user_roles || { role: 'parent' as AppRole, is_super_admin: false };
+        return data.map((item): UserProfile => {
+          const usersData = item.users && typeof item.users === 'object' ? item.users : {};
+          const userRoles = item.user_roles && typeof item.user_roles === 'object' ? item.user_roles : { role: 'parent' as AppRole, is_super_admin: false };
           
           const childCount = childrenCounts.find(c => c.userId === item.id)?.count || 0;
           
-          const userRole = userRoles && typeof userRoles === 'object' && userRoles.role 
-            ? userRoles.role 
+          const userRole = userRoles && userRoles.role 
+            ? userRoles.role as AppRole
             : 'parent' as AppRole;
           
           return {
             id: item.id,
-            email: typeof usersData === 'object' && usersData.email ? usersData.email : '',
+            email: usersData && typeof usersData === 'object' && 'email' in usersData ? usersData.email as string : '',
             firstName: item.first_name || '',
             lastName: item.last_name || '',
             role: userRole,
             roleData: {
               role: userRole,
-              is_super_admin: typeof userRoles === 'object' && userRoles.is_super_admin ? userRoles.is_super_admin : false
+              is_super_admin: userRoles && 'is_super_admin' in userRoles ? !!userRoles.is_super_admin : false
             },
             phone: item.phone || '',
-            createdAt: typeof usersData === 'object' && usersData.created_at ? usersData.created_at : '',
-            lastSignIn: typeof usersData === 'object' && usersData.last_sign_in_at ? usersData.last_sign_in_at : '',
-            isActive: typeof usersData === 'object' && !!usersData.last_sign_in_at,
+            createdAt: usersData && typeof usersData === 'object' && 'created_at' in usersData ? usersData.created_at as string : '',
+            lastSignIn: usersData && typeof usersData === 'object' && 'last_sign_in_at' in usersData ? usersData.last_sign_in_at as string : '',
+            isActive: usersData && typeof usersData === 'object' && 'last_sign_in_at' in usersData ? !!usersData.last_sign_in_at : false,
             children: childCount,
           };
         });
@@ -305,7 +317,7 @@ const UsersManagement = () => {
         <div className="text-xs text-gray-500">
           <div className="flex items-center">
             <CalendarClock size={14} className="mr-1" />
-            Joined: {format(new Date(userItem.createdAt), "MMM d, yyyy")}
+            Joined: {userItem.createdAt ? format(new Date(userItem.createdAt), "MMM d, yyyy") : 'Unknown'}
           </div>
           {userItem.lastSignIn && (
             <div className="mt-1">
