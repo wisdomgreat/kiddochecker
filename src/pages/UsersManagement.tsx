@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { AppRole, UserRoleData } from "@/types/supabase";
+import { format } from "date-fns";
 import {
   Search,
   Users,
@@ -123,7 +124,9 @@ const UsersManagement = () => {
             if (typeof userRoles !== 'object') return false;
             
             // Now safely check if the role property exists and equals 'parent'
-            return 'role' in userRoles && userRoles.role === 'parent';
+            if (!('role' in userRoles)) return false;
+            
+            return userRoles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
               .from('parent_children')
@@ -146,14 +149,14 @@ const UsersManagement = () => {
             const userRoles = item.user_roles;
             
             // Check if it's an object first
-            if (typeof userRoles === 'object') {
+            if (userRoles && typeof userRoles === 'object') {
               // Check if the role property exists and is a string
               if ('role' in userRoles && userRoles.role && typeof userRoles.role === 'string') {
                 userRole = userRoles.role as AppRole;
               }
               
               // Check if the is_super_admin property exists
-              if ('is_super_admin' in userRoles) {
+              if (userRoles && 'is_super_admin' in userRoles) {
                 isSuperAdmin = !!userRoles.is_super_admin;
               }
             }

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -127,16 +126,12 @@ const ClassesManagement = () => {
               // Enhanced null checking for profileData access
               if (profileData && typeof profileData === 'object') {
                 // Explicitly check for property existence and nullability separately
-                if ('first_name' in profileData) {
-                  const firstNameValue = profileData.first_name;
-                  firstName = firstNameValue !== null && firstNameValue !== undefined ? 
-                    String(firstNameValue) : '';
+                if ('first_name' in profileData && profileData.first_name !== null && profileData.first_name !== undefined) {
+                  firstName = String(profileData.first_name);
                 }
                 
-                if ('last_name' in profileData) {
-                  const lastNameValue = profileData.last_name;
-                  lastName = lastNameValue !== null && lastNameValue !== undefined ? 
-                    String(lastNameValue) : '';
+                if ('last_name' in profileData && profileData.last_name !== null && profileData.last_name !== undefined) {
+                  lastName = String(profileData.last_name);
                 }
               }
               
