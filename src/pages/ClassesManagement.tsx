@@ -110,18 +110,18 @@ const ClassesManagement = () => {
           })
         );
         
-        const teachersList = classTeachers
-          .filter(teacher => teacher && typeof teacher === 'object')
-          .map(teacher => ({
-            id: teacher.id,
-            userId: teacher.user_id,
-            firstName: teacher.profiles && typeof teacher.profiles === 'object' ? teacher.profiles.first_name || '' : '',
-            lastName: teacher.profiles && typeof teacher.profiles === 'object' ? teacher.profiles.last_name || '' : ''
-          }));
-        
         return data.map((item): ClassItem => {
           const classTeachers = teachersData?.filter(teacher => teacher.class_id === item.id) || [];
           const studentCount = studentCounts?.find(count => count.class_id === item.id)?.count || 0;
+          
+          const teachersList = classTeachers
+            .filter(teacher => teacher && typeof teacher === 'object')
+            .map(teacher => ({
+              id: teacher.id,
+              userId: teacher.user_id,
+              firstName: teacher.profiles && typeof teacher.profiles === 'object' ? teacher.profiles.first_name || '' : '',
+              lastName: teacher.profiles && typeof teacher.profiles === 'object' ? teacher.profiles.last_name || '' : ''
+            }));
           
           return {
             id: item.id,
@@ -353,7 +353,7 @@ const ClassesManagement = () => {
       ),
     },
   ];
-  
+
   return (
     <MainLayout>
       <div className="flex justify-between items-center mb-6">
