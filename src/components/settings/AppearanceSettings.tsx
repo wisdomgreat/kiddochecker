@@ -8,7 +8,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } fr
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Moon, Sun, Monitor, Check } from "lucide-react";
 import { ThemeSettings } from "@/types/supabase";
 
@@ -32,7 +32,7 @@ const AppearanceSettings = () => {
   const [selectedColor, setSelectedColor] = useState<string>("purple");
 
   const colorOptions: ColorOption[] = [
-    { value: "purple", label: "Purple", color: "bg-purple-600", primaryColor: "#9b87f5" },
+    { value: "purple", label: "Purple", color: "bg-purple-600", primaryColor: "#8B5CF6" },
     { value: "blue", label: "Blue", color: "bg-blue-600", primaryColor: "#3b82f6" },
     { value: "green", label: "Green", color: "bg-green-600", primaryColor: "#22c55e" },
     { value: "orange", label: "Orange", color: "bg-orange-600", primaryColor: "#f97316" },
@@ -68,25 +68,49 @@ const AppearanceSettings = () => {
   const applyThemeSettings = (settings: ThemeSettings) => {
     // Theme (light/dark)
     const root = document.documentElement;
+    
     if (settings.theme === "dark") {
       root.classList.add("dark");
+      document.body.classList.add("dark");
     } else if (settings.theme === "light") {
       root.classList.remove("dark");
+      document.body.classList.remove("dark");
     } else if (settings.theme === "system") {
-      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (prefersDark) {
         root.classList.add("dark");
+        document.body.classList.add("dark");
       } else {
         root.classList.remove("dark");
+        document.body.classList.remove("dark");
       }
+      
+      // Listen for system theme changes
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      mediaQuery.addEventListener("change", (e) => {
+        if (e.matches) {
+          root.classList.add("dark");
+          document.body.classList.add("dark");
+        } else {
+          root.classList.remove("dark");
+          document.body.classList.remove("dark");
+        }
+      });
     }
     
     // Color scheme
     const colorOption = colorOptions.find(c => c.value === settings.colorScheme);
     if (colorOption) {
       const style = document.documentElement.style;
-      style.setProperty("--primary-color", colorOption.primaryColor);
+      style.setProperty("--primary", colorOption.primaryColor);
       
-      // Update button styles
+      // Update CSS variables for the primary color
+      const hslColor = hexToHSL(colorOption.primaryColor);
+      if (hslColor) {
+        style.setProperty("--primary", `${hslColor.h} ${hslColor.s}% ${hslColor.l}%`);
+      }
+      
+      // Set button primary class
       document.querySelectorAll('.btn-primary').forEach((el) => {
         (el as HTMLElement).style.backgroundColor = colorOption.primaryColor;
       });
@@ -94,24 +118,67 @@ const AppearanceSettings = () => {
     
     // Text size
     if (settings.largeText) {
-      root.classList.add("text-lg");
+      root.classList.add("large-text");
+      document.body.classList.add("text-lg");
     } else {
-      root.classList.remove("text-lg");
+      root.classList.remove("large-text");
+      document.body.classList.remove("text-lg");
     }
     
     // High contrast
     if (settings.highContrast) {
       root.classList.add("high-contrast");
+      document.body.classList.add("high-contrast");
     } else {
       root.classList.remove("high-contrast");
+      document.body.classList.remove("high-contrast");
     }
     
     // Animations
     if (!settings.animations) {
       root.classList.add("reduce-motion");
+      document.body.classList.add("reduce-motion");
     } else {
       root.classList.remove("reduce-motion");
+      document.body.classList.remove("reduce-motion");
     }
+  };
+
+  // Convert hex color to HSL for CSS variables
+  const hexToHSL = (hex: string): { h: number; s: number; l: number } | null => {
+    // Remove the # if it exists
+    hex = hex.replace(/^#/, '');
+    
+    // Parse the hex values
+    let r = parseInt(hex.substring(0, 2), 16) / 255;
+    let g = parseInt(hex.substring(2, 4), 16) / 255;
+    let b = parseInt(hex.substring(4, 6), 16) / 255;
+    
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0;
+    let s = 0;
+    let l = (max + min) / 2;
+
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      
+      h *= 60;
+    }
+    
+    // Round values
+    h = Math.round(h);
+    s = Math.round(s * 100);
+    l = Math.round(l * 100);
+    
+    return { h, s, l };
   };
 
   function onSubmit(values: z.infer<typeof formSchema>) {
@@ -134,6 +201,95 @@ const AppearanceSettings = () => {
       title: "Appearance updated",
       description: "Your appearance settings have been saved.",
     });
+
+    // Add CSS to head for high contrast mode
+    if (values.highContrast) {
+      let styleEl = document.getElementById('high-contrast-styles');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'high-contrast-styles';
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = `
+        .high-contrast {
+          --background: #000000;
+          --foreground: #ffffff;
+          --muted: #444444;
+          --muted-foreground: #eeeeee;
+          --border: #ffffff;
+          --input: #333333;
+        }
+        .high-contrast p, .high-contrast h1, .high-contrast h2, .high-contrast h3, 
+        .high-contrast h4, .high-contrast span, .high-contrast div {
+          color: #ffffff;
+        }
+        .high-contrast .card {
+          background-color: #222222;
+          border: 1px solid #ffffff;
+        }
+        .high-contrast button {
+          border: 2px solid white;
+        }
+      `;
+    } else {
+      const styleEl = document.getElementById('high-contrast-styles');
+      if (styleEl) {
+        styleEl.textContent = '';
+      }
+    }
+
+    // Add CSS for large text
+    if (values.largeText) {
+      let styleEl = document.getElementById('large-text-styles');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'large-text-styles';
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = `
+        .large-text {
+          font-size: 18px;
+        }
+        .large-text h1 {
+          font-size: 2.5rem;
+        }
+        .large-text h2 {
+          font-size: 2rem;
+        }
+        .large-text h3 {
+          font-size: 1.75rem;
+        }
+        .large-text button, .large-text input, .large-text select {
+          font-size: 1.1rem;
+        }
+      `;
+    } else {
+      const styleEl = document.getElementById('large-text-styles');
+      if (styleEl) {
+        styleEl.textContent = '';
+      }
+    }
+
+    // Add CSS for reduce motion
+    if (!values.animations) {
+      let styleEl = document.getElementById('reduce-motion-styles');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'reduce-motion-styles';
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = `
+        .reduce-motion * {
+          transition: none !important;
+          animation: none !important;
+        }
+      `;
+    } else {
+      const styleEl = document.getElementById('reduce-motion-styles');
+      if (styleEl) {
+        styleEl.textContent = '';
+      }
+    }
   }
 
   return (

@@ -89,6 +89,7 @@ const UsersManagement = () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
+        // Use a direct join approach instead of relying on implicit relationships
         const { data, error } = await supabase
           .from('profiles')
           .select(`
@@ -96,18 +97,19 @@ const UsersManagement = () => {
             first_name,
             last_name,
             phone,
-            users:id (
+            users!profiles_id_fkey (
               email,
               created_at,
               last_sign_in_at
             ),
-            user_roles:id (
+            user_roles!user_roles_user_id_fkey (
               role,
               is_super_admin
             )
           `);
 
         if (error) {
+          console.error("Database query error:", error);
           throw error;
         }
         
@@ -460,7 +462,7 @@ const UsersManagement = () => {
               <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
               <span>Loading users...</span>
             </div>
-          ) : filteredUsers.length === 0 ? (
+          ) : users.length === 0 ? (
             <div className="text-center py-8">
               <User className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
@@ -479,7 +481,18 @@ const UsersManagement = () => {
           ) : (
             <DataTable
               columns={userColumns}
-              data={filteredUsers}
+              data={users.filter((userItem) => {
+                const searchMatch =
+                  userItem.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  userItem.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  userItem.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  userItem.role?.toLowerCase().includes(searchTerm.toLowerCase());
+
+                if (activeTab === "all") return searchMatch;
+                if (activeTab === "parents") return userItem.role === "parent" && searchMatch;
+                if (activeTab === "staff") return (userItem.role === "staff" || userItem.role === "teacher" || userItem.role === "teacher_assistant") && searchMatch;
+                return false;
+              })}
               keyExtractor={(item) => item.id}
               searchable={false}
               loading={isLoading}
@@ -499,7 +512,11 @@ const UsersManagement = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={() => {
+              if (selectedUser) {
+                handleDeleteUser(selectedUser.id);
+              }
+            }} className="bg-red-600 hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -507,6 +524,197 @@ const UsersManagement = () => {
       </AlertDialog>
     </MainLayout>
   );
+  
+  function handleEditUser(userItem: UserProfile) {
+    toast({
+      title: "Edit User",
+      description: `Editing ${userItem.firstName} ${userItem.lastName} (Feature coming soon)`,
+    });
+  }
+
+  function handleDeleteConfirmation(userItem: UserProfile) {
+    setSelectedUser(userItem);
+    setIsDeleteDialogOpen(true);
+  }
+
+  async function handleDeleteUser(userId: string) {
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+        
+      if (profileError) throw profileError;
+      
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (authError) throw authError;
+      
+      toast({
+        title: "Success",
+        description: `User has been deleted`,
+      });
+      
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+      
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: `Failed to delete user: ${error.message || "Unknown error"}`,
+        variant: "destructive",
+      });
+    }
+  }
+
+  const userColumns = [
+    {
+      key: "name" as keyof UserProfile,
+      header: "Name",
+      render: (value: string, userItem: UserProfile) => (
+        <div className="flex items-center space-x-2">
+          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+            <span className="text-purple-600 font-medium">
+              {userItem.firstName?.[0] || ""}{userItem.lastName?.[0] || ""}
+            </span>
+          </div>
+          <div>
+            <div className="font-medium">{userItem.firstName} {userItem.lastName}</div>
+            <div className="text-xs text-gray-500">{userItem.email}</div>
+          </div>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: "role" as keyof UserProfile,
+      header: "Role",
+      render: (value: string) => {
+        let color = "";
+        
+        switch (value) {
+          case "admin":
+            color = "bg-purple-100 text-purple-800";
+            break;
+          case "staff":
+            color = "bg-blue-100 text-blue-800";
+            break;
+          case "teacher":
+            color = "bg-green-100 text-green-800";
+            break;
+          case "teacher_assistant":
+            color = "bg-teal-100 text-teal-800";
+            break;
+          case "parent":
+            color = "bg-amber-100 text-amber-800";
+            break;
+          default:
+            color = "bg-gray-100 text-gray-800";
+        }
+        
+        return (
+          <Badge variant="outline" className={`${color} capitalize`}>
+            {value.replace('_', ' ')}
+          </Badge>
+        );
+      },
+      sortable: true,
+    },
+    {
+      key: "children" as keyof UserProfile,
+      header: "Children",
+      render: (value: number, userItem: UserProfile) => (
+        <div className="text-center">
+          {userItem.role === "parent" ? (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+              {value}
+            </Badge>
+          ) : (
+            <span className="text-gray-400">-</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "contact" as keyof UserProfile,
+      header: "Contact Info",
+      render: (value: string, userItem: UserProfile) => (
+        <div className="space-y-1">
+          <div className="flex items-center text-xs text-gray-600">
+            <Mail size={14} className="mr-1" />
+            {userItem.email}
+          </div>
+          {userItem.phone && (
+            <div className="flex items-center text-xs text-gray-600">
+              <Phone size={14} className="mr-1" />
+              {userItem.phone}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "activity" as keyof UserProfile,
+      header: "Account Activity",
+      render: (value: string, userItem: UserProfile) => (
+        <div className="text-xs text-gray-500">
+          <div className="flex items-center">
+            <CalendarClock size={14} className="mr-1" />
+            Joined: {userItem.createdAt ? format(new Date(userItem.createdAt), "MMM d, yyyy") : 'Unknown'}
+          </div>
+          {userItem.lastSignIn && (
+            <div className="mt-1">
+              Last sign in: {format(new Date(userItem.lastSignIn), "MMM d, yyyy")}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "status" as keyof UserProfile,
+      header: "Status",
+      render: (value: boolean) => (
+        <div className="flex items-center">
+          {value ? (
+            <>
+              <Check size={16} className="text-green-500 mr-1" />
+              <span>Active</span>
+            </>
+          ) : (
+            <>
+              <X size={16} className="text-gray-400 mr-1" />
+              <span>Inactive</span>
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "actions" as const,
+      header: "Actions",
+      render: (value: any, userItem: UserProfile) => (
+        <div className="flex justify-end space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleEditUser(userItem)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleDeleteConfirmation(userItem)}
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 };
 
 export default UsersManagement;

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -282,17 +281,131 @@ const ClassesManagement = () => {
     classItem.room.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddClass = async (newClass: Omit<ClassItem, "id">) => {
-    await addClassMutation.mutateAsync(newClass);
-  };
+  async function handleAddClass() {
+    if (!selectedClass || !selectedClass.name) {
+      toast({
+        title: "Error",
+        description: "Class name is required",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleUpdateClass = async (updatedClass: ClassItem) => {
-    await updateClassMutation.mutateAsync(updatedClass);
-  };
+    try {
+      const { data, error } = await supabase
+        .from("classes")
+        .insert([
+          {
+            name: selectedClass.name,
+            description: selectedClass.description,
+            age_range: selectedClass.ageRange,
+            capacity: selectedClass.capacity,
+            room: selectedClass.room,
+          },
+        ])
+        .select();
 
-  const handleDeleteClass = async (id: string) => {
-    await deleteClassMutation.mutateAsync(id);
-  };
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Class created successfully",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      setIsAddDialogOpen(false);
+      
+    } catch (error: any) {
+      console.error("Error creating class:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create class: " + (error.message || "Unknown error"),
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function handleUpdateClass() {
+    if (!selectedClass || !selectedClass.id || !selectedClass.name) {
+      toast({
+        title: "Error",
+        description: "Missing required class information",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("classes")
+        .update({
+          name: selectedClass.name,
+          description: selectedClass.description,
+          age_range: selectedClass.ageRange,
+          capacity: selectedClass.capacity,
+          room: selectedClass.room,
+        })
+        .eq("id", selectedClass.id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Class updated successfully",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      setIsEditDialogOpen(false);
+      
+    } catch (error: any) {
+      console.error("Error updating class:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update class: " + (error.message || "Unknown error"),
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function handleDeleteClass() {
+    if (!selectedClass?.id) return;
+    
+    try {
+      const { error } = await supabase
+        .from("classes")
+        .delete()
+        .eq("id", selectedClass.id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Class deleted successfully",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      setIsDeleteDialogOpen(false);
+      setSelectedClass(null);
+      
+    } catch (error: any) {
+      console.error("Error deleting class:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete class: " + (error.message || "Unknown error"),
+        variant: "destructive",
+      });
+    }
+  }
+
+  function handleEditClassClick(classItem: ClassItem) {
+    setSelectedClass(classItem);
+    setIsEditDialogOpen(true);
+  }
+
+  function handleDeleteClassClick(classItem: ClassItem) {
+    setSelectedClass(classItem);
+    setIsDeleteDialogOpen(true);
+  }
 
   const classColumns = [
     {
@@ -359,20 +472,14 @@ const ClassesManagement = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setSelectedClass(classItem);
-              setIsEditDialogOpen(true);
-            }}
+            onClick={() => handleEditClassClick(classItem)}
           >
             <Edit className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setSelectedClass(classItem);
-              setIsDeleteDialogOpen(true);
-            }}
+            onClick={() => handleDeleteClassClick(classItem)}
           >
             <Trash2 className="h-4 w-4 text-red-500" />
           </Button>
@@ -394,7 +501,20 @@ const ClassesManagement = () => {
             <Download className="mr-1 h-4 w-4" />
             Export
           </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => {
+            setSelectedClass({
+              id: '',
+              name: '',
+              description: '',
+              ageRange: '',
+              capacity: 20,
+              room: '',
+              teacherCount: 0,
+              studentCount: 0,
+              teachers: []
+            });
+            setIsAddDialogOpen(true);
+          }}>
             <Plus className="mr-1 h-4 w-4" />
             Add Class
           </Button>
@@ -427,7 +547,7 @@ const ClassesManagement = () => {
               <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
               <span>Loading classes...</span>
             </div>
-          ) : filteredClasses.length === 0 ? (
+          ) : classes.length === 0 ? (
             <div className="text-center py-8">
               <Book className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No classes found</h3>
@@ -437,7 +557,20 @@ const ClassesManagement = () => {
                   : "Get started by adding your first class."}
               </p>
               <div className="mt-6">
-                <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Button onClick={() => {
+                  setSelectedClass({
+                    id: '',
+                    name: '',
+                    description: '',
+                    ageRange: '',
+                    capacity: 20,
+                    room: '',
+                    teacherCount: 0,
+                    studentCount: 0,
+                    teachers: []
+                  });
+                  setIsAddDialogOpen(true);
+                }}>
                   <Plus className="mr-1 h-4 w-4" />
                   Add Class
                 </Button>
@@ -466,6 +599,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Class Name"
+                value={selectedClass?.name || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, name: e.target.value });
@@ -476,6 +610,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Description"
+                value={selectedClass?.description || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, description: e.target.value });
@@ -486,6 +621,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Age Range"
+                value={selectedClass?.ageRange || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, ageRange: e.target.value });
@@ -497,9 +633,10 @@ const ClassesManagement = () => {
               <Input
                 placeholder="Capacity"
                 type="number"
+                value={selectedClass?.capacity || ''}
                 onChange={(e) => {
                   if (selectedClass) {
-                    setSelectedClass({ ...selectedClass, capacity: parseInt(e.target.value) });
+                    setSelectedClass({ ...selectedClass, capacity: parseInt(e.target.value) || 0 });
                   }
                 }}
               />
@@ -507,6 +644,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Room"
+                value={selectedClass?.room || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, room: e.target.value });
@@ -521,20 +659,7 @@ const ClassesManagement = () => {
             </Button>
             <Button
               type="submit"
-              onClick={() => {
-                if (selectedClass) {
-                  handleAddClass({
-                    name: selectedClass.name,
-                    description: selectedClass.description,
-                    ageRange: selectedClass.ageRange,
-                    capacity: selectedClass.capacity,
-                    room: selectedClass.room,
-                    teacherCount: selectedClass.teacherCount,
-                    studentCount: selectedClass.studentCount,
-                    teachers: selectedClass.teachers,
-                  });
-                }
-              }}
+              onClick={handleAddClass}
             >
               Create
             </Button>
@@ -554,7 +679,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Class Name"
-                value={selectedClass?.name}
+                value={selectedClass?.name || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, name: e.target.value });
@@ -565,7 +690,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Description"
-                value={selectedClass?.description}
+                value={selectedClass?.description || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, description: e.target.value });
@@ -576,7 +701,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Age Range"
-                value={selectedClass?.ageRange}
+                value={selectedClass?.ageRange || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, ageRange: e.target.value });
@@ -588,10 +713,10 @@ const ClassesManagement = () => {
               <Input
                 placeholder="Capacity"
                 type="number"
-                value={String(selectedClass?.capacity)}
+                value={String(selectedClass?.capacity || '')}
                 onChange={(e) => {
                   if (selectedClass) {
-                    setSelectedClass({ ...selectedClass, capacity: parseInt(e.target.value) });
+                    setSelectedClass({ ...selectedClass, capacity: parseInt(e.target.value) || 0 });
                   }
                 }}
               />
@@ -599,7 +724,7 @@ const ClassesManagement = () => {
             <div>
               <Input
                 placeholder="Room"
-                value={selectedClass?.room}
+                value={selectedClass?.room || ''}
                 onChange={(e) => {
                   if (selectedClass) {
                     setSelectedClass({ ...selectedClass, room: e.target.value });
@@ -614,11 +739,7 @@ const ClassesManagement = () => {
             </Button>
             <Button
               type="submit"
-              onClick={() => {
-                if (selectedClass) {
-                  handleUpdateClass(selectedClass);
-                }
-              }}
+              onClick={handleUpdateClass}
             >
               Update
             </Button>
@@ -638,11 +759,7 @@ const ClassesManagement = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (selectedClass) {
-                  handleDeleteClass(selectedClass.id);
-                }
-              }}
+              onClick={handleDeleteClass}
               className="bg-red-600 hover:bg-red-700"
             >
               Delete
