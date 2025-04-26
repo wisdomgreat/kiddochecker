@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -112,12 +113,15 @@ const UsersManagement = () => {
         
         const childrenCounts = await Promise.all(
           data.filter(u => {
-            return u !== null && 
-                  u.user_roles !== null && 
-                  u.user_roles !== undefined && 
-                  typeof u.user_roles === 'object' &&
-                  u.user_roles && 'role' in u.user_roles && 
-                  u.user_roles.role === 'parent';
+            // Fix: Add proper type checking and make sure we handle all possible null cases
+            if (!u || !u.user_roles) return false;
+            
+            // Make sure user_roles has the expected structure and contains a role property
+            const userRoles = u.user_roles;
+            if (typeof userRoles !== 'object') return false;
+            
+            // Now check if it has the role property and if that role is 'parent'
+            return 'role' in userRoles && userRoles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
               .from('parent_children')
@@ -131,18 +135,23 @@ const UsersManagement = () => {
         return data.map((item): UserProfile => {
           const usersData = item.users && typeof item.users === 'object' ? item.users : {};
           
-          const userRoles = item.user_roles && typeof item.user_roles === 'object' 
-            ? item.user_roles 
-            : { role: 'parent' as AppRole, is_super_admin: false };
+          // Ensure proper default values and type checking for user roles
+          let userRole: AppRole = 'parent';
+          let isSuperAdmin = false;
+          
+          if (item.user_roles && typeof item.user_roles === 'object') {
+            // Check if role property exists and use it if it does
+            if ('role' in item.user_roles && typeof item.user_roles.role === 'string') {
+              userRole = item.user_roles.role as AppRole;
+            }
+            
+            // Check if is_super_admin property exists and use it if it does
+            if ('is_super_admin' in item.user_roles) {
+              isSuperAdmin = !!item.user_roles.is_super_admin;
+            }
+          }
           
           const childCount = childrenCounts.find(c => c.userId === item.id)?.count || 0;
-          
-          const userRole = userRoles && 
-                          typeof userRoles === 'object' &&
-                          'role' in userRoles && 
-                          userRoles.role 
-            ? userRoles.role as AppRole
-            : 'parent' as AppRole;
           
           return {
             id: item.id,
@@ -152,10 +161,7 @@ const UsersManagement = () => {
             role: userRole,
             roleData: {
               role: userRole,
-              is_super_admin: userRoles && 
-                             typeof userRoles === 'object' &&
-                             'is_super_admin' in userRoles ? 
-                              !!userRoles.is_super_admin : false
+              is_super_admin: isSuperAdmin
             },
             phone: item.phone || '',
             createdAt: usersData && typeof usersData === 'object' && 'created_at' in usersData ? usersData.created_at as string : '',

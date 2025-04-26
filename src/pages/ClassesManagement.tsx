@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -122,13 +123,19 @@ const ClassesManagement = () => {
               let firstName = '';
               let lastName = '';
               
+              // Fix for null profileData - Only access properties if profileData is not null
+              // and has the expected structure
               if (profileData !== null && typeof profileData === 'object') {
-                if ('first_name' in profileData && profileData.first_name !== null) {
-                  firstName = String(profileData.first_name || '');
+                // First check if first_name exists and is not null
+                if ('first_name' in profileData) {
+                  firstName = profileData.first_name !== null ? 
+                    String(profileData.first_name) : '';
                 }
                 
-                if ('last_name' in profileData && profileData.last_name !== null) {
-                  lastName = String(profileData.last_name || '');
+                // Then check if last_name exists and is not null
+                if ('last_name' in profileData) {
+                  lastName = profileData.last_name !== null ? 
+                    String(profileData.last_name) : '';
                 }
               }
               
