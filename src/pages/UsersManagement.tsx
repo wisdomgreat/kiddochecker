@@ -124,9 +124,9 @@ const UsersManagement = () => {
             if (typeof userRoles !== 'object') return false;
             
             // Now safely check if the role property exists and equals 'parent'
-            if (!('role' in userRoles)) return false;
+            if (!(userRoles && 'role' in userRoles)) return false;
             
-            return userRoles.role === 'parent';
+            return userRoles && userRoles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
               .from('parent_children')
@@ -144,14 +144,14 @@ const UsersManagement = () => {
           let userRole: AppRole = 'parent'; // Default role
           let isSuperAdmin = false;
           
-          // Safe access to user_roles
+          // Safe access to user_roles with comprehensive null checks
           if (item.user_roles) {
             const userRoles = item.user_roles;
             
             // Check if it's an object first
             if (userRoles && typeof userRoles === 'object') {
               // Check if the role property exists and is a string
-              if ('role' in userRoles && userRoles.role && typeof userRoles.role === 'string') {
+              if (userRoles && 'role' in userRoles && userRoles.role && typeof userRoles.role === 'string') {
                 userRole = userRoles.role as AppRole;
               }
               
