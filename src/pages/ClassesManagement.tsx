@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -119,8 +120,8 @@ const ClassesManagement = () => {
             .map(teacher => ({
               id: teacher.id,
               userId: teacher.user_id,
-              firstName: teacher.profiles && typeof teacher.profiles === 'object' ? teacher.profiles.first_name || '' : '',
-              lastName: teacher.profiles && typeof teacher.profiles === 'object' ? teacher.profiles.last_name || '' : ''
+              firstName: teacher.profiles?.first_name || '',
+              lastName: teacher.profiles?.last_name || ''
             }));
           
           return {
