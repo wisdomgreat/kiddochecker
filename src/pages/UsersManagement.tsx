@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigation } from "@/hooks/use-navigation";
 
 interface UserData {
   id: string;
@@ -38,6 +39,7 @@ const UsersManagement = () => {
   const [activeTab, setActiveTab] = useState("all");
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigation = useNavigation();
 
   // Fetch real user data from Supabase
   const { data: usersData = [], isLoading } = useQuery({

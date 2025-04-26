@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -25,6 +26,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigation } from "@/hooks/use-navigation";
 
 const StaffManagement = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -35,6 +37,7 @@ const StaffManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const navigation = useNavigation();
   
   const { data: staffMembers = [], isLoading: isLoadingStaff } = useQuery({
     queryKey: ["staff-members"],
@@ -260,7 +263,7 @@ const StaffManagement = () => {
           ) : (
             <DataTable
               columns={staffColumns}
-              data={staffMembers}
+              data={filteredStaffMembers}
               keyExtractor={(item) => item.id}
               searchable={false}
               loading={isLoadingStaff}

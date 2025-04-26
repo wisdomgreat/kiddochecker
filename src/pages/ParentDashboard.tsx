@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Clock, CalendarCheck, Users, CheckCircle, History, Info, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigation } from "@/hooks/use-navigation";
 
 // Define the interface for class data to fix type errors
 interface ClassInfo {
@@ -30,9 +29,9 @@ interface ChildClassData {
 
 const ParentDashboard = () => {
   const [activeTab, setActiveTab] = useState("children");
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigation = useNavigation();
   
   // Fetch attendance data
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
@@ -128,10 +127,6 @@ const ParentDashboard = () => {
     enabled: !!user,
   });
   
-  const handleCheckIn = () => {
-    navigate("/check-in-process");
-  };
-  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
@@ -152,7 +147,7 @@ const ParentDashboard = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Parent Dashboard</h1>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={handleCheckIn}>
+          <Button variant="outline" onClick={navigation.navigateToCheckInProcess}>
             <CalendarCheck className="mr-2 h-4 w-4" />
             Check-in
           </Button>

@@ -94,7 +94,7 @@ const Sidebar = ({
       roles: ["admin", "super_admin"],
     },
     {
-      href: "/device-management",
+      href: "/kiosk-management",
       label: "Devices & Kiosks",
       icon: <Laptop size={20} />,
       roles: ["admin", "super_admin"],

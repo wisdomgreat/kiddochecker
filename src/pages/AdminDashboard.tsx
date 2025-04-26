@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { User, UserPlus, Users, School, BarChart2, Settings, Calendar, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -15,12 +15,13 @@ import ActivityTable from "@/components/dashboard/ActivityTable";
 import AlertsPanel from "@/components/dashboard/AlertsPanel";
 import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
 import { useDashboardStats, useClassStatus, useRecentActivity, useRealtimeUpdates } from "@/hooks/useDashboardData";
+import { useNavigation } from "@/hooks/use-navigation";
 
 const AdminDashboard = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const navigation = useNavigation();
   
   // Fetch dashboard data using the hooks
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -57,11 +58,6 @@ const AdminDashboard = () => {
     checkSuperAdmin();
   }, [user]);
 
-  // Navigation handlers for clickable cards
-  const handleNavigate = (path: string) => {
-    navigate(path);
-  };
-
   return (
     <MainLayout>
       <div className="flex justify-between items-center mb-6">
@@ -70,7 +66,7 @@ const AdminDashboard = () => {
           {isSuperAdmin && (
             <Button 
               variant="outline"
-              onClick={() => handleNavigate('/staff-management')}
+              onClick={navigation.navigateToStaffManagement}
             >
               <UserPlus className="mr-2 h-4 w-4" />
               Manage Staff
@@ -78,7 +74,7 @@ const AdminDashboard = () => {
           )}
           <Button 
             variant="outline"
-            onClick={() => handleNavigate('/settings')}
+            onClick={navigation.navigateToSettings}
           >
             <Settings className="mr-2 h-4 w-4" />
             Settings
@@ -105,7 +101,7 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
         <Card 
           className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={() => handleNavigate('/users-management')}
+          onClick={navigation.navigateToUsersManagement}
         >
           <CardContent className="p-4 flex items-center">
             <Users className="h-8 w-8 text-purple-500 mr-4" />
@@ -118,7 +114,7 @@ const AdminDashboard = () => {
         
         <Card 
           className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={() => handleNavigate('/classes-management')}
+          onClick={navigation.navigateToClassesManagement}
         >
           <CardContent className="p-4 flex items-center">
             <School className="h-8 w-8 text-blue-500 mr-4" />
@@ -131,7 +127,7 @@ const AdminDashboard = () => {
         
         <Card 
           className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={() => handleNavigate('/events-management')}
+          onClick={navigation.navigateToEventsManagement}
         >
           <CardContent className="p-4 flex items-center">
             <Calendar className="h-8 w-8 text-green-500 mr-4" />
@@ -144,7 +140,7 @@ const AdminDashboard = () => {
         
         <Card 
           className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={() => handleNavigate('/reports-dashboard')}
+          onClick={navigation.navigateToReportsDashboard}
         >
           <CardContent className="p-4 flex items-center">
             <BarChart2 className="h-8 w-8 text-amber-500 mr-4" />
@@ -157,7 +153,7 @@ const AdminDashboard = () => {
         
         <Card 
           className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={() => handleNavigate('/check-in-kiosk')}
+          onClick={navigation.navigateToCheckInKiosk}
         >
           <CardContent className="p-4 flex items-center">
             <CheckCircle className="h-8 w-8 text-orange-500 mr-4" />
