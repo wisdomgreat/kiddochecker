@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,21 @@ import {
   MapPin,
   Edit,
   RefreshCcw,
+  Trash2,
+  Download,
+  UserPlus,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import AssignTeacherForm from "@/components/classes/AssignTeacherForm";
 
 interface ClassItem {
   id: string;
@@ -31,16 +45,20 @@ interface ClassItem {
   room: string | null;
   teacherCount: number;
   studentCount: number;
+  teachers?: Array<{id: string, userId: string, firstName?: string, lastName?: string}>;
 }
 
 const ClassesManagement = () => {
   const [isAddClassOpen, setIsAddClassOpen] = useState(false);
+  const [isAssignTeacherOpen, setIsAssignTeacherOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { userRole, user } = useAuth();
 
-  // Determine if user can add/edit classes
+  // Determine if user can manage classes
   const canManageClasses = ["admin", "super_admin"].includes(userRole || "");
 
   // Fetch classes
@@ -59,22 +77,66 @@ const ClassesManagement = () => {
             age_range,
             capacity,
             room,
-            teachers:teachers(id)
+            teachers(id, user_id)
           `);
 
         if (error) throw error;
 
+        // Get teacher names
+        const teacherIds = data.flatMap(c => c.teachers?.map(t => t.user_id) || []);
+        let teacherProfiles = {};
+        
+        if (teacherIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', teacherIds);
+            
+          if (profiles) {
+            teacherProfiles = profiles.reduce((acc, profile) => {
+              acc[profile.id] = profile;
+              return acc;
+            }, {});
+          }
+        }
+        
+        // Get student count from attendance for each class
+        const today = new Date().toISOString().split('T')[0];
+        const studentCounts = await Promise.all(
+          data.map(async (classItem) => {
+            const { count } = await supabase
+              .from('attendance')
+              .select('*', { count: 'exact' })
+              .eq('class_id', classItem.id)
+              .eq('attendance_date', today)
+              .is('checked_out_at', null);
+            
+            return { classId: classItem.id, count: count || 0 };
+          })
+        );
+
         // Process the data and include counts for teachers and students
-        return data.map((classItem) => ({
-          id: classItem.id,
-          name: classItem.name,
-          description: classItem.description,
-          ageRange: classItem.age_range,
-          capacity: classItem.capacity,
-          room: classItem.room,
-          teacherCount: Array.isArray(classItem.teachers) ? classItem.teachers.length : 0,
-          studentCount: 0, // We'll implement this later by querying attendance
-        }));
+        return data.map((classItem) => {
+          const teachersWithNames = classItem.teachers?.map(teacher => ({
+            ...teacher,
+            firstName: teacherProfiles[teacher.user_id]?.first_name,
+            lastName: teacherProfiles[teacher.user_id]?.last_name
+          })) || [];
+          
+          const studentCount = studentCounts.find(sc => sc.classId === classItem.id)?.count || 0;
+          
+          return {
+            id: classItem.id,
+            name: classItem.name,
+            description: classItem.description,
+            ageRange: classItem.age_range,
+            capacity: classItem.capacity,
+            room: classItem.room,
+            teacherCount: Array.isArray(classItem.teachers) ? classItem.teachers.length : 0,
+            studentCount,
+            teachers: teachersWithNames
+          };
+        });
       } catch (error: any) {
         console.error("Error fetching classes:", error);
         toast({
@@ -88,6 +150,36 @@ const ClassesManagement = () => {
     enabled: !!user, // Only run query when user is authenticated
   });
 
+  // Delete class mutation
+  const deleteClassMutation = useMutation({
+    mutationFn: async (classId: string) => {
+      const { error } = await supabase
+        .from('classes')
+        .delete()
+        .eq('id', classId);
+        
+      if (error) throw error;
+      
+      return classId;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Class deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      setIsDeleteDialogOpen(false);
+      setSelectedClass(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete class: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  });
+
   // Filter classes based on search term
   const filteredClasses = classes.filter((classItem) => {
     return (
@@ -99,11 +191,27 @@ const ClassesManagement = () => {
   });
 
   const handleEditClass = (classItem: ClassItem) => {
-    // Placeholder for edit functionality
+    setSelectedClass(classItem);
     toast({
       title: "Coming Soon",
       description: "Edit class functionality will be available soon",
     });
+  };
+  
+  const handleDeleteClass = (classItem: ClassItem) => {
+    setSelectedClass(classItem);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const confirmDeleteClass = () => {
+    if (selectedClass) {
+      deleteClassMutation.mutate(selectedClass.id);
+    }
+  };
+  
+  const handleAssignTeacher = (classItem: ClassItem) => {
+    setSelectedClass(classItem);
+    setIsAssignTeacherOpen(true);
   };
 
   const classColumns = [
@@ -146,6 +254,43 @@ const ClassesManagement = () => {
       ),
     },
     {
+      key: "teachers" as const,
+      header: "Teachers",
+      render: (value: any, classItem: ClassItem) => (
+        <div>
+          {classItem.teachers && classItem.teachers.length > 0 ? (
+            <div className="space-y-1">
+              {classItem.teachers.slice(0, 2).map((teacher) => (
+                <div key={teacher.id} className="text-sm">
+                  {teacher.firstName} {teacher.lastName || '(No name)'}
+                </div>
+              ))}
+              {classItem.teachers.length > 2 && (
+                <div className="text-xs text-gray-500">
+                  +{classItem.teachers.length - 2} more
+                </div>
+              )}
+            </div>
+          ) : (
+            <Badge variant="outline" className="bg-amber-50 text-amber-800">
+              No teachers assigned
+            </Badge>
+          )}
+          {canManageClasses && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="mt-1 h-7 text-xs"
+              onClick={() => handleAssignTeacher(classItem)}
+            >
+              <UserPlus className="h-3 w-3 mr-1" />
+              Assign
+            </Button>
+          )}
+        </div>
+      ),
+    },
+    {
       key: "capacity" as const,
       header: "Capacity",
       render: (value: number | null, classItem: ClassItem) => (
@@ -165,7 +310,7 @@ const ClassesManagement = () => {
       sortable: true,
     },
     {
-      key: "studentCount" as const,
+      key: "status" as const,
       header: "Status",
       render: (value: any, classItem: ClassItem) => {
         // Determine class status based on capacity
@@ -198,6 +343,15 @@ const ClassesManagement = () => {
           >
             <Edit className="h-4 w-4" />
           </Button>
+          {canManageClasses && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleDeleteClass(classItem)}
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -208,6 +362,13 @@ const ClassesManagement = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Classes Management</h1>
         <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+          >
+            <Download className="mr-1 h-4 w-4" />
+            Export
+          </Button>
           {canManageClasses && (
             <Button onClick={() => setIsAddClassOpen(true)}>
               <Plus className="mr-1 h-4 w-4" />
@@ -267,6 +428,7 @@ const ClassesManagement = () => {
               data={filteredClasses}
               keyExtractor={(item) => item.id}
               searchable={false}
+              pagination
             />
           )}
         </CardContent>
@@ -278,6 +440,36 @@ const ClassesManagement = () => {
         onOpenChange={setIsAddClassOpen}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["classes"] })}
       />
+
+      {/* Assign Teacher Dialog */}
+      {selectedClass && (
+        <AssignTeacherForm 
+          open={isAssignTeacherOpen} 
+          onOpenChange={setIsAssignTeacherOpen}
+          classId={selectedClass.id}
+          className={selectedClass.name}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["classes"] })}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the class "{selectedClass?.name}" and remove all associated records.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteClass} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };

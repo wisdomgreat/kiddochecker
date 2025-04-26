@@ -1,212 +1,227 @@
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { 
-  Users, 
-  Search, 
-  Filter, 
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import MainLayout from "@/components/layout/MainLayout";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { DataTable } from "@/components/ui/data-table";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import {
+  Search,
+  Users,
+  UserPlus,
+  Filter,
   Download,
-  Plus,
+  RefreshCcw,
   User,
   Mail,
-  Phone,
-  UserPlus,
+  CalendarClock,
+  Edit,
+  Trash2,
+  Check,
+  X,
 } from "lucide-react";
-import MainLayout from "@/components/layout/MainLayout";
-import Breadcrumb from "@/components/ui/breadcrumb";
-import { DataTable } from "@/components/ui/data-table";
-import StatCard from "@/components/ui/stat-card";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/AuthContext";
-import { useNavigation } from "@/hooks/use-navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { format } from "date-fns";
+import { UserRoleData } from "@/types/supabase";
 
-interface UserData {
+interface UserProfile {
   id: string;
-  name: string;
   email: string;
-  phone: string;
+  firstName: string;
+  lastName: string;
   role: string;
-  status: string;
-  lastActive: string;
-  joinDate: string;
-  children: number;
+  roleData?: UserRoleData;
+  phone?: string;
+  createdAt: string;
+  isActive: boolean;
+  lastSignIn?: string;
+  children?: number;
 }
 
 const UsersManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const navigation = useNavigation();
-
-  // Fetch real user data from Supabase
-  const { data: usersData = [], isLoading } = useQuery({
-    queryKey: ["users-management"],
+  
+  // Fetch user data
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ["users"],
     queryFn: async () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
-        // First, get the list of user IDs and roles
-        const { data: userRoles, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('user_id, role');
-          
-        if (rolesError) throw rolesError;
-        
-        // Get user data from auth.users table via profiles
-        const { data: profilesData, error: profilesError } = await supabase
+        // Fetch users with profiles and role information
+        const { data, error } = await supabase
           .from('profiles')
-          .select('id, first_name, last_name, phone');
-          
-        if (profilesError) throw profilesError;
-        
-        // Get user login information
-        const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
-        
-        if (userError || !userData?.users) {
-          // Fallback to getting minimal data if admin access is not available
-          console.warn("Cannot access user data via admin API. Using limited data set.");
-          
-          // Count children for parent users
-          const { data: parentChildData, error: parentChildError } = await supabase
-            .from('parent_children')
-            .select('parent_id, child_id');
+          .select(`
+            id,
+            first_name,
+            last_name,
+            phone,
+            users:id (
+              email,
+              created_at,
+              last_sign_in_at
+            ),
+            user_roles:id (
+              role,
+              is_super_admin
+            )
+          `);
 
-          if (parentChildError) throw parentChildError;
-          
-          // Map the parent-child relationships
-          const childrenCount: Record<string, number> = {};
-          
-          if (parentChildData) {
-            parentChildData.forEach(relation => {
-              if (!childrenCount[relation.parent_id]) {
-                childrenCount[relation.parent_id] = 0;
-              }
-              childrenCount[relation.parent_id]++;
-            });
-          }
-          
-          // Combine data from profiles and user_roles
-          const result: UserData[] = userRoles.map((roleRecord: any) => {
-            const profile = profilesData.find((p: any) => p.id === roleRecord.user_id) || {
-              first_name: '',
-              last_name: '',
-              phone: ''
-            };
-            
-            return {
-              id: roleRecord.user_id,
-              name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User',
-              email: '',  // We don't have access to emails without admin API
-              phone: profile.phone || '',
-              role: roleRecord.role,
-              status: 'Active',  // Assume active since we can't check
-              lastActive: 'Unknown',
-              joinDate: 'Unknown',
-              children: childrenCount[roleRecord.user_id] || 0
-            };
-          });
-          
-          return result;
+        if (error) {
+          throw error;
         }
         
-        // If we have admin access, we can combine all data
-        // Count children for parent users
-        const { data: parentChildData, error: parentChildError } = await supabase
-          .from('parent_children')
-          .select('parent_id, child_id');
-
-        if (parentChildError) throw parentChildError;
+        // Get count of children for parent users
+        const childrenCounts = await Promise.all(
+          data.filter(u => u.user_roles && u.user_roles.role === 'parent').map(async (u) => {
+            const { count, error } = await supabase
+              .from('parent_children')
+              .select('*', { count: 'exact' })
+              .eq('parent_id', u.id);
+              
+            return { userId: u.id, count: count || 0 };
+          })
+        );
         
-        // Map the parent-child relationships
-        const childrenCount: Record<string, number> = {};
-        
-        if (parentChildData) {
-          parentChildData.forEach(relation => {
-            if (!childrenCount[relation.parent_id]) {
-              childrenCount[relation.parent_id] = 0;
-            }
-            childrenCount[relation.parent_id]++;
-          });
-        }
-        
-        // Format the user data by combining from multiple sources
-        const result: UserData[] = userRoles.map((roleRecord: any) => {
-          const profile = profilesData.find((p: any) => p.id === roleRecord.user_id) || {
-            first_name: '',
-            last_name: '',
-            phone: ''
-          };
-          
-          const authUser = userData?.users?.find((u: any) => u.id === roleRecord.user_id);
+        // Transform data into the format needed for the UI
+        return data.map((item): UserProfile => {
+          const childCount = childrenCounts.find(c => c.userId === item.id)?.count || 0;
           
           return {
-            id: roleRecord.user_id,
-            name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User',
-            email: authUser?.email || '',
-            phone: profile.phone || '',
-            role: roleRecord.role,
-            status: authUser?.email_confirmed_at ? 'Active' : 'Pending',
-            lastActive: authUser?.last_sign_in_at ? new Date(authUser.last_sign_in_at).toLocaleDateString() : 'Never',
-            joinDate: authUser?.created_at ? new Date(authUser.created_at).toLocaleDateString() : 'Unknown',
-            children: childrenCount[roleRecord.user_id] || 0
+            id: item.id,
+            email: item.users?.email || '',
+            firstName: item.first_name || '',
+            lastName: item.last_name || '',
+            role: item.user_roles?.role || '',
+            roleData: item.user_roles,
+            phone: item.phone || '',
+            createdAt: item.users?.created_at || '',
+            lastSignIn: item.users?.last_sign_in_at || '',
+            isActive: !!item.users?.last_sign_in_at,
+            children: childCount,
           };
         });
-        
-        return result;
       } catch (error: any) {
         console.error("Error fetching users:", error);
         toast({
           title: "Error",
-          description: "Failed to load users: " + (error.message || "Unknown error"),
+          description: `Failed to load users: ${error.message || "Unknown error"}`,
           variant: "destructive",
         });
         return [];
       }
     },
-    enabled: !!user, // Only run query when user is authenticated
+    enabled: !!user,
   });
 
-  // Stats for the dashboard
-  const userStats = {
-    total: usersData.length,
-    parents: usersData.filter(u => u.role === 'parent').length,
-    staff: usersData.filter(u => ['teacher', 'teacher_assistant', 'staff'].includes(u.role)).length,
-    admins: usersData.filter(u => ['admin', 'super_admin'].includes(u.role)).length,
+  // Filter users based on search term and active tab
+  const filteredUsers = users.filter((userItem) => {
+    const searchMatch =
+      userItem.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userItem.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userItem.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userItem.role?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (activeTab === "all") return searchMatch;
+    if (activeTab === "parents") return userItem.role === "parent" && searchMatch;
+    if (activeTab === "staff") return (userItem.role === "staff" || userItem.role === "teacher" || userItem.role === "teacher_assistant") && searchMatch;
+    return false;
+  });
+
+  const handleEditUser = (userItem: UserProfile) => {
+    // This will be implemented for editing users
+    toast({
+      title: "Edit User",
+      description: `Editing ${userItem.firstName} ${userItem.lastName} (Feature coming soon)`,
+    });
   };
 
-  // Filter users based on active tab and search term
-  const filteredUsers = usersData.filter(user => {
-    const matchesSearch = 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleDeleteConfirmation = (userItem: UserProfile) => {
+    setSelectedUser(userItem);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
     
-    const matchesTab = 
-      activeTab === "all" || 
-      (activeTab === "admin" && ['admin', 'super_admin'].includes(user.role)) ||
-      (activeTab === "teachers" && ['teacher', 'teacher_assistant'].includes(user.role)) ||
-      (activeTab === "parents" && user.role === "parent") ||
-      (activeTab === "pending" && user.status === "Pending");
-    
-    return matchesSearch && matchesTab;
-  });
-  
-  // Table columns configuration
+    try {
+      // Delete user's profile first to avoid foreign key constraints
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', selectedUser.id);
+        
+      if (profileError) throw profileError;
+      
+      // Delete the user from auth (this will cascade delete related records due to foreign key constraints)
+      const { error: authError } = await supabase.auth.admin.deleteUser(selectedUser.id);
+      
+      if (authError) throw authError;
+      
+      toast({
+        title: "Success",
+        description: `${selectedUser.firstName} ${selectedUser.lastName} has been deleted`,
+      });
+      
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+      
+      // Refresh the user list
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: `Failed to delete user: ${error.message || "Unknown error"}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const userColumns = [
     {
       key: "name" as const,
       header: "Name",
-      render: (value: string, item: UserData) => (
-        <div className="flex items-center">
-          <div className="rounded-full bg-gray-100 p-2 mr-3">
-            <User size={16} className="text-gray-600" />
+      render: (value: string, userItem: UserProfile) => (
+        <div className="flex items-center space-x-2">
+          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+            <span className="text-purple-600 font-medium">
+              {userItem.firstName?.[0] || ""}{userItem.lastName?.[0] || ""}
+            </span>
           </div>
           <div>
-            <div className="text-sm font-medium text-gray-900">{value}</div>
-            <div className="text-sm text-gray-500">{item.email}</div>
+            <div className="font-medium">{userItem.firstName} {userItem.lastName}</div>
+            <div className="text-xs text-gray-500">{userItem.email}</div>
           </div>
         </div>
       ),
@@ -215,197 +230,229 @@ const UsersManagement = () => {
     {
       key: "role" as const,
       header: "Role",
-      render: (value: string) => (
-        <div className="flex items-center">
-          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-            ['admin', 'super_admin'].includes(value) ? "bg-purple-100 text-purple-800" : 
-            ['teacher', 'teacher_assistant'].includes(value) ? "bg-blue-100 text-blue-800" : 
-            value === "parent" ? "bg-green-100 text-green-800" : 
-            "bg-gray-100 text-gray-800"
-          }`}>
-            {value}
-          </span>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      key: "status" as const,
-      header: "Status",
-      render: (value: string) => (
-        <div className="flex items-center">
-          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-            value === "Active" ? "bg-green-100 text-green-800" : 
-            value === "Inactive" ? "bg-gray-100 text-gray-800" : 
-            "bg-yellow-100 text-yellow-800"
-          }`}>
-            {value}
-          </span>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      key: "lastActive" as const,
-      header: "Last Active",
+      render: (value: string) => {
+        let color = "";
+        
+        switch (value) {
+          case "admin":
+            color = "bg-purple-100 text-purple-800";
+            break;
+          case "staff":
+            color = "bg-blue-100 text-blue-800";
+            break;
+          case "teacher":
+            color = "bg-green-100 text-green-800";
+            break;
+          case "teacher_assistant":
+            color = "bg-teal-100 text-teal-800";
+            break;
+          case "parent":
+            color = "bg-amber-100 text-amber-800";
+            break;
+          default:
+            color = "bg-gray-100 text-gray-800";
+        }
+        
+        return (
+          <Badge variant="outline" className={`${color} capitalize`}>
+            {value.replace('_', ' ')}
+          </Badge>
+        );
+      },
       sortable: true,
     },
     {
       key: "children" as const,
       header: "Children",
-      render: (value: number) => (
-        <div className="flex items-center">
-          {value > 0 ? (
-            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-              {value} {value === 1 ? 'child' : 'children'}
-            </span>
+      render: (value: number, userItem: UserProfile) => (
+        <div className="text-center">
+          {userItem.role === "parent" ? (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+              {value}
+            </Badge>
           ) : (
-            <span className="text-gray-500">—</span>
+            <span className="text-gray-400">-</span>
           )}
         </div>
       ),
     },
+    {
+      key: "contact" as const,
+      header: "Contact Info",
+      render: (value: string, userItem: UserProfile) => (
+        <div className="space-y-1">
+          <div className="flex items-center text-xs text-gray-600">
+            <Mail size={14} className="mr-1" />
+            {userItem.email}
+          </div>
+          {userItem.phone && (
+            <div className="flex items-center text-xs text-gray-600">
+              <Phone size={14} className="mr-1" />
+              {userItem.phone}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "activity" as const,
+      header: "Account Activity",
+      render: (value: string, userItem: UserProfile) => (
+        <div className="text-xs text-gray-500">
+          <div className="flex items-center">
+            <CalendarClock size={14} className="mr-1" />
+            Joined: {format(new Date(userItem.createdAt), "MMM d, yyyy")}
+          </div>
+          {userItem.lastSignIn && (
+            <div className="mt-1">
+              Last sign in: {format(new Date(userItem.lastSignIn), "MMM d, yyyy")}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "status" as const,
+      header: "Status",
+      render: (value: boolean) => (
+        <div className="flex items-center">
+          {value ? (
+            <>
+              <Check size={16} className="text-green-500 mr-1" />
+              <span>Active</span>
+            </>
+          ) : (
+            <>
+              <X size={16} className="text-gray-400 mr-1" />
+              <span>Inactive</span>
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "actions" as const,
+      header: "Actions",
+      render: (value: any, userItem: UserProfile) => (
+        <div className="flex justify-end space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleEditUser(userItem)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleDeleteConfirmation(userItem)}
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
+      ),
+    },
   ];
-  
+
   return (
     <MainLayout>
-      <Breadcrumb
-        items={[
-          { label: "Home", path: "/" },
-          { label: "Users", path: "/users" },
-          { label: "Management" },
-        ]}
-      />
-      
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Users Management</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" className="text-gray-600 flex items-center gap-1">
-            <Filter size={16} />
-            <span>Filter</span>
+        <h1 className="text-2xl font-bold">User Management</h1>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm">
+            <Filter className="mr-1 h-4 w-4" />
+            Filter
           </Button>
-          <Button variant="outline" className="text-gray-600 flex items-center gap-1">
-            <Download size={16} />
-            <span>Export</span>
+          <Button variant="outline" size="sm">
+            <Download className="mr-1 h-4 w-4" />
+            Export
           </Button>
-          <Button className="bg-purple-600 text-white flex items-center gap-1">
-            <UserPlus size={16} />
-            <span>Add New User</span>
+          <Button onClick={() => toast({ title: "Feature coming soon", description: "User creation functionality will be available soon" })}>
+            <UserPlus className="mr-1 h-4 w-4" />
+            Add User
           </Button>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard
-          title="TOTAL USERS"
-          value={userStats.total.toString()}
-          description="Active accounts"
-          icon={<Users size={24} />}
-          className="bg-white"
-        />
-        
-        <StatCard
-          title="PARENTS"
-          value={userStats.parents.toString()}
-          description="Family accounts"
-          icon={<Users size={24} />}
-          className="bg-white"
-        />
-        
-        <StatCard
-          title="STAFF"
-          value={userStats.staff.toString()}
-          description="Staff members"
-          icon={<Users size={24} />}
-          className="bg-white"
-        />
-        
-        <StatCard
-          title="ADMINS"
-          value={userStats.admins.toString()}
-          description="System administrators"
-          icon={<Users size={24} />}
-          className="bg-white"
-        />
-      </div>
-      
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 animate-fade-in">
-        <div className="flex border-b border-gray-200">
-          <button
-            className={`px-6 py-3 font-medium text-sm ${
-              activeTab === "all"
-                ? "text-purple-600 border-b-2 border-purple-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("all")}
-          >
-            All Users
-          </button>
-          <button
-            className={`px-6 py-3 font-medium text-sm ${
-              activeTab === "admin"
-                ? "text-purple-600 border-b-2 border-purple-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("admin")}
-          >
-            Admins
-          </button>
-          <button
-            className={`px-6 py-3 font-medium text-sm ${
-              activeTab === "teachers"
-                ? "text-purple-600 border-b-2 border-purple-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("teachers")}
-          >
-            Teachers
-          </button>
-          <button
-            className={`px-6 py-3 font-medium text-sm ${
-              activeTab === "parents"
-                ? "text-purple-600 border-b-2 border-purple-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("parents")}
-          >
-            Parents
-          </button>
-          <button
-            className={`px-6 py-3 font-medium text-sm ${
-              activeTab === "pending"
-                ? "text-purple-600 border-b-2 border-purple-600"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("pending")}
-          >
-            Pending
-          </button>
-        </div>
-        
-        <div className="p-6">
-          <div className="relative mb-6">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search size={18} className="text-gray-400" />
+
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>Users</CardTitle>
+              <CardDescription>
+                Manage users, assign roles, and monitor activity
+              </CardDescription>
             </div>
-            <input
-              type="text"
-              placeholder="Search by name, email, or role"
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input 
+                placeholder="Search users..." 
+                className="pl-8" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
-          
-          <DataTable
-            columns={userColumns}
-            data={filteredUsers}
-            keyExtractor={(item: UserData) => item.id}
-            searchable={false}
-            loading={isLoading}
-          />
-        </div>
-      </div>
+          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mt-4">
+            <TabsList>
+              <TabsTrigger value="all">All Users</TabsTrigger>
+              <TabsTrigger value="parents">Parents</TabsTrigger>
+              <TabsTrigger value="staff">Staff & Teachers</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
+              <span>Loading users...</span>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-8">
+              <User className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchTerm 
+                  ? "No users match your search criteria." 
+                  : "Get started by adding your first user."}
+              </p>
+              <div className="mt-6">
+                <Button onClick={() => toast({ title: "Feature coming soon", description: "User creation functionality will be available soon" })}>
+                  <UserPlus className="mr-1 h-4 w-4" />
+                  Add User
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <DataTable
+              columns={userColumns}
+              data={filteredUsers}
+              keyExtractor={(item) => item.id}
+              searchable={false}
+              loading={isLoading}
+              pagination
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action will permanently delete {selectedUser?.firstName} {selectedUser?.lastName}'s account
+              and all associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };
