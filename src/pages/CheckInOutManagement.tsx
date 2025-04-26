@@ -11,31 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useRealtimeAttendance } from "@/hooks/useRealtimeAttendance";
-import {
-  Search,
-  CheckCircle,
-  X,
-  RefreshCcw,
-  LogOut,
-  Clock,
-  CalendarClock,
-  Users,
-  School,
-  Download,
-  Filter,
-  User,
-} from "lucide-react";
+import { Search, CheckCircle, X, RefreshCcw, LogOut, Clock, CalendarClock, Users, School, Download, Filter, User } from "lucide-react";
 import { format, parseISO } from "date-fns";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface AttendanceRecord {
   id: string;
@@ -424,7 +402,6 @@ const CheckInOutManagement = () => {
               data={filteredRecords}
               keyExtractor={(item) => item.id}
               searchable={false}
-              pagination
             />
           )}
         </CardContent>

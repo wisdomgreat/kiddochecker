@@ -46,13 +46,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { UserRoleData } from "@/types/supabase";
+import { AppRole } from "@/types/events";
 
 interface UserProfile {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
-  role: string;
+  role: AppRole;
   roleData?: UserRoleData;
   phone?: string;
   createdAt: string;
@@ -116,25 +117,28 @@ const UsersManagement = () => {
         );
         
         return data.map((item): UserProfile => {
-          const users = item.users || {};
+          const usersData = item.users || {};
           const userRoles = item.user_roles || { role: 'parent', is_super_admin: false };
           
           const childCount = childrenCounts.find(c => c.userId === item.id)?.count || 0;
           
+          const userRole = typeof userRoles === 'object' ? 
+            userRoles.role as AppRole || 'parent' : 'parent';
+          
           return {
             id: item.id,
-            email: typeof users === 'object' ? users.email || '' : '',
+            email: typeof usersData === 'object' ? usersData.email || '' : '',
             firstName: item.first_name || '',
             lastName: item.last_name || '',
-            role: typeof userRoles === 'object' ? userRoles.role || '' : '',
+            role: userRole,
             roleData: typeof userRoles === 'object' ? {
-              role: userRoles.role || 'parent',
+              role: userRole,
               is_super_admin: userRoles.is_super_admin || false
             } : { role: 'parent' },
             phone: item.phone || '',
-            createdAt: typeof users === 'object' ? users.created_at || '' : '',
-            lastSignIn: typeof users === 'object' ? users.last_sign_in_at || '' : '',
-            isActive: typeof users === 'object' ? !!users.last_sign_in_at : false,
+            createdAt: typeof usersData === 'object' ? usersData.created_at || '' : '',
+            lastSignIn: typeof usersData === 'object' ? usersData.last_sign_in_at || '' : '',
+            isActive: typeof usersData === 'object' ? !!usersData.last_sign_in_at : false,
             children: childCount,
           };
         });
@@ -433,7 +437,6 @@ const UsersManagement = () => {
               keyExtractor={(item) => item.id}
               searchable={false}
               loading={isLoading}
-              pagination
             />
           )}
         </CardContent>

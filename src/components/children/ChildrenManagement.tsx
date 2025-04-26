@@ -45,6 +45,7 @@ interface Child {
   hasGuardianApproval?: boolean;
   relationship?: string;
   relationshipId: string;
+  isAuthorizedPickup?: boolean;
   health?: string;
   emergency?: string;
   approval?: boolean;
@@ -450,7 +451,6 @@ const ChildrenManagement = () => {
               data={children}
               keyExtractor={(child) => child.id}
               searchable={false}
-              pagination
             />
           )}
         </CardContent>

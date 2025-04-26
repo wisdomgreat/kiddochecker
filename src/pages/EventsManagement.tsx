@@ -517,7 +517,6 @@ const EventsManagement = () => {
               data={filteredEvents}
               keyExtractor={(item) => item.id}
               searchable={false}
-              pagination
             />
           )}
         </CardContent>

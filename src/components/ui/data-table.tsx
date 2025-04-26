@@ -16,7 +16,8 @@ interface DataTableProps<T> {
   searchable?: boolean;
   searchPlaceholder?: string;
   onRowClick?: (item: T) => void;
-  loading?: boolean; // Add loading prop
+  loading?: boolean;
+  pagination?: boolean; // Add pagination prop
 }
 
 export function DataTable<T>({
@@ -26,7 +27,8 @@ export function DataTable<T>({
   searchable = false,
   searchPlaceholder = "Search...",
   onRowClick,
-  loading = false, // Default to false
+  loading = false,
+  pagination = false, // Default to false
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState<{

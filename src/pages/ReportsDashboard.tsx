@@ -34,6 +34,7 @@ import {
   Filter,
 } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import { ReportType, TimeRange, COLORS } from "@/types/reports";
 
 const ReportsDashboard = () => {
   const [reportType, setReportType] = useState<ReportType>("attendance");
