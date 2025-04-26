@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -126,13 +127,15 @@ const UsersManagement = () => {
         
         return data.map((item): UserProfile => {
           const usersData = item.users && typeof item.users === 'object' ? item.users : {};
+          
+          // Safely handle potentially null user_roles
           const userRoles = item.user_roles && typeof item.user_roles === 'object' 
             ? item.user_roles 
             : { role: 'parent' as AppRole, is_super_admin: false };
           
           const childCount = childrenCounts.find(c => c.userId === item.id)?.count || 0;
           
-          const userRole = userRoles.role 
+          const userRole = userRoles && 'role' in userRoles && userRoles.role 
             ? userRoles.role as AppRole
             : 'parent' as AppRole;
           
@@ -144,7 +147,7 @@ const UsersManagement = () => {
             role: userRole,
             roleData: {
               role: userRole,
-              is_super_admin: userRoles.is_super_admin || false
+              is_super_admin: userRoles && 'is_super_admin' in userRoles ? !!userRoles.is_super_admin : false
             },
             phone: item.phone || '',
             createdAt: usersData && typeof usersData === 'object' && 'created_at' in usersData ? usersData.created_at as string : '',

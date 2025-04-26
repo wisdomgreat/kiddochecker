@@ -126,8 +126,12 @@ const ClassesManagement = () => {
               return {
                 id: teacher.id,
                 userId: teacher.user_id,
-                firstName: profileData && 'first_name' in profileData ? profileData.first_name as string || '' : '',
-                lastName: profileData && 'last_name' in profileData ? profileData.last_name as string || '' : ''
+                firstName: profileData && typeof profileData === 'object' && 'first_name' in profileData 
+                  ? String(profileData.first_name || '') 
+                  : '',
+                lastName: profileData && typeof profileData === 'object' && 'last_name' in profileData 
+                  ? String(profileData.last_name || '') 
+                  : ''
               };
             });
           
