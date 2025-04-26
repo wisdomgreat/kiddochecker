@@ -118,24 +118,25 @@ const ClassesManagement = () => {
           const teachersList = classTeachers
             .filter(teacher => teacher && typeof teacher === 'object')
             .map(teacher => {
+              // Get profile data safely
               const profileData = teacher.profiles || null;
               
               let firstName = '';
               let lastName = '';
               
-              // Fix for null profileData - Only access properties if profileData is not null
-              // and has the expected structure
-              if (profileData !== null && typeof profileData === 'object') {
-                // First check if first_name exists and is not null
+              // Enhanced null checking for profileData access
+              if (profileData && typeof profileData === 'object') {
+                // Explicitly check for property existence and nullability separately
                 if ('first_name' in profileData) {
-                  firstName = profileData.first_name !== null ? 
-                    String(profileData.first_name) : '';
+                  const firstNameValue = profileData.first_name;
+                  firstName = firstNameValue !== null && firstNameValue !== undefined ? 
+                    String(firstNameValue) : '';
                 }
                 
-                // Then check if last_name exists and is not null
                 if ('last_name' in profileData) {
-                  lastName = profileData.last_name !== null ? 
-                    String(profileData.last_name) : '';
+                  const lastNameValue = profileData.last_name;
+                  lastName = lastNameValue !== null && lastNameValue !== undefined ? 
+                    String(lastNameValue) : '';
                 }
               }
               

@@ -28,7 +28,6 @@ import {
   X,
   Phone
 } from "lucide-react";
-import { format } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -113,14 +112,17 @@ const UsersManagement = () => {
         
         const childrenCounts = await Promise.all(
           data.filter(u => {
-            // Fix: Add proper type checking and make sure we handle all possible null cases
-            if (!u || !u.user_roles) return false;
+            // Enhanced null checking for user_roles
+            if (!u) return false;
             
-            // Make sure user_roles has the expected structure and contains a role property
             const userRoles = u.user_roles;
+            // First check if userRoles exists
+            if (!userRoles) return false;
+            
+            // Then check if it's an object and has the role property
             if (typeof userRoles !== 'object') return false;
             
-            // Now check if it has the role property and if that role is 'parent'
+            // Now safely check if the role property exists and equals 'parent'
             return 'role' in userRoles && userRoles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
@@ -135,19 +137,25 @@ const UsersManagement = () => {
         return data.map((item): UserProfile => {
           const usersData = item.users && typeof item.users === 'object' ? item.users : {};
           
-          // Ensure proper default values and type checking for user roles
-          let userRole: AppRole = 'parent';
+          // Enhanced null checking for user_roles
+          let userRole: AppRole = 'parent'; // Default role
           let isSuperAdmin = false;
           
-          if (item.user_roles && typeof item.user_roles === 'object') {
-            // Check if role property exists and use it if it does
-            if ('role' in item.user_roles && typeof item.user_roles.role === 'string') {
-              userRole = item.user_roles.role as AppRole;
-            }
+          // Safe access to user_roles
+          if (item.user_roles) {
+            const userRoles = item.user_roles;
             
-            // Check if is_super_admin property exists and use it if it does
-            if ('is_super_admin' in item.user_roles) {
-              isSuperAdmin = !!item.user_roles.is_super_admin;
+            // Check if it's an object first
+            if (typeof userRoles === 'object') {
+              // Check if the role property exists and is a string
+              if ('role' in userRoles && userRoles.role && typeof userRoles.role === 'string') {
+                userRole = userRoles.role as AppRole;
+              }
+              
+              // Check if the is_super_admin property exists
+              if ('is_super_admin' in userRoles) {
+                isSuperAdmin = !!userRoles.is_super_admin;
+              }
             }
           }
           
