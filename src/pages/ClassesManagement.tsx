@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -118,20 +117,21 @@ const ClassesManagement = () => {
           const teachersList = classTeachers
             .filter(teacher => teacher && typeof teacher === 'object')
             .map(teacher => {
-              // Handle profiles separately with proper type checking
-              const profileData = teacher.profiles && typeof teacher.profiles === 'object' 
-                ? teacher.profiles 
-                : null;
-                
+              const profileData = teacher.profiles;
+              
               return {
                 id: teacher.id,
                 userId: teacher.user_id,
-                firstName: profileData && typeof profileData === 'object' && 'first_name' in profileData 
-                  ? String(profileData.first_name || '') 
-                  : '',
-                lastName: profileData && typeof profileData === 'object' && 'last_name' in profileData 
-                  ? String(profileData.last_name || '') 
-                  : ''
+                firstName: profileData && 
+                  typeof profileData === 'object' && 
+                  profileData !== null && 
+                  'first_name' in profileData ? 
+                    String(profileData.first_name || '') : '',
+                lastName: profileData && 
+                  typeof profileData === 'object' && 
+                  profileData !== null && 
+                  'last_name' in profileData ? 
+                    String(profileData.last_name || '') : ''
               };
             });
           

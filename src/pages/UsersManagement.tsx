@@ -111,9 +111,11 @@ const UsersManagement = () => {
           throw error;
         }
         
+        // Safely filter out items that might not have user_roles
         const childrenCounts = await Promise.all(
           data.filter(u => {
             return u.user_roles && typeof u.user_roles === 'object' && 
+                  'role' in u.user_roles && 
                   u.user_roles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
