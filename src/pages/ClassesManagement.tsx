@@ -126,12 +126,19 @@ const ClassesManagement = () => {
               
               // Enhanced null checking for profileData access with complete null safety
               if (profileData && typeof profileData === 'object') {
-                if (profileData && 'first_name' in profileData && profileData.first_name !== null && profileData.first_name !== undefined) {
-                  firstName = String(profileData.first_name);
+                // Type assertion to handle the 'never' type error
+                const typedProfileData = profileData as Record<string, unknown>;
+                
+                if ('first_name' in typedProfileData && 
+                    typedProfileData.first_name !== null && 
+                    typedProfileData.first_name !== undefined) {
+                  firstName = String(typedProfileData.first_name);
                 }
                 
-                if (profileData && 'last_name' in profileData && profileData.last_name !== null && profileData.last_name !== undefined) {
-                  lastName = String(profileData.last_name);
+                if ('last_name' in typedProfileData && 
+                    typedProfileData.last_name !== null && 
+                    typedProfileData.last_name !== undefined) {
+                  lastName = String(typedProfileData.last_name);
                 }
               }
               

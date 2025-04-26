@@ -124,9 +124,12 @@ const UsersManagement = () => {
             if (typeof userRoles !== 'object') return false;
             
             // Now safely check if the role property exists and equals 'parent'
-            if (!(userRoles && 'role' in userRoles)) return false;
+            // Type assertion to handle the 'never' type error
+            const typedUserRoles = userRoles as Record<string, unknown>;
             
-            return userRoles && userRoles.role === 'parent';
+            if (!('role' in typedUserRoles)) return false;
+            
+            return typedUserRoles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
               .from('parent_children')
@@ -148,16 +151,20 @@ const UsersManagement = () => {
           if (item.user_roles) {
             const userRoles = item.user_roles;
             
-            // Check if it's an object first
+            // Check if it's an object first and type assertion to handle the 'never' type
             if (userRoles && typeof userRoles === 'object') {
+              const typedUserRoles = userRoles as Record<string, unknown>;
+              
               // Check if the role property exists and is a string
-              if (userRoles && 'role' in userRoles && userRoles.role && typeof userRoles.role === 'string') {
-                userRole = userRoles.role as AppRole;
+              if ('role' in typedUserRoles && 
+                  typedUserRoles.role !== null && 
+                  typeof typedUserRoles.role === 'string') {
+                userRole = typedUserRoles.role as AppRole;
               }
               
               // Check if the is_super_admin property exists
-              if (userRoles && 'is_super_admin' in userRoles) {
-                isSuperAdmin = !!userRoles.is_super_admin;
+              if ('is_super_admin' in typedUserRoles) {
+                isSuperAdmin = !!typedUserRoles.is_super_admin;
               }
             }
           }
