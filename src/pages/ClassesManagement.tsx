@@ -117,12 +117,19 @@ const ClassesManagement = () => {
           
           const teachersList = classTeachers
             .filter(teacher => teacher && typeof teacher === 'object')
-            .map(teacher => ({
-              id: teacher.id,
-              userId: teacher.user_id,
-              firstName: teacher.profiles?.first_name || '',
-              lastName: teacher.profiles?.last_name || ''
-            }));
+            .map(teacher => {
+              // Handle profiles separately with proper type checking
+              const profileData = teacher.profiles && typeof teacher.profiles === 'object' 
+                ? teacher.profiles 
+                : null;
+                
+              return {
+                id: teacher.id,
+                userId: teacher.user_id,
+                firstName: profileData && 'first_name' in profileData ? profileData.first_name as string || '' : '',
+                lastName: profileData && 'last_name' in profileData ? profileData.last_name as string || '' : ''
+              };
+            });
           
           return {
             id: item.id,
