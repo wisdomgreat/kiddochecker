@@ -1,4 +1,3 @@
-
 export interface EventItem {
   id: string;
   title: string;
@@ -8,6 +7,8 @@ export interface EventItem {
   description?: string | null;
   organizer?: string | null;
   isPublic?: boolean;
+  date?: string;
+  status?: string;
 }
 
 export interface EventFormValues {

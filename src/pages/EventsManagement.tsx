@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -65,10 +64,8 @@ const EventsManagement = () => {
   const queryClient = useQueryClient();
   const { userRole, user } = useAuth();
 
-  // Check if user can manage events
   const canManageEvents = ["admin", "super_admin", "teacher", "staff"].includes(userRole || "");
 
-  // Form setup for add/edit event
   const form = useForm<EventFormValues>({
     defaultValues: {
       title: "",
@@ -81,7 +78,6 @@ const EventsManagement = () => {
     },
   });
 
-  // Fetch events
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
@@ -95,7 +91,6 @@ const EventsManagement = () => {
 
         if (error) throw error;
 
-        // Transform data to match EventItem interface
         return data.map((item): EventItem => ({
           id: item.id,
           title: item.title,
@@ -119,7 +114,6 @@ const EventsManagement = () => {
     enabled: !!user,
   });
 
-  // Add event mutation
   const addEventMutation = useMutation({
     mutationFn: async (eventData: EventFormValues) => {
       if (!user) throw new Error("User not authenticated");
@@ -160,7 +154,6 @@ const EventsManagement = () => {
     }
   });
 
-  // Update event mutation
   const updateEventMutation = useMutation({
     mutationFn: async ({ id, eventData }: { id: string, eventData: EventFormValues }) => {
       const { data, error } = await supabase
@@ -198,7 +191,6 @@ const EventsManagement = () => {
     }
   });
 
-  // Delete event mutation
   const deleteEventMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -227,7 +219,6 @@ const EventsManagement = () => {
     }
   });
 
-  // Filter events based on search term and filter
   const filteredEvents = events.filter((event) => {
     const searchMatch =
       event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -246,19 +237,16 @@ const EventsManagement = () => {
     return searchMatch;
   });
 
-  // Handle form submission for add event
   const handleAddEvent = form.handleSubmit((data) => {
     addEventMutation.mutate(data);
   });
 
-  // Handle form submission for edit event
   const handleEditEvent = form.handleSubmit((data) => {
     if (selectedEvent) {
       updateEventMutation.mutate({ id: selectedEvent.id, eventData: data });
     }
   });
 
-  // Handle edit event button click
   const openEditEventDialog = (event: EventItem) => {
     setSelectedEvent(event);
     form.reset({
@@ -268,25 +256,22 @@ const EventsManagement = () => {
       startDate: event.startDate ? parseISO(event.startDate) : new Date(),
       endDate: event.endDate ? parseISO(event.endDate) : null,
       organizer: event.organizer || "",
-      isPublic: event.isPublic !== false, // Default to true if undefined
+      isPublic: event.isPublic !== false,
     });
     setIsEditEventOpen(true);
   };
 
-  // Handle delete event button click
   const openDeleteDialog = (event: EventItem) => {
     setSelectedEvent(event);
     setIsDeleteDialogOpen(true);
   };
 
-  // Confirm delete event
   const confirmDeleteEvent = () => {
     if (selectedEvent) {
       deleteEventMutation.mutate(selectedEvent.id);
     }
   };
 
-  // Get event status based on dates
   const getEventStatus = (startDate: string, endDate?: string | null) => {
     const start = parseISO(startDate);
     
@@ -311,7 +296,7 @@ const EventsManagement = () => {
 
   const eventColumns = [
     {
-      key: "title" as const,
+      key: "title" as keyof EventItem,
       header: "Event Details",
       render: (value: string, event: EventItem) => (
         <div className="flex items-center space-x-2">
@@ -329,7 +314,7 @@ const EventsManagement = () => {
       sortable: true,
     },
     {
-      key: "date" as const,
+      key: "date" as keyof EventItem,
       header: "Date & Time",
       render: (value: string, event: EventItem) => {
         const startDate = parseISO(event.startDate);
@@ -354,7 +339,7 @@ const EventsManagement = () => {
       sortable: true,
     },
     {
-      key: "location" as const,
+      key: "location" as keyof EventItem,
       header: "Location",
       render: (value: string | null) => (
         <div>
@@ -370,7 +355,7 @@ const EventsManagement = () => {
       ),
     },
     {
-      key: "organizer" as const,
+      key: "organizer" as keyof EventItem,
       header: "Organizer",
       render: (value: string | null) => (
         <div>
@@ -386,7 +371,7 @@ const EventsManagement = () => {
       ),
     },
     {
-      key: "visibility" as const,
+      key: "isPublic" as keyof EventItem,
       header: "Visibility",
       render: (value: boolean | undefined) => (
         <div>
@@ -446,7 +431,7 @@ const EventsManagement = () => {
           </Button>
           {canManageEvents && (
             <Button onClick={() => {
-              form.reset(); // Reset form before opening
+              form.reset();
               setIsAddEventOpen(true);
             }}>
               <Plus className="mr-1 h-4 w-4" />
@@ -538,7 +523,6 @@ const EventsManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Add Event Dialog */}
       <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -725,7 +709,6 @@ const EventsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Event Dialog */}
       <Dialog open={isEditEventOpen} onOpenChange={setIsEditEventOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -737,7 +720,6 @@ const EventsManagement = () => {
           
           <Form {...form}>
             <form onSubmit={handleEditEvent} className="space-y-4">
-              {/* Form fields same as add event */}
               <FormField
                 control={form.control}
                 name="title"
@@ -913,7 +895,6 @@ const EventsManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

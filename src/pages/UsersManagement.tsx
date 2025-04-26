@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -25,6 +24,7 @@ import {
   Trash2,
   Check,
   X,
+  Phone
 } from "lucide-react";
 import {
   Dialog,
@@ -59,6 +59,10 @@ interface UserProfile {
   isActive: boolean;
   lastSignIn?: string;
   children?: number;
+  name?: string;
+  contact?: string;
+  activity?: string;
+  status?: boolean;
 }
 
 const UsersManagement = () => {
@@ -70,14 +74,12 @@ const UsersManagement = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Fetch user data
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
-        // Fetch users with profiles and role information
         const { data, error } = await supabase
           .from('profiles')
           .select(`
@@ -100,9 +102,10 @@ const UsersManagement = () => {
           throw error;
         }
         
-        // Get count of children for parent users
         const childrenCounts = await Promise.all(
-          data.filter(u => u.user_roles && u.user_roles.role === 'parent').map(async (u) => {
+          data.filter(u => {
+            return u.user_roles && typeof u.user_roles === 'object' && u.user_roles.role === 'parent';
+          }).map(async (u) => {
             const { count, error } = await supabase
               .from('parent_children')
               .select('*', { count: 'exact' })
@@ -112,21 +115,26 @@ const UsersManagement = () => {
           })
         );
         
-        // Transform data into the format needed for the UI
         return data.map((item): UserProfile => {
+          const users = item.users || {};
+          const userRoles = item.user_roles || { role: 'parent', is_super_admin: false };
+          
           const childCount = childrenCounts.find(c => c.userId === item.id)?.count || 0;
           
           return {
             id: item.id,
-            email: item.users?.email || '',
+            email: typeof users === 'object' ? users.email || '' : '',
             firstName: item.first_name || '',
             lastName: item.last_name || '',
-            role: item.user_roles?.role || '',
-            roleData: item.user_roles,
+            role: typeof userRoles === 'object' ? userRoles.role || '' : '',
+            roleData: typeof userRoles === 'object' ? {
+              role: userRoles.role || 'parent',
+              is_super_admin: userRoles.is_super_admin || false
+            } : { role: 'parent' },
             phone: item.phone || '',
-            createdAt: item.users?.created_at || '',
-            lastSignIn: item.users?.last_sign_in_at || '',
-            isActive: !!item.users?.last_sign_in_at,
+            createdAt: typeof users === 'object' ? users.created_at || '' : '',
+            lastSignIn: typeof users === 'object' ? users.last_sign_in_at || '' : '',
+            isActive: typeof users === 'object' ? !!users.last_sign_in_at : false,
             children: childCount,
           };
         });
@@ -143,7 +151,6 @@ const UsersManagement = () => {
     enabled: !!user,
   });
 
-  // Filter users based on search term and active tab
   const filteredUsers = users.filter((userItem) => {
     const searchMatch =
       userItem.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -158,7 +165,6 @@ const UsersManagement = () => {
   });
 
   const handleEditUser = (userItem: UserProfile) => {
-    // This will be implemented for editing users
     toast({
       title: "Edit User",
       description: `Editing ${userItem.firstName} ${userItem.lastName} (Feature coming soon)`,
@@ -174,7 +180,6 @@ const UsersManagement = () => {
     if (!selectedUser) return;
     
     try {
-      // Delete user's profile first to avoid foreign key constraints
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -182,7 +187,6 @@ const UsersManagement = () => {
         
       if (profileError) throw profileError;
       
-      // Delete the user from auth (this will cascade delete related records due to foreign key constraints)
       const { error: authError } = await supabase.auth.admin.deleteUser(selectedUser.id);
       
       if (authError) throw authError;
@@ -195,7 +199,6 @@ const UsersManagement = () => {
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
       
-      // Refresh the user list
       queryClient.invalidateQueries({ queryKey: ["users"] });
       
     } catch (error: any) {
@@ -210,7 +213,7 @@ const UsersManagement = () => {
 
   const userColumns = [
     {
-      key: "name" as const,
+      key: "name" as keyof UserProfile,
       header: "Name",
       render: (value: string, userItem: UserProfile) => (
         <div className="flex items-center space-x-2">
@@ -228,7 +231,7 @@ const UsersManagement = () => {
       sortable: true,
     },
     {
-      key: "role" as const,
+      key: "role" as keyof UserProfile,
       header: "Role",
       render: (value: string) => {
         let color = "";
@@ -262,7 +265,7 @@ const UsersManagement = () => {
       sortable: true,
     },
     {
-      key: "children" as const,
+      key: "children" as keyof UserProfile,
       header: "Children",
       render: (value: number, userItem: UserProfile) => (
         <div className="text-center">
@@ -277,7 +280,7 @@ const UsersManagement = () => {
       ),
     },
     {
-      key: "contact" as const,
+      key: "contact" as keyof UserProfile,
       header: "Contact Info",
       render: (value: string, userItem: UserProfile) => (
         <div className="space-y-1">
@@ -295,7 +298,7 @@ const UsersManagement = () => {
       ),
     },
     {
-      key: "activity" as const,
+      key: "activity" as keyof UserProfile,
       header: "Account Activity",
       render: (value: string, userItem: UserProfile) => (
         <div className="text-xs text-gray-500">
@@ -312,7 +315,7 @@ const UsersManagement = () => {
       ),
     },
     {
-      key: "status" as const,
+      key: "status" as keyof UserProfile,
       header: "Status",
       render: (value: boolean) => (
         <div className="flex items-center">

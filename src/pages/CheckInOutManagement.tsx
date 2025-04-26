@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -48,6 +47,9 @@ interface AttendanceRecord {
   checkedOutAt?: string;
   checkedInBy?: string;
   checkedOutBy?: string;
+  allergies?: string | null;
+  elapsedTime?: string;
+  status?: string;
 }
 
 const CheckInOutManagement = () => {
@@ -59,10 +61,8 @@ const CheckInOutManagement = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Use the realtime attendance hook
   const { todayCount, refreshData } = useRealtimeAttendance({
     onCheckIn: () => {
-      // Refresh the data when a new check-in occurs
       queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
       toast({
         title: "New Check-in",
@@ -70,7 +70,6 @@ const CheckInOutManagement = () => {
       });
     },
     onCheckOut: () => {
-      // Refresh the data when a check-out occurs
       queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
       toast({
         title: "Check-out",
@@ -79,17 +78,14 @@ const CheckInOutManagement = () => {
     },
   });
 
-  // Fetch attendance records
   const { data: attendanceRecords = [], isLoading } = useQuery({
     queryKey: ["attendance-records"],
     queryFn: async () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
-        // Get today's date
         const today = new Date().toISOString().split('T')[0];
         
-        // Get all attendance records for today
         const { data, error } = await supabase
           .from('attendance')
           .select(`
@@ -108,7 +104,6 @@ const CheckInOutManagement = () => {
           
         if (error) throw error;
         
-        // Transform the data
         return data.map((record): AttendanceRecord => {
           const firstName = record.children?.first_name || '';
           const lastName = record.children?.last_name || '';
@@ -139,7 +134,6 @@ const CheckInOutManagement = () => {
     enabled: !!user,
   });
 
-  // Checkout mutation
   const checkoutMutation = useMutation({
     mutationFn: async (recordId: string) => {
       if (!user) throw new Error("User not authenticated");
@@ -174,7 +168,6 @@ const CheckInOutManagement = () => {
     }
   });
 
-  // Filter records based on search term and active tab
   const filteredRecords = attendanceRecords.filter((record) => {
     const searchMatch =
       record.childName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -187,20 +180,17 @@ const CheckInOutManagement = () => {
     return searchMatch;
   });
 
-  // Handle checkout button click
   const handleCheckoutClick = (record: AttendanceRecord) => {
     setSelectedRecord(record);
     setIsCheckoutDialogOpen(true);
   };
   
-  // Handle checkout confirmation
   const confirmCheckout = () => {
     if (selectedRecord) {
       checkoutMutation.mutate(selectedRecord.id);
     }
   };
-  
-  // Stats cards data
+
   const statsData = [
     {
       title: "Currently Present",
@@ -224,7 +214,7 @@ const CheckInOutManagement = () => {
 
   const attendanceColumns = [
     {
-      key: "childName" as const,
+      key: "childName" as keyof AttendanceRecord,
       header: "Child",
       render: (value: string, record: AttendanceRecord) => (
         <div className="flex items-center space-x-2">
@@ -246,7 +236,7 @@ const CheckInOutManagement = () => {
       sortable: true,
     },
     {
-      key: "className" as const,
+      key: "className" as keyof AttendanceRecord,
       header: "Class",
       render: (value: string | undefined) => (
         <div className="flex items-center">
@@ -262,7 +252,7 @@ const CheckInOutManagement = () => {
       ),
     },
     {
-      key: "checkedInAt" as const,
+      key: "checkedInAt" as keyof AttendanceRecord,
       header: "Check-in Time",
       render: (value: string) => (
         <div className="flex items-center">
@@ -273,7 +263,7 @@ const CheckInOutManagement = () => {
       sortable: true,
     },
     {
-      key: "checkedOutAt" as const,
+      key: "checkedOutAt" as keyof AttendanceRecord,
       header: "Check-out Time",
       render: (value: string | undefined) => (
         value ? (
@@ -290,7 +280,7 @@ const CheckInOutManagement = () => {
       sortable: true,
     },
     {
-      key: "elapsedTime" as const,
+      key: "elapsedTime" as keyof AttendanceRecord,
       header: "Time Elapsed",
       render: (value: string, record: AttendanceRecord) => {
         const checkedInTime = new Date(record.checkedInAt).getTime();
@@ -310,7 +300,7 @@ const CheckInOutManagement = () => {
       },
     },
     {
-      key: "status" as const,
+      key: "status" as keyof AttendanceRecord,
       header: "Status",
       render: (value: any, record: AttendanceRecord) => (
         record.checkedOutAt ? (
@@ -440,7 +430,6 @@ const CheckInOutManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Checkout Confirmation Dialog */}
       <AlertDialog open={isCheckoutDialogOpen} onOpenChange={setIsCheckoutDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

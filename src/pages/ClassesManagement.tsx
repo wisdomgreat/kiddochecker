@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -46,6 +45,7 @@ interface ClassItem {
   teacherCount: number;
   studentCount: number;
   teachers?: Array<{id: string, userId: string, firstName?: string, lastName?: string}>;
+  status?: string;
 }
 
 const ClassesManagement = () => {
@@ -58,10 +58,8 @@ const ClassesManagement = () => {
   const queryClient = useQueryClient();
   const { userRole, user } = useAuth();
 
-  // Determine if user can manage classes
   const canManageClasses = ["admin", "super_admin"].includes(userRole || "");
 
-  // Fetch classes
   const { data: classes = [], isLoading } = useQuery({
     queryKey: ["classes"],
     queryFn: async () => {
@@ -82,7 +80,6 @@ const ClassesManagement = () => {
 
         if (error) throw error;
 
-        // Get teacher names
         const teacherIds = data.flatMap(c => c.teachers?.map(t => t.user_id) || []);
         let teacherProfiles = {};
         
@@ -100,7 +97,6 @@ const ClassesManagement = () => {
           }
         }
         
-        // Get student count from attendance for each class
         const today = new Date().toISOString().split('T')[0];
         const studentCounts = await Promise.all(
           data.map(async (classItem) => {
@@ -115,10 +111,10 @@ const ClassesManagement = () => {
           })
         );
 
-        // Process the data and include counts for teachers and students
         return data.map((classItem) => {
           const teachersWithNames = classItem.teachers?.map(teacher => ({
-            ...teacher,
+            id: teacher.id,
+            userId: teacher.user_id,
             firstName: teacherProfiles[teacher.user_id]?.first_name,
             lastName: teacherProfiles[teacher.user_id]?.last_name
           })) || [];
@@ -147,10 +143,9 @@ const ClassesManagement = () => {
         return [];
       }
     },
-    enabled: !!user, // Only run query when user is authenticated
+    enabled: !!user,
   });
 
-  // Delete class mutation
   const deleteClassMutation = useMutation({
     mutationFn: async (classId: string) => {
       const { error } = await supabase
@@ -180,7 +175,6 @@ const ClassesManagement = () => {
     }
   });
 
-  // Filter classes based on search term
   const filteredClasses = classes.filter((classItem) => {
     return (
       classItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -216,7 +210,7 @@ const ClassesManagement = () => {
 
   const classColumns = [
     {
-      key: "name" as const,
+      key: "name" as keyof ClassItem,
       header: "Class Name",
       render: (value: string, classItem: ClassItem) => (
         <div className="flex items-center space-x-2">
@@ -234,7 +228,7 @@ const ClassesManagement = () => {
       sortable: true,
     },
     {
-      key: "description" as const,
+      key: "description" as keyof ClassItem,
       header: "Details",
       render: (value: string | null, classItem: ClassItem) => (
         <div className="space-y-1">
@@ -254,7 +248,7 @@ const ClassesManagement = () => {
       ),
     },
     {
-      key: "teachers" as const,
+      key: "teachers" as keyof ClassItem,
       header: "Teachers",
       render: (value: any, classItem: ClassItem) => (
         <div>
@@ -291,7 +285,7 @@ const ClassesManagement = () => {
       ),
     },
     {
-      key: "capacity" as const,
+      key: "capacity" as keyof ClassItem,
       header: "Capacity",
       render: (value: number | null, classItem: ClassItem) => (
         <div>
@@ -310,10 +304,9 @@ const ClassesManagement = () => {
       sortable: true,
     },
     {
-      key: "status" as const,
+      key: "status" as keyof ClassItem,
       header: "Status",
       render: (value: any, classItem: ClassItem) => {
-        // Determine class status based on capacity
         const isFull = classItem.capacity !== null && classItem.studentCount >= classItem.capacity;
         const isNearCapacity = classItem.capacity !== null && classItem.studentCount >= classItem.capacity * 0.8;
         
@@ -434,14 +427,12 @@ const ClassesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Add Class Dialog */}
       <AddClassForm 
         open={isAddClassOpen} 
         onOpenChange={setIsAddClassOpen}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["classes"] })}
       />
 
-      {/* Assign Teacher Dialog */}
       {selectedClass && (
         <AssignTeacherForm 
           open={isAssignTeacherOpen} 
@@ -452,7 +443,6 @@ const ClassesManagement = () => {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -36,38 +35,24 @@ import {
 } from "lucide-react";
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 
-// Chart color constants
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
-
-// Define the different report types
-type ReportType = "attendance" | "classes" | "demographics";
-type TimeRange = "day" | "week" | "month" | "quarter";
-
-interface AttendanceData {
-  date: string;
-  count: number;
-}
-
-interface ClassData {
-  name: string;
-  students: number;
-}
-
 const ReportsDashboard = () => {
   const [reportType, setReportType] = useState<ReportType>("attendance");
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [chartType, setChartType] = useState<"bar" | "line" | "pie">("bar");
+  const [isReportGeneratorOpen, setIsReportGeneratorOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch attendance data
+  const handleReportGeneratorClose = () => {
+    setIsReportGeneratorOpen(false);
+  };
+
   const { data: attendanceData = [], isLoading: isLoadingAttendance } = useQuery({
     queryKey: ["attendance-reports", timeRange],
     queryFn: async () => {
       try {
         if (!user) throw new Error("User not authenticated");
 
-        // Define date range based on selected time range
         let startDate: Date;
         const endDate = new Date();
         
@@ -88,11 +73,9 @@ const ReportsDashboard = () => {
             startDate = subDays(new Date(), 7);
         }
 
-        // Generate the days in the range
         const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
         const formattedDateRange = dateRange.map(date => format(date, "yyyy-MM-dd"));
         
-        // Get attendance data
         const { data, error } = await supabase
           .from('attendance')
           .select('attendance_date, count')
@@ -101,13 +84,11 @@ const ReportsDashboard = () => {
 
         if (error) throw error;
 
-        // Create a map to count occurrences of each date
         const attendanceCounts = formattedDateRange.reduce((acc, date) => {
           acc[date] = 0;
           return acc;
         }, {} as Record<string, number>);
 
-        // Fill in the actual counts from the database
         data.forEach(item => {
           const dateString = item.attendance_date;
           if (attendanceCounts[dateString] !== undefined) {
@@ -115,7 +96,6 @@ const ReportsDashboard = () => {
           }
         });
 
-        // Transform into the format needed for charts
         return Object.entries(attendanceCounts).map(([date, count]) => ({
           date: format(new Date(date), "MMM d"),
           count
@@ -133,21 +113,18 @@ const ReportsDashboard = () => {
     enabled: !!user,
   });
 
-  // Fetch class data
   const { data: classData = [], isLoading: isLoadingClasses } = useQuery({
     queryKey: ["class-reports"],
     queryFn: async () => {
       try {
         if (!user) throw new Error("User not authenticated");
 
-        // Get all classes
         const { data: classes, error: classesError } = await supabase
           .from('classes')
           .select('id, name');
 
         if (classesError) throw classesError;
 
-        // Count students in each class from attendance
         const today = new Date().toISOString().split('T')[0];
         
         const classDataWithCounts = await Promise.all(
@@ -180,21 +157,18 @@ const ReportsDashboard = () => {
     enabled: !!user,
   });
 
-  // Fetch demographic data (age distribution)
   const { data: demographicData = [], isLoading: isLoadingDemographics } = useQuery({
     queryKey: ["demographic-reports"],
     queryFn: async () => {
       try {
         if (!user) throw new Error("User not authenticated");
 
-        // Get age distribution from children table
         const { data, error } = await supabase
           .from('children')
           .select('age');
 
         if (error) throw error;
 
-        // Group by age and count
         const ageDistribution = data.reduce((acc, child) => {
           const age = child.age || 'Unknown';
           if (!acc[age]) {
@@ -204,7 +178,6 @@ const ReportsDashboard = () => {
           return acc;
         }, {} as Record<string | number, number>);
 
-        // Transform into the format needed for charts
         return Object.entries(ageDistribution).map(([age, count]) => ({
           age: age === 'null' ? 'Unknown' : age,
           count
@@ -222,13 +195,11 @@ const ReportsDashboard = () => {
     enabled: !!user,
   });
 
-  // Determine if data is loading based on the report type
   const isLoading = 
     (reportType === "attendance" && isLoadingAttendance) ||
     (reportType === "classes" && isLoadingClasses) ||
     (reportType === "demographics" && isLoadingDemographics);
 
-  // Get the data for the current report type
   const getCurrentData = () => {
     switch (reportType) {
       case "attendance":
@@ -242,17 +213,14 @@ const ReportsDashboard = () => {
     }
   };
 
-  // Handle export functionality
   const handleExport = () => {
     const data = getCurrentData();
     const filename = `${reportType}-report-${format(new Date(), "yyyy-MM-dd")}`;
     
-    // Convert to CSV
     const headers = Object.keys(data[0] || {}).join(',');
     const rows = data.map(row => Object.values(row).join(','));
     const csv = [headers, ...rows].join('\n');
     
-    // Download the file
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -267,7 +235,6 @@ const ReportsDashboard = () => {
     });
   };
 
-  // Render the chart based on report type and chart type
   const renderChart = () => {
     const data = getCurrentData();
     
@@ -504,7 +471,11 @@ const ReportsDashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ReportGenerator />
+            <ReportGenerator 
+              open={isReportGeneratorOpen} 
+              onOpenChange={setIsReportGeneratorOpen}
+              onClose={handleReportGeneratorClose}
+            />
           </CardContent>
         </Card>
       </div>

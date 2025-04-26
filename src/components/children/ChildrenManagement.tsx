@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +44,10 @@ interface Child {
   emergencyContactPhone?: string | null;
   hasGuardianApproval?: boolean;
   relationship?: string;
+  relationshipId: string;
+  health?: string;
+  emergency?: string;
+  approval?: boolean;
 }
 
 interface EditChildFormValues {
@@ -67,7 +70,6 @@ const ChildrenManagement = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Form for editing child
   const form = useForm<EditChildFormValues>({
     defaultValues: {
       firstName: "",
@@ -87,7 +89,6 @@ const ChildrenManagement = () => {
       if (!user) return [];
       
       try {
-        // Get children and relationship info
         const { data, error } = await supabase
           .from("parent_children")
           .select(`
@@ -112,7 +113,6 @@ const ChildrenManagement = () => {
           throw error;
         }
         
-        // Transform the data to match the Child interface
         return data.map((item) => ({
           id: item.children.id,
           firstName: item.children.first_name,
@@ -140,12 +140,10 @@ const ChildrenManagement = () => {
     enabled: !!user,
   });
 
-  // Delete child mutation
   const deleteChildMutation = useMutation({
     mutationFn: async (childId: string) => {
       if (!selectedChild) return;
       
-      // Delete the parent-child relationship
       const { error: relationshipError } = await supabase
         .from("parent_children")
         .delete()
@@ -154,7 +152,6 @@ const ChildrenManagement = () => {
       
       if (relationshipError) throw relationshipError;
       
-      // Delete the child record
       const { error } = await supabase
         .from("children")
         .delete()
@@ -184,12 +181,10 @@ const ChildrenManagement = () => {
     }
   });
   
-  // Update child mutation
   const updateChildMutation = useMutation({
     mutationFn: async (data: { childId: string, values: EditChildFormValues, relationshipId: string }) => {
       const { childId, values, relationshipId } = data;
       
-      // Update child record
       const { error: childError } = await supabase
         .from("children")
         .update({
@@ -205,7 +200,6 @@ const ChildrenManagement = () => {
       
       if (childError) throw childError;
       
-      // Update relationship
       const { error: relationshipError } = await supabase
         .from("parent_children")
         .update({
@@ -237,7 +231,6 @@ const ChildrenManagement = () => {
     }
   });
   
-  // Toggle guardian approval mutation
   const toggleApprovalMutation = useMutation({
     mutationFn: async ({ childId, hasApproval }: { childId: string, hasApproval: boolean }) => {
       const { error } = await supabase
@@ -309,7 +302,7 @@ const ChildrenManagement = () => {
 
   const childColumns = [
     {
-      key: "firstName" as const,
+      key: "firstName" as keyof Child,
       header: "Name",
       render: (value: string, child: Child) => (
         <div>
@@ -322,7 +315,7 @@ const ChildrenManagement = () => {
       ),
     },
     {
-      key: "health" as const,
+      key: "health" as keyof Child,
       header: "Health Info",
       render: (value: string | null, child: Child) => (
         <div className="space-y-1">
@@ -343,7 +336,7 @@ const ChildrenManagement = () => {
       ),
     },
     {
-      key: "emergency" as const,
+      key: "emergency" as keyof Child,
       header: "Emergency Contact",
       render: (value: any, child: Child) => (
         <div className="space-y-1">
@@ -364,7 +357,7 @@ const ChildrenManagement = () => {
       ),
     },
     {
-      key: "approval" as const,
+      key: "approval" as keyof Child,
       header: "Guardian Approval",
       render: (value: any, child: Child) => (
         <div>
@@ -469,7 +462,6 @@ const ChildrenManagement = () => {
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ["children"] })}
       />
       
-      {/* Edit Child Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
