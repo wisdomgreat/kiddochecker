@@ -333,7 +333,13 @@ const AppearanceSettings = () => {
                         field.onChange(value);
                         // Preview theme change immediately
                         const currentSettings = form.getValues();
-                        applyThemeSettings({...currentSettings, theme: value as "light" | "dark" | "system"});
+                        applyThemeSettings({
+                          theme: value as "light" | "dark" | "system",
+                          colorScheme: currentSettings.colorScheme,
+                          highContrast: currentSettings.highContrast,
+                          largeText: currentSettings.largeText,
+                          animations: currentSettings.animations
+                        });
                       }}
                       value={field.value}
                       className="grid grid-cols-3 gap-4"
@@ -403,7 +409,15 @@ const AppearanceSettings = () => {
                           
                           // Preview color change immediately
                           const currentSettings = form.getValues();
-                          applyThemeSettings({...currentSettings, colorScheme: option.value});
+                          // Ensure we're using a type-safe value for colorScheme
+                          const typeSafeColorScheme = option.value as "purple" | "blue" | "green" | "orange";
+                          applyThemeSettings({
+                            theme: currentSettings.theme,
+                            colorScheme: typeSafeColorScheme,
+                            highContrast: currentSettings.highContrast,
+                            largeText: currentSettings.largeText,
+                            animations: currentSettings.animations
+                          });
                         }}
                       >
                         <div 
@@ -452,7 +466,13 @@ const AppearanceSettings = () => {
                         
                         // Preview contrast change immediately
                         const currentSettings = form.getValues();
-                        applyThemeSettings({...currentSettings, highContrast: checked});
+                        applyThemeSettings({
+                          theme: currentSettings.theme,
+                          colorScheme: currentSettings.colorScheme,
+                          highContrast: checked,
+                          largeText: currentSettings.largeText,
+                          animations: currentSettings.animations
+                        });
                       }}
                     />
                   </FormControl>
@@ -478,7 +498,13 @@ const AppearanceSettings = () => {
                         
                         // Preview text size change immediately
                         const currentSettings = form.getValues();
-                        applyThemeSettings({...currentSettings, largeText: checked});
+                        applyThemeSettings({
+                          theme: currentSettings.theme,
+                          colorScheme: currentSettings.colorScheme,
+                          highContrast: currentSettings.highContrast,
+                          largeText: checked,
+                          animations: currentSettings.animations
+                        });
                       }}
                     />
                   </FormControl>
@@ -504,7 +530,13 @@ const AppearanceSettings = () => {
                         
                         // Preview animation change immediately
                         const currentSettings = form.getValues();
-                        applyThemeSettings({...currentSettings, animations: checked});
+                        applyThemeSettings({
+                          theme: currentSettings.theme,
+                          colorScheme: currentSettings.colorScheme,
+                          highContrast: currentSettings.highContrast,
+                          largeText: currentSettings.largeText,
+                          animations: checked
+                        });
                       }}
                     />
                   </FormControl>
