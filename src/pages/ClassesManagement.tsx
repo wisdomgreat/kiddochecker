@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { ClassTeacher } from "@/types/supabase";
 import {
   Search,
   Book,
@@ -84,12 +85,12 @@ const ClassesManagement = () => {
         if (error) throw error;
         
         const { data: teachersData, error: teachersError } = await supabase
-          .from("class_teachers")
+          .from("teachers")
           .select(`
             id,
             class_id,
             user_id,
-            profiles (
+            profiles:user_id (
               first_name,
               last_name
             )
@@ -99,25 +100,37 @@ const ClassesManagement = () => {
         
         const { data: studentCounts, error: studentCountsError } = await supabase
           .from("attendance")
-          .select("class_id, count", { count: 'exact' })
+          .select("class_id, count")
           .is('checked_out_at', null)
-          .groupBy("class_id");
-          
-        if (studentCountsError) throw studentCountsError;
+          .then(result => {
+            if (result.error) throw result.error;
+            
+            const counts = new Map();
+            if (result.data) {
+              result.data.forEach(record => {
+                if (record.class_id) {
+                  const currentCount = counts.get(record.class_id) || 0;
+                  counts.set(record.class_id, currentCount + 1);
+                }
+              });
+            }
+            
+            return Array.from(counts.entries()).map(([class_id, count]) => ({ 
+              class_id, 
+              count 
+            }));
+          });
         
         return data.map((item): ClassItem => {
-          const teacherCount = teachersData.filter(teacher => teacher.class_id === item.id).length;
-          const studentCount = studentCounts.find(count => count.class_id === item.id)?.count || 0;
+          const classTeachers = teachersData?.filter(teacher => teacher.class_id === item.id) || [];
+          const studentCount = studentCounts?.find(count => count.class_id === item.id)?.count || 0;
           
-          // Fix the teachers property to match ClassItem interface
-          const teachersList = teachersData
-            .filter(teacher => teacher.class_id === item.id)
-            .map(teacher => ({
-              id: teacher.id,
-              userId: teacher.user_id,
-              firstName: teacher.profiles?.first_name,
-              lastName: teacher.profiles?.last_name
-            }));
+          const teachersList = classTeachers.map(teacher => ({
+            id: teacher.id,
+            userId: teacher.user_id,
+            firstName: teacher.profiles?.first_name,
+            lastName: teacher.profiles?.last_name
+          }));
             
           return {
             id: item.id,
@@ -127,7 +140,7 @@ const ClassesManagement = () => {
             capacity: item.capacity || 0,
             room: item.room || '',
             teacherCount: teachersList.length,
-            studentCount: studentCount || 0,
+            studentCount: Number(studentCount) || 0,
             teachers: teachersList,
           };
         });
