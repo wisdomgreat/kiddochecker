@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -111,15 +110,13 @@ const UsersManagement = () => {
           throw error;
         }
         
-        // Safely filter out items that might not have user_roles
         const childrenCounts = await Promise.all(
           data.filter(u => {
-            // Make sure user_roles exists, is an object, has a role property,
-            // and that role is 'parent'
-            return u.user_roles !== null && 
-                  typeof u.user_roles === 'object' && 
-                  u.user_roles !== undefined &&
-                  'role' in u.user_roles && 
+            return u !== null && 
+                  u.user_roles !== null && 
+                  u.user_roles !== undefined && 
+                  typeof u.user_roles === 'object' &&
+                  u.user_roles && 'role' in u.user_roles && 
                   u.user_roles.role === 'parent';
           }).map(async (u) => {
             const { count, error } = await supabase
@@ -134,15 +131,14 @@ const UsersManagement = () => {
         return data.map((item): UserProfile => {
           const usersData = item.users && typeof item.users === 'object' ? item.users : {};
           
-          // Safely handle potentially null user_roles
           const userRoles = item.user_roles && typeof item.user_roles === 'object' 
             ? item.user_roles 
             : { role: 'parent' as AppRole, is_super_admin: false };
           
           const childCount = childrenCounts.find(c => c.userId === item.id)?.count || 0;
           
-          // Safely extract role with fallbacks
           const userRole = userRoles && 
+                          typeof userRoles === 'object' &&
                           'role' in userRoles && 
                           userRoles.role 
             ? userRoles.role as AppRole
@@ -157,6 +153,7 @@ const UsersManagement = () => {
             roleData: {
               role: userRole,
               is_super_admin: userRoles && 
+                             typeof userRoles === 'object' &&
                              'is_super_admin' in userRoles ? 
                               !!userRoles.is_super_admin : false
             },

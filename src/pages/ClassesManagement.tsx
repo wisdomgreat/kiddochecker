@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -118,25 +117,19 @@ const ClassesManagement = () => {
           const teachersList = classTeachers
             .filter(teacher => teacher && typeof teacher === 'object')
             .map(teacher => {
-              // Safely handle potentially null profileData
-              // Initialize profileData as null or the actual value
               const profileData = teacher.profiles || null;
               
-              // Default values for firstName and lastName
               let firstName = '';
               let lastName = '';
               
-              // Only try to access properties if profileData is not null
-              if (profileData !== null && 
-                  typeof profileData === 'object' && 
-                  'first_name' in profileData) {
-                firstName = String(profileData.first_name || '');
-              }
-              
-              if (profileData !== null && 
-                  typeof profileData === 'object' && 
-                  'last_name' in profileData) {
-                lastName = String(profileData.last_name || '');
+              if (profileData !== null && typeof profileData === 'object') {
+                if ('first_name' in profileData && profileData.first_name !== null) {
+                  firstName = String(profileData.first_name || '');
+                }
+                
+                if ('last_name' in profileData && profileData.last_name !== null) {
+                  lastName = String(profileData.last_name || '');
+                }
               }
               
               return {
