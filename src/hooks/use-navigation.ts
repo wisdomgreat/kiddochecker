@@ -24,5 +24,8 @@ export const useNavigation = () => {
     navigateToCheckInOut: () => goTo("/check-in-out"),
     navigateToRolesManagement: () => goTo("/roles-management"),
     navigateToKioskManagement: () => goTo("/kiosk-management"),
+    // Add the missing navigation method
+    navigateToCheckInProcess: () => goTo("/check-in-process"),
   };
 };
+
