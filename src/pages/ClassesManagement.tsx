@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -117,21 +118,32 @@ const ClassesManagement = () => {
           const teachersList = classTeachers
             .filter(teacher => teacher && typeof teacher === 'object')
             .map(teacher => {
-              const profileData = teacher.profiles;
+              // Safely handle potentially null profileData
+              // Initialize profileData as null or the actual value
+              const profileData = teacher.profiles || null;
+              
+              // Default values for firstName and lastName
+              let firstName = '';
+              let lastName = '';
+              
+              // Only try to access properties if profileData is not null
+              if (profileData !== null && 
+                  typeof profileData === 'object' && 
+                  'first_name' in profileData) {
+                firstName = String(profileData.first_name || '');
+              }
+              
+              if (profileData !== null && 
+                  typeof profileData === 'object' && 
+                  'last_name' in profileData) {
+                lastName = String(profileData.last_name || '');
+              }
               
               return {
                 id: teacher.id,
                 userId: teacher.user_id,
-                firstName: profileData && 
-                  typeof profileData === 'object' && 
-                  profileData !== null && 
-                  'first_name' in profileData ? 
-                    String(profileData.first_name || '') : '',
-                lastName: profileData && 
-                  typeof profileData === 'object' && 
-                  profileData !== null && 
-                  'last_name' in profileData ? 
-                    String(profileData.last_name || '') : ''
+                firstName,
+                lastName
               };
             });
           
