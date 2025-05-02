@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -140,9 +139,8 @@ const UsersManagement = () => {
         
         // Map the RPC function result to our expected format
         return data.map((item: any): UserProfile => {
-          // Ensure we handle the type safely
-          const role = item.role as AppRole || 'parent';
-          const is_super_admin = typeof item.is_super_admin === 'boolean' ? item.is_super_admin : false;
+          // Ensure we handle the type safely with proper default values
+          const role = (item.role as AppRole) || 'parent';
           
           return {
             id: item.id,
@@ -152,11 +150,11 @@ const UsersManagement = () => {
             role: role,
             roleData: {
               role: role,
-              is_super_admin: is_super_admin
+              is_super_admin: Boolean(item.is_super_admin)
             },
-            phone: item.phone || '',  // Add this if available in your RPC
-            createdAt: item.created_at || '',  // Add this if available in your RPC
-            isActive: item.is_active || false,
+            phone: item.phone || '',
+            createdAt: item.created_at || '',
+            isActive: Boolean(item.is_active),
             children: 0,     // This would need a separate query
           };
         });
