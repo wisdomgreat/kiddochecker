@@ -127,7 +127,7 @@ const UsersManagement = () => {
               role: userRole.role as AppRole || 'parent',
               roleData: {
                 role: userRole.role as AppRole || 'parent',
-                is_super_admin: userRole.is_super_admin || false
+                is_super_admin: Boolean(userRole.is_super_admin)
               },
               phone: profile.phone || '',
               createdAt: '',  // We don't have access to this directly
@@ -150,7 +150,8 @@ const UsersManagement = () => {
             role: role,
             roleData: {
               role: role,
-              is_super_admin: Boolean(item.is_super_admin)
+              // Safely handle is_super_admin property by ensuring it's a boolean
+              is_super_admin: item.is_super_admin !== undefined ? Boolean(item.is_super_admin) : false
             },
             phone: item.phone || '',
             createdAt: item.created_at || '',
