@@ -73,7 +73,7 @@ export function useRealtimeUpdates() {
           setHasNewActivity(true);
           
           const event = payload.eventType;
-          const actionMap = {
+          const actionMap: Record<string, string> = {
             INSERT: 'checked in',
             UPDATE: 'updated',
             DELETE: 'removed'
@@ -213,7 +213,7 @@ async function fetchClassStatus(): Promise<ClassStatusItem[]> {
     }
 
     // Count teachers per class
-    const teacherCounts = teacherData?.reduce((acc: Record<string, number>, teacher) => {
+    const teacherCounts: Record<string, number> = teacherData?.reduce((acc: Record<string, number>, teacher) => {
       if (teacher.class_id) {
         acc[teacher.class_id] = (acc[teacher.class_id] || 0) + 1;
       }

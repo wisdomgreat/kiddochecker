@@ -61,6 +61,11 @@ interface ClassItem {
   status?: string;
 }
 
+interface TeacherProfile {
+  first_name?: string;
+  last_name?: string;
+}
+
 const ClassesManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -123,22 +128,14 @@ const ClassesManagement = () => {
           const teachersList = (classTeachers || [])
             .filter(teacher => teacher && typeof teacher === 'object')
             .map(teacher => {
-              // Get profile data safely
-              const profileData = teacher.profiles || {};
-              
-              let firstName = '';
-              let lastName = '';
-              
-              if (profileData && typeof profileData === 'object') {
-                firstName = profileData.first_name || '';
-                lastName = profileData.last_name || '';
-              }
+              // Type safety for profiles data
+              const profileData = teacher.profiles as TeacherProfile || {};
               
               return {
                 id: teacher.id,
                 userId: teacher.user_id,
-                firstName,
-                lastName
+                firstName: profileData?.first_name || '',
+                lastName: profileData?.last_name || ''
               };
             });
           
