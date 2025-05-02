@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import {
@@ -89,38 +88,42 @@ const RolesManagement = () => {
     queryKey: ["users-with-roles"],
     queryFn: async () => {
       try {
-        const { data: staffData, error: staffError } = await supabase.rpc("get_staff_members");
+        // Try to use our new RPC function
+        const { data: userData, error: userError } = await supabase
+          .rpc("get_users_with_roles");
         
-        if (staffError) throw staffError;
-        
-        const { data: parentRoles, error: parentError } = await supabase
-          .from("user_roles")
-          .select("*, profiles(*)")
-          .eq("role", "parent");
+        if (userError) {
+          console.error("Error using get_users_with_roles RPC:", userError);
           
-        if (parentError) throw parentError;
+          // Fall back to the staff members function
+          const { data: staffData, error: staffError } = await supabase
+            .rpc("get_staff_members");
+          
+          if (staffError) throw staffError;
+          
+          const staffMembers = (staffData || []).map((staff: any) => ({
+            id: staff.user_id,
+            email: staff.email || '',
+            firstName: staff.first_name || '',
+            lastName: staff.last_name || '',
+            role: staff.role || 'parent',
+            isSuperAdmin: staff.is_super_admin || false,
+            isActive: staff.is_active || false,
+          }));
+          
+          return staffMembers;
+        }
         
-        const staffMembers = staffData.map((staff: any) => ({
-          id: staff.user_id,
-          email: staff.email,
-          firstName: staff.first_name || '',
-          lastName: staff.last_name || '',
-          role: staff.role,
-          isSuperAdmin: staff.is_super_admin,
-          isActive: staff.is_active,
+        // Map the data to our expected format
+        return (userData || []).map((user: any) => ({
+          id: user.id,
+          email: user.email || '',
+          firstName: user.first_name || '',
+          lastName: user.last_name || '',
+          role: user.role || 'parent',
+          isSuperAdmin: user.is_super_admin || false,
+          isActive: user.is_active || false,
         }));
-        
-        const parentMembers = (parentRoles || []).map((parent: any) => ({
-          id: parent.user_id,
-          email: '',
-          firstName: parent.profiles?.first_name || '',
-          lastName: parent.profiles?.last_name || '',
-          role: 'parent',
-          isSuperAdmin: parent.is_super_admin,
-          isActive: true,
-        }));
-        
-        return [...staffMembers, ...parentMembers];
       } catch (error: any) {
         console.error("Error fetching users with roles:", error);
         toast({

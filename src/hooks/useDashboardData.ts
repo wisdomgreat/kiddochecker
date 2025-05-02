@@ -80,7 +80,7 @@ export function useRealtimeUpdates() {
           };
           
           toast({
-            title: `Attendance ${actionMap[event] || 'changed'}`,
+            title: `Attendance ${actionMap[event as keyof typeof actionMap] || 'changed'}`,
             description: "New activity has been recorded",
           });
         }
@@ -126,28 +126,37 @@ async function fetchRecentActivity(): Promise<ActivityRecord[]> {
   try {
     const todayDate = new Date().toISOString().split('T')[0];
     
-    const { data: checkedIn, error: checkedInError } = await supabase
+    // Use a direct join approach instead of relying on implicit relationships
+    const { data, error } = await supabase
       .from('attendance')
       .select(`
         id,
-        child_id,
         checked_in_at,
         checked_out_at,
-        children(first_name, last_name),
-        classes(name)
+        attendance_date,
+        child:child_id (
+          first_name,
+          last_name
+        ),
+        class:class_id (
+          name
+        )
       `)
       .eq('attendance_date', todayDate)
       .order('checked_in_at', { ascending: false })
       .limit(10);
 
-    if (checkedInError) {
-      console.error("Error fetching activity data:", checkedInError);
-      throw new Error(`Failed to fetch activity data: ${checkedInError.message}`);
+    if (error) {
+      console.error("Error fetching activity data:", error);
+      throw new Error(`Failed to fetch activity data: ${error.message}`);
     }
 
-    return checkedIn.map((record) => {
-      const childName = `${record.children?.first_name || ''} ${record.children?.last_name || ''}`;
-      const className = record.classes?.name || 'Unknown Class';
+    return (data || []).map((record) => {
+      // Safe access to nested properties
+      const firstName = record.child?.first_name || '';
+      const lastName = record.child?.last_name || '';
+      const childName = `${firstName} ${lastName}`;
+      const className = record.class?.name || 'Unknown Class';
       const status = record.checked_out_at ? 'Checked out' : 'Checked in';
       const time = record.checked_out_at 
         ? new Date(record.checked_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
@@ -169,13 +178,10 @@ async function fetchRecentActivity(): Promise<ActivityRecord[]> {
 
 async function fetchClassStatus(): Promise<ClassStatusItem[]> {
   try {
+    // Get all classes
     const { data, error } = await supabase
       .from('classes')
-      .select(`
-        id,
-        name,
-        capacity
-      `);
+      .select('id, name, capacity');
 
     if (error) {
       console.error("Error fetching class status:", error);
@@ -183,34 +189,51 @@ async function fetchClassStatus(): Promise<ClassStatusItem[]> {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    const classesWithCounts = await Promise.all(data.map(async (classItem) => {
-      const { count: childrenCount, error: childrenError } = await supabase
-        .from('attendance')
-        .select('id', { count: 'exact' })
-        .eq('class_id', classItem.id)
-        .eq('attendance_date', today)
-        .is('checked_out_at', null);
+    
+    // Get attendance counts per class using a single query
+    const { data: attendanceCounts, error: attendanceError } = await supabase
+      .rpc('get_attendance_report', { 
+        start_date: today, 
+        end_date: today 
+      });
+      
+    if (attendanceError) {
+      console.error("Error fetching attendance counts:", attendanceError);
+      throw new Error(`Failed to fetch attendance counts: ${attendanceError.message}`);
+    }
 
-      const { count: teacherCount, error: teacherError } = await supabase
-        .from('teachers')
-        .select('*', { count: 'exact' })
-        .eq('class_id', classItem.id);
+    // Get teacher counts per class
+    const { data: teacherData, error: teacherError } = await supabase
+      .from('teachers')
+      .select('class_id');
 
-      if (childrenError || teacherError) {
-        console.error("Error fetching counts:", childrenError || teacherError);
-        throw new Error(`Failed to fetch counts: ${(childrenError || teacherError).message}`);
+    if (teacherError) {
+      console.error("Error fetching teacher data:", teacherError);
+      throw new Error(`Failed to fetch teacher data: ${teacherError.message}`);
+    }
+
+    // Count teachers per class
+    const teacherCounts = teacherData?.reduce((acc: Record<string, number>, teacher) => {
+      if (teacher.class_id) {
+        acc[teacher.class_id] = (acc[teacher.class_id] || 0) + 1;
       }
+      return acc;
+    }, {}) || {};
 
+    // Map attendance data to each class
+    return (data || []).map((classItem) => {
+      const attendanceItem = attendanceCounts?.find(
+        (item: any) => item.class_id === classItem.id
+      );
+      
       return {
         id: classItem.id,
         name: classItem.name,
-        children: childrenCount || 0,
-        teachers: teacherCount || 0,
+        children: attendanceItem?.total_checked_in || 0,
+        teachers: teacherCounts[classItem.id] || 0,
         active: true
       };
-    }));
-
-    return classesWithCounts;
+    });
   } catch (error) {
     console.error("Error in fetchClassStatus:", error);
     throw error;
@@ -221,33 +244,45 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
   try {
     const today = new Date().toISOString().split('T')[0];
     
-    const { count: checkedInCount, error: checkedInError } = await supabase
-      .from('attendance')
-      .select('*', { count: 'exact' })
-      .eq('attendance_date', today);
-
-    const { count: checkedOutCount, error: checkedOutError } = await supabase
-      .from('attendance')
-      .select('*', { count: 'exact' })
-      .eq('attendance_date', today)
-      .not('checked_out_at', 'is', null);
-
+    // Get attendance stats using our new function
+    const { data: attendanceData, error: attendanceError } = await supabase
+      .rpc('get_attendance_report', {
+        start_date: today,
+        end_date: today
+      });
+      
+    if (attendanceError) {
+      console.error("Error fetching attendance stats:", attendanceError);
+      throw new Error(`Failed to fetch attendance stats: ${attendanceError.message}`);
+    }
+    
+    // Calculate totals from all classes
+    let totalCheckedIn = 0;
+    let totalCheckedOut = 0;
+    
+    if (attendanceData && Array.isArray(attendanceData)) {
+      attendanceData.forEach((item: any) => {
+        totalCheckedIn += item.total_checked_in || 0;
+        totalCheckedOut += item.total_checked_out || 0;
+      });
+    }
+    
+    // Get classes count
     const { count: classesCount, error: classesError } = await supabase
       .from('classes')
       .select('*', { count: 'exact' });
 
+    if (classesError) {
+      console.error("Error fetching classes count:", classesError);
+      throw new Error(`Failed to fetch classes count: ${classesError.message}`);
+    }
+
     // In a real app, you might fetch this from a dedicated alerts table
     const alertsCount = 2;
 
-    if (checkedInError || checkedOutError || classesError) {
-      console.error("Error fetching dashboard stats:", 
-        checkedInError || checkedOutError || classesError);
-      throw new Error(`Failed to fetch dashboard stats: ${(checkedInError || checkedOutError || classesError).message}`);
-    }
-
     return {
-      checkedIn: checkedInCount || 0,
-      checkedOut: checkedOutCount || 0,
+      checkedIn: totalCheckedIn,
+      checkedOut: totalCheckedOut,
       classes: classesCount || 0,
       alerts: alertsCount
     };

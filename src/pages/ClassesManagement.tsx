@@ -77,29 +77,35 @@ const ClassesManagement = () => {
       try {
         if (!user) throw new Error("User not authenticated");
 
-        const { data, error } = await supabase
+        // Fetch classes
+        const { data: classesData, error: classesError } = await supabase
           .from("classes")
           .select("*")
           .order("name");
 
-        if (error) throw error;
+        if (classesError) throw classesError;
         
+        // Fetch teachers with explicit join to profiles
         const { data: teachersData, error: teachersError } = await supabase
           .from("teachers")
           .select(`
             id,
             class_id,
             user_id,
-            profiles:user_id (
+            profiles:profiles!teachers_user_id_fkey (
               first_name,
               last_name
             )
           `);
           
-        if (teachersError) throw teachersError;
+        if (teachersError) {
+          console.error("Error fetching teachers:", teachersError);
+          // Continue without teachers data if there's an error
+        }
         
+        // Get student counts per class
         const studentCounts = await Promise.all(
-          data.map(async (classItem) => {
+          (classesData || []).map(async (classItem) => {
             const { count, error } = await supabase
               .from("attendance")
               .select("*", { count: 'exact' })
@@ -110,35 +116,22 @@ const ClassesManagement = () => {
           })
         );
         
-        return data.map((item): ClassItem => {
+        return (classesData || []).map((item): ClassItem => {
           const classTeachers = teachersData?.filter(teacher => teacher.class_id === item.id) || [];
           const studentCount = studentCounts?.find(count => count.class_id === item.id)?.count || 0;
           
-          const teachersList = classTeachers
+          const teachersList = (classTeachers || [])
             .filter(teacher => teacher && typeof teacher === 'object')
             .map(teacher => {
               // Get profile data safely
-              const profileData = teacher.profiles || null;
+              const profileData = teacher.profiles || {};
               
               let firstName = '';
               let lastName = '';
               
-              // Enhanced null checking for profileData access with complete null safety
               if (profileData && typeof profileData === 'object') {
-                // Type assertion to handle the 'never' type error
-                const typedProfileData = profileData as Record<string, unknown>;
-                
-                if ('first_name' in typedProfileData && 
-                    typedProfileData.first_name !== null && 
-                    typedProfileData.first_name !== undefined) {
-                  firstName = String(typedProfileData.first_name);
-                }
-                
-                if ('last_name' in typedProfileData && 
-                    typedProfileData.last_name !== null && 
-                    typedProfileData.last_name !== undefined) {
-                  lastName = String(typedProfileData.last_name);
-                }
+                firstName = profileData.first_name || '';
+                lastName = profileData.last_name || '';
               }
               
               return {

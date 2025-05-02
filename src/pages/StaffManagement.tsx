@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -48,20 +47,21 @@ const StaffManagement = () => {
         const { data, error } = await supabase.rpc('get_staff_members');
 
         if (error) {
+          console.error("Error using get_staff_members RPC:", error);
           throw error;
         }
 
         return data ? data.map((staff: any): StaffMember => ({
           id: staff.user_id,
           user_id: staff.user_id,
-          email: staff.email,
-          first_name: staff.first_name,
-          last_name: staff.last_name,
-          role: staff.role as AppRole,
+          email: staff.email || '',
+          first_name: staff.first_name || '',
+          last_name: staff.last_name || '',
+          role: staff.role as AppRole || 'teacher',
           phone: staff.phone || '',
-          is_active: staff.is_active,
-          is_super_admin: staff.is_super_admin,
-          is_volunteer: staff.is_volunteer,
+          is_active: staff.is_active || false,
+          is_super_admin: staff.is_super_admin || false,
+          is_volunteer: staff.is_volunteer || false,
           created_at: new Date().toISOString(),
         })) : [];
       } catch (error: any) {

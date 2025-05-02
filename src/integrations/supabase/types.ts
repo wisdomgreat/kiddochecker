@@ -562,6 +562,16 @@ export type Database = {
           updated_at: string | null
         }[]
       }
+      get_attendance_report: {
+        Args: { start_date: string; end_date: string }
+        Returns: {
+          attendance_date: string
+          total_checked_in: number
+          total_checked_out: number
+          class_name: string
+          class_id: string
+        }[]
+      }
       get_device_profile: {
         Args: { p_device_id: string }
         Returns: Json
@@ -593,6 +603,18 @@ export type Database = {
           start_date: string
           title: string
           updated_at: string | null
+        }[]
+      }
+      get_users_with_roles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          email: string
+          first_name: string
+          last_name: string
+          role: string
+          is_super_admin: boolean
+          is_active: boolean
         }[]
       }
       has_permission: {
