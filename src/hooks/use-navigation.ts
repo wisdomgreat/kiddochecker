@@ -26,6 +26,9 @@ export const useNavigation = () => {
     navigateToRolePermissionsManagement: () => goTo("/role-permissions-management"),
     navigateToKioskManagement: () => goTo("/kiosk-management"),
     navigateToCheckInProcess: () => goTo("/check-in-process"),
+    // Utility functions for navigation with parameters
+    navigateWithId: (basePath: string, id: string) => goTo(`${basePath}/${id}`),
+    navigateBack: () => navigate(-1)
   };
 };
 

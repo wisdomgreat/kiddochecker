@@ -68,6 +68,7 @@ const AppearanceSettings = () => {
 
   // Function to apply theme settings
   const applyThemeSettings = (settings: ThemeSettings) => {
+    console.log("Applying theme settings:", settings);
     // Apply theme (light/dark/system)
     const root = document.documentElement;
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -94,24 +95,23 @@ const AppearanceSettings = () => {
       };
       
       // Clean up old listener if exists
-      mediaQuery.removeEventListener("change", handleChange);
+      try {
+        mediaQuery.removeEventListener("change", handleChange);
+      } catch(e) {
+        console.log("No previous listener to remove");
+      }
       mediaQuery.addEventListener("change", handleChange);
     }
     
     // Apply color scheme
     const colorOption = colorOptions.find(c => c.value === settings.colorScheme);
     if (colorOption) {
-      const style = document.documentElement.style;
+      document.documentElement.style.setProperty("--color-primary", colorOption.primaryColor);
       
       // Convert hex to HSL for CSS variables
       const hslColor = hexToHSL(colorOption.primaryColor);
       if (hslColor) {
-        style.setProperty("--primary", `${hslColor.h} ${hslColor.s}% ${hslColor.l}%`);
-        
-        // Add primary color to buttons for immediate visual feedback
-        document.querySelectorAll('.btn-primary').forEach((el) => {
-          (el as HTMLElement).style.backgroundColor = colorOption.primaryColor;
-        });
+        document.documentElement.style.setProperty("--primary", `${hslColor.h} ${hslColor.s}% ${hslColor.l}%`);
       }
     }
     
@@ -258,60 +258,75 @@ const AppearanceSettings = () => {
   
   // Convert hex color to HSL for CSS variables
   const hexToHSL = (hex: string): { h: number; s: number; l: number } | null => {
-    // Remove the # if it exists
-    hex = hex.replace(/^#/, '');
-    
-    // Parse the hex values
-    let r = parseInt(hex.substring(0, 2), 16) / 255;
-    let g = parseInt(hex.substring(2, 4), 16) / 255;
-    let b = parseInt(hex.substring(4, 6), 16) / 255;
-    
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    let h = 0;
-    let s = 0;
-    let l = (max + min) / 2;
-
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    try {
+      // Remove the # if it exists
+      hex = hex.replace(/^#/, '');
       
-      switch (max) {
-        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-        case g: h = (b - r) / d + 2; break;
-        case b: h = (r - g) / d + 4; break;
+      // Parse the hex values
+      let r = parseInt(hex.substring(0, 2), 16) / 255;
+      let g = parseInt(hex.substring(2, 4), 16) / 255;
+      let b = parseInt(hex.substring(4, 6), 16) / 255;
+      
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h = 0;
+      let s = 0;
+      let l = (max + min) / 2;
+
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        
+        h *= 60;
       }
       
-      h *= 60;
+      // Round values
+      h = Math.round(h);
+      s = Math.round(s * 100);
+      l = Math.round(l * 100);
+      
+      return { h, s, l };
+    } catch (error) {
+      console.error("Error converting hex to HSL:", error);
+      return null;
     }
-    
-    // Round values
-    h = Math.round(h);
-    s = Math.round(s * 100);
-    l = Math.round(l * 100);
-    
-    return { h, s, l };
   };
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    // Save settings to localStorage
-    const themeSettings: ThemeSettings = {
-      theme: values.theme,
-      colorScheme: values.colorScheme,
-      highContrast: values.highContrast,
-      largeText: values.largeText,
-      animations: values.animations
-    };
-    
-    localStorage.setItem("themeSettings", JSON.stringify(themeSettings));
-    
-    // Apply the theme settings
-    applyThemeSettings(themeSettings);
-    
-    toast({
-      title: "Appearance updated",
-      description: "Your appearance settings have been saved and applied.",
-    });
+    try {
+      console.log("Saving appearance settings:", values);
+      // Save settings to localStorage
+      const themeSettings: ThemeSettings = {
+        theme: values.theme,
+        colorScheme: values.colorScheme,
+        highContrast: values.highContrast,
+        largeText: values.largeText,
+        animations: values.animations
+      };
+      
+      localStorage.setItem("themeSettings", JSON.stringify(themeSettings));
+      
+      // Apply the theme settings
+      applyThemeSettings(themeSettings);
+      
+      toast({
+        title: "Appearance updated",
+        description: "Your appearance settings have been saved and applied.",
+      });
+    } catch (error) {
+      console.error("Error saving theme settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save appearance settings.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -330,6 +345,7 @@ const AppearanceSettings = () => {
                   <FormControl>
                     <RadioGroup
                       onValueChange={(value) => {
+                        console.log("Theme changed to:", value);
                         field.onChange(value);
                         // Preview theme change immediately
                         const currentSettings = form.getValues();
@@ -404,6 +420,7 @@ const AppearanceSettings = () => {
                         key={option.value}
                         className={`flex flex-col items-center gap-2 cursor-pointer`}
                         onClick={() => {
+                          console.log("Color scheme changed to:", option.value);
                           field.onChange(option.value);
                           setSelectedColor(option.value);
                           
@@ -462,6 +479,7 @@ const AppearanceSettings = () => {
                     <Switch
                       checked={field.value}
                       onCheckedChange={(checked) => {
+                        console.log("High contrast changed to:", checked);
                         field.onChange(checked);
                         
                         // Preview contrast change immediately
@@ -494,6 +512,7 @@ const AppearanceSettings = () => {
                     <Switch
                       checked={field.value}
                       onCheckedChange={(checked) => {
+                        console.log("Large text changed to:", checked);
                         field.onChange(checked);
                         
                         // Preview text size change immediately
@@ -526,6 +545,7 @@ const AppearanceSettings = () => {
                     <Switch
                       checked={field.value}
                       onCheckedChange={(checked) => {
+                        console.log("Animations changed to:", checked);
                         field.onChange(checked);
                         
                         // Preview animation change immediately
