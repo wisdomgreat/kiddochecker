@@ -23,9 +23,10 @@ export const useNavigation = () => {
     navigateToUserProfile: () => goTo("/user-profile"),
     navigateToCheckInOut: () => goTo("/check-in-out"),
     navigateToRolesManagement: () => goTo("/roles-management"),
+    navigateToRolePermissionsManagement: () => goTo("/role-permissions-management"),
     navigateToKioskManagement: () => goTo("/kiosk-management"),
-    // Add the missing navigation method
     navigateToCheckInProcess: () => goTo("/check-in-process"),
   };
 };
 
+export default useNavigation;
