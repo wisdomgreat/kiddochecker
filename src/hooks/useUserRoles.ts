@@ -34,19 +34,20 @@ export const useUserRoles = () => {
         if (rolesError) throw rolesError;
         
         // Get email addresses from auth users (for admins only)
-        // Use a direct SQL query instead of RPC to avoid type issues
+        // Using raw SQL query to avoid TypeScript errors with the view
         const { data: emailsData, error: emailsError } = await supabase
-          .from('auth_users_emails_view')
-          .select('id, email');
+          .rpc('execute_sql', { 
+            query: 'SELECT id, email FROM auth_users_emails_view' 
+          });
           
         if (emailsError) {
           console.error("Error fetching emails:", emailsError);
         }
         
         // Create a map of user IDs to emails
-        const emailsMap = {};
+        const emailsMap: Record<string, string> = {};
         if (emailsData && Array.isArray(emailsData)) {
-          emailsData.forEach(item => {
+          emailsData.forEach((item: any) => {
             if (item && item.id && item.email) {
               emailsMap[item.id] = item.email;
             }
