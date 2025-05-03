@@ -45,12 +45,11 @@ export const useUserRoles = () => {
               .select('user_id') // We're not actually using this data
               .limit(1); // We just need to make a valid query
               
-            // Using .then() to bypass TypeScript checking
+            // Using a type assertion to bypass TypeScript checking
             // This is a workaround for the type mismatch while we wait for types to be updated
-            const emailsResponse = await supabase
-              .rpc('execute_sql', { 
-                query: 'SELECT id, email FROM auth_users_emails_view' 
-              } as any);
+            const emailsResponse = await (supabase as any).rpc('execute_sql', { 
+              query: 'SELECT id, email FROM auth_users_emails_view' 
+            });
               
             return emailsResponse.data || [];
           } catch (error) {
