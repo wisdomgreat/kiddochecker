@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AppRole, UserRoleData } from "@/types/supabase";
-import { UserProfile } from "@/types/users";
+import { UserProfile, formatUserData } from "@/types/users";
 import { useAuth } from "@/context/AuthContext";
 
 export const useUserRoles = () => {
@@ -34,17 +34,23 @@ export const useUserRoles = () => {
         if (rolesError) throw rolesError;
         
         // Get email addresses from auth users (for admins only)
-        let emailsMap = {};
-        if (user) {
-          const { data: authUsersData } = await supabase
-            .rpc('get_users_with_emails');
-            
-          if (authUsersData) {
-            emailsMap = authUsersData.reduce((acc, item) => {
-              acc[item.id] = item.email;
-              return acc;
-            }, {});
-          }
+        // Use a direct SQL query instead of RPC to avoid type issues
+        const { data: emailsData, error: emailsError } = await supabase
+          .from('auth_users_emails_view')
+          .select('id, email');
+          
+        if (emailsError) {
+          console.error("Error fetching emails:", emailsError);
+        }
+        
+        // Create a map of user IDs to emails
+        const emailsMap = {};
+        if (emailsData && Array.isArray(emailsData)) {
+          emailsData.forEach(item => {
+            if (item && item.id && item.email) {
+              emailsMap[item.id] = item.email;
+            }
+          });
         }
         
         // Return transformed data
