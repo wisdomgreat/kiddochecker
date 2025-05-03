@@ -128,8 +128,8 @@ const UsersManagement = () => {
               role: userRole.role as AppRole || 'parent',
               roleData: {
                 role: userRole.role as AppRole || 'parent',
-                // Ensure is_super_admin is properly handled for all role types
-                is_super_admin: userRole.hasOwnProperty('is_super_admin') ? Boolean(userRole.is_super_admin) : false
+                // Fix: Check if the property exists before accessing it
+                is_super_admin: typeof userRole === 'object' && 'is_super_admin' in userRole ? Boolean(userRole.is_super_admin) : false
               },
               phone: profile.phone || '',
               createdAt: '',  // We don't have access to this directly
@@ -152,8 +152,8 @@ const UsersManagement = () => {
             role: role,
             roleData: {
               role: role,
-              // Safely handle is_super_admin property by ensuring it's a boolean and defaulting to false if undefined
-              is_super_admin: typeof item.is_super_admin !== 'undefined' ? Boolean(item.is_super_admin) : false
+              // Fix: Check if the property exists before accessing it
+              is_super_admin: typeof item === 'object' && 'is_super_admin' in item ? Boolean(item.is_super_admin) : false
             },
             phone: item.phone || '',
             createdAt: item.created_at || '',
