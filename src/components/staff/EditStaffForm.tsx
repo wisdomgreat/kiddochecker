@@ -32,7 +32,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { StaffMember, AppRole } from "@/types/supabase";
+import { StaffMember } from "@/types/supabase";
+
+// Define the staff roles type explicitly instead of using AppRole
+type StaffRole = "admin" | "staff" | "teacher" | "teacher_assistant";
 
 const staffEditFormSchema = z.object({
   firstName: z.string().min(1, {
@@ -74,7 +77,7 @@ const EditStaffForm = ({
       firstName: staffMember.first_name || "",
       lastName: staffMember.last_name || "",
       phone: staffMember.phone || "",
-      role: (staffMember.role as AppRole) || "teacher",
+      role: (staffMember.role as StaffRole) || "teacher",
       isSuperAdmin: staffMember.is_super_admin || false,
       isVolunteer: staffMember.is_volunteer || false,
       isActive: staffMember.is_active || false,

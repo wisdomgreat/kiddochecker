@@ -23,8 +23,9 @@ export const useNavigation = () => {
   const navigateToEventDetails = (eventId: string) => navigate(`/events/${eventId}`);
 
   // Check-in system routes
-  const navigateToCheckInKiosk = () => navigate("/check-in");
-  const navigateToCheckOutStation = () => navigate("/check-out");
+  const navigateToCheckInKiosk = () => navigate("/check-in-kiosk");
+  const navigateToCheckOutStation = () => navigate("/check-out-station");
+  const navigateToCheckInProcess = () => navigate("/check-in-process");
 
   // Parent dashboard routes
   const navigateToParentDashboard = () => navigate("/parent-dashboard");
@@ -66,6 +67,7 @@ export const useNavigation = () => {
     // Check-in system
     navigateToCheckInKiosk,
     navigateToCheckOutStation,
+    navigateToCheckInProcess,
     
     // Parent dashboard
     navigateToParentDashboard,
