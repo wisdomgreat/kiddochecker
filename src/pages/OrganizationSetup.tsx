@@ -82,16 +82,12 @@ const OrganizationSetup = () => {
       // Log the submission attempt for debugging
       console.log("Organization setup submission started", values);
       
-      // 1. Create organization settings first to establish the church
-      const { data: orgData, error: orgError } = await supabase
-        .from('organization_settings')
-        .insert({
-          name: values.organizationName,
-          primary_color: values.primaryColor,
-          font_family: values.fontFamily
-        })
-        .select('id')
-        .single();
+      // 1. Create organization settings first
+      const { data: orgData, error: orgError } = await supabase.rpc('create_organization', {
+        org_name: values.organizationName,
+        primary_color: values.primaryColor,
+        font_family: values.fontFamily
+      });
         
       if (orgError) {
         console.error("Organization creation error:", orgError);
@@ -124,15 +120,13 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 3. Create admin role directly in the table - FIX: Using explicit column references
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'admin',
-          is_super_admin: true
-        })
-        .select();
+      // 3. Create admin role using the RPC function to avoid ambiguous column references
+      const { data: roleData, error: roleError } = await supabase.rpc('create_user_role', {
+        p_user_id: authData.user.id,
+        p_role: 'admin', 
+        p_is_super_admin: true,
+        p_is_volunteer: false
+      });
         
       if (roleError) {
         console.error("User role creation error:", roleError);
@@ -145,7 +139,7 @@ const OrganizationSetup = () => {
       const { error: updateOrgError } = await supabase
         .from('organization_settings')
         .update({ created_by: authData.user.id })
-        .eq('id', orgData.id);
+        .eq('id', orgData);
         
       if (updateOrgError) {
         console.error("Organization update error:", updateOrgError);
@@ -153,9 +147,9 @@ const OrganizationSetup = () => {
       }
       
       // 5. Upload logo if provided
-      if (logoFile && orgData.id) {
+      if (logoFile && orgData) {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `org-logo-${orgData.id}.${fileExt}`;
+        const fileName = `org-logo-${orgData}.${fileExt}`;
         
         console.log(`Uploading logo to organization_assets/${fileName}`);
         
@@ -182,7 +176,7 @@ const OrganizationSetup = () => {
           const { error: updateLogoError } = await supabase
             .from('organization_settings')
             .update({ logo_url: publicUrlData.publicUrl })
-            .eq('id', orgData.id);
+            .eq('id', orgData);
             
           if (updateLogoError) {
             console.error("Logo URL update error:", updateLogoError);
