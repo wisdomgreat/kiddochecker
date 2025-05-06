@@ -42,6 +42,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "attendance_checked_in_by_fkey"
+            columns: ["checked_in_by"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_checked_out_by_fkey"
+            columns: ["checked_out_by"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "attendance_child_id_fkey"
             columns: ["child_id"]
             isOneToOne: false
@@ -112,6 +126,13 @@ export type Database = {
             columns: ["family_id"]
             isOneToOne: false
             referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "children_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
             referencedColumns: ["id"]
           },
         ]
@@ -291,7 +312,15 @@ export type Database = {
           primary_color?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organization_settings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       parent_children: {
         Row: {
@@ -324,6 +353,13 @@ export type Database = {
             columns: ["child_id"]
             isOneToOne: false
             referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parent_children_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
             referencedColumns: ["id"]
           },
         ]
@@ -392,7 +428,15 @@ export type Database = {
           security_question?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_permissions: {
         Row: {
@@ -460,6 +504,13 @@ export type Database = {
             referencedRelation: "classes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "teachers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_custom_roles: {
@@ -516,13 +567,39 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
-      [_ in never]: never
+      auth_users_with_emails: {
+        Row: {
+          email: string | null
+          id: string | null
+        }
+        Insert: {
+          email?: string | null
+          id?: string | null
+        }
+        Update: {
+          email?: string | null
+          id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      check_sql_query_safety: {
+        Args: { query: string }
+        Returns: boolean
+      }
       create_organization: {
         Args: {
           org_name: string

@@ -3,32 +3,87 @@ import { useNavigate } from "react-router-dom";
 
 export const useNavigation = () => {
   const navigate = useNavigate();
-  
-  const goTo = (path: string) => {
-    navigate(path);
-  };
-  
+
+  // Admin and organization routes
+  const navigateToAdminDashboard = () => navigate("/admin-dashboard");
+  const navigateToOrganizationSetup = () => navigate("/organization-setup");
+  const navigateToSettings = () => navigate("/settings");
+
+  // User management routes
+  const navigateToUsersManagement = () => navigate("/users-management");
+  const navigateToStaffManagement = () => navigate("/staff-management");
+  const navigateToRolesManagement = () => navigate("/roles-management");
+
+  // Class and attendance routes
+  const navigateToClassesManagement = () => navigate("/classes-management");
+  const navigateToAttendance = () => navigate("/attendance");
+
+  // Events routes
+  const navigateToEventsManagement = () => navigate("/events-management");
+  const navigateToEventDetails = (eventId: string) => navigate(`/events/${eventId}`);
+
+  // Check-in system routes
+  const navigateToCheckInKiosk = () => navigate("/check-in");
+  const navigateToCheckOutStation = () => navigate("/check-out");
+
+  // Parent dashboard routes
+  const navigateToParentDashboard = () => navigate("/parent-dashboard");
+  const navigateToChildrenManagement = () => navigate("/children-management");
+  const navigateToFamilySettings = () => navigate("/family-settings");
+
+  // Teacher routes
+  const navigateToTeacherDashboard = () => navigate("/teacher-dashboard");
+  const navigateToClassAttendance = (classId: string) => navigate(`/class/${classId}/attendance`);
+
+  // Report routes
+  const navigateToReportsDashboard = () => navigate("/reports");
+  const navigateToAttendanceReport = () => navigate("/reports/attendance");
+
+  // Authentication routes
+  const navigateToLogin = () => navigate("/login");
+  const navigateToRegister = () => navigate("/register");
+  const navigateToForgotPassword = () => navigate("/forgot-password");
+
   return {
-    goTo,
-    navigateToAdminDashboard: () => goTo("/admin-dashboard"),
-    navigateToTeacherDashboard: () => goTo("/teacher-dashboard"),
-    navigateToParentDashboard: () => goTo("/parent-dashboard"),
-    navigateToStaffManagement: () => goTo("/staff-management"),
-    navigateToUsersManagement: () => goTo("/users-management"),
-    navigateToClassesManagement: () => goTo("/classes-management"),
-    navigateToEventsManagement: () => goTo("/events-management"),
-    navigateToReportsDashboard: () => goTo("/reports-dashboard"),
-    navigateToSettings: () => goTo("/settings"),
-    navigateToCheckInKiosk: () => goTo("/check-in-kiosk"),
-    navigateToUserProfile: () => goTo("/user-profile"),
-    navigateToCheckInOut: () => goTo("/check-in-out"),
-    navigateToRolesManagement: () => goTo("/roles-management"),
-    navigateToRolePermissionsManagement: () => goTo("/role-permissions-management"),
-    navigateToKioskManagement: () => goTo("/kiosk-management"),
-    navigateToCheckInProcess: () => goTo("/check-in-process"),
-    // Utility functions for navigation with parameters
-    navigateWithId: (basePath: string, id: string) => goTo(`${basePath}/${id}`),
-    navigateBack: () => navigate(-1)
+    // Admin and organization
+    navigateToAdminDashboard,
+    navigateToOrganizationSetup,
+    navigateToSettings,
+    
+    // User management
+    navigateToUsersManagement,
+    navigateToStaffManagement,
+    navigateToRolesManagement,
+    
+    // Class and attendance
+    navigateToClassesManagement,
+    navigateToAttendance,
+    
+    // Events
+    navigateToEventsManagement,
+    navigateToEventDetails,
+    
+    // Check-in system
+    navigateToCheckInKiosk,
+    navigateToCheckOutStation,
+    
+    // Parent dashboard
+    navigateToParentDashboard,
+    navigateToChildrenManagement,
+    navigateToFamilySettings,
+    
+    // Teacher
+    navigateToTeacherDashboard,
+    navigateToClassAttendance,
+    
+    // Reports
+    navigateToReportsDashboard,
+    navigateToAttendanceReport,
+    
+    // Authentication
+    navigateToLogin,
+    navigateToRegister,
+    navigateToForgotPassword,
   };
 };
 

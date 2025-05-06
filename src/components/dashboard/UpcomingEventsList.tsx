@@ -1,111 +1,130 @@
 
 import { useState, useEffect } from "react";
-import { Calendar, MapPin } from "lucide-react";
-import { format } from "date-fns";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { Calendar, Clock, MapPin, RefreshCcw, CalendarPlus } from "lucide-react";
+import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { EventItem } from "@/types/events";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-interface UpcomingEventsListProps {
-  limit?: number;
+interface Event {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date?: string;
+  location?: string;
 }
 
-const UpcomingEventsList = ({ limit = 3 }: UpcomingEventsListProps) => {
+const UpcomingEventsList = () => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ['upcoming-events'],
-    queryFn: async () => {
-      const today = new Date().toISOString();
-      
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    const fetchEvents = async () => {
       try {
-        // Try direct query to events table since it should exist now
+        setIsLoading(true);
+        
         const { data, error } = await supabase
-          .from('events')
-          .select('id, title, start_date, end_date, location')
-          .gte('start_date', today)
-          .order('start_date', { ascending: true })
-          .limit(limit);
+          .rpc('get_upcoming_events', { limit_count: 5 });
+          
+        if (error) throw error;
         
-        if (error) {
-          console.error("Error fetching events:", error);
-          return [];
-        }
-        
-        return (data || []).map(event => ({
-          id: event.id,
-          title: event.title,
-          startDate: event.start_date,
-          endDate: event.end_date,
-          location: event.location
-        }));
-      } catch (error) {
-        console.error("Error in event query:", error);
-        return [];
+        setEvents(data || []);
+      } catch (error: any) {
+        console.error("Error fetching upcoming events:", error);
+        toast({
+          title: "Error",
+          description: "Could not load upcoming events",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
+    };
+    
+    fetchEvents();
+  }, [toast]);
+  
+  const formatEventDate = (start: string, end?: string) => {
+    try {
+      const startDate = new Date(start);
+      
+      if (!end) {
+        return format(startDate, "MMM d, yyyy • h:mm a");
+      }
+      
+      const endDate = new Date(end);
+      
+      // If same day
+      if (startDate.toDateString() === endDate.toDateString()) {
+        return `${format(startDate, "MMM d, yyyy")} • ${format(startDate, "h:mm a")} - ${format(endDate, "h:mm a")}`;
+      }
+      
+      // Different days
+      return `${format(startDate, "MMM d")} - ${format(endDate, "MMM d, yyyy")}`;
+    } catch (e) {
+      return "Date not available";
     }
-  });
-
-  const handleViewAllEvents = () => {
-    navigate('/events-management');
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">Upcoming Events</h2>
-      
-      {isLoading ? (
-        <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500 mr-2"></div>
-          <span className="text-gray-600">Loading events...</span>
-        </div>
-      ) : events.length === 0 ? (
-        <Card className="bg-gray-50">
-          <CardContent className="flex flex-col items-center justify-center p-6 text-center">
-            <Calendar size={32} className="text-gray-400 mb-2" />
-            <p className="text-gray-700 font-medium">No upcoming events</p>
-            <p className="text-gray-500 text-sm mt-1">Check back later for new events</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {events.map(event => (
-            <Card key={event.id} className="hover:bg-gray-50 transition-colors">
-              <CardContent className="p-4">
-                <h3 className="font-medium text-gray-800">{event.title}</h3>
-                <div className="mt-2 space-y-1 text-sm text-gray-600">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2 text-purple-500" />
-                    <span>
-                      {format(new Date(event.startDate), "MMM dd, yyyy")}
-                      {event.endDate && ` - ${format(new Date(event.endDate), "MMM dd, yyyy")}`}
-                    </span>
-                  </div>
-                  
-                  {event.location && (
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2 text-purple-500" />
-                      <span>{event.location}</span>
-                    </div>
-                  )}
+    <Card className="h-full">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-md font-medium">Upcoming Events</CardTitle>
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => navigate('/events-management')}
+        >
+          View All
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <RefreshCcw className="h-5 w-5 animate-spin text-purple-600 mr-2" />
+            <span className="text-sm">Loading events...</span>
+          </div>
+        ) : events.length === 0 ? (
+          <div className="text-center py-8">
+            <Calendar className="h-10 w-10 mx-auto text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No upcoming events</h3>
+            <p className="mt-1 text-xs text-gray-500">Create an event to get started</p>
+            <div className="mt-4">
+              <Button size="sm" onClick={() => navigate('/events-management')}>
+                <CalendarPlus className="h-4 w-4 mr-1" />
+                Create Event
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {events.map((event) => (
+              <div
+                key={event.id}
+                className="border rounded-md p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => navigate(`/events/${event.id}`)}
+              >
+                <h4 className="font-medium text-sm mb-1">{event.title}</h4>
+                <div className="flex items-center text-xs text-gray-600 mb-1">
+                  <Clock className="h-3 w-3 mr-1" />
+                  {formatEventDate(event.start_date, event.end_date)}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-          
-          <Button 
-            onClick={handleViewAllEvents} 
-            variant="outline" 
-            className="w-full"
-          >
-            View All Events
-          </Button>
-        </div>
-      )}
-    </div>
+                {event.location && (
+                  <div className="flex items-center text-xs text-gray-600">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {event.location}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

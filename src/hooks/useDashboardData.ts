@@ -1,293 +1,218 @@
 
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "./use-toast";
+import { useToast } from "@/hooks/use-toast";
 
-export interface ActivityRecord {
-  id: string;
-  name: string;
-  class: string;
-  status: string;
-  time: string;
-}
-
-export interface ClassStatusItem {
-  id: string;
-  name: string;
-  children: number;
-  teachers: number;
-  active: boolean;
-}
-
-export interface DashboardStats {
-  checkedIn: number;
-  checkedOut: number;
-  classes: number;
-  alerts: number;
-}
-
-export function useRecentActivity() {
-  return useQuery({
-    queryKey: ['activity'],
-    queryFn: fetchRecentActivity,
-    refetchInterval: 30000, // Refetch every 30 seconds as a fallback
-  });
-}
-
-export function useClassStatus() {
-  return useQuery({
-    queryKey: ['classes'],
-    queryFn: fetchClassStatus,
-    refetchInterval: 30000, // Refetch every 30 seconds as a fallback
-  });
-}
-
-export function useDashboardStats() {
-  return useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: fetchDashboardStats,
-    refetchInterval: 30000, // Refetch every 30 seconds as a fallback
-  });
-}
-
-// Add a custom hook for real-time updates
-export function useRealtimeUpdates() {
+export const useDashboardStats = () => {
   const { toast } = useToast();
+  
+  return useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      try {
+        // Get number of checked in children
+        const { count: checkedIn, error: checkedInError } = await supabase
+          .from('attendance')
+          .select('*', { count: 'exact', head: true })
+          .is('checked_out_at', null)
+          .eq('attendance_date', new Date().toISOString().split('T')[0]);
+          
+        if (checkedInError) throw checkedInError;
+        
+        // Get number of checked out children
+        const { count: checkedOut, error: checkedOutError } = await supabase
+          .from('attendance')
+          .select('*', { count: 'exact', head: true })
+          .not('checked_out_at', 'is', null)
+          .eq('attendance_date', new Date().toISOString().split('T')[0]);
+          
+        if (checkedOutError) throw checkedOutError;
+        
+        // Get number of classes
+        const { count: classes, error: classesError } = await supabase
+          .from('classes')
+          .select('*', { count: 'exact', head: true });
+          
+        if (classesError) throw classesError;
+        
+        // For now, hardcode alerts to 0 since we don't have an alerts system yet
+        const alerts = 0;
+        
+        return {
+          checkedIn: checkedIn || 0,
+          checkedOut: checkedOut || 0,
+          classes: classes || 0,
+          alerts,
+        };
+      } catch (error: any) {
+        console.error("Error fetching dashboard stats:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard statistics",
+          variant: "destructive",
+        });
+        return {
+          checkedIn: 0,
+          checkedOut: 0,
+          classes: 0,
+          alerts: 0,
+        };
+      }
+    },
+  });
+};
+
+export const useClassStatus = () => {
+  const { toast } = useToast();
+  
+  return useQuery({
+    queryKey: ["class-status"],
+    queryFn: async () => {
+      try {
+        // Get classes with their current attendance counts
+        const { data, error } = await supabase
+          .from('classes')
+          .select(`
+            id,
+            name,
+            room,
+            capacity,
+            attendance!inner(
+              id,
+              checked_in_at,
+              checked_out_at
+            )
+          `)
+          .eq('attendance.attendance_date', new Date().toISOString().split('T')[0]);
+          
+        if (error) throw error;
+        
+        // Transform data to get counts
+        return (data || []).map((classItem: any) => ({
+          id: classItem.id,
+          name: classItem.name,
+          room: classItem.room || "No room assigned",
+          capacity: classItem.capacity || 0,
+          checkedIn: classItem.attendance.filter((a: any) => a.checked_in_at).length,
+          checkedOut: classItem.attendance.filter((a: any) => a.checked_out_at).length,
+          remaining: (classItem.capacity || 0) - classItem.attendance.filter((a: any) => a.checked_in_at && !a.checked_out_at).length,
+        }));
+      } catch (error: any) {
+        console.error("Error fetching class status:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load class status information",
+          variant: "destructive",
+        });
+        return [];
+      }
+    },
+  });
+};
+
+export const useRecentActivity = () => {
+  const { toast } = useToast();
+  
+  return useQuery({
+    queryKey: ["recent-activity"],
+    queryFn: async () => {
+      try {
+        // For now, we'll simulate activity data
+        // In a real app, this would query an activity_logs table
+        
+        // Get recent attendance records to use as activity
+        const { data, error } = await supabase
+          .from('attendance')
+          .select(`
+            id,
+            checked_in_at,
+            checked_out_at,
+            attendance_date,
+            children:child_id(
+              first_name,
+              last_name
+            ),
+            classes:class_id(
+              name
+            )
+          `)
+          .order('checked_in_at', { ascending: false })
+          .limit(10);
+          
+        if (error) throw error;
+        
+        // Transform to activity format
+        return (data || []).map((item: any) => {
+          const action = item.checked_out_at ? "checked-out" : "checked-in";
+          const childName = item.children ? `${item.children.first_name} ${item.children.last_name}` : "Unknown Child";
+          const className = item.classes ? item.classes.name : "Unknown Class";
+          
+          return {
+            id: item.id,
+            action,
+            description: `${childName} was ${action} of ${className}`,
+            timestamp: item.checked_out_at || item.checked_in_at,
+            date: item.attendance_date,
+            user: childName,
+            details: {
+              childId: item.child_id,
+              className,
+            },
+          };
+        });
+      } catch (error: any) {
+        console.error("Error fetching recent activity:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load recent activity",
+          variant: "destructive",
+        });
+        return [];
+      }
+    },
+  });
+};
+
+export const useRealtimeUpdates = () => {
   const [hasNewActivity, setHasNewActivity] = useState(false);
   const [hasClassChanges, setHasClassChanges] = useState(false);
-
+  
   useEffect(() => {
-    // Set up real-time subscriptions for attendance changes
+    // Subscribe to attendance changes
     const attendanceChannel = supabase
       .channel('attendance-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'attendance'
-        },
-        (payload) => {
-          console.log('Attendance change detected:', payload);
-          setHasNewActivity(true);
-          
-          const event = payload.eventType;
-          const actionMap: Record<string, string> = {
-            INSERT: 'checked in',
-            UPDATE: 'updated',
-            DELETE: 'removed'
-          };
-          
-          toast({
-            title: `Attendance ${actionMap[event as keyof typeof actionMap] || 'changed'}`,
-            description: "New activity has been recorded",
-          });
-        }
-      )
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'attendance' 
+      }, () => {
+        setHasNewActivity(true);
+      })
       .subscribe();
-
-    // Set up real-time subscriptions for class changes
+      
+    // Subscribe to class changes  
     const classesChannel = supabase
       .channel('classes-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'classes'
-        },
-        (payload) => {
-          console.log('Class change detected:', payload);
-          setHasClassChanges(true);
-          
-          toast({
-            title: "Class information updated",
-            description: "Class data has been changed",
-          });
-        }
-      )
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'classes' 
+      }, () => {
+        setHasClassChanges(true);
+      })
       .subscribe();
-
+      
     return () => {
-      // Clean up subscriptions
       supabase.removeChannel(attendanceChannel);
       supabase.removeChannel(classesChannel);
     };
-  }, [toast]);
-
-  return { hasNewActivity, hasClassChanges, resetFlags: () => {
+  }, []);
+  
+  const resetFlags = () => {
     setHasNewActivity(false);
     setHasClassChanges(false);
-  }};
-}
-
-async function fetchRecentActivity(): Promise<ActivityRecord[]> {
-  try {
-    const todayDate = new Date().toISOString().split('T')[0];
-    
-    // Use a direct join approach instead of relying on implicit relationships
-    const { data, error } = await supabase
-      .from('attendance')
-      .select(`
-        id,
-        checked_in_at,
-        checked_out_at,
-        attendance_date,
-        child:child_id (
-          first_name,
-          last_name
-        ),
-        class:class_id (
-          name
-        )
-      `)
-      .eq('attendance_date', todayDate)
-      .order('checked_in_at', { ascending: false })
-      .limit(10);
-
-    if (error) {
-      console.error("Error fetching activity data:", error);
-      throw new Error(`Failed to fetch activity data: ${error.message}`);
-    }
-
-    return (data || []).map((record) => {
-      // Safe access to nested properties
-      const firstName = record.child?.first_name || '';
-      const lastName = record.child?.last_name || '';
-      const childName = `${firstName} ${lastName}`;
-      const className = record.class?.name || 'Unknown Class';
-      const status = record.checked_out_at ? 'Checked out' : 'Checked in';
-      const time = record.checked_out_at 
-        ? new Date(record.checked_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-        : new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      return {
-        id: record.id,
-        name: childName.trim(),
-        class: className,
-        status,
-        time
-      };
-    });
-  } catch (error) {
-    console.error("Error in fetchRecentActivity:", error);
-    throw error;
-  }
-}
-
-async function fetchClassStatus(): Promise<ClassStatusItem[]> {
-  try {
-    // Get all classes
-    const { data, error } = await supabase
-      .from('classes')
-      .select('id, name, capacity');
-
-    if (error) {
-      console.error("Error fetching class status:", error);
-      throw new Error(`Failed to fetch class status: ${error.message}`);
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Get attendance counts per class using a single query
-    const { data: attendanceCounts, error: attendanceError } = await supabase
-      .rpc('get_attendance_report', { 
-        start_date: today, 
-        end_date: today 
-      });
-      
-    if (attendanceError) {
-      console.error("Error fetching attendance counts:", attendanceError);
-      throw new Error(`Failed to fetch attendance counts: ${attendanceError.message}`);
-    }
-
-    // Get teacher counts per class
-    const { data: teacherData, error: teacherError } = await supabase
-      .from('teachers')
-      .select('class_id');
-
-    if (teacherError) {
-      console.error("Error fetching teacher data:", teacherError);
-      throw new Error(`Failed to fetch teacher data: ${teacherError.message}`);
-    }
-
-    // Count teachers per class
-    const teacherCounts: Record<string, number> = teacherData?.reduce((acc: Record<string, number>, teacher) => {
-      if (teacher.class_id) {
-        acc[teacher.class_id] = (acc[teacher.class_id] || 0) + 1;
-      }
-      return acc;
-    }, {}) || {};
-
-    // Map attendance data to each class
-    return (data || []).map((classItem) => {
-      const attendanceItem = attendanceCounts?.find(
-        (item: any) => item.class_id === classItem.id
-      );
-      
-      return {
-        id: classItem.id,
-        name: classItem.name,
-        children: attendanceItem?.total_checked_in || 0,
-        teachers: teacherCounts[classItem.id] || 0,
-        active: true
-      };
-    });
-  } catch (error) {
-    console.error("Error in fetchClassStatus:", error);
-    throw error;
-  }
-}
-
-async function fetchDashboardStats(): Promise<DashboardStats> {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Get attendance stats using our new function
-    const { data: attendanceData, error: attendanceError } = await supabase
-      .rpc('get_attendance_report', {
-        start_date: today,
-        end_date: today
-      });
-      
-    if (attendanceError) {
-      console.error("Error fetching attendance stats:", attendanceError);
-      throw new Error(`Failed to fetch attendance stats: ${attendanceError.message}`);
-    }
-    
-    // Calculate totals from all classes
-    let totalCheckedIn = 0;
-    let totalCheckedOut = 0;
-    
-    if (attendanceData && Array.isArray(attendanceData)) {
-      attendanceData.forEach((item: any) => {
-        totalCheckedIn += item.total_checked_in || 0;
-        totalCheckedOut += item.total_checked_out || 0;
-      });
-    }
-    
-    // Get classes count
-    const { count: classesCount, error: classesError } = await supabase
-      .from('classes')
-      .select('*', { count: 'exact' });
-
-    if (classesError) {
-      console.error("Error fetching classes count:", classesError);
-      throw new Error(`Failed to fetch classes count: ${classesError.message}`);
-    }
-
-    // In a real app, you might fetch this from a dedicated alerts table
-    const alertsCount = 2;
-
-    return {
-      checkedIn: totalCheckedIn,
-      checkedOut: totalCheckedOut,
-      classes: classesCount || 0,
-      alerts: alertsCount
-    };
-  } catch (error) {
-    console.error("Error in fetchDashboardStats:", error);
-    throw error;
-  }
-}
+  };
+  
+  return { hasNewActivity, hasClassChanges, resetFlags };
+};

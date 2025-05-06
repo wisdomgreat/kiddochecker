@@ -33,25 +33,16 @@ export const useUserRoles = () => {
           
         if (rolesError) throw rolesError;
         
-        // For email addresses, we'll make a separate function call
-        // Using a special endpoint for this sensitive data
-        // This approach avoids TypeScript errors while maintaining security
+        // For email addresses, use our new auth_users_with_emails view
         const fetchUserEmails = async () => {
           try {
-            // Make a POST request to a custom endpoint - this is just for type safety
-            // The actual implementation still uses our secure view with RLS
+            // Use our new view instead of the RPC function
             const { data, error } = await supabase
-              .from('user_roles') // Using an existing table just for type safety
-              .select('user_id') // We're not actually using this data
-              .limit(1); // We just need to make a valid query
+              .from('auth_users_with_emails')
+              .select('id, email');
               
-            // Using a type assertion to bypass TypeScript checking
-            // This is a workaround for the type mismatch while we wait for types to be updated
-            const emailsResponse = await (supabase as any).rpc('execute_sql', { 
-              query: 'SELECT id, email FROM auth_users_emails_view' 
-            });
-              
-            return emailsResponse.data || [];
+            if (error) throw error;
+            return data || [];
           } catch (error) {
             console.error("Error fetching emails:", error);
             return [];

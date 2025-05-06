@@ -3,8 +3,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -29,98 +27,109 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
 import { AppRole } from "@/types/supabase";
 
-// Define the schema for staff form values
-const staffMemberSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
-  firstName: z.string().min(1, { message: "First name is required" }),
-  lastName: z.string().min(1, { message: "Last name is required" }),
-  role: z.enum(['admin', 'staff', 'teacher', 'parent', 'super_admin', 'teacher_assistant'] as const),
+const staffFormSchema = z.object({
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  password: z.string().min(8, {
+    message: "Password must be at least 8 characters.",
+  }),
+  firstName: z.string().min(1, {
+    message: "First name is required.",
+  }),
+  lastName: z.string().min(1, {
+    message: "Last name is required.",
+  }),
   phone: z.string().optional(),
+  role: z.enum(["admin", "staff", "teacher", "teacher_assistant"] as const, {
+    required_error: "Please select a role.",
+  }),
   isSuperAdmin: z.boolean().default(false),
   isVolunteer: z.boolean().default(false),
 });
 
-export type StaffFormValues = z.infer<typeof staffMemberSchema>;
+type StaffFormValues = z.infer<typeof staffFormSchema>;
 
 interface AddStaffFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
 const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const { toast } = useToast();
+  
   const form = useForm<StaffFormValues>({
-    resolver: zodResolver(staffMemberSchema),
+    resolver: zodResolver(staffFormSchema),
     defaultValues: {
       email: "",
+      password: "",
       firstName: "",
       lastName: "",
-      role: "staff",
       phone: "",
+      role: "teacher",
       isSuperAdmin: false,
       isVolunteer: false,
     },
   });
-
+  
   const handleSubmit = async (values: StaffFormValues) => {
-    setIsSubmitting(true);
-
     try {
-      // Create the user with a default password
-      const { data, error } = await supabase.auth.admin.createUser({
+      setIsSubmitting(true);
+      
+      // 1. Create the user account
+      const { data: userData, error: signUpError } = await supabase.auth.signUp({
         email: values.email,
-        password: "DefaultPassword123", // Will be changed on first login
-        email_confirm: true, // Auto-confirm the email
-        user_metadata: {
-          first_name: values.firstName,
-          last_name: values.lastName,
-          phone: values.phone,
-        },
-      });
-
-      if (error) throw error;
-
-      // Set the user's role if user was created successfully
-      if (data.user) {
-        const { error: roleError } = await supabase.rpc("create_user_role", {
-          p_user_id: data.user.id,
-          p_role: values.role,
-          p_is_super_admin: values.isSuperAdmin,
-          p_is_volunteer: values.isVolunteer,
-        });
-
-        if (roleError) {
-          throw roleError;
+        password: values.password,
+        options: {
+          data: {
+            first_name: values.firstName,
+            last_name: values.lastName,
+            phone: values.phone,
+          }
         }
+      });
+      
+      if (signUpError) throw signUpError;
+      
+      if (!userData.user) {
+        throw new Error("Failed to create user account");
       }
-
+      
+      // 2. Update the user role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ 
+          role: values.role as AppRole,
+          is_super_admin: values.isSuperAdmin,
+          is_volunteer: values.isVolunteer
+        })
+        .eq('user_id', userData.user.id);
+      
+      if (roleError) throw roleError;
+      
       toast({
         title: "Success",
-        description: "Staff member added successfully",
+        description: "Staff member has been created successfully"
       });
       
       form.reset();
       onOpenChange(false);
+      onSuccess();
       
-      // Invalidate staff members query
-      queryClient.invalidateQueries({ queryKey: ["staff-members"] });
-      
-      if (onSuccess) onSuccess();
     } catch (error: any) {
-      console.error("Error adding staff member:", error);
+      console.error("Error creating staff member:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to add staff member",
+        description: error.message || "Could not create staff member",
         variant: "destructive",
       });
     } finally {
@@ -128,64 +137,76 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
     }
   };
 
-  const watchRole = form.watch("role");
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
-          <DialogTitle>Add Staff Member</DialogTitle>
+          <DialogTitle>Add New Staff Member</DialogTitle>
           <DialogDescription>
-            Add a new staff member to your organization.
+            Create a new account for a staff member, teacher, or administrator.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name *</FormLabel>
+                    <FormLabel>First Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="John" {...field} />
+                      <Input placeholder="Enter first name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Last Name *</FormLabel>
+                    <FormLabel>Last Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Doe" {...field} />
+                      <Input placeholder="Enter last name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+            
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email *</FormLabel>
+                  <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="john.doe@example.com" {...field} />
+                    <Input type="email" placeholder="Enter email address" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    The staff member will receive an email to set their password.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Enter password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <FormField
               control={form.control}
               name="phone"
@@ -193,18 +214,19 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                 <FormItem>
                   <FormLabel>Phone (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="(123) 456-7890" {...field} />
+                    <Input placeholder="Enter phone number" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            
             <FormField
               control={form.control}
               name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Role *</FormLabel>
+                  <FormLabel>Role</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -212,77 +234,79 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="admin">Administrator</SelectItem>
                       <SelectItem value="teacher">Teacher</SelectItem>
                       <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
-                      <SelectItem value="super_admin">Super Admin</SelectItem>
+                      <SelectItem value="staff">General Staff</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Administrators have full access, teachers manage classes, and staff provide support.
+                    Select the appropriate role for this staff member
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            {(watchRole === "teacher" || watchRole === "teacher_assistant") && (
+            {form.watch("role") === "admin" && (
               <FormField
                 control={form.control}
-                name="isVolunteer"
+                name="isSuperAdmin"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Super Admin
+                      </FormLabel>
+                      <FormDescription>
+                        Super admins have unrestricted access to all features
+                      </FormDescription>
+                    </div>
                     <FormControl>
-                      <Checkbox
+                      <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Volunteer
-                      </FormLabel>
-                      <FormDescription>
-                        Mark this staff member as a volunteer (otherwise treated as paid staff)
-                      </FormDescription>
-                    </div>
                   </FormItem>
                 )}
               />
             )}
             
-            {watchRole === "admin" && (
-              <FormField
-                control={form.control}
-                name="isSuperAdmin"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Make Super Admin
-                      </FormLabel>
-                      <FormDescription>
-                        Super admins have unrestricted access to all system features.
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            )}
-            <DialogFooter className="pt-4 sticky bottom-0 bg-white pb-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <FormField
+              control={form.control}
+              name="isVolunteer"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Volunteer
+                    </FormLabel>
+                    <FormDescription>
+                      Mark this person as a volunteer rather than paid staff
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Staff Member"}
+                {isSubmitting ? "Creating..." : "Add Staff Member"}
               </Button>
             </DialogFooter>
           </form>

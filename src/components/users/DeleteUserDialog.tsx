@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { UserProfile } from "@/types/users";
 
 interface DeleteUserDialogProps {
@@ -18,20 +19,37 @@ interface DeleteUserDialogProps {
   onDelete: () => void;
 }
 
-const DeleteUserDialog = ({ isOpen, onOpenChange, selectedUser, onDelete }: DeleteUserDialogProps) => {
+const DeleteUserDialog = ({
+  isOpen,
+  onOpenChange,
+  selectedUser,
+  onDelete,
+}: DeleteUserDialogProps) => {
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle>Delete User Account</AlertDialogTitle>
           <AlertDialogDescription>
-            This action will permanently delete {selectedUser?.firstName} {selectedUser?.lastName}'s account
-            and all associated data. This action cannot be undone.
+            {selectedUser ? (
+              <>
+                Are you sure you want to delete {selectedUser.firstName} {selectedUser.lastName}'s account?
+                <br />
+                <br />
+                This action cannot be undone. This will permanently delete the user account
+                and remove all associated data from our servers.
+              </>
+            ) : (
+              "Are you sure you want to delete this user account? This action cannot be undone."
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onDelete} className="bg-red-600 hover:bg-red-700">
+          <AlertDialogAction 
+            onClick={onDelete}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
             Delete
           </AlertDialogAction>
         </AlertDialogFooter>
