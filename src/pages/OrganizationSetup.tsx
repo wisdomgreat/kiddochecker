@@ -124,7 +124,7 @@ const OrganizationSetup = () => {
         throw new Error("Failed to create user account");
       }
       
-      // 3. Create admin role directly in the table
+      // 3. Create admin role directly in the table - FIX: Using explicit column references
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .insert({
