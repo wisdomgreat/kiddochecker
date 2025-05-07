@@ -600,6 +600,17 @@ export type Database = {
         Args: { query: string }
         Returns: boolean
       }
+      create_class_teacher_assignment: {
+        Args: {
+          p_class_name: string
+          p_description: string
+          p_age_range: string
+          p_capacity: number
+          p_room: string
+          p_teacher_id: string
+        }
+        Returns: string
+      }
       create_organization: {
         Args: {
           org_name: string
@@ -700,6 +711,10 @@ export type Database = {
       }
       has_role: {
         Args: { user_id: string; role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: { user_id: string }
         Returns: boolean
       }
       register_device: {

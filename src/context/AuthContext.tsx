@@ -80,9 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Clear any stored paths
       sessionStorage.removeItem("returnPath");
-      
-      // Redirect to landing page after sign out
-      window.location.href = "/landing";
     } catch (error) {
       console.error("Error signing out:", error);
     }
