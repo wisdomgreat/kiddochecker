@@ -16,45 +16,25 @@ export const useUserRoles = () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
-        // Direct query approach - avoiding RPC function that has type mismatches
-        console.log("Fetching users with direct query approach...");
+        // Get all profiles directly - avoid using the problematic RPC function
+        console.log("Fetching user profiles directly...");
         
-        // Get all profiles
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('*');
           
         if (profilesError) throw profilesError;
+        
+        // Get email addresses
+        const { data: emailsData, error: emailsError } = await supabase
+          .from('auth_users_with_emails')
+          .select('id, email');
           
-        // Get all user roles
-        const { data: userRolesData, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('*');
-          
-        if (rolesError) throw rolesError;
+        if (emailsError) throw emailsError;
         
-        // For email addresses, use our new auth_users_with_emails view
-        const fetchUserEmails = async () => {
-          try {
-            // Use our new view instead of the RPC function
-            const { data, error } = await supabase
-              .from('auth_users_with_emails')
-              .select('id, email');
-              
-            if (error) throw error;
-            return data || [];
-          } catch (error) {
-            console.error("Error fetching emails:", error);
-            return [];
-          }
-        };
-        
-        // Fetch emails
-        const emailsData = await fetchUserEmails();
-        
-        // Create a map of user IDs to emails
+        // Create email lookup map
         const emailsMap: Record<string, string> = {};
-        if (emailsData && Array.isArray(emailsData)) {
+        if (emailsData) {
           emailsData.forEach((item: any) => {
             if (item && item.id && item.email) {
               emailsMap[item.id] = item.email;
@@ -62,19 +42,39 @@ export const useUserRoles = () => {
           });
         }
         
-        // Return transformed data
+        // Direct query for user roles to avoid recursion issues
+        const { data: userRolesData, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('*');
+          
+        if (rolesError) throw rolesError;
+        
+        // Create roles lookup map
+        const rolesMap: Record<string, any> = {};
+        if (userRolesData) {
+          userRolesData.forEach((role: any) => {
+            if (role && role.user_id) {
+              rolesMap[role.user_id] = {
+                role: role.role,
+                is_super_admin: role.is_super_admin
+              };
+            }
+          });
+        }
+        
+        // Combine data
         return (profilesData || []).map((profile): UserProfile => {
-          const userRole = userRolesData?.find(role => role.user_id === profile.id) || { role: 'parent' };
+          const roleData = rolesMap[profile.id] || { role: 'parent', is_super_admin: false };
           
           return {
             id: profile.id,
             email: emailsMap[profile.id] || '',
             firstName: profile.first_name || '',
             lastName: profile.last_name || '',
-            role: userRole.role as AppRole || 'parent',
+            role: roleData.role as AppRole || 'parent',
             roleData: {
-              role: userRole.role as AppRole || 'parent',
-              is_super_admin: typeof userRole === 'object' && 'is_super_admin' in userRole ? Boolean(userRole.is_super_admin) : false
+              role: roleData.role as AppRole || 'parent',
+              is_super_admin: !!roleData.is_super_admin
             },
             phone: profile.phone || '',
             createdAt: profile.created_at || '',

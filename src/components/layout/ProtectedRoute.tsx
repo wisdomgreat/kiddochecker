@@ -19,6 +19,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   useEffect(() => {
     if (!user && !isLoading) {
       sessionStorage.setItem("returnPath", location.pathname);
+      console.log("Protected route: Saving return path:", location.pathname);
     }
   }, [user, isLoading, location.pathname]);
 
@@ -26,6 +27,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   useEffect(() => {
     const checkAuth = async () => {
       if (!isLoading && !user) {
+        console.log("Protected route: No user detected, refreshing session");
         await refreshSession();
       }
     };
@@ -57,6 +59,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   }
 
   if (!user) {
+    console.log("Protected route: No authenticated user, redirecting to login");
     // Show toast notification for unauthorized access
     toast({
       title: "Authentication required",

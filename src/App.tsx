@@ -1,5 +1,6 @@
 
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import AdminDashboard from '@/pages/AdminDashboard';
 import TeacherDashboard from '@/pages/TeacherDashboard';
@@ -41,9 +42,21 @@ const Unauthorized = () => (
 );
 
 function App() {
-  const { user, userRole, isLoading, isSetupComplete } = useAuth();
+  const { user, userRole, isLoading, isSetupComplete, refreshSession } = useAuth();
+  const location = useLocation();
 
   console.log("App.tsx - Current user role:", userRole);
+  
+  // Force a refresh session when app loads or route changes
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!isLoading && !user) {
+        await refreshSession();
+      }
+    };
+    
+    checkAuth();
+  }, [location.pathname]);
 
   const getDefaultRoute = () => {
     if (!user) return '/landing';
@@ -123,15 +136,9 @@ function App() {
         </ProtectedRoute>
       } />
       
-      <Route path="/reports-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <ReportsDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/settings" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <Settings />
+      <Route path="/check-in-out" element={
+        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
+          <CheckInOutManagement />
         </ProtectedRoute>
       } />
       
@@ -141,21 +148,27 @@ function App() {
         </ProtectedRoute>
       } />
       
+      <Route path="/reports-dashboard" element={
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+          <ReportsDashboard />
+        </ProtectedRoute>
+      } />
+      
       <Route path="/roles-management" element={
         <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <RolesManagement />
         </ProtectedRoute>
       } />
-
-      <Route path="/role-permissions-management" element={
+      
+      <Route path="/role-permissions" element={
         <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
           <RolePermissionsManagement />
         </ProtectedRoute>
       } />
-
-      <Route path="/check-in-out" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-          <CheckInOutManagement />
+      
+      <Route path="/settings" element={
+        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+          <Settings />
         </ProtectedRoute>
       } />
       
@@ -179,18 +192,14 @@ function App() {
         </ProtectedRoute>
       } />
       
-      <Route path="/check-in-process" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'parent']}>
-          <CheckInProcess />
-        </ProtectedRoute>
-      } />
-      
       {/* Common Routes */}
       <Route path="/user-profile" element={
         <ProtectedRoute>
           <UserProfile />
         </ProtectedRoute>
       } />
+      
+      <Route path="/check-in-process" element={<CheckInProcess />} />
       
       <Route path="*" element={<Navigate to="/404" replace />} />
     </Routes>
