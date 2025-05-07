@@ -28,12 +28,11 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const { user, userRole, isLoading: authLoading } = useAuth();
+  const { user, userRole, isLoading: authLoading, refreshSession } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [shouldRedirect, setShouldRedirect] = useState(false);
   const isStaffLogin = location.state?.staffLogin || false;
   
   const form = useForm<LoginValues>({
@@ -46,7 +45,7 @@ const LoginPage = () => {
   
   // Redirect if already logged in
   useEffect(() => {
-    if (shouldRedirect && user && userRole && !authLoading && !isLoading) {
+    if (user && userRole && !authLoading && !isLoading) {
       console.log("LoginPage: Already logged in as:", userRole);
       const returnPath = sessionStorage.getItem("returnPath");
       let targetRoute = "/parent-dashboard";
@@ -60,9 +59,8 @@ const LoginPage = () => {
       console.log("LoginPage: Redirecting to:", returnPath || targetRoute);
       navigate(returnPath || targetRoute, { replace: true });
       sessionStorage.removeItem("returnPath");
-      setShouldRedirect(false);
     }
-  }, [user, userRole, authLoading, isLoading, navigate, shouldRedirect]);
+  }, [user, userRole, authLoading, isLoading, navigate]);
   
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -80,7 +78,22 @@ const LoginPage = () => {
         description: "You are now logged in",
       });
 
-      setShouldRedirect(true);
+      // Refresh session to get updated role
+      await refreshSession();
+
+      // Get return path, if any
+      const returnPath = sessionStorage.getItem("returnPath");
+      let targetRoute = "/parent-dashboard";
+      
+      if (userRole === "admin" || userRole === "super_admin") {
+        targetRoute = "/admin-dashboard";
+      } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
+        targetRoute = "/teacher-dashboard";
+      }
+      
+      // Navigate to appropriate dashboard or return path
+      navigate(returnPath || targetRoute, { replace: true });
+      sessionStorage.removeItem("returnPath");
       
     } catch (error: any) {
       console.error("Login error:", error);

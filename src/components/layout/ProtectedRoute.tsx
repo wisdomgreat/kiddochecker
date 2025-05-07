@@ -1,6 +1,6 @@
 
 import { ReactNode, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/types/supabase';
@@ -13,6 +13,7 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) => {
   const { user, userRole, isLoading, refreshSession } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   // Save the current path for redirect after login

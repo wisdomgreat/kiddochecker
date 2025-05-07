@@ -41,7 +41,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         />
       )}
       
-      {/* Sidebar - hidden on mobile by default, visible when mobileMenuOpen is true */}
+      {/* Sidebar - make sure it's always visible on desktop */}
       <div className={`
         fixed md:static inset-y-0 left-0 z-20 transform transition-transform duration-200 ease-in-out
         ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}

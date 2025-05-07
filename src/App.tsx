@@ -27,6 +27,14 @@ import RolesManagement from '@/pages/RolesManagement';
 import RolePermissionsManagement from '@/pages/RolePermissionsManagement';
 import CheckInOutManagement from '@/pages/CheckInOutManagement';
 import { CircularProgress } from '@/components/ui/circular-progress';
+import { Toaster } from '@/components/ui/toaster';
+
+// New footer pages
+import AboutUs from '@/pages/AboutUs';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import TermsOfService from '@/pages/TermsOfService';
+import ContactUs from '@/pages/ContactUs';
+import FAQ from '@/pages/FAQ';
 
 const Unauthorized = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -46,6 +54,7 @@ function App() {
   const location = useLocation();
 
   console.log("App.tsx - Current user role:", userRole);
+  console.log("App.tsx - Current path:", location.pathname);
   
   // Force a refresh session when app loads or route changes
   useEffect(() => {
@@ -91,118 +100,128 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/landing" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
-      <Route path="/check-out-station" element={<CheckOutStation />} />
-      <Route path="/organization-setup" element={<OrganizationSetup />} />
-      <Route path="/parent-registration" element={<ParentRegistration />} />
-      <Route path="/unauthorized" element={<Unauthorized />} />
-      <Route path="/404" element={<NotFound />} />
-      
-      <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
-      <Route path="" element={<Navigate to={getDefaultRoute()} replace />} />
-      <Route path="index" element={<Navigate to={getDefaultRoute()} replace />} />
-      
-      {/* Admin Routes */}
-      <Route path="/admin-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <AdminDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/users-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <UsersManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/staff-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <StaffManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/classes-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant']}>
-          <ClassesManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/events-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-          <EventsManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/check-in-out" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-          <CheckInOutManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/kiosk-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <KioskManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/reports-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <ReportsDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/roles-management" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <RolesManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/role-permissions" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <RolePermissionsManagement />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/settings" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-          <Settings />
-        </ProtectedRoute>
-      } />
-      
-      {/* Teacher Routes */}
-      <Route path="/teacher-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-          <TeacherDashboard />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/teacher-profile" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-          <TeacherProfile />
-        </ProtectedRoute>
-      } />
-      
-      {/* Parent Routes */}
-      <Route path="/parent-dashboard" element={
-        <ProtectedRoute allowedRoles={['admin', 'super_admin', 'parent']}>
-          <ParentDashboard />
-        </ProtectedRoute>
-      } />
-      
-      {/* Common Routes */}
-      <Route path="/user-profile" element={
-        <ProtectedRoute>
-          <UserProfile />
-        </ProtectedRoute>
-      } />
-      
-      <Route path="/check-in-process" element={<CheckInProcess />} />
-      
-      <Route path="*" element={<Navigate to="/404" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+        <Route path="/check-out-station" element={<CheckOutStation />} />
+        <Route path="/organization-setup" element={<OrganizationSetup />} />
+        <Route path="/parent-registration" element={<ParentRegistration />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+        <Route path="/404" element={<NotFound />} />
+        
+        {/* Footer pages */}
+        <Route path="/about-us" element={<AboutUs />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/contact-us" element={<ContactUs />} />
+        <Route path="/faq" element={<FAQ />} />
+        
+        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+        <Route path="" element={<Navigate to={getDefaultRoute()} replace />} />
+        <Route path="index" element={<Navigate to={getDefaultRoute()} replace />} />
+        
+        {/* Admin Routes */}
+        <Route path="/admin-dashboard" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/users-management" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <UsersManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/staff-management" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <StaffManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/classes-management" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant']}>
+            <ClassesManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/events-management" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
+            <EventsManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/check-in-out" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
+            <CheckInOutManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/kiosk-management" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <KioskManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/reports-dashboard" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <ReportsDashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/roles-management" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <RolesManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/role-permissions" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <RolePermissionsManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/settings" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        
+        {/* Teacher Routes */}
+        <Route path="/teacher-dashboard" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
+            <TeacherDashboard />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/teacher-profile" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
+            <TeacherProfile />
+          </ProtectedRoute>
+        } />
+        
+        {/* Parent Routes */}
+        <Route path="/parent-dashboard" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'parent']}>
+            <ParentDashboard />
+          </ProtectedRoute>
+        } />
+        
+        {/* Common Routes */}
+        <Route path="/user-profile" element={
+          <ProtectedRoute>
+            <UserProfile />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/check-in-process" element={<CheckInProcess />} />
+        
+        <Route path="*" element={<Navigate to="/404" replace />} />
+      </Routes>
+      <Toaster />
+    </>
   );
 }
 
