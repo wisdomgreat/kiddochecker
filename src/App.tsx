@@ -103,14 +103,20 @@ function App() {
   return (
     <>
       <Routes>
+        {/* Public routes */}
         <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
-        <Route path="/check-out-station" element={<CheckOutStation />} />
-        <Route path="/organization-setup" element={<OrganizationSetup />} />
         <Route path="/parent-registration" element={<ParentRegistration />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="/404" element={<NotFound />} />
+        
+        {/* Kiosk routes - public but with device registration */}
+        <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+        <Route path="/check-out-station" element={<CheckOutStation />} />
+        <Route path="/check-in-process" element={<CheckInProcess />} />
+        
+        {/* Organization setup route */}
+        <Route path="/organization-setup" element={<OrganizationSetup />} />
         
         {/* Footer pages */}
         <Route path="/about-us" element={<AboutUs />} />
@@ -119,6 +125,7 @@ function App() {
         <Route path="/contact-us" element={<ContactUs />} />
         <Route path="/faq" element={<FAQ />} />
         
+        {/* Default route - redirect based on user role */}
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="index" element={<Navigate to={getDefaultRoute()} replace />} />
@@ -216,8 +223,6 @@ function App() {
             <UserProfile />
           </ProtectedRoute>
         } />
-        
-        <Route path="/check-in-process" element={<CheckInProcess />} />
         
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>

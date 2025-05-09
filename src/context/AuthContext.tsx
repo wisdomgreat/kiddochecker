@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Set up auth state listener FIRST (this is critical to avoid auth deadlocks)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log("Auth state changed:", event, newSession ? "session exists" : "no session");
         
         // Synchronously update session and user
@@ -99,8 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(newSession?.user ?? null);
         
         // Use setTimeout to avoid potential deadlock when fetching user role
-        // This ensures the auth change completes before additional Supabase calls
         if (newSession?.user) {
+          // Use a simple setTimeout to ensure auth state changes complete first
           setTimeout(async () => {
             try {
               const role = await getUserRole();
@@ -110,13 +110,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const setupCompleted = await isSetupCompleted();
               console.log("Setup completed:", setupCompleted);
               setIsSetupComplete(setupCompleted);
-              
-              setIsLoading(false);
             } catch (error) {
               console.error("Error getting user role:", error);
+            } finally {
               setIsLoading(false);
             }
-          }, 0);
+          }, 100);
         } else {
           setUserRole(null);
           setIsSetupComplete(null);

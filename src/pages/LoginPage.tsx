@@ -81,11 +81,10 @@ const LoginPage = () => {
       // Refresh session to get updated role
       await refreshSession();
 
-      // Wait for user role to be populated
+      // A slight delay to ensure session processing is complete
       setTimeout(async () => {
-        const currentRole = await supabase.auth.getUser().then(res => {
-          return res.data.user ? getUserRole(res.data.user.id) : null;
-        });
+        const currentRole = await getUserRole();
+        console.log("Current role after login:", currentRole);
         
         // Get return path, if any
         const returnPath = sessionStorage.getItem("returnPath");
@@ -114,12 +113,15 @@ const LoginPage = () => {
   };
 
   // Helper function to get user role
-  const getUserRole = async (userId: string) => {
+  const getUserRole = async () => {
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return null;
+      
       const { data } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
+        .eq('user_id', userData.user.id)
         .single();
       
       return data?.role;

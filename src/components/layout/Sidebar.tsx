@@ -117,19 +117,19 @@ const Sidebar = ({
     },
   ];
 
-  const filteredMainLinks = mainLinks.filter((link) =>
-    link.roles.includes(userRole || "")
-  );
+  const filteredMainLinks = userRole 
+    ? mainLinks.filter(link => link.roles.includes(userRole))
+    : [];
   
-  const filteredManagementLinks = managementLinks.filter((link) =>
-    link.roles.includes(userRole || "")
-  );
+  const filteredManagementLinks = userRole 
+    ? managementLinks.filter(link => link.roles.includes(userRole))
+    : [];
   
-  const filteredUserLinks = userLinks.filter((link) =>
-    link.roles.includes(userRole || "")
-  );
+  const filteredUserLinks = userRole 
+    ? userLinks.filter(link => link.roles.includes(userRole))
+    : [];
 
-  // Add fake links if the lists are empty (for demo purposes)
+  // Add fallback for empty lists (for demo purposes)
   if (filteredMainLinks.length === 0) {
     filteredMainLinks.push({
       href: "/landing",

@@ -24,8 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useCreateClass } from "@/hooks/useClasses";
 
 const classSchema = z.object({
   name: z.string().min(1, "Class name is required"),
@@ -45,8 +44,8 @@ interface AddClassFormProps {
 
 export const AddClassForm = ({ open, onOpenChange, onSuccess }: AddClassFormProps) => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const createClassMutation = useCreateClass();
 
   const form = useForm<ClassFormValues>({
     resolver: zodResolver(classSchema),
@@ -63,37 +62,21 @@ export const AddClassForm = ({ open, onOpenChange, onSuccess }: AddClassFormProp
     setIsSubmitting(true);
 
     try {
-      // Use RPC function to avoid column reference ambiguity
-      const { data, error } = await supabase.rpc('create_class_teacher_assignment', {
-        p_class_name: values.name,
-        p_description: values.description || '',
-        p_age_range: values.ageRange || '',
-        p_capacity: values.capacity || null,
-        p_room: values.room || '',
-        p_teacher_id: null // No teacher assigned during initial creation
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Class created successfully",
+      await createClassMutation.mutateAsync({
+        name: values.name,
+        description: values.description,
+        ageRange: values.ageRange,
+        capacity: values.capacity,
+        room: values.room,
       });
       
       form.reset();
       onOpenChange(false);
       
-      // Invalidate classes query
-      queryClient.invalidateQueries({ queryKey: ["classes"] });
-      
       if (onSuccess) onSuccess();
-    } catch (error: any) {
-      console.error("Error creating class:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create class",
-        variant: "destructive",
-      });
+    } catch (error) {
+      console.error("Error in handleSubmit:", error);
+      // Error handling is done in the mutation
     } finally {
       setIsSubmitting(false);
     }
