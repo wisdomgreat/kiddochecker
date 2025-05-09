@@ -1,5 +1,5 @@
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isVerifying, setIsVerifying] = useState(true);
 
   // Save the current path for redirect after login
   useEffect(() => {
@@ -24,21 +25,30 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     }
   }, [user, isLoading, location.pathname]);
 
-  // Refresh session only once when the component mounts
+  // Refresh session and verify authentication when the component mounts
   useEffect(() => {
     const checkAuth = async () => {
-      if (!isLoading && !user) {
-        console.log("Protected route: No user detected, refreshing session");
-        await refreshSession();
+      try {
+        if (isLoading) return;
+        
+        if (!user) {
+          console.log("Protected route: No user detected, refreshing session");
+          await refreshSession();
+        }
+        
+        setIsVerifying(false);
+      } catch (error) {
+        console.error("Failed to verify authentication:", error);
+        setIsVerifying(false);
       }
     };
     
     checkAuth();
-  }, []);
+  }, [isLoading, user, refreshSession]);
 
   // Debug logging
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && !isVerifying) {
       console.log('ProtectedRoute access check:', {
         path: location.pathname,
         user: user ? 'authenticated' : 'unauthenticated',
@@ -47,10 +57,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
         hasAccess: !allowedRoles.length || (userRole && allowedRoles.includes(userRole))
       });
     }
-  }, [isLoading, user, userRole, allowedRoles, location.pathname]);
+  }, [isLoading, isVerifying, user, userRole, allowedRoles, location.pathname]);
 
-  if (isLoading) {
-    // Show loading state while checking auth
+  // Show loading state while checking auth
+  if (isLoading || isVerifying) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
@@ -59,6 +69,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     );
   }
 
+  // Redirect to login if not authenticated
   if (!user) {
     console.log("Protected route: No authenticated user, redirecting to login");
     // Show toast notification for unauthorized access
@@ -72,7 +83,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If there are allowed roles and the user's role is not in the list, redirect to unauthorized page
+  // Check role-based access
   if (allowedRoles.length > 0 && userRole && !allowedRoles.includes(userRole)) {
     console.log('Access denied for path:', location.pathname, 'User role:', userRole, 'Required roles:', allowedRoles);
     
@@ -96,6 +107,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     return <Navigate to={redirectPath} replace />;
   }
 
+  // User is authenticated and has appropriate role
   return <>{children}</>;
 };
 

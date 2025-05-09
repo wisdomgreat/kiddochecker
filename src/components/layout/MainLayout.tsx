@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -13,11 +14,17 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
 
   // Reset mobile menu state when route changes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  // Log authentication status for debugging
+  useEffect(() => {
+    console.log("MainLayout - Auth status:", user ? "Authenticated" : "Not authenticated");
+  }, [user]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
