@@ -60,6 +60,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       if (!isLoading && !user) {
+        console.log("App.tsx: Refreshing session on route change");
         await refreshSession();
       }
     };

@@ -43,9 +43,7 @@ export const useCreateClass = () => {
       room?: string;
       teacherId?: string;
     }) => {
-      console.log("Creating class using RPC function:", newClass);
-      
-      // Use our new RPC function to avoid ambiguous column references
+      // Use supabase function call instead of direct insert to avoid ambiguous column references
       const { data, error } = await supabase.rpc('create_class_teacher_assignment', {
         p_class_name: newClass.name,
         p_description: newClass.description || '',

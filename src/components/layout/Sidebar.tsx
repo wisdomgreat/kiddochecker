@@ -1,5 +1,5 @@
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -28,6 +28,7 @@ const Sidebar = ({
 }) => {
   const { userRole, signOut } = useAuth();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const mainLinks = [
     {
@@ -137,6 +138,11 @@ const Sidebar = ({
       roles: ["any"],
     });
   }
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/landing', { replace: true });
+  };
 
   return (
     <aside
@@ -257,7 +263,7 @@ const Sidebar = ({
             "flex items-center w-full rounded-md px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100",
             collapsed && "justify-center"
           )}
-          onClick={signOut}
+          onClick={handleSignOut}
         >
           <LogOut size={20} className={cn("mr-2", collapsed && "mr-0")} />
           {!collapsed && "Sign Out"}

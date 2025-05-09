@@ -81,19 +81,26 @@ const LoginPage = () => {
       // Refresh session to get updated role
       await refreshSession();
 
-      // Get return path, if any
-      const returnPath = sessionStorage.getItem("returnPath");
-      let targetRoute = "/parent-dashboard";
-      
-      if (userRole === "admin" || userRole === "super_admin") {
-        targetRoute = "/admin-dashboard";
-      } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
-        targetRoute = "/teacher-dashboard";
-      }
-      
-      // Navigate to appropriate dashboard or return path
-      navigate(returnPath || targetRoute, { replace: true });
-      sessionStorage.removeItem("returnPath");
+      // Wait for user role to be populated
+      setTimeout(async () => {
+        const currentRole = await supabase.auth.getUser().then(res => {
+          return res.data.user ? getUserRole(res.data.user.id) : null;
+        });
+        
+        // Get return path, if any
+        const returnPath = sessionStorage.getItem("returnPath");
+        let targetRoute = "/parent-dashboard";
+        
+        if (currentRole === "admin" || currentRole === "super_admin") {
+          targetRoute = "/admin-dashboard";
+        } else if (currentRole === "teacher" || currentRole === "staff" || currentRole === "teacher_assistant") {
+          targetRoute = "/teacher-dashboard";
+        }
+        
+        // Navigate to appropriate dashboard or return path
+        navigate(returnPath || targetRoute, { replace: true });
+        sessionStorage.removeItem("returnPath");
+      }, 500);
       
     } catch (error: any) {
       console.error("Login error:", error);
@@ -102,8 +109,23 @@ const LoginPage = () => {
         description: error.message,
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to get user role
+  const getUserRole = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+      
+      return data?.role;
+    } catch (error) {
+      console.error("Error getting user role:", error);
+      return null;
     }
   };
   

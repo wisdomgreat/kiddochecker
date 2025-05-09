@@ -63,16 +63,15 @@ export const AddClassForm = ({ open, onOpenChange, onSuccess }: AddClassFormProp
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase
-        .from("classes")
-        .insert({
-          name: values.name,
-          description: values.description || null,
-          age_range: values.ageRange || null,
-          capacity: values.capacity || null,
-          room: values.room || null,
-        })
-        .select();
+      // Use RPC function to avoid column reference ambiguity
+      const { data, error } = await supabase.rpc('create_class_teacher_assignment', {
+        p_class_name: values.name,
+        p_description: values.description || '',
+        p_age_range: values.ageRange || '',
+        p_capacity: values.capacity || null,
+        p_room: values.room || '',
+        p_teacher_id: null // No teacher assigned during initial creation
+      });
 
       if (error) throw error;
 
