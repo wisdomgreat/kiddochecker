@@ -1,6 +1,6 @@
 
 import { ReactNode, useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/types/supabase';
@@ -11,11 +11,10 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) => {
-  const { user, userRole, isLoading, refreshSession } = useAuth();
+  const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [isVerifying, setIsVerifying] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Save the current path for redirect after login
   useEffect(() => {
@@ -25,30 +24,9 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     }
   }, [user, isLoading, location.pathname]);
 
-  // Refresh session and verify authentication when the component mounts
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (isLoading) return;
-        
-        if (!user) {
-          console.log("Protected route: No user detected, refreshing session");
-          await refreshSession();
-        }
-        
-        setIsVerifying(false);
-      } catch (error) {
-        console.error("Failed to verify authentication:", error);
-        setIsVerifying(false);
-      }
-    };
-    
-    checkAuth();
-  }, [isLoading, user, refreshSession]);
-
   // Debug logging
   useEffect(() => {
-    if (!isLoading && !isVerifying) {
+    if (!isLoading) {
       console.log('ProtectedRoute access check:', {
         path: location.pathname,
         user: user ? 'authenticated' : 'unauthenticated',
@@ -57,7 +35,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
         hasAccess: !allowedRoles.length || (userRole && allowedRoles.includes(userRole))
       });
     }
-  }, [isLoading, isVerifying, user, userRole, allowedRoles, location.pathname]);
+  }, [isLoading, user, userRole, allowedRoles, location.pathname]);
 
   // Show loading state while checking auth
   if (isLoading || isVerifying) {

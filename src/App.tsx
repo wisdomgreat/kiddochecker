@@ -50,24 +50,12 @@ const Unauthorized = () => (
 );
 
 function App() {
-  const { user, userRole, isLoading, isSetupComplete, refreshSession } = useAuth();
+  const { user, userRole, isLoading, isSetupComplete } = useAuth();
   const location = useLocation();
 
   console.log("App.tsx - Current user role:", userRole);
   console.log("App.tsx - Current path:", location.pathname);
   
-  // Force a refresh session when app loads or route changes
-  useEffect(() => {
-    const checkAuth = async () => {
-      if (!isLoading && !user) {
-        console.log("App.tsx: Refreshing session on route change");
-        await refreshSession();
-      }
-    };
-    
-    checkAuth();
-  }, [location.pathname, isLoading, user, refreshSession]);
-
   const getDefaultRoute = () => {
     if (!user) return '/landing';
     
