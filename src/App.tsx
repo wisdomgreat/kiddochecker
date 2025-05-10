@@ -66,7 +66,7 @@ function App() {
     };
     
     checkAuth();
-  }, [location.pathname]);
+  }, [location.pathname, isLoading, user, refreshSession]);
 
   const getDefaultRoute = () => {
     if (!user) return '/landing';

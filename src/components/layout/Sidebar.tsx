@@ -1,4 +1,3 @@
-
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,21 +29,33 @@ const Sidebar = ({
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
+  // Define dashboard routes by role to avoid redirection issues
+  const getDashboardRoute = (role: string | null) => {
+    if (role === 'admin' || role === 'super_admin') {
+      return '/admin-dashboard';
+    } else if (role === 'teacher' || role === 'teacher_assistant' || role === 'staff') {
+      return '/teacher-dashboard';
+    } else if (role === 'parent') {
+      return '/parent-dashboard';
+    }
+    return '/landing';
+  };
+
   const mainLinks = [
     {
-      href: "/admin-dashboard",
+      href: getDashboardRoute('admin'),
       label: "Dashboard",
       icon: <Home size={20} />,
       roles: ["admin", "super_admin"],
     },
     {
-      href: "/teacher-dashboard",
+      href: getDashboardRoute('teacher'),
       label: "Dashboard",
       icon: <Home size={20} />,
       roles: ["teacher", "teacher_assistant", "staff"],
     },
     {
-      href: "/parent-dashboard",
+      href: getDashboardRoute('parent'),
       label: "Dashboard",
       icon: <Home size={20} />,
       roles: ["parent"],

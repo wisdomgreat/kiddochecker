@@ -50,21 +50,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If we have a user, get their role
       if (currentSession?.user) {
         console.log("Getting role for user:", currentSession.user.id);
-        const role = await getUserRole();
-        console.log("User role:", role);
-        setUserRole(role);
-        
-        // Check if setup is completed
-        const setupCompleted = await isSetupCompleted();
-        console.log("Setup completed:", setupCompleted);
-        setIsSetupComplete(setupCompleted);
+        // Add slight delay to avoid potential race conditions with auth state
+        setTimeout(async () => {
+          const role = await getUserRole();
+          console.log("User role:", role);
+          setUserRole(role);
+          
+          // Check if setup is completed
+          const setupCompleted = await isSetupCompleted();
+          console.log("Setup completed:", setupCompleted);
+          setIsSetupComplete(setupCompleted);
+          setIsLoading(false);
+        }, 100);
       } else {
         setUserRole(null);
         setIsSetupComplete(null);
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Error refreshing session:", error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -91,16 +95,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Set up auth state listener FIRST (this is critical to avoid auth deadlocks)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         console.log("Auth state changed:", event, newSession ? "session exists" : "no session");
         
-        // Synchronously update session and user
+        // Update session and user immediately
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
-        // Use setTimeout to avoid potential deadlock when fetching user role
+        // If we have a user, get their role
         if (newSession?.user) {
-          // Use a simple setTimeout to ensure auth state changes complete first
+          // Use setTimeout to avoid potential deadlocks
           setTimeout(async () => {
             try {
               const role = await getUserRole();
@@ -110,9 +114,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const setupCompleted = await isSetupCompleted();
               console.log("Setup completed:", setupCompleted);
               setIsSetupComplete(setupCompleted);
+              setIsLoading(false);
             } catch (error) {
               console.error("Error getting user role:", error);
-            } finally {
               setIsLoading(false);
             }
           }, 100);
@@ -132,19 +136,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("Initial session check:", initialSession ? "session exists" : "no session");
         
         // Don't set session/user here as it will be handled by onAuthStateChange
+        
         // Only initialize additional data if not already done by authStateChange
         if (initialSession?.user && !userRole) {
-          const role = await getUserRole();
-          console.log("Initial user role:", role);
-          setUserRole(role);
-          
-          const setupCompleted = await isSetupCompleted();
-          console.log("Setup completed:", setupCompleted);
-          setIsSetupComplete(setupCompleted);
+          setTimeout(async () => {
+            try {
+              const role = await getUserRole();
+              console.log("Initial user role:", role);
+              setUserRole(role);
+              
+              const setupCompleted = await isSetupCompleted();
+              console.log("Setup completed:", setupCompleted);
+              setIsSetupComplete(setupCompleted);
+              setIsLoading(false);
+            } catch (error) {
+              console.error("Error in initializeAuth:", error);
+              setIsLoading(false);
+            }
+          }, 100);
+        } else {
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error in initializeAuth:", error);
-      } finally {
         setIsLoading(false);
       }
     };
