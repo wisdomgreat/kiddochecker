@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
 import { useAuth } from "@/context/AuthContext";
+import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 
 interface LoginFormProps {
   onSignUp: () => void;
@@ -21,25 +22,15 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, userRole, refreshSession } = useAuth();
+  const { navigateToDashboard } = useDashboardNavigation();
 
   // Redirect if already logged in
   useEffect(() => {
     if (user && userRole) {
       console.log("LoginForm: User already logged in with role:", userRole);
-      let defaultPath = '/parent-dashboard';
-      
-      if (userRole === 'admin' || userRole === 'super_admin') {
-        defaultPath = '/admin-dashboard';
-      } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-        defaultPath = '/teacher-dashboard';
-      }
-      
-      const returnPath = sessionStorage.getItem("returnPath");
-      console.log("LoginForm: Redirecting to:", returnPath || defaultPath);
-      navigate(returnPath || defaultPath, { replace: true });
-      sessionStorage.removeItem("returnPath"); // Clear return path after use
+      navigateToDashboard();
     }
-  }, [user, userRole, navigate]);
+  }, [user, userRole, navigate, navigateToDashboard]);
 
   const handleContinue = async () => {
     try {
@@ -73,6 +64,9 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       
       // Refresh session to get updated role
       await refreshSession();
+      
+      // Navigate to appropriate dashboard based on role
+      setTimeout(() => navigateToDashboard(), 0);
       
     } catch (error: any) {
       console.error("Login error:", error);

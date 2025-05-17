@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Set up auth state listener FIRST 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log("Auth state changed:", event, newSession ? "session exists" : "no session");
         
         // Update session and user immediately
@@ -100,9 +100,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // If we have a user, get their role
         if (newSession?.user) {
-          // Use setTimeout to avoid potential race conditions with Supabase RPC calls
-          setTimeout(async () => {
-            try {
+          try {
+            // Allow the state update above to complete before getting additional data
+            // This prevents potential React state update conflicts
+            setTimeout(async () => {
               const role = await getUserRole();
               console.log(`User role updated from auth state change: ${role}`);
               setUserRole(role);
@@ -110,12 +111,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const setupCompleted = await isSetupCompleted();
               console.log("Setup completed:", setupCompleted);
               setIsSetupComplete(setupCompleted);
-            } catch (error) {
-              console.error("Error getting user role:", error);
-            } finally {
+              
               setIsLoading(false);
-            }
-          }, 0);
+            }, 0);
+          } catch (error) {
+            console.error("Error getting user role:", error);
+            setIsLoading(false);
+          }
         } else {
           console.log("No session in auth change event");
           setUserRole(null);

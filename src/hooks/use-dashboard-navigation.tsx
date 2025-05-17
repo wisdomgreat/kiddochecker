@@ -22,25 +22,25 @@ export const useDashboardNavigation = () => {
     switch (userRole) {
       case 'admin':
       case 'super_admin':
-        navigate('/admin-dashboard');
+        navigate('/admin-dashboard', { replace: true });
         break;
       case 'teacher':
       case 'teacher_assistant':
       case 'staff':
-        navigate('/teacher-dashboard');
+        navigate('/teacher-dashboard', { replace: true });
         break;
       case 'parent':
-        navigate('/parent-dashboard');
+        navigate('/parent-dashboard', { replace: true });
         break;
       default:
-        navigate('/landing');
+        navigate('/landing', { replace: true });
     }
   };
 
   // Direct navigation functions for specific dashboards
-  const navigateToAdminDashboard = () => navigate('/admin-dashboard');
-  const navigateToTeacherDashboard = () => navigate('/teacher-dashboard');
-  const navigateToParentDashboard = () => navigate('/parent-dashboard');
+  const navigateToAdminDashboard = () => navigate('/admin-dashboard', { replace: true });
+  const navigateToTeacherDashboard = () => navigate('/teacher-dashboard', { replace: true });
+  const navigateToParentDashboard = () => navigate('/parent-dashboard', { replace: true });
   
   // Feature-specific navigation functions
   const navigateToClasses = () => navigate('/classes-management');

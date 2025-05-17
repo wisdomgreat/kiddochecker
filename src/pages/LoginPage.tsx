@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, LogIn, UserPlus, Loader2 } from "lucide-react";
+import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 
 // Create a schema for login validation
 const loginSchema = z.object({
@@ -35,6 +36,7 @@ const LoginPage = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const isStaffLogin = location.state?.staffLogin || false;
+  const { navigateToDashboard } = useDashboardNavigation();
   
   // Initialize form with react-hook-form
   const form = useForm<LoginValues>({
@@ -49,22 +51,9 @@ const LoginPage = () => {
   useEffect(() => {
     if (user && userRole && !authLoading && !isLoading) {
       console.log("LoginPage: Already logged in as:", userRole);
-      const returnPath = sessionStorage.getItem("returnPath");
-      let targetRoute = "/parent-dashboard";
-      
-      // Ensure admin users are directed to admin dashboard
-      if (userRole === "admin" || userRole === "super_admin") {
-        targetRoute = "/admin-dashboard";
-        console.log("LoginPage: User is admin, redirecting to admin dashboard");
-      } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
-        targetRoute = "/teacher-dashboard";
-      }
-      
-      console.log("LoginPage: Redirecting to:", returnPath || targetRoute);
-      navigate(returnPath || targetRoute, { replace: true });
-      sessionStorage.removeItem("returnPath");
+      navigateToDashboard();
     }
-  }, [user, userRole, authLoading, isLoading, navigate]);
+  }, [user, userRole, authLoading, isLoading, navigateToDashboard]);
   
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -85,6 +74,9 @@ const LoginPage = () => {
 
       // Refresh session to get updated role
       await refreshSession();
+      
+      // Navigate to appropriate dashboard
+      setTimeout(() => navigateToDashboard(), 0);
       
     } catch (error: any) {
       console.error("Login error:", error);

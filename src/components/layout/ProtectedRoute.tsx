@@ -16,6 +16,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
   const { toast } = useToast();
+  const { navigateToAdminDashboard, navigateToTeacherDashboard, navigateToParentDashboard } = useDashboardNavigation();
   
   // Save the current path for redirect after login
   useEffect(() => {
@@ -59,17 +60,15 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     });
     
     // Determine where to redirect based on user's role
-    let redirectPath = '/landing';
-    
     if (userRole === 'admin' || userRole === 'super_admin') {
-      redirectPath = '/admin-dashboard';
+      return <Navigate to='/admin-dashboard' replace />;
     } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-      redirectPath = '/teacher-dashboard';
+      return <Navigate to='/teacher-dashboard' replace />;
     } else if (userRole === 'parent') {
-      redirectPath = '/parent-dashboard';
+      return <Navigate to='/parent-dashboard' replace />;
+    } else {
+      return <Navigate to='/landing' replace />;
     }
-    
-    return <Navigate to={redirectPath} replace />;
   }
 
   // User is authenticated and has appropriate role
