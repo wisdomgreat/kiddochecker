@@ -29,7 +29,7 @@ import CheckInOutManagement from '@/pages/CheckInOutManagement';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import { Toaster } from '@/components/ui/toaster';
 
-// New footer pages
+// Footer pages
 import AboutUs from '@/pages/AboutUs';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import TermsOfService from '@/pages/TermsOfService';
@@ -79,11 +79,11 @@ function App() {
   };
 
   // Show loading indicator only during the initial app load
-  if (isLoading) {
+  if (isLoading && location.pathname === '/') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <CircularProgress size="large" />
-        <span className="mt-4 text-gray-600">Loading application...</span>
+        <span className="mt-4 text-gray-600">Starting KidCheck...</span>
       </div>
     );
   }
@@ -212,6 +212,7 @@ function App() {
           </ProtectedRoute>
         } />
         
+        {/* Catch-all route */}
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
       <Toaster />

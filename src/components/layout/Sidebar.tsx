@@ -30,18 +30,7 @@ const Sidebar = ({
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  // Define dashboard routes by role
-  const getDashboardRoute = (role: string | null) => {
-    if (role === 'admin' || role === 'super_admin') {
-      return '/admin-dashboard';
-    } else if (role === 'teacher' || role === 'teacher_assistant' || role === 'staff') {
-      return '/teacher-dashboard';
-    } else if (role === 'parent') {
-      return '/parent-dashboard';
-    }
-    return '/landing';
-  };
-
+  // Define navigation links by role
   const mainLinks = [
     {
       href: "/admin-dashboard",
@@ -89,7 +78,7 @@ const Sidebar = ({
       href: "/reports-dashboard",
       label: "Reports",
       icon: <BarChart2 size={20} />,
-      roles: ["admin", "super_admin"],
+      roles: ["admin", "super_admin", "teacher"],
     },
   ];
 
@@ -129,6 +118,7 @@ const Sidebar = ({
     },
   ];
 
+  // Filter links based on user role
   const filteredMainLinks = userRole 
     ? mainLinks.filter(link => link.roles.includes(userRole))
     : [];
@@ -141,7 +131,7 @@ const Sidebar = ({
     ? userLinks.filter(link => link.roles.includes(userRole))
     : [];
 
-  // Add fallback for empty lists (for demo purposes)
+  // Add fallback links if no role matches (prevents empty sidebar)
   if (filteredMainLinks.length === 0) {
     filteredMainLinks.push({
       href: "/landing",
@@ -165,7 +155,7 @@ const Sidebar = ({
       )}
     >
       <div className="px-3 mb-6 flex items-center">
-        <div className="h-6 w-6 rounded-full bg-purple-600 flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center">
           <span className="text-white font-bold text-sm">K</span>
         </div>
         {!collapsed && (

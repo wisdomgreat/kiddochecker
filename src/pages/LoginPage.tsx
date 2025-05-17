@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, LogIn, UserPlus, Loader2 } from "lucide-react";
 
+// Create a schema for login validation
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
@@ -35,6 +36,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const isStaffLogin = location.state?.staffLogin || false;
   
+  // Initialize form with react-hook-form
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -80,26 +82,6 @@ const LoginPage = () => {
 
       // Refresh session to get updated role
       await refreshSession();
-
-      // A slight delay to ensure session processing is complete
-      setTimeout(async () => {
-        const currentRole = await getUserRole();
-        console.log("Current role after login:", currentRole);
-        
-        // Get return path, if any
-        const returnPath = sessionStorage.getItem("returnPath");
-        let targetRoute = "/parent-dashboard";
-        
-        if (currentRole === "admin" || currentRole === "super_admin") {
-          targetRoute = "/admin-dashboard";
-        } else if (currentRole === "teacher" || currentRole === "staff" || currentRole === "teacher_assistant") {
-          targetRoute = "/teacher-dashboard";
-        }
-        
-        // Navigate to appropriate dashboard or return path
-        navigate(returnPath || targetRoute, { replace: true });
-        sessionStorage.removeItem("returnPath");
-      }, 500);
       
     } catch (error: any) {
       console.error("Login error:", error);
@@ -109,25 +91,6 @@ const LoginPage = () => {
         variant: "destructive",
       });
       setIsLoading(false);
-    }
-  };
-
-  // Helper function to get user role
-  const getUserRole = async () => {
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return null;
-      
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userData.user.id)
-        .single();
-      
-      return data?.role;
-    } catch (error) {
-      console.error("Error getting user role:", error);
-      return null;
     }
   };
   

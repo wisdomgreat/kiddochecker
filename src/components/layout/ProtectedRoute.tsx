@@ -1,9 +1,10 @@
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/types/supabase';
+import { CircularProgress } from '@/components/ui/circular-progress';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -14,7 +15,6 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
   const { toast } = useToast();
-  const [isVerifying, setIsVerifying] = useState(false);
 
   // Save the current path for redirect after login
   useEffect(() => {
@@ -24,25 +24,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     }
   }, [user, isLoading, location.pathname]);
 
-  // Debug logging
-  useEffect(() => {
-    if (!isLoading) {
-      console.log('ProtectedRoute access check:', {
-        path: location.pathname,
-        user: user ? 'authenticated' : 'unauthenticated',
-        userRole,
-        allowedRoles,
-        hasAccess: !allowedRoles.length || (userRole && allowedRoles.includes(userRole))
-      });
-    }
-  }, [isLoading, user, userRole, allowedRoles, location.pathname]);
-
   // Show loading state while checking auth
-  if (isLoading || isVerifying) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-        <p className="ml-2 text-gray-600">Verifying access...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <CircularProgress size="large" />
+        <p className="mt-4 text-gray-600">Verifying your access...</p>
       </div>
     );
   }
@@ -50,7 +37,6 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   // Redirect to login if not authenticated
   if (!user) {
     console.log("Protected route: No authenticated user, redirecting to login");
-    // Show toast notification for unauthorized access
     toast({
       title: "Authentication required",
       description: "Please log in to access this page",
@@ -67,7 +53,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     
     toast({
       title: "Access denied",
-      description: `You need ${allowedRoles.join(' or ')} permissions to view this page`,
+      description: `You don't have permission to access this page`,
       variant: "destructive"
     });
     
