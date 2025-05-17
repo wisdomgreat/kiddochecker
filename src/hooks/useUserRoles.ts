@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AppRole, UserRoleData } from "@/types/supabase";
-import { UserProfile, formatUserData } from "@/types/users";
+import { UserProfile } from "@/types/users";
 import { useAuth } from "@/context/AuthContext";
 
 export const useUserRoles = () => {
@@ -42,10 +42,10 @@ export const useUserRoles = () => {
           });
         }
         
-        // Direct query for user roles to avoid recursion issues
+        // Direct query for user roles with explicit column selection to avoid ambiguity
         const { data: userRolesData, error: rolesError } = await supabase
           .from('user_roles')
-          .select('*');
+          .select('id, user_id, role, is_super_admin, is_volunteer');
           
         if (rolesError) throw rolesError;
         
@@ -56,7 +56,8 @@ export const useUserRoles = () => {
             if (role && role.user_id) {
               rolesMap[role.user_id] = {
                 role: role.role,
-                is_super_admin: role.is_super_admin
+                is_super_admin: role.is_super_admin,
+                is_volunteer: role.is_volunteer
               };
             }
           });
@@ -74,7 +75,8 @@ export const useUserRoles = () => {
             role: roleData.role as AppRole || 'parent',
             roleData: {
               role: roleData.role as AppRole || 'parent',
-              is_super_admin: !!roleData.is_super_admin
+              is_super_admin: !!roleData.is_super_admin,
+              is_volunteer: !!roleData.is_volunteer
             },
             phone: profile.phone || '',
             createdAt: profile.created_at || '',

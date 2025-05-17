@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
 import { useAuth } from "@/context/AuthContext";
-import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 
 interface LoginFormProps {
   onSignUp: () => void;
@@ -22,15 +21,26 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, userRole, refreshSession } = useAuth();
-  const { navigateToDashboard } = useDashboardNavigation();
 
   // Redirect if already logged in
   useEffect(() => {
     if (user && userRole) {
       console.log("LoginForm: User already logged in with role:", userRole);
-      navigateToDashboard();
+      redirectBasedOnRole(userRole);
     }
-  }, [user, userRole, navigate, navigateToDashboard]);
+  }, [user, userRole]);
+
+  const redirectBasedOnRole = (role: string) => {
+    if (role === 'admin' || role === 'super_admin') {
+      navigate('/admin-dashboard', { replace: true });
+    } else if (role === 'teacher' || role === 'teacher_assistant' || role === 'staff') {
+      navigate('/teacher-dashboard', { replace: true });
+    } else if (role === 'parent') {
+      navigate('/parent-dashboard', { replace: true });
+    } else {
+      navigate('/landing', { replace: true });
+    }
+  };
 
   const handleContinue = async () => {
     try {
@@ -65,9 +75,19 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       // Refresh session to get updated role
       await refreshSession();
       
-      // Navigate to appropriate dashboard based on role
-      setTimeout(() => navigateToDashboard(), 0);
+      // Get the return path from session storage
+      const returnPath = sessionStorage.getItem("returnPath");
+      console.log("LoginForm: Return path from session:", returnPath);
       
+      // If user role exists, redirect appropriately
+      if (data.user && await refreshSession()) {
+        if (returnPath && returnPath !== "/login") {
+          navigate(returnPath, { replace: true });
+          sessionStorage.removeItem("returnPath");
+        } else {
+          redirectBasedOnRole(userRole || 'parent');
+        }
+      }
     } catch (error: any) {
       console.error("Login error:", error);
       toast({

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -40,6 +40,7 @@ const roleSchema = z.object({
     required_error: "Role is required",
   }),
   isSuperAdmin: z.boolean().default(false),
+  isVolunteer: z.boolean().default(false),
 });
 
 export type RoleFormValues = z.infer<typeof roleSchema>;
@@ -59,20 +60,22 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
     defaultValues: {
       userId: selectedUser?.id || "",
       role: (selectedUser?.role as AppRole) || "parent",
-      isSuperAdmin: selectedUser?.isSuperAdmin || false,
+      isSuperAdmin: selectedUser?.roleData?.is_super_admin || false,
+      isVolunteer: selectedUser?.roleData?.is_volunteer || false,
     },
   });
 
   // Reset form when selectedUser changes
-  useState(() => {
+  useEffect(() => {
     if (selectedUser) {
       form.reset({
         userId: selectedUser.id,
         role: selectedUser.role as AppRole,
-        isSuperAdmin: !!selectedUser.isSuperAdmin,
+        isSuperAdmin: !!selectedUser.roleData?.is_super_admin,
+        isVolunteer: !!selectedUser.roleData?.is_volunteer,
       });
     }
-  });
+  }, [selectedUser, form]);
 
   const handleSubmit = async (values: RoleFormValues) => {
     setIsSubmitting(true);
@@ -121,6 +124,7 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -167,6 +171,29 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
                 )}
               />
             )}
+
+            <FormField
+              control={form.control}
+              name="isVolunteer"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      Volunteer
+                    </FormLabel>
+                    <FormDescription>
+                      Mark this user as a volunteer
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button 
