@@ -121,6 +121,7 @@ const OrganizationSetup = () => {
       }
       
       // 3. Create admin role using the RPC function to avoid ambiguous column references
+      // IMPORTANT: Strictly assign ONLY admin role with super_admin privileges to the first user
       const { data: roleData, error: roleError } = await supabase.rpc('create_user_role', {
         p_user_id: authData.user.id,
         p_role: 'admin', 

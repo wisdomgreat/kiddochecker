@@ -26,6 +26,18 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
+  // Ensure sidebar is visible by default on larger screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile menu toggle */}
@@ -34,7 +46,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           variant="outline" 
           size="icon" 
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="bg-white"
+          className="bg-white shadow-sm"
         >
           <Menu className="h-5 w-5" />
         </Button>

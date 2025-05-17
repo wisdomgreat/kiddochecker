@@ -52,8 +52,10 @@ const LoginPage = () => {
       const returnPath = sessionStorage.getItem("returnPath");
       let targetRoute = "/parent-dashboard";
       
+      // Ensure admin users are directed to admin dashboard
       if (userRole === "admin" || userRole === "super_admin") {
         targetRoute = "/admin-dashboard";
+        console.log("LoginPage: User is admin, redirecting to admin dashboard");
       } else if (userRole === "teacher" || userRole === "staff" || userRole === "teacher_assistant") {
         targetRoute = "/teacher-dashboard";
       }
@@ -83,6 +85,24 @@ const LoginPage = () => {
       // Refresh session to get updated role
       await refreshSession();
       
+      // Additional role-checking to ensure admin logins go to admin dashboard
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .single();
+      
+      if (!roleError && roleData) {
+        console.log("User role from login:", roleData.role);
+        
+        // Specific redirect based on role
+        if (roleData.role === 'admin' || roleData.role === 'super_admin') {
+          const returnPath = sessionStorage.getItem("returnPath");
+          navigate(returnPath || '/admin-dashboard', { replace: true });
+          sessionStorage.removeItem("returnPath");
+        }
+      }
+      
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -90,6 +110,7 @@ const LoginPage = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
     }
   };

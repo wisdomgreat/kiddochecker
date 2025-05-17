@@ -12,9 +12,12 @@ export const useDashboardNavigation = () => {
   // Navigation function that redirects based on user role
   const navigateToDashboard = () => {
     if (!userRole) {
+      console.log("No user role found, navigating to landing");
       navigate('/landing');
       return;
     }
+    
+    console.log(`Navigating based on role: ${userRole}`);
     
     switch (userRole) {
       case 'admin':
@@ -49,6 +52,9 @@ export const useDashboardNavigation = () => {
   const navigateToProfile = () => navigate('/user-profile');
   const navigateToLogin = () => navigate('/login');
   const navigateToLanding = () => navigate('/landing');
+  const navigateToStaffManagement = () => navigate('/staff-management');
+  const navigateToRolesManagement = () => navigate('/roles-management');
+  const navigateToCheckInKiosk = () => navigate('/check-in-kiosk');
 
   return {
     navigateToDashboard,
@@ -64,6 +70,9 @@ export const useDashboardNavigation = () => {
     navigateToProfile,
     navigateToLogin,
     navigateToLanding,
+    navigateToStaffManagement,
+    navigateToRolesManagement,
+    navigateToCheckInKiosk,
   };
 };
 

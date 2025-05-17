@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/types/supabase';
 import { CircularProgress } from '@/components/ui/circular-progress';
+import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -15,6 +16,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
   const { user, userRole, isLoading } = useAuth();
   const location = useLocation();
   const { toast } = useToast();
+  const { 
+    navigateToAdminDashboard, 
+    navigateToTeacherDashboard, 
+    navigateToParentDashboard 
+  } = useDashboardNavigation();
 
   // Save the current path for redirect after login
   useEffect(() => {

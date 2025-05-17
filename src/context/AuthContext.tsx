@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentSession?.user) {
         console.log("Getting role for user:", currentSession.user.id);
         const role = await getUserRole();
-        console.log("User role:", role);
+        console.log("User role from refreshSession:", role);
         setUserRole(role);
         
         // Check if setup is completed
@@ -100,10 +100,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // If we have a user, get their role
         if (newSession?.user) {
           try {
-            // Use setTimeout to avoid potential race conditions
+            // Use setTimeout to avoid potential race conditions with Supabase RPC calls
             setTimeout(async () => {
               const role = await getUserRole();
-              console.log("User role updated:", role);
+              console.log(`User role updated from auth state change: ${role}`);
               setUserRole(role);
               
               const setupCompleted = await isSetupCompleted();
@@ -116,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoading(false);
           }
         } else {
+          console.log("No session in auth change event");
           setUserRole(null);
           setIsSetupComplete(null);
           setIsLoading(false);
@@ -130,8 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         console.log("Initial session check:", initialSession ? "session exists" : "no session");
         
-        // Only initialize additional data if not already set in onAuthStateChange
         if (initialSession?.user) {
+          setSession(initialSession);
+          setUser(initialSession.user);
+          
           try {
             const role = await getUserRole();
             console.log("Initial user role:", role);
@@ -147,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } else {
           // Set loading to false if no initial session
+          console.log("No initial session found, setting loading to false");
           setIsLoading(false);
         }
       } catch (error) {
