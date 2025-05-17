@@ -65,7 +65,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         fixed md:static inset-y-0 left-0 z-20 transform transition-transform duration-200 ease-in-out
         ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
-        <Sidebar collapsed={sidebarCollapsed} className="h-full" />
+        <Sidebar className="h-full" />
       </div>
       
       {/* Main content area */}
