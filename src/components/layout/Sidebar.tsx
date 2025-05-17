@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,18 +18,24 @@ import {
   CheckCircle,
   Shield,
   Laptop,
+  Menu,
+  X
 } from "lucide-react";
 
 const Sidebar = ({
   className,
-  collapsed = false,
 }: {
   className?: string;
-  collapsed?: boolean;
 }) => {
   const { userRole, signOut } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(isMobile);
+  
+  // Function to toggle sidebar collapse state
+  const toggleCollapse = () => {
+    setCollapsed(!collapsed);
+  };
 
   // Define navigation links by role
   const mainLinks = [
@@ -149,18 +156,28 @@ const Sidebar = ({
   return (
     <aside
       className={cn(
-        "flex flex-col bg-white border-r border-gray-200 h-full py-4",
+        "flex flex-col bg-white border-r border-gray-200 h-full py-4 transition-all duration-300",
         collapsed ? "w-[70px]" : "w-[250px]",
         className
       )}
     >
-      <div className="px-3 mb-6 flex items-center">
-        <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">K</span>
+      <div className="px-3 mb-6 flex items-center justify-between">
+        <div className="flex items-center">
+          <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center">
+            <span className="text-white font-bold text-sm">K</span>
+          </div>
+          {!collapsed && (
+            <span className="font-bold text-xl ml-2">KidCheck</span>
+          )}
         </div>
-        {!collapsed && (
-          <span className="font-bold text-xl ml-2">KidCheck</span>
-        )}
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={toggleCollapse}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          {collapsed ? <Menu size={20} /> : <X size={20} />}
+        </Button>
       </div>
 
       <div className="space-y-1 px-3">

@@ -69,14 +69,13 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       toast({
         title: "Login Successful",
         description: "You have been logged in successfully",
-        variant: "default",
       });
       
       // Refresh session to get updated role
       await refreshSession();
       
     } catch (error: any) {
-      // If login failed, it might be because user doesn't exist
+      console.error("Login error:", error);
       toast({
         title: "Login Failed",
         description: error.message,

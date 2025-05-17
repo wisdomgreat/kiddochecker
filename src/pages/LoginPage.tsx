@@ -70,6 +70,7 @@ const LoginPage = () => {
     try {
       setIsLoading(true);
       
+      console.log("LoginPage: Attempting login with:", values.email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
@@ -84,24 +85,6 @@ const LoginPage = () => {
 
       // Refresh session to get updated role
       await refreshSession();
-      
-      // Additional role-checking to ensure admin logins go to admin dashboard
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .single();
-      
-      if (!roleError && roleData) {
-        console.log("User role from login:", roleData.role);
-        
-        // Specific redirect based on role
-        if (roleData.role === 'admin' || roleData.role === 'super_admin') {
-          const returnPath = sessionStorage.getItem("returnPath");
-          navigate(returnPath || '/admin-dashboard', { replace: true });
-          sessionStorage.removeItem("returnPath");
-        }
-      }
       
     } catch (error: any) {
       console.error("Login error:", error);

@@ -54,7 +54,7 @@ export const useDashboardNavigation = () => {
   const navigateToLanding = () => navigate('/landing');
   const navigateToStaffManagement = () => navigate('/staff-management');
   const navigateToRolesManagement = () => navigate('/roles-management');
-  const navigateToCheckInKiosk = () => navigate('/check-in-kiosk');
+  const navigateToKioskManagement = () => navigate('/check-in-kiosk');
 
   return {
     navigateToDashboard,
@@ -72,7 +72,7 @@ export const useDashboardNavigation = () => {
     navigateToLanding,
     navigateToStaffManagement,
     navigateToRolesManagement,
-    navigateToCheckInKiosk,
+    navigateToKioskManagement,
   };
 };
 
