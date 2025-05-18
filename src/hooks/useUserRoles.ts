@@ -16,12 +16,12 @@ export const useUserRoles = () => {
       try {
         if (!user) throw new Error("User not authenticated");
         
-        // Get all profiles directly - avoid using the problematic RPC function
+        // Get all profiles directly - avoid using problematic query that might have ambiguous columns
         console.log("Fetching user profiles directly...");
         
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('*');
+          .select('id, first_name, last_name, phone, created_at');
           
         if (profilesError) throw profilesError;
         
@@ -42,7 +42,7 @@ export const useUserRoles = () => {
           });
         }
         
-        // Direct query for user roles with explicit column selection to avoid ambiguity
+        // Direct query for user roles with explicit table name to avoid ambiguity
         const { data: userRolesData, error: rolesError } = await supabase
           .from('user_roles')
           .select('id, user_id, role, is_super_admin, is_volunteer');
@@ -65,7 +65,7 @@ export const useUserRoles = () => {
         
         // Combine data
         return (profilesData || []).map((profile): UserProfile => {
-          const roleData = rolesMap[profile.id] || { role: 'parent', is_super_admin: false };
+          const roleData = rolesMap[profile.id] || { role: 'parent', is_super_admin: false, is_volunteer: false };
           
           return {
             id: profile.id,

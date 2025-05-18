@@ -49,15 +49,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // If we have a user, get their role
       if (currentSession?.user) {
-        console.log("Getting role for user:", currentSession.user.id);
-        const role = await getUserRole();
-        console.log("User role from refreshSession:", role);
-        setUserRole(role);
-        
-        // Check if setup is completed
-        const setupCompleted = await isSetupCompleted();
-        console.log("Setup completed:", setupCompleted);
-        setIsSetupComplete(setupCompleted);
+        try {
+          console.log("Getting role for user:", currentSession.user.id);
+          const role = await getUserRole();
+          console.log("User role from refreshSession:", role);
+          setUserRole(role);
+          
+          // Check if setup is completed
+          const setupCompleted = await isSetupCompleted();
+          console.log("Setup completed:", setupCompleted);
+          setIsSetupComplete(setupCompleted);
+        } catch (error) {
+          console.error("Error getting role:", error);
+          setUserRole(null);
+        }
       } else {
         setUserRole(null);
         setIsSetupComplete(null);
@@ -91,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Set up auth state listener FIRST 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         console.log("Auth state changed:", event, newSession ? "session exists" : "no session");
         
         // Update session and user immediately
@@ -100,10 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // If we have a user, get their role
         if (newSession?.user) {
-          try {
-            // Allow the state update above to complete before getting additional data
-            // This prevents potential React state update conflicts
-            setTimeout(async () => {
+          // Allow the state update above to complete before getting additional data
+          setTimeout(async () => {
+            try {
               const role = await getUserRole();
               console.log(`User role updated from auth state change: ${role}`);
               setUserRole(role);
@@ -111,13 +115,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const setupCompleted = await isSetupCompleted();
               console.log("Setup completed:", setupCompleted);
               setIsSetupComplete(setupCompleted);
-              
+            } catch (error) {
+              console.error("Error getting user role:", error);
+            } finally {
               setIsLoading(false);
-            }, 0);
-          } catch (error) {
-            console.error("Error getting user role:", error);
-            setIsLoading(false);
-          }
+            }
+          }, 0);
         } else {
           console.log("No session in auth change event");
           setUserRole(null);

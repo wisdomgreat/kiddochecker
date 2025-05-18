@@ -1,174 +1,69 @@
 
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { User, UserPlus, Users, School, BarChart2, Settings, Calendar, CheckCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import MainLayout from "@/components/layout/MainLayout";
-import StatCards from "@/components/dashboard/StatCards";
-import ClassStatus from "@/components/dashboard/ClassStatus";
-import ActivityTable from "@/components/dashboard/ActivityTable";
-import AlertsPanel from "@/components/dashboard/AlertsPanel";
-import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
-import { useDashboardStats, useClassStatus, useRecentActivity, useRealtimeUpdates } from "@/hooks/useDashboardData";
-import { useNavigation } from "@/hooks/use-navigation";
+import React, { useEffect } from 'react';
+import { Card } from "@/components/ui/card";
+import StatCards from '@/components/dashboard/StatCards';
+import ActivityTable from '@/components/dashboard/ActivityTable';
+import AlertsPanel from '@/components/dashboard/AlertsPanel';
+import UpcomingEventsList from '@/components/dashboard/UpcomingEventsList';
+import ClassStatus from '@/components/dashboard/ClassStatus';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useAuth } from '@/context/AuthContext';
+import { useDashboardData } from '@/hooks/useDashboardData';
 
-const AdminDashboard = () => {
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const navigation = useNavigation();
+const AdminDashboard: React.FC = () => {
+  const { user, userRole } = useAuth();
+  const { data, isLoading, error } = useDashboardData();
   
-  // Fetch dashboard data using the hooks
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: classData, isLoading: classLoading } = useClassStatus();
-  const { data: activityData, isLoading: activityLoading } = useRecentActivity();
-  const { hasNewActivity, hasClassChanges, resetFlags } = useRealtimeUpdates();
-
-  // Effect to handle realtime updates
   useEffect(() => {
-    if (hasNewActivity || hasClassChanges) {
-      resetFlags();
-    }
-  }, [hasNewActivity, hasClassChanges, resetFlags]);
-
-  useEffect(() => {
-    const checkSuperAdmin = async () => {
-      if (!user) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('is_super_admin')
-          .eq('user_id', user.id)
-          .single();
-          
-        if (error) throw error;
-        
-        setIsSuperAdmin(data?.is_super_admin || false);
-      } catch (error) {
-        console.error("Error checking super admin status:", error);
-      }
-    };
-    
-    checkSuperAdmin();
-  }, [user]);
+    document.title = "Admin Dashboard | ChurchCheck";
+  }, []);
 
   return (
-    <MainLayout>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <div className="flex gap-3">
-          {isSuperAdmin && (
-            <Button 
-              variant="outline"
-              onClick={navigation.navigateToStaffManagement}
-            >
-              <UserPlus className="mr-2 h-4 w-4" />
-              Manage Staff
-            </Button>
-          )}
-          <Button 
-            variant="outline"
-            onClick={navigation.navigateToSettings}
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Button>
-        </div>
+    <DashboardLayout>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-1">Admin Dashboard</h1>
+        <p className="text-gray-600">Welcome back, {user?.user_metadata?.first_name || "Administrator"}!</p>
       </div>
 
-      <StatCards stats={stats || { checkedIn: 0, checkedOut: 0, classes: 0, alerts: 0 }} isLoading={statsLoading} />
+      <StatCards 
+        checkedInCount={data?.checkedInCount || 0}
+        checkedOutCount={data?.checkedOutCount || 0}
+        totalTeachers={data?.teachers || 0}
+        totalClasses={data?.classes || 0}
+      />
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        <div className="md:col-span-2">
-          <ClassStatus classData={classData || []} isLoading={classLoading} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <div className="lg:col-span-2">
+          <Card className="p-4 h-full">
+            <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+            <ActivityTable activities={data?.recentActivity || []} isLoading={isLoading} />
+          </Card>
         </div>
+        
         <div>
-          <UpcomingEventsList />
+          <Card className="p-4 h-full">
+            <h2 className="text-lg font-semibold mb-4">Alerts & Notifications</h2>
+            <AlertsPanel alerts={data?.alerts || []} isLoading={isLoading} />
+          </Card>
         </div>
       </div>
       
-      <div className="mt-6">
-        <ActivityTable activityData={activityData || []} isLoading={activityLoading} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <div className="lg:col-span-1">
+          <Card className="p-4 h-full">
+            <h2 className="text-lg font-semibold mb-4">Upcoming Events</h2>
+            <UpcomingEventsList events={data?.upcomingEvents || []} isLoading={isLoading} />
+          </Card>
+        </div>
+        
+        <div className="lg:col-span-2">
+          <Card className="p-4 h-full">
+            <h2 className="text-lg font-semibold mb-4">Class Status</h2>
+            <ClassStatus classes={data?.classStatus || []} isLoading={isLoading} />
+          </Card>
+        </div>
       </div>
-      
-      {/* Quick access cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
-        <Card 
-          className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={navigation.navigateToUsersManagement}
-        >
-          <CardContent className="p-4 flex items-center">
-            <Users className="h-8 w-8 text-purple-500 mr-4" />
-            <div>
-              <h3 className="font-medium">User Management</h3>
-              <p className="text-sm text-gray-500">Manage families and children</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={navigation.navigateToClassesManagement}
-        >
-          <CardContent className="p-4 flex items-center">
-            <School className="h-8 w-8 text-blue-500 mr-4" />
-            <div>
-              <h3 className="font-medium">Classes</h3>
-              <p className="text-sm text-gray-500">Organize classes and teachers</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={navigation.navigateToEventsManagement}
-        >
-          <CardContent className="p-4 flex items-center">
-            <Calendar className="h-8 w-8 text-green-500 mr-4" />
-            <div>
-              <h3 className="font-medium">Events</h3>
-              <p className="text-sm text-gray-500">Manage upcoming events</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={navigation.navigateToReportsDashboard}
-        >
-          <CardContent className="p-4 flex items-center">
-            <BarChart2 className="h-8 w-8 text-amber-500 mr-4" />
-            <div>
-              <h3 className="font-medium">Reports</h3>
-              <p className="text-sm text-gray-500">View attendance reports</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="hover:bg-gray-50 transition-colors cursor-pointer"
-          onClick={navigation.navigateToCheckInKiosk}
-        >
-          <CardContent className="p-4 flex items-center">
-            <CheckCircle className="h-8 w-8 text-orange-500 mr-4" />
-            <div>
-              <h3 className="font-medium">Check-in Kiosk</h3>
-              <p className="text-sm text-gray-500">Open the check-in screen</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <div className="mt-6">
-        <AlertsPanel />
-      </div>
-    </MainLayout>
+    </DashboardLayout>
   );
 };
 

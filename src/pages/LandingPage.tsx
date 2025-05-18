@@ -11,7 +11,7 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [hasOrganization, setHasOrganization] = useState(true);
-  const { user, userRole, isLoading: authLoading, refreshSession } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   
   // Check if organization setup is completed
   useEffect(() => {
@@ -37,29 +37,22 @@ const LandingPage = () => {
 
   // Handle redirection based on user role
   useEffect(() => {
-    const redirectToDashboard = async () => {
-      if (authLoading) return;
-      
-      if (user && userRole) {
-        console.log("LandingPage: User authenticated with role:", userRole);
-        let targetRoute = "/parent-dashboard";
-        
-        if (userRole === "admin" || userRole === "super_admin") {
-          targetRoute = "/admin-dashboard";
-        } else if (userRole === "teacher" || userRole === "teacher_assistant" || userRole === "staff") {
-          targetRoute = "/teacher-dashboard";
-        }
-        
-        console.log("LandingPage: Redirecting to", targetRoute);
-        navigate(targetRoute, { replace: true });
-      } else if (user && !userRole) {
-        // If we have a user but no role yet, refresh the session to get the role
-        await refreshSession();
-      }
-    };
+    if (authLoading) return;
     
-    redirectToDashboard();
-  }, [user, userRole, authLoading, navigate, refreshSession]);
+    if (user && userRole) {
+      console.log("LandingPage: User authenticated with role:", userRole);
+      let targetRoute = "/parent-dashboard";
+      
+      if (userRole === "admin" || userRole === "super_admin") {
+        targetRoute = "/admin-dashboard";
+      } else if (userRole === "teacher" || userRole === "teacher_assistant" || userRole === "staff") {
+        targetRoute = "/teacher-dashboard";
+      }
+      
+      console.log("LandingPage: Redirecting to", targetRoute);
+      navigate(targetRoute, { replace: true });
+    }
+  }, [user, userRole, authLoading, navigate]);
   
   if (loading || authLoading) {
     return (

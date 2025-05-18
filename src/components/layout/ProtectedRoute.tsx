@@ -43,11 +43,10 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
       variant: "destructive"
     });
     
-    // Redirect to login page if not authenticated
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access
+  // Check role-based access if roles are specified
   if (allowedRoles.length > 0 && userRole && !allowedRoles.includes(userRole)) {
     console.log('Access denied for path:', location.pathname, 'User role:', userRole, 'Required roles:', allowedRoles);
     

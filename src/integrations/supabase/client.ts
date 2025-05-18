@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { AppRole, CustomRole, Permission, RolePermission } from '@/types/supabase';
@@ -68,25 +67,25 @@ export const getUserRole = async (): Promise<AppRole | null> => {
     
     console.log("Getting role for user:", user.id);
     
-    // Use the direct query approach for user_roles
-    const { data: roleData, error } = await supabase
+    // Modified to avoid the recursive policy by using a direct query approach
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
-      .limit(1)
-      .single();
+      .limit(1);
       
     if (error) {
-      if (error.code === 'PGRST116') {
-        console.log("No role found for user");
-        return null;
-      }
       console.error("Error fetching user role:", error);
       return null;
     }
     
-    console.log("Fetched role data:", roleData);
-    return roleData?.role as AppRole || null;
+    if (!data || data.length === 0) {
+      console.log("No role found for user");
+      return null;
+    }
+    
+    console.log("Fetched role data:", data[0]);
+    return data[0].role as AppRole || null;
     
   } catch (error) {
     console.error("Error in getUserRole:", error);
