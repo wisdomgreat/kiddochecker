@@ -79,13 +79,16 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       const returnPath = sessionStorage.getItem("returnPath");
       console.log("LoginForm: Return path from session:", returnPath);
       
-      // If user role exists, redirect appropriately
-      if (data.user && await refreshSession()) {
+      // Modified this conditional to avoid using await refreshSession() in a truthiness test
+      if (data.user) {
         if (returnPath && returnPath !== "/login") {
           navigate(returnPath, { replace: true });
           sessionStorage.removeItem("returnPath");
+        } else if (userRole) {
+          redirectBasedOnRole(userRole);
         } else {
-          redirectBasedOnRole(userRole || 'parent');
+          // Default fallback if no role is determined
+          navigate('/landing', { replace: true });
         }
       }
     } catch (error: any) {

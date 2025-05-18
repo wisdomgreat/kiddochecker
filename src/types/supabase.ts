@@ -6,6 +6,7 @@ export type { AppRole };
 export interface UserRoleData {
   role: AppRole;
   is_super_admin?: boolean;
+  is_volunteer?: boolean;  // Added this property to match usage in useUserRoles.ts
 }
 
 // Define missing types that are needed across the application
