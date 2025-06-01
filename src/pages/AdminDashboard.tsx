@@ -8,11 +8,11 @@ import UpcomingEventsList from '@/components/dashboard/UpcomingEventsList';
 import ClassStatus from '@/components/dashboard/ClassStatus';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/context/AuthContext';
-import { useDashboardData } from '@/hooks/useDashboardData';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
 
 const AdminDashboard: React.FC = () => {
   const { user, userRole } = useAuth();
-  const { data, isLoading, error } = useDashboardData();
+  const { data, isLoading, error } = useDashboardStats();
   
   useEffect(() => {
     document.title = "Admin Dashboard | ChurchCheck";
@@ -26,24 +26,22 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       <StatCards 
-        checkedInCount={data?.checkedInCount || 0}
-        checkedOutCount={data?.checkedOutCount || 0}
-        totalTeachers={data?.teachers || 0}
-        totalClasses={data?.classes || 0}
+        stats={data?.stats || { checkedIn: 0, checkedOut: 0, classes: 0, alerts: 0 }}
+        isLoading={isLoading}
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2">
           <Card className="p-4 h-full">
             <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-            <ActivityTable activities={data?.recentActivity || []} isLoading={isLoading} />
+            <ActivityTable activityData={data?.recentActivity || []} isLoading={isLoading} />
           </Card>
         </div>
         
         <div>
           <Card className="p-4 h-full">
             <h2 className="text-lg font-semibold mb-4">Alerts & Notifications</h2>
-            <AlertsPanel alerts={data?.alerts || []} isLoading={isLoading} />
+            <AlertsPanel />
           </Card>
         </div>
       </div>
@@ -52,14 +50,14 @@ const AdminDashboard: React.FC = () => {
         <div className="lg:col-span-1">
           <Card className="p-4 h-full">
             <h2 className="text-lg font-semibold mb-4">Upcoming Events</h2>
-            <UpcomingEventsList events={data?.upcomingEvents || []} isLoading={isLoading} />
+            <UpcomingEventsList />
           </Card>
         </div>
         
         <div className="lg:col-span-2">
           <Card className="p-4 h-full">
             <h2 className="text-lg font-semibold mb-4">Class Status</h2>
-            <ClassStatus classes={data?.classStatus || []} isLoading={isLoading} />
+            <ClassStatus />
           </Card>
         </div>
       </div>

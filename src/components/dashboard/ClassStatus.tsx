@@ -1,129 +1,91 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { RefreshCcw, Users } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-interface ClassItem {
-  id: string;
-  name: string;
-  room: string;
-  capacity: number;
-  checkedIn: number;
-  checkedOut: number;
-  remaining: number;
-}
+import { Users, School } from "lucide-react";
 
 interface ClassStatusProps {
-  classData: ClassItem[];
-  isLoading: boolean;
+  className?: string;
 }
 
-const ClassStatus = ({ classData, isLoading }: ClassStatusProps) => {
-  const navigate = useNavigate();
-  
-  if (isLoading) {
+const ClassStatus = ({ className }: ClassStatusProps) => {
+  // Mock data - in a real app this would come from props or a hook
+  const classes = [
+    {
+      id: "1",
+      name: "Toddler Class",
+      currentCount: 8,
+      capacity: 12,
+      teacher: "Sarah Williams",
+      room: "Room A",
+    },
+    {
+      id: "2",
+      name: "Elementary Class", 
+      currentCount: 15,
+      capacity: 20,
+      teacher: "John Smith",
+      room: "Room B",
+    },
+    {
+      id: "3",
+      name: "Youth Group",
+      currentCount: 12,
+      capacity: 15,
+      teacher: "Emily Johnson",
+      room: "Room C",
+    },
+  ];
+
+  const getCapacityStatus = (current: number, capacity: number) => {
+    const percentage = (current / capacity) * 100;
+    if (percentage >= 90) return { status: "full", color: "bg-red-500" };
+    if (percentage >= 75) return { status: "high", color: "bg-yellow-500" };
+    return { status: "normal", color: "bg-green-500" };
+  };
+
+  if (classes.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Class Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-center py-8">
-            <RefreshCcw className="h-6 w-6 animate-spin text-purple-600 mr-2" />
-            <span>Loading class information...</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-  
-  if (!classData || classData.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Class Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No classes active today</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              There are no classes scheduled or active for today
-            </p>
-            <Button onClick={() => navigate('/classes-management')}>
-              Manage Classes
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-6">
+        <School className="h-12 w-12 text-gray-400 mx-auto" />
+        <h3 className="mt-2 text-lg font-medium text-gray-900">No active classes</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Class information will appear here when available
+        </p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Class Status
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          {classData.map((classItem) => {
-            const occupancyPercent = classItem.capacity > 0 
-              ? Math.round((classItem.checkedIn - classItem.checkedOut) / classItem.capacity * 100)
-              : 0;
-              
-            let statusColor = "bg-green-100 text-green-800";
-            if (occupancyPercent > 90) {
-              statusColor = "bg-red-100 text-red-800";
-            } else if (occupancyPercent > 75) {
-              statusColor = "bg-amber-100 text-amber-800";
-            }
-
-            return (
-              <div key={classItem.id} className="border rounded-md p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-medium">{classItem.name}</h3>
-                    <p className="text-sm text-gray-500">Room: {classItem.room}</p>
-                  </div>
-                  <Badge className={statusColor}>
-                    {classItem.checkedIn - classItem.checkedOut} / {classItem.capacity}
-                  </Badge>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span>Occupancy</span>
-                    <span>{occupancyPercent}%</span>
-                  </div>
-                  <Progress value={occupancyPercent} className="h-2" />
-                </div>
-                
-                <div className="mt-4 flex justify-between items-center text-sm">
-                  <div className="text-gray-500">
-                    <span className="text-green-600 font-medium">{classItem.checkedIn}</span> checked in,
-                    <span className="text-blue-600 font-medium ml-1">{classItem.checkedOut}</span> checked out
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/class/${classItem.id}`)}>
-                    View
-                  </Button>
-                </div>
+    <div className={`space-y-4 ${className}`}>
+      {classes.map((classInfo) => {
+        const capacityInfo = getCapacityStatus(classInfo.currentCount, classInfo.capacity);
+        
+        return (
+          <div key={classInfo.id} className="p-4 border rounded-lg hover:bg-gray-50">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <h4 className="font-medium text-gray-900">{classInfo.name}</h4>
+                <p className="text-sm text-gray-500">{classInfo.teacher} • {classInfo.room}</p>
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              <Badge 
+                variant={capacityInfo.status === 'normal' ? 'default' : 'destructive'}
+                className="flex items-center gap-1"
+              >
+                <Users className="h-3 w-3" />
+                {classInfo.currentCount}/{classInfo.capacity}
+              </Badge>
+            </div>
+            
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full ${capacityInfo.color}`}
+                style={{ width: `${(classInfo.currentCount / classInfo.capacity) * 100}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 };
 

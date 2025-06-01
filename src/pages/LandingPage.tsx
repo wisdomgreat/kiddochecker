@@ -21,9 +21,12 @@ const LandingPage = () => {
           .from('organization_settings')
           .select('*', { count: 'exact', head: true });
           
-        if (error) throw error;
-        
-        setHasOrganization(count !== 0);
+        if (error) {
+          console.error("Error checking organization:", error);
+          setHasOrganization(false);
+        } else {
+          setHasOrganization(count !== 0);
+        }
       } catch (error) {
         console.error("Error checking organization:", error);
         setHasOrganization(false);
@@ -37,7 +40,7 @@ const LandingPage = () => {
 
   // Handle redirection based on user role
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || loading) return;
     
     if (user && userRole) {
       console.log("LandingPage: User authenticated with role:", userRole);
@@ -52,7 +55,7 @@ const LandingPage = () => {
       console.log("LandingPage: Redirecting to", targetRoute);
       navigate(targetRoute, { replace: true });
     }
-  }, [user, userRole, authLoading, navigate]);
+  }, [user, userRole, authLoading, loading, navigate]);
   
   if (loading || authLoading) {
     return (

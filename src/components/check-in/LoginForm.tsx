@@ -81,19 +81,20 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       
       // Check if user is authenticated and handle redirects
       if (data.user) {
-        // Get user role after session refresh
         if (returnPath && returnPath !== "/login") {
           navigate(returnPath, { replace: true });
           sessionStorage.removeItem("returnPath");
         } else {
-          // Get fresh user role data to ensure proper redirect
-          const { user: currentUser, userRole: currentRole } = await refreshSession();
-          if (currentRole) {
-            redirectBasedOnRole(currentRole);
-          } else {
-            // Default fallback if no role is determined
-            navigate('/landing', { replace: true });
-          }
+          // Wait a moment for the auth context to update with the role
+          setTimeout(() => {
+            const { user: currentUser, userRole: currentRole } = useAuth();
+            if (currentRole) {
+              redirectBasedOnRole(currentRole);
+            } else {
+              // Default fallback if no role is determined
+              navigate('/landing', { replace: true });
+            }
+          }, 100);
         }
       }
     } catch (error: any) {
