@@ -24,6 +24,8 @@ const AuthContext = createContext<AuthContextProps>({
 
 export const useAuth = () => useContext(AuthContext);
 
+const AUTH_INITIALIZATION_TIMEOUT_MS = 15000;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -128,21 +130,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Check for existing session
     const initializeAuth = async () => {
+      console.log("AuthContext:initializeAuth: Execution started.");
+      let timeoutId: NodeJS.Timeout | null = null;
+
+      const finishInitialization = (error?: any) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        if (error) {
+          console.error("AuthContext:initializeAuth: Finished with error or timeout.", error);
+        }
+        console.log("AuthContext:initializeAuth: Finalizing, setting isLoading to false.");
+        setIsLoading(false);
+      };
+
+      timeoutId = setTimeout(() => {
+        console.warn(`AuthContext:initializeAuth: Initialization timed out after ${AUTH_INITIALIZATION_TIMEOUT_MS}ms.`);
+        finishInitialization(new Error("AuthContext: Initialization timeout"));
+      }, AUTH_INITIALIZATION_TIMEOUT_MS);
+
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
         console.log("Initial session check:", initialSession ? "session exists" : "no session");
-        
+
         if (initialSession?.user) {
           setSession(initialSession);
           setUser(initialSession.user);
-          
+
           try {
             console.log("AuthContext:initializeAuth: Attempting to get user role for user:", initialSession.user.id);
             const role = await getUserRole();
             console.log("Initial user role:", role);
             setUserRole(role || 'parent'); // Default to parent if null
-            
+
             console.log("AuthContext:initializeAuth: Attempting to check setup completion for user:", initialSession.user.id);
             const setupCompleted = await isSetupCompleted();
             console.log("Setup completed:", setupCompleted);
@@ -150,15 +171,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (error) {
             console.error("Error in initializeAuth (fetching role/setup):", error);
             setUserRole('parent'); // Default role on error
+            setIsSetupComplete(false); // Default setup status on error
           }
         } else {
           console.log("No initial session found");
+          setUserRole(null);
+          setIsSetupComplete(null);
         }
-        // setIsLoading(false) will be called in the finally block equivalent
+        finishInitialization(); // Normal completion
       } catch (error) {
-        console.error("Error in initializeAuth (outer):", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Error in initializeAuth (outer try-catch):", error);
+        finishInitialization(error); // Completion with error
       }
     };
 
