@@ -21,6 +21,7 @@ import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, LogIn, UserPlus, Loader2 } from "lucide-react";
 import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 
+
 // Create a schema for login validation
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -30,7 +31,7 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const { user, userRole, isLoading: authLoading } = useAuth();
+  const { user, userRole, isLoading: authLoading, isSetupComplete } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -50,14 +51,13 @@ const LoginPage = () => {
   
   // Redirect if already logged in - but prevent infinite loops
   useEffect(() => {
-    if (user && userRole && !authLoading && !isLoading && !hasRedirected) {
-      console.log("LoginPage: Already logged in as:", userRole);
+    // Added isSetupComplete !== null to ensure setup check has run
+    if (user && userRole && isSetupComplete !== null && !authLoading && !isLoading && !hasRedirected) {
+      console.log("LoginPage: User detected, attempting navigation. Role:", userRole, "Setup Complete:", isSetupComplete);
       setHasRedirected(true);
-      setTimeout(() => {
-        navigateToDashboard();
-      }, 100);
+      navigateToDashboard();
     }
-  }, [user, userRole, authLoading, isLoading, hasRedirected, navigateToDashboard]);
+  }, [user, userRole, authLoading, isLoading, hasRedirected, navigateToDashboard, isSetupComplete]);
   
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -79,9 +79,10 @@ const LoginPage = () => {
       // Let the auth context handle the redirect
       if (data.user) {
         // Wait for auth state to update then navigate
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
+        // setTimeout(() => {
+        //   window.location.reload();
+        // }, 500);
+        console.log("Login successful, AuthContext will handle state update and navigation.");
       }
       
     } catch (error: any) {
