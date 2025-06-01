@@ -25,6 +25,7 @@ const AuthContext = createContext<AuthContextProps>({
 export const useAuth = () => useContext(AuthContext);
 
 const AUTH_INITIALIZATION_TIMEOUT_MS = 15000;
+const AUTH_STATE_CHANGE_TIMEOUT_MS = 15000;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -96,35 +97,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log("Auth state changed:", event, newSession ? "session exists" : "no session");
-        
-        // Update session and user immediately
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        
-        // If we have a user, get their role with proper error handling
-        if (newSession?.user && event !== 'SIGNED_OUT') {
-          try {
-            console.log("AuthContext:onAuthStateChange: Attempting to get user role for user:", newSession.user.id);
-            const role = await getUserRole();
-            console.log(`User role updated from auth state change: ${role}`);
-            setUserRole(role || 'parent'); // Default to parent if null
-            
-            console.log("AuthContext:onAuthStateChange: Attempting to check setup completion for user:", newSession.user.id);
-            const setupCompleted = await isSetupCompleted();
-            console.log("Setup completed:", setupCompleted);
-            setIsSetupComplete(setupCompleted);
-          } catch (error) {
-            console.error("AuthContext:onAuthStateChange: Error fetching user role or setup status:", error);
-            setUserRole('parent'); // Default role on error
+        console.log("AuthContext:onAuthStateChange: Event received:", event, newSession ? "session exists" : "no session");
+        let authChangeTimeoutId: NodeJS.Timeout | null = null;
+
+        const finishAuthStateChange = (error?: any, clearDetailsOnError = false) => {
+          if (authChangeTimeoutId) {
+            clearTimeout(authChangeTimeoutId);
+            authChangeTimeoutId = null;
           }
-        } else {
-          console.log("No session or signed out");
-          setUserRole(null);
-          setIsSetupComplete(null);
+          if (error) {
+            console.error("AuthContext:onAuthStateChange: Finished with error or timeout.", error);
+            if (clearDetailsOnError) {
+              console.log("AuthContext:onAuthStateChange: Clearing user role and setup status due to error/timeout.");
+              setUserRole('parent'); // Default role
+              setIsSetupComplete(false); // Default setup status
+            }
+          }
+          console.log("AuthContext:onAuthStateChange: Finalizing, setting isLoading to false.");
+          setIsLoading(false);
+        };
+
+        authChangeTimeoutId = setTimeout(() => {
+          console.warn(`AuthContext:onAuthStateChange: Processing event '${event}' timed out after ${AUTH_STATE_CHANGE_TIMEOUT_MS}ms.`);
+          finishAuthStateChange(new Error(`AuthContext: Processing timeout for event ${event}`), true);
+        }, AUTH_STATE_CHANGE_TIMEOUT_MS);
+
+        try {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+
+          if (newSession?.user && event !== 'SIGNED_OUT') {
+            try {
+              console.log("AuthContext:onAuthStateChange: Attempting to get user role for user:", newSession.user.id);
+              const role = await getUserRole();
+              console.log(`User role updated from auth state change: ${role}`);
+              setUserRole(role || 'parent');
+
+              console.log("AuthContext:onAuthStateChange: Attempting to check setup completion for user:", newSession.user.id);
+              const setupCompleted = await isSetupCompleted();
+              console.log("Setup completed:", setupCompleted);
+              setIsSetupComplete(setupCompleted);
+            } catch (innerError) {
+              console.error("AuthContext:onAuthStateChange: Error fetching user role or setup status:", innerError);
+              setUserRole('parent'); // Default role on inner error
+              setIsSetupComplete(false); // Default setup status on inner error
+              // This error is contained, allow finishAuthStateChange to be called normally unless outer error occurs
+            }
+          } else {
+            console.log("AuthContext:onAuthStateChange: No session or user signed out.");
+            setUserRole(null);
+            setIsSetupComplete(null);
+          }
+          finishAuthStateChange(null, false); // Successful completion of try block
+        } catch (outerError) {
+          console.error("AuthContext:onAuthStateChange: Outer error processing auth state:", outerError);
+          finishAuthStateChange(outerError, true); // Error in outer try block
         }
-        
-        setIsLoading(false);
       }
     );
 
