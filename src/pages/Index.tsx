@@ -110,7 +110,7 @@ const Dashboard = () => {
       <ActivityTable activityData={activityData} isLoading={isLoadingActivity} />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ClassStatus classData={classStatusData} isLoading={isLoadingClasses} />
+        <ClassStatus />
         <AlertsPanel />
       </div>
     </MainLayout>

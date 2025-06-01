@@ -30,11 +30,12 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const { user, userRole, isLoading: authLoading, refreshSession } = useAuth();
+  const { user, userRole, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
   const isStaffLogin = location.state?.staffLogin || false;
   const { navigateToDashboard } = useDashboardNavigation();
   
@@ -47,13 +48,16 @@ const LoginPage = () => {
     },
   });
   
-  // Redirect if already logged in
+  // Redirect if already logged in - but prevent infinite loops
   useEffect(() => {
-    if (user && userRole && !authLoading && !isLoading) {
+    if (user && userRole && !authLoading && !isLoading && !hasRedirected) {
       console.log("LoginPage: Already logged in as:", userRole);
-      navigateToDashboard();
+      setHasRedirected(true);
+      setTimeout(() => {
+        navigateToDashboard();
+      }, 100);
     }
-  }, [user, userRole, authLoading, isLoading, navigateToDashboard]);
+  }, [user, userRole, authLoading, isLoading, hasRedirected, navigateToDashboard]);
   
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -72,11 +76,13 @@ const LoginPage = () => {
         description: "You are now logged in",
       });
 
-      // Refresh session to get updated role
-      await refreshSession();
-      
-      // Navigate to appropriate dashboard
-      setTimeout(() => navigateToDashboard(), 0);
+      // Let the auth context handle the redirect
+      if (data.user) {
+        // Wait for auth state to update then navigate
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }
       
     } catch (error: any) {
       console.error("Login error:", error);
@@ -97,6 +103,18 @@ const LoginPage = () => {
   const handleParentRegistration = () => {
     navigate("/parent-registration");
   };
+  
+  // Show loading if auth is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p>Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -136,7 +154,7 @@ const LoginPage = () => {
                         placeholder="Enter your email" 
                         type="email" 
                         {...field} 
-                        disabled={isLoading || authLoading}
+                        disabled={isLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -155,7 +173,7 @@ const LoginPage = () => {
                         placeholder="Enter your password" 
                         type="password" 
                         {...field} 
-                        disabled={isLoading || authLoading}
+                        disabled={isLoading}
                       />
                     </FormControl>
                     <FormMessage />
@@ -166,9 +184,9 @@ const LoginPage = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading || authLoading}
+                disabled={isLoading}
               >
-                {isLoading || authLoading ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Logging in...
@@ -194,7 +212,7 @@ const LoginPage = () => {
                 variant="outline" 
                 onClick={handleParentRegistration}
                 className="w-full"
-                disabled={isLoading || authLoading}
+                disabled={isLoading}
               >
                 <UserPlus className="mr-2 h-4 w-4" />
                 Register as a Parent

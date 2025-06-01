@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
 import { useAuth } from "@/context/AuthContext";
@@ -20,17 +20,11 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, userRole, refreshSession } = useAuth();
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (user && userRole) {
-      console.log("LoginForm: User already logged in with role:", userRole);
-      redirectBasedOnRole(userRole);
-    }
-  }, [user, userRole]);
-
   const redirectBasedOnRole = (role: string) => {
+    console.log("LoginForm: Redirecting based on role:", role);
     if (role === 'admin' || role === 'super_admin') {
       navigate('/admin-dashboard', { replace: true });
     } else if (role === 'teacher' || role === 'teacher_assistant' || role === 'staff') {
@@ -41,6 +35,29 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       navigate('/landing', { replace: true });
     }
   };
+
+  // Only redirect if already logged in and not in loading state
+  useEffect(() => {
+    if (user && userRole && !loading) {
+      console.log("LoginForm: User already logged in with role:", userRole);
+      
+      // Check if we're not already on the correct dashboard
+      const currentPath = location.pathname;
+      if (userRole === 'admin' || userRole === 'super_admin') {
+        if (currentPath !== '/admin-dashboard') {
+          redirectBasedOnRole(userRole);
+        }
+      } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
+        if (currentPath !== '/teacher-dashboard') {
+          redirectBasedOnRole(userRole);
+        }
+      } else if (userRole === 'parent') {
+        if (currentPath !== '/parent-dashboard') {
+          redirectBasedOnRole(userRole);
+        }
+      }
+    }
+  }, [user, userRole, loading, location.pathname]);
 
   const handleContinue = async () => {
     try {
@@ -79,21 +96,15 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
       const returnPath = sessionStorage.getItem("returnPath");
       console.log("LoginForm: Return path from session:", returnPath);
       
-      // Check if user is authenticated and handle redirects
+      // Handle redirects after successful login
       if (data.user) {
-        if (returnPath && returnPath !== "/login") {
-          navigate(returnPath, { replace: true });
+        if (returnPath && returnPath !== "/login" && returnPath !== "/check-in-process") {
           sessionStorage.removeItem("returnPath");
+          navigate(returnPath, { replace: true });
         } else {
-          // Wait a moment for the auth context to update with the role
+          // Wait for auth context to update with role before redirecting
           setTimeout(() => {
-            const { user: currentUser, userRole: currentRole } = useAuth();
-            if (currentRole) {
-              redirectBasedOnRole(currentRole);
-            } else {
-              // Default fallback if no role is determined
-              navigate('/landing', { replace: true });
-            }
+            window.location.reload(); // Force a refresh to ensure auth state is properly updated
           }, 100);
         }
       }

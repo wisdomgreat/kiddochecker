@@ -34,7 +34,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Function to refresh the session and user data
   const refreshSession = async () => {
     try {
-      setIsLoading(true);
       console.log("Refreshing session...");
       
       // Get current session
@@ -69,8 +68,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Error refreshing session:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -82,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRole(null);
+      setIsSetupComplete(null);
       
       // Clear any stored paths
       sessionStorage.removeItem("returnPath");
@@ -92,11 +90,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log("Initializing auth...");
-    setIsLoading(true);
     
-    // Set up auth state listener FIRST 
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log("Auth state changed:", event, newSession ? "session exists" : "no session");
         
         // Update session and user immediately
@@ -104,33 +101,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(newSession?.user ?? null);
         
         // If we have a user, get their role
-        if (newSession?.user) {
-          // Allow the state update above to complete before getting additional data
-          setTimeout(async () => {
-            try {
-              const role = await getUserRole();
-              console.log(`User role updated from auth state change: ${role}`);
-              setUserRole(role);
-              
-              const setupCompleted = await isSetupCompleted();
-              console.log("Setup completed:", setupCompleted);
-              setIsSetupComplete(setupCompleted);
-            } catch (error) {
-              console.error("Error getting user role:", error);
-            } finally {
-              setIsLoading(false);
-            }
-          }, 0);
+        if (newSession?.user && event !== 'SIGNED_OUT') {
+          try {
+            const role = await getUserRole();
+            console.log(`User role updated from auth state change: ${role}`);
+            setUserRole(role);
+            
+            const setupCompleted = await isSetupCompleted();
+            console.log("Setup completed:", setupCompleted);
+            setIsSetupComplete(setupCompleted);
+          } catch (error) {
+            console.error("Error getting user role:", error);
+            setUserRole(null);
+          }
         } else {
-          console.log("No session in auth change event");
+          console.log("No session or signed out");
           setUserRole(null);
           setIsSetupComplete(null);
-          setIsLoading(false);
         }
+        
+        setIsLoading(false);
       }
     );
 
-    // THEN check for existing session
+    // Check for existing session
     const initializeAuth = async () => {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
@@ -151,14 +145,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsSetupComplete(setupCompleted);
           } catch (error) {
             console.error("Error in initializeAuth:", error);
-          } finally {
-            setIsLoading(false);
           }
         } else {
-          // Set loading to false if no initial session
-          console.log("No initial session found, setting loading to false");
-          setIsLoading(false);
+          console.log("No initial session found");
         }
+        setIsLoading(false);
       } catch (error) {
         console.error("Error in initializeAuth:", error);
         setIsLoading(false);
