@@ -67,29 +67,40 @@ export const getUserRole = async (): Promise<AppRole | null> => {
     
     console.log("Getting role for user:", user.id);
     
-    // Modified to avoid the recursive policy by using a direct query approach
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .limit(1);
+    // Use the RPC function to avoid the recursive policy issue
+    const { data, error } = await supabase.rpc('get_user_role', {
+      p_user_id: user.id
+    });
       
     if (error) {
-      console.error("Error fetching user role:", error);
-      return null;
+      console.error("Error fetching user role via RPC:", error);
+      // Fallback: try to get role directly but with error handling
+      try {
+        const { data: roleData, error: directError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+          
+        if (directError) {
+          console.error("Direct role fetch also failed:", directError);
+          return 'parent'; // Default role
+        }
+        
+        return roleData?.role as AppRole || 'parent';
+      } catch (fallbackError) {
+        console.error("Fallback role fetch failed:", fallbackError);
+        return 'parent';
+      }
     }
     
-    if (!data || data.length === 0) {
-      console.log("No role found for user");
-      return null;
-    }
-    
-    console.log("Fetched role data:", data[0]);
-    return data[0].role as AppRole || null;
+    console.log("Fetched role data via RPC:", data);
+    return data as AppRole || 'parent';
     
   } catch (error) {
     console.error("Error in getUserRole:", error);
-    return null;
+    return 'parent'; // Default to parent role
   }
 };
 
