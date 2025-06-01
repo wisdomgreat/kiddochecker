@@ -660,6 +660,10 @@ export type Database = {
           class_id: string
         }[]
       }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_device_profile: {
         Args: { p_device_id: string }
         Returns: Json

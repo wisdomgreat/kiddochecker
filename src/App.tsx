@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import AdminDashboard from '@/pages/AdminDashboard';
 import TeacherDashboard from '@/pages/TeacherDashboard';
@@ -52,9 +52,12 @@ const Unauthorized = () => (
 function App() {
   const { user, userRole, isLoading, isSetupComplete } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
+  console.log("App.tsx - Current user:", user?.id || "none");
   console.log("App.tsx - Current user role:", userRole);
   console.log("App.tsx - Current path:", location.pathname);
+  console.log("App.tsx - Is loading:", isLoading);
   
   const getDefaultRoute = () => {
     if (!user) return '/landing';
@@ -78,8 +81,17 @@ function App() {
     }
   };
 
-  // Show loading indicator only during the initial app load
-  if (isLoading && location.pathname === '/') {
+  // Handle redirects when user and role are available
+  useEffect(() => {
+    if (!isLoading && user && userRole && location.pathname === '/') {
+      const targetRoute = getDefaultRoute();
+      console.log("App.tsx - Redirecting from / to:", targetRoute);
+      navigate(targetRoute, { replace: true });
+    }
+  }, [user, userRole, isLoading, location.pathname, navigate]);
+
+  // Show loading indicator during auth loading
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <CircularProgress size="large" />

@@ -48,26 +48,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // If we have a user, get their role
       if (currentSession?.user) {
-        try {
-          console.log("Getting role for user:", currentSession.user.id);
-          const role = await getUserRole();
-          console.log("User role from refreshSession:", role);
-          setUserRole(role || 'parent'); // Default to parent if null
-          
-          // Check if setup is completed
-          const setupCompleted = await isSetupCompleted();
-          console.log("Setup completed:", setupCompleted);
-          setIsSetupComplete(setupCompleted);
-        } catch (error) {
-          console.error("Error getting role:", error);
-          setUserRole('parent'); // Default role on error
-        }
+        console.log("Getting role for user:", currentSession.user.id);
+        const role = await getUserRole();
+        console.log("User role from refreshSession:", role);
+        setUserRole(role);
+        
+        // Check if setup is completed
+        const setupCompleted = await isSetupCompleted();
+        console.log("Setup completed:", setupCompleted);
+        setIsSetupComplete(setupCompleted);
       } else {
         setUserRole(null);
         setIsSetupComplete(null);
       }
     } catch (error) {
       console.error("Error refreshing session:", error);
+      setUserRole('parent'); // Default role on error
     }
   };
 
@@ -100,20 +96,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
-        // If we have a user, get their role with proper error handling
+        // If we have a user, get their role
         if (newSession?.user && event !== 'SIGNED_OUT') {
-          try {
-            const role = await getUserRole();
-            console.log(`User role updated from auth state change: ${role}`);
-            setUserRole(role || 'parent'); // Default to parent if null
-            
-            const setupCompleted = await isSetupCompleted();
-            console.log("Setup completed:", setupCompleted);
-            setIsSetupComplete(setupCompleted);
-          } catch (error) {
-            console.error("Error getting user role:", error);
-            setUserRole('parent'); // Default role on error
-          }
+          console.log("Getting role for user after auth state change:", newSession.user.id);
+          const role = await getUserRole();
+          console.log(`User role updated from auth state change: ${role}`);
+          setUserRole(role);
+          
+          const setupCompleted = await isSetupCompleted();
+          console.log("Setup completed:", setupCompleted);
+          setIsSetupComplete(setupCompleted);
         } else {
           console.log("No session or signed out");
           setUserRole(null);
@@ -135,18 +127,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession(initialSession);
           setUser(initialSession.user);
           
-          try {
-            const role = await getUserRole();
-            console.log("Initial user role:", role);
-            setUserRole(role || 'parent'); // Default to parent if null
-            
-            const setupCompleted = await isSetupCompleted();
-            console.log("Setup completed:", setupCompleted);
-            setIsSetupComplete(setupCompleted);
-          } catch (error) {
-            console.error("Error in initializeAuth:", error);
-            setUserRole('parent'); // Default role on error
-          }
+          console.log("Getting initial role for user:", initialSession.user.id);
+          const role = await getUserRole();
+          console.log("Initial user role:", role);
+          setUserRole(role);
+          
+          const setupCompleted = await isSetupCompleted();
+          console.log("Setup completed:", setupCompleted);
+          setIsSetupComplete(setupCompleted);
         } else {
           console.log("No initial session found");
         }

@@ -67,27 +67,16 @@ export const getUserRole = async (): Promise<AppRole | null> => {
     
     console.log("Getting role for user:", user.id);
     
-    // Use a simple query approach to avoid recursive policy issues
-    // If this causes infinite recursion, it means there's a policy issue that needs to be fixed
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .limit(1)
-      .maybeSingle();
+    // Use the security definer function to get user role
+    const { data, error } = await supabase.rpc('get_current_user_role');
       
     if (error) {
       console.error("Error fetching user role:", error);
       return 'parent'; // Default role on error
     }
     
-    if (!data) {
-      console.log("No role found for user, defaulting to parent");
-      return 'parent';
-    }
-    
     console.log("Fetched role data:", data);
-    return data.role as AppRole || 'parent';
+    return (data as AppRole) || 'parent';
     
   } catch (error) {
     console.error("Error in getUserRole:", error);
