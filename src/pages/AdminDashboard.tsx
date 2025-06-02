@@ -23,6 +23,13 @@ const AdminDashboard = () => {
 
   console.log("AdminDashboard - Current user:", user?.id);
 
+  const dashboardStats = {
+    totalChildren: children.length,
+    totalClasses: classes.length,
+    checkedIn: stats?.checkedIn || 0,
+    totalStaff: users?.filter(u => ['admin', 'teacher', 'staff'].includes(u.role)).length || 0,
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -47,7 +54,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Stats */}
-        <StatCards />
+        <StatCards stats={dashboardStats} isLoading={statsLoading} />
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

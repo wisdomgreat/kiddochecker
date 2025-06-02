@@ -1,29 +1,30 @@
 
 import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import StatCards from '@/components/dashboard/StatCards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Clock, CheckCircle, AlertCircle, Plus } from 'lucide-react';
+import { GraduationCap, Users, UserCheck, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAttendance } from '@/hooks/useAttendance';
+import { useChildren } from '@/hooks/useChildren';
 import { useClasses } from '@/hooks/useClasses';
-import AttendanceTable from '@/components/attendance/AttendanceTable';
+import { useAttendance } from '@/hooks/useAttendance';
 
 const TeacherDashboard = () => {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const { attendance, checkOut, isCheckingOut } = useAttendance();
+  const { children } = useChildren();
   const { classes } = useClasses();
+  const { attendance } = useAttendance();
 
-  console.log("TeacherDashboard - Current user:", user?.id, "Role:", userRole);
+  const currentlyPresent = attendance.filter(record => !record.checked_out_at);
 
-  const todayAttendance = attendance.filter(record => 
-    record.attendance_date === new Date().toISOString().split('T')[0]
-  );
-  
-  const currentlyPresent = todayAttendance.filter(record => !record.checked_out_at);
-  const totalCheckedIn = todayAttendance.length;
-  const totalCheckedOut = todayAttendance.filter(record => record.checked_out_at).length;
+  const dashboardStats = {
+    totalChildren: children.length,
+    totalClasses: classes.length,
+    checkedIn: currentlyPresent.length,
+    totalStaff: 0,
+  };
 
   return (
     <DashboardLayout>
@@ -38,126 +39,101 @@ const TeacherDashboard = () => {
           </div>
           <div className="flex space-x-2">
             <Button onClick={() => navigate('/classes-management')}>
-              <Plus className="h-4 w-4 mr-2" />
+              <GraduationCap className="h-4 w-4 mr-2" />
               Manage Classes
             </Button>
             <Button onClick={() => navigate('/check-in-out')}>
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Check-in/Out
+              <UserCheck className="h-4 w-4 mr-2" />
+              Attendance
             </Button>
           </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Users className="h-4 w-4 text-blue-600" />
-              <CardTitle className="text-sm font-medium ml-2">Total Check-ins</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalCheckedIn}</div>
-              <p className="text-xs text-muted-foreground">Today</p>
-            </CardContent>
-          </Card>
+        <StatCards stats={dashboardStats} isLoading={false} />
 
-          <Card>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" 
+                onClick={() => navigate('/classes-management')}>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <CardTitle className="text-sm font-medium ml-2">Currently Present</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{currentlyPresent.length}</div>
-              <p className="text-xs text-muted-foreground">Active now</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Clock className="h-4 w-4 text-orange-600" />
-              <CardTitle className="text-sm font-medium ml-2">Checked Out</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{totalCheckedOut}</div>
-              <p className="text-xs text-muted-foreground">Today</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <AlertCircle className="h-4 w-4 text-purple-600" />
+              <GraduationCap className="h-4 w-4 text-green-600" />
               <CardTitle className="text-sm font-medium ml-2">My Classes</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{classes.length}</div>
-              <p className="text-xs text-muted-foreground">Active classes</p>
+              <p className="text-xs text-muted-foreground">
+                Classes assigned to you
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" 
+                onClick={() => navigate('/children-management')}>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <Users className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-sm font-medium ml-2">Students</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{children.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Total students
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" 
+                onClick={() => navigate('/check-in-out')}>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <UserCheck className="h-4 w-4 text-purple-600" />
+              <CardTitle className="text-sm font-medium ml-2">Present Today</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{currentlyPresent.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Currently checked in
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* My Classes */}
+        {/* Today's Classes */}
         <Card>
           <CardHeader>
-            <CardTitle>My Classes</CardTitle>
+            <CardTitle>Today's Classes</CardTitle>
           </CardHeader>
           <CardContent>
-            {classes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {classes.map((classItem) => {
-                  const classAttendance = currentlyPresent.filter(
-                    record => record.class_id === classItem.id
-                  ).length;
-                  
-                  return (
-                    <Card key={classItem.id} className="hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => navigate(`/classes-management?classId=${classItem.id}`)}>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">{classItem.name}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Present:</span>
-                            <span className="font-medium">{classAttendance}</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Capacity:</span>
-                            <span className="font-medium">{classItem.capacity || 'Unlimited'}</span>
-                          </div>
-                          {classItem.room && (
-                            <div className="flex justify-between text-sm">
-                              <span>Room:</span>
-                              <span className="font-medium">{classItem.room}</span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No classes assigned yet.</p>
-                <Button onClick={() => navigate('/classes-management')}>
-                  View All Classes
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Today's Attendance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Today's Attendance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AttendanceTable
-              attendance={todayAttendance}
-              onCheckOut={checkOut}
-              isCheckingOut={isCheckingOut}
-            />
+            <div className="space-y-4">
+              {classes.length > 0 ? (
+                classes.map((classItem) => (
+                  <div key={classItem.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{classItem.name}</h3>
+                      <p className="text-sm text-muted-foreground">{classItem.age_range}</p>
+                      {classItem.room && (
+                        <p className="text-sm text-muted-foreground">Room: {classItem.room}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">
+                        {attendance.filter(a => a.class_id === classItem.id && !a.checked_out_at).length} present
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/check-in-out?class=${classItem.id}`)}
+                      >
+                        View Attendance
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No classes assigned yet
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
