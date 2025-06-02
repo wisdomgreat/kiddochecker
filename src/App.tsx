@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -28,6 +27,7 @@ import RolePermissionsManagement from '@/pages/RolePermissionsManagement';
 import CheckInOutManagement from '@/pages/CheckInOutManagement';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import { Toaster } from '@/components/ui/toaster';
+import ChildrenManagement from '@/pages/ChildrenManagement';
 
 // Footer pages
 import AboutUs from '@/pages/AboutUs';
@@ -151,6 +151,12 @@ function App() {
         <Route path="/staff-management" element={
           <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
             <StaffManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/children-management" element={
+          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'parent']}>
+            <ChildrenManagement />
           </ProtectedRoute>
         } />
         

@@ -660,13 +660,46 @@ export type Database = {
           class_id: string
         }[]
       }
+      get_class_roster_with_attendance: {
+        Args: { class_id_param: string; date_param?: string }
+        Returns: {
+          child_id: string
+          child_name: string
+          is_present: boolean
+          check_in_time: string
+          check_out_time: string
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_detailed_attendance_report: {
+        Args: { start_date?: string; end_date?: string }
+        Returns: {
+          attendance_date: string
+          child_name: string
+          class_name: string
+          check_in_time: string
+          check_out_time: string
+          duration_hours: number
+        }[]
+      }
       get_device_profile: {
         Args: { p_device_id: string }
         Returns: Json
+      }
+      get_parent_children_with_classes: {
+        Args: { parent_user_id: string }
+        Returns: {
+          child_id: string
+          first_name: string
+          last_name: string
+          age: number
+          allergies: string
+          current_class_name: string
+          current_class_id: string
+        }[]
       }
       get_staff_members: {
         Args: Record<PropertyKey, never>

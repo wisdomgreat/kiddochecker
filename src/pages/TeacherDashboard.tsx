@@ -1,263 +1,167 @@
-import { useState, useEffect } from "react";
-import MainLayout from "@/components/layout/MainLayout";
-import Breadcrumb from "@/components/ui/breadcrumb";
-import { DataTable } from "@/components/ui/data-table";
-import { Card, CardContent } from "@/components/ui/card";
-import StatCard from "@/components/ui/stat-card";
-import { Search, Calendar, Users, CheckCircle2, XCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { useQuery } from "@tanstack/react-query";
 
-// Types for teacher dashboard
-interface AttendanceRecord {
-  id: string;
-  childName: string;
-  status: string;
-  time: string;
-  class: string;
-}
+import { useAuth } from '@/context/AuthContext';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Users, Clock, CheckCircle, AlertCircle, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAttendance } from '@/hooks/useAttendance';
+import { useClasses } from '@/hooks/useClasses';
+import AttendanceTable from '@/components/attendance/AttendanceTable';
 
 const TeacherDashboard = () => {
   const { user, userRole } = useAuth();
-  const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
+  const { attendance, checkOut, isCheckingOut } = useAttendance();
+  const { classes } = useClasses();
 
-  // Fetch teacher's classes
-  const { data: teacherClasses = [], isLoading: classesLoading } = useQuery({
-    queryKey: ['teacher-classes', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      const { data, error } = await supabase
-        .from('teachers')
-        .select('class_id, classes(id, name, description, capacity)')
-        .eq('user_id', user.id);
-        
-      if (error) {
-        console.error("Error fetching classes:", error);
-        throw error;
-      }
-      
-      return data.map(item => item.classes) || [];
-    },
-    enabled: !!user,
-  });
-  
-  // Fetch today's attendance for teacher's classes
-  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
-    queryKey: ['teacher-attendance', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      // Get class IDs for this teacher
-      const { data: teacherData, error: teacherError } = await supabase
-        .from('teachers')
-        .select('class_id')
-        .eq('user_id', user.id);
-        
-      if (teacherError) {
-        console.error("Error fetching teacher classes:", teacherError);
-        throw teacherError;
-      }
-      
-      if (!teacherData || teacherData.length === 0) return [];
-      
-      const classIds = teacherData.map(t => t.class_id);
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data, error } = await supabase
-        .from('attendance')
-        .select(`
-          id,
-          checked_in_at,
-          checked_out_at,
-          children (
-            id,
-            first_name,
-            last_name
-          ),
-          classes (
-            id,
-            name
-          )
-        `)
-        .in('class_id', classIds)
-        .eq('attendance_date', today);
-        
-      if (error) {
-        console.error("Error fetching attendance:", error);
-        throw error;
-      }
-      
-      return data.map(record => ({
-        id: record.id,
-        childName: `${record.children.first_name} ${record.children.last_name}`,
-        status: record.checked_out_at ? "Checked out" : "Checked in",
-        time: new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        class: record.classes?.name || "Unknown Class"
-      })) || [];
-    },
-    enabled: !!user,
-  });
-  
-  // Stats calculations
-  const totalStudents = attendanceRecords.length;
-  const presentStudents = attendanceRecords.filter(record => record.status === "Checked in").length;
-  const absentStudents = 0; // This would need to be calculated based on expected students
-  
-  // Column definitions for attendance records
-  const attendanceColumns = [
-    {
-      key: "childName" as const,
-      header: "Child Name",
-      render: (value: string) => (
-        <div className="flex items-center">
-          <div className="rounded-full bg-purple-100 p-1 mr-2">
-            <Users size={16} className="text-purple-600" />
-          </div>
-          <span>{value}</span>
-        </div>
-      ),
-    },
-    {
-      key: "class" as const,
-      header: "Class",
-    },
-    {
-      key: "status" as const,
-      header: "Status",
-      render: (value: string) => (
-        <div className="flex items-center">
-          <div className={`rounded-full ${value === "Checked in" ? "bg-green-100" : "bg-red-100"} p-1 mr-2`}>
-            {value === "Checked in" ? (
-              <CheckCircle2 size={16} className="text-green-600" />
-            ) : (
-              <XCircle size={16} className="text-red-600" />
-            )}
-          </div>
-          <span>{value}</span>
-        </div>
-      ),
-    },
-    {
-      key: "time" as const,
-      header: "Time",
-    },
-  ];
-  
-  // Filter attendance records based on search term
-  const filteredAttendance = attendanceRecords.filter(record =>
-    record.childName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    record.class.toLowerCase().includes(searchTerm.toLowerCase())
+  console.log("TeacherDashboard - Current user:", user?.id, "Role:", userRole);
+
+  const todayAttendance = attendance.filter(record => 
+    record.attendance_date === new Date().toISOString().split('T')[0]
   );
+  
+  const currentlyPresent = todayAttendance.filter(record => !record.checked_out_at);
+  const totalCheckedIn = todayAttendance.length;
+  const totalCheckedOut = todayAttendance.filter(record => record.checked_out_at).length;
 
   return (
-    <MainLayout>
-      <Breadcrumb
-        items={[
-          { label: "Home", path: "/" },
-          { label: "Teacher Dashboard" },
-        ]}
-      />
-      
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Teacher Dashboard</h1>
-        <div className="flex items-center space-x-2">
-          <div className="bg-purple-100 px-3 py-1 rounded-full text-purple-800 text-sm font-medium flex items-center">
-            <Calendar size={16} className="mr-1" />
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+    <DashboardLayout>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage your classes and track attendance.
+            </p>
+          </div>
+          <div className="flex space-x-2">
+            <Button onClick={() => navigate('/classes-management')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Manage Classes
+            </Button>
+            <Button onClick={() => navigate('/check-in-out')}>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Check-in/Out
+            </Button>
           </div>
         </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard
-          title="TOTAL STUDENTS"
-          value={totalStudents.toString()}
-          description="Students in your classes"
-          icon={<Users size={24} />}
-          className="bg-white"
-        />
-        
-        <StatCard
-          title="PRESENT TODAY"
-          value={presentStudents.toString()}
-          description="Currently checked in"
-          icon={<CheckCircle2 size={24} />}
-          className="bg-white"
-        />
-        
-        <StatCard
-          title="ABSENT TODAY"
-          value={absentStudents.toString()}
-          description="Not checked in"
-          icon={<XCircle size={24} />}
-          className="bg-white"
-        />
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-6 mb-8">
-        <div className="lg:col-span-6">
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold">Your Classes</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {classesLoading ? (
-                  <div className="text-center py-4">Loading classes...</div>
-                ) : teacherClasses.length > 0 ? (
-                  teacherClasses.map((classItem: any) => (
-                    <div key={classItem.id} className="border border-gray-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-lg">{classItem.name}</h3>
-                      <p className="text-gray-600 text-sm mb-2">{classItem.description}</p>
-                      <div className="flex justify-between text-sm">
-                        <span>Capacity: {classItem.capacity || "N/A"}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4">No classes assigned yet</div>
-                )}
-              </div>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <Users className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-sm font-medium ml-2">Total Check-ins</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalCheckedIn}</div>
+              <p className="text-xs text-muted-foreground">Today</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium ml-2">Currently Present</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{currentlyPresent.length}</div>
+              <p className="text-xs text-muted-foreground">Active now</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <Clock className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-sm font-medium ml-2">Checked Out</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{totalCheckedOut}</div>
+              <p className="text-xs text-muted-foreground">Today</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <AlertCircle className="h-4 w-4 text-purple-600" />
+              <CardTitle className="text-sm font-medium ml-2">My Classes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{classes.length}</div>
+              <p className="text-xs text-muted-foreground">Active classes</p>
             </CardContent>
           </Card>
         </div>
-      </div>
-      
-      <div className="mb-8">
+
+        {/* My Classes */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Today's Attendance</h2>
-              
-              <div className="relative w-64">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search size={16} className="text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by name or class"
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+          <CardHeader>
+            <CardTitle>My Classes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {classes.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {classes.map((classItem) => {
+                  const classAttendance = currentlyPresent.filter(
+                    record => record.class_id === classItem.id
+                  ).length;
+                  
+                  return (
+                    <Card key={classItem.id} className="hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => navigate(`/classes-management?classId=${classItem.id}`)}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">{classItem.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Present:</span>
+                            <span className="font-medium">{classAttendance}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Capacity:</span>
+                            <span className="font-medium">{classItem.capacity || 'Unlimited'}</span>
+                          </div>
+                          {classItem.room && (
+                            <div className="flex justify-between text-sm">
+                              <span>Room:</span>
+                              <span className="font-medium">{classItem.room}</span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
-            </div>
-            
-            <DataTable
-              columns={attendanceColumns}
-              data={filteredAttendance}
-              keyExtractor={(item) => item.id}
-              loading={attendanceLoading}
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">No classes assigned yet.</p>
+                <Button onClick={() => navigate('/classes-management')}>
+                  View All Classes
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Today's Attendance */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Today's Attendance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AttendanceTable
+              attendance={todayAttendance}
+              onCheckOut={checkOut}
+              isCheckingOut={isCheckingOut}
             />
           </CardContent>
         </Card>
       </div>
-    </MainLayout>
+    </DashboardLayout>
   );
 };
 

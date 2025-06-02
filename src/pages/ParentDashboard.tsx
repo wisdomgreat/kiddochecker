@@ -1,311 +1,219 @@
-import { useState, useEffect } from "react";
-import MainLayout from "@/components/layout/MainLayout";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import UpcomingEventsList from "@/components/dashboard/UpcomingEventsList";
-import ChildrenManagement from "@/components/children/ChildrenManagement";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { Clock, CalendarCheck, Users, CheckCircle, History, Info, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useNavigation } from "@/hooks/use-navigation";
 
-// Define the interface for class data to fix type errors
-interface ClassInfo {
-  id?: string;
-  name: string;
-  description: string;
-  age_range?: string;
-  room?: string;
-}
-
-interface ChildClassData {
-  childName: string;
-  childId: string;
-  class: ClassInfo;
-}
+import { useAuth } from '@/context/AuthContext';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Users, Clock, Plus, MapPin, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useParentChildren } from '@/hooks/useChildren';
+import { useAttendance } from '@/hooks/useAttendance';
+import { useState } from 'react';
+import AddEditChildDialog from '@/components/children/AddEditChildDialog';
+import { useChildren } from '@/hooks/useChildren';
 
 const ParentDashboard = () => {
-  const [activeTab, setActiveTab] = useState("children");
   const { user } = useAuth();
-  const { toast } = useToast();
-  const navigation = useNavigation();
-  
-  // Fetch attendance data
-  const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
-    queryKey: ["attendance", user?.id],
-    queryFn: async () => {
-      if (!user) return [];
+  const navigate = useNavigate();
+  const { data: childrenWithClasses, isLoading: childrenLoading } = useParentChildren();
+  const { attendance } = useAttendance();
+  const { addChild, isAddingChild } = useChildren();
+  const [showAddChild, setShowAddChild] = useState(false);
 
-      try {
-        // Get children IDs for parent
-        const { data: children, error: childrenError } = await supabase
-          .from('children')
-          .select('id')
-          .eq('parent_id', user.id);
-          
-        if (childrenError) throw childrenError;
-        
-        if (!children || children.length === 0) return [];
-        
-        const childIds = children.map(child => child.id);
-        
-        // Get attendance records for children
-        const { data: attendance, error: attendanceError } = await supabase
-          .from('attendance')
-          .select(`
-            id,
-            checked_in_at,
-            checked_out_at,
-            attendance_date,
-            children(first_name, last_name),
-            classes(name)
-          `)
-          .in('child_id', childIds)
-          .order('attendance_date', { ascending: false })
-          .limit(20);
-          
-        if (attendanceError) throw attendanceError;
-        
-        return attendance || [];
-      } catch (error) {
-        console.error("Error fetching attendance:", error);
-        return [];
-      }
-    },
-    enabled: !!user,
-  });
-  
-  // Fetch class information
-  const { data: classesData, isLoading: classesLoading } = useQuery<ChildClassData[]>({
-    queryKey: ["classes", user?.id],
-    queryFn: async () => {
-      if (!user) return [];
+  console.log("ParentDashboard - Current user:", user?.id);
 
-      try {
-        // Get children IDs for parent
-        const { data: children, error: childrenError } = await supabase
-          .from('children')
-          .select('id, first_name, last_name')
-          .eq('parent_id', user.id);
-          
-        if (childrenError) throw childrenError;
-        
-        if (!children || children.length === 0) return [];
-        
-        // Get unique class assignments for each child
-        const childClassData = await Promise.all(children.map(async (child) => {
-          // Get the most recent attendance record for each child to find their class
-          const { data: attendance, error: attendanceError } = await supabase
-            .from('attendance')
-            .select(`
-              classes(id, name, description, age_range, room)
-            `)
-            .eq('child_id', child.id)
-            .order('attendance_date', { ascending: false })
-            .limit(1);
-            
-          if (attendanceError) throw attendanceError;
-          
-          const classInfo = attendance && attendance.length > 0 ? attendance[0].classes : null;
-          
-          return {
-            childName: `${child.first_name} ${child.last_name}`,
-            childId: child.id,
-            class: classInfo || { name: 'Not assigned', description: 'No class assignment found' }
-          };
-        }));
-        
-        return childClassData;
-      } catch (error) {
-        console.error("Error fetching class information:", error);
-        return [];
-      }
-    },
-    enabled: !!user,
-  });
-  
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(date);
+  // Filter attendance for current user's children
+  const myChildrenAttendance = attendance.filter(record => 
+    childrenWithClasses?.some(child => child.child_id === record.child_id)
+  );
+
+  const currentlyPresent = myChildrenAttendance.filter(record => !record.checked_out_at);
+
+  const handleAddChild = (childData: any) => {
+    addChild(childData);
+    setShowAddChild(false);
   };
-  
-  const formatTime = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-  
+
   return (
-    <MainLayout>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Parent Dashboard</h1>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={navigation.navigateToCheckInProcess}>
-            <CalendarCheck className="mr-2 h-4 w-4" />
-            Check-in
-          </Button>
-          <Button variant="outline" onClick={() => setActiveTab("attendance")}>
-            <Clock className="mr-2 h-4 w-4" />
-            View History
+    <DashboardLayout>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Parent Dashboard</h1>
+            <p className="text-muted-foreground">
+              Track your children's attendance and activities.
+            </p>
+          </div>
+          <Button onClick={() => setShowAddChild(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Child
           </Button>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList>
-              <TabsTrigger value="children" className="flex items-center">
-                <Users className="mr-2 h-4 w-4" />
-                Children
-              </TabsTrigger>
-              <TabsTrigger value="attendance">Attendance</TabsTrigger>
-              <TabsTrigger value="classes">Classes</TabsTrigger>
-            </TabsList>
-            
-            <div className="mt-4">
-              <TabsContent value="children">
-                <ChildrenManagement />
-              </TabsContent>
-              
-              <TabsContent value="attendance">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Attendance History</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {attendanceLoading ? (
-                      <div className="flex justify-center py-6">
-                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500"></div>
-                        <span className="ml-3">Loading attendance data...</span>
-                      </div>
-                    ) : !attendanceData || attendanceData.length === 0 ? (
-                      <div className="text-center py-6">
-                        <History className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-                        <h3 className="font-medium text-gray-900">No attendance records</h3>
-                        <p className="text-gray-500 mt-1">No check-in/out records found for your children.</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="border-b">
-                              <th className="text-left py-2 px-3">Date</th>
-                              <th className="text-left py-2 px-3">Child</th>
-                              <th className="text-left py-2 px-3">Class</th>
-                              <th className="text-left py-2 px-3">Check-In</th>
-                              <th className="text-left py-2 px-3">Check-Out</th>
-                              <th className="text-left py-2 px-3">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {attendanceData.map((record: any) => (
-                              <tr key={record.id} className="border-b hover:bg-gray-50">
-                                <td className="py-2 px-3">{formatDate(record.attendance_date)}</td>
-                                <td className="py-2 px-3">
-                                  {record.children ? `${record.children.first_name} ${record.children.last_name}` : 'N/A'}
-                                </td>
-                                <td className="py-2 px-3">{record.classes?.name || 'N/A'}</td>
-                                <td className="py-2 px-3">{formatTime(record.checked_in_at)}</td>
-                                <td className="py-2 px-3">{formatTime(record.checked_out_at)}</td>
-                                <td className="py-2 px-3">
-                                  {record.checked_out_at ? (
-                                    <div className="flex items-center text-green-600">
-                                      <CheckCircle className="h-4 w-4 mr-1" />
-                                      <span>Completed</span>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center text-blue-600">
-                                      <Info className="h-4 w-4 mr-1" />
-                                      <span>Checked In</span>
-                                    </div>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="classes">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Class Information</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {classesLoading ? (
-                      <div className="flex justify-center py-6">
-                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500"></div>
-                        <span className="ml-3">Loading class information...</span>
-                      </div>
-                    ) : !classesData || classesData.length === 0 ? (
-                      <div className="text-center py-6">
-                        <Users className="mx-auto h-10 w-10 text-gray-400 mb-2" />
-                        <h3 className="font-medium text-gray-900">No class assignments</h3>
-                        <p className="text-gray-500 mt-1">Your children are not currently assigned to any classes.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-4">
-                        {classesData.map((item, index) => (
-                          <div key={index} className="border rounded-lg p-4 hover:bg-gray-50">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h3 className="font-medium">{item.childName}</h3>
-                                <h4 className="text-lg font-bold mt-1">{item.class.name}</h4>
-                                
-                                {item.class.description && (
-                                  <p className="text-gray-600 mt-2">{item.class.description}</p>
-                                )}
-                                
-                                <div className="mt-2 space-y-1">
-                                  {item.class.age_range && (
-                                    <div className="text-sm">
-                                      <span className="font-medium">Age Range:</span> {item.class.age_range}
-                                    </div>
-                                  )}
-                                  
-                                  {item.class.room && (
-                                    <div className="text-sm">
-                                      <span className="font-medium">Room:</span> {item.class.room}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {item.class.name === 'Not assigned' && (
-                                <div className="flex items-center text-amber-600">
-                                  <AlertTriangle className="h-4 w-4 mr-1" />
-                                  <span className="text-sm">Not assigned</span>
-                                </div>
-                              )}
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <Users className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-sm font-medium ml-2">My Children</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{childrenWithClasses?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">Registered children</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <Clock className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium ml-2">Currently Present</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{currentlyPresent.length}</div>
+              <p className="text-xs text-muted-foreground">At the facility</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-sm font-medium ml-2">Check-ins Today</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{myChildrenAttendance.length}</div>
+              <p className="text-xs text-muted-foreground">Total for today</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* My Children */}
+        <Card>
+          <CardHeader>
+            <CardTitle>My Children</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {childrenLoading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : childrenWithClasses && childrenWithClasses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {childrenWithClasses.map((child) => {
+                  const childAttendance = myChildrenAttendance.find(
+                    record => record.child_id === child.child_id && !record.checked_out_at
+                  );
+                  
+                  return (
+                    <Card key={child.child_id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">
+                            {child.first_name} {child.last_name}
+                          </CardTitle>
+                          {childAttendance ? (
+                            <Badge className="bg-green-600">Present</Badge>
+                          ) : (
+                            <Badge variant="secondary">Not Present</Badge>
+                          )}
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {child.age && (
+                            <div className="flex justify-between text-sm">
+                              <span>Age:</span>
+                              <span className="font-medium">{child.age} years</span>
                             </div>
-                          </div>
-                        ))}
+                          )}
+                          
+                          {child.current_class_name && (
+                            <div className="flex justify-between text-sm">
+                              <span>Current Class:</span>
+                              <div className="flex items-center space-x-1">
+                                <MapPin className="h-3 w-3 text-gray-500" />
+                                <span className="font-medium">{child.current_class_name}</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {child.allergies && (
+                            <div className="mt-2">
+                              <span className="text-sm font-medium text-red-600">Allergies:</span>
+                              <p className="text-sm text-red-600 bg-red-50 p-2 rounded mt-1">
+                                {child.allergies}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {childAttendance && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              <span>Checked in: </span>
+                              <span className="font-medium">
+                                {new Date(childAttendance.checked_in_at!).toLocaleTimeString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">No children registered yet.</p>
+                <Button onClick={() => setShowAddChild(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Child
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        {myChildrenAttendance.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {myChildrenAttendance.slice(0, 5).map((record) => {
+                  const child = childrenWithClasses?.find(c => c.child_id === record.child_id);
+                  return (
+                    <div key={record.id} className="flex items-center justify-between py-2 border-b">
+                      <div>
+                        <p className="font-medium">
+                          {child?.first_name} {child?.last_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {record.classes?.name || 'No class assigned'}
+                        </p>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </div>
-          </Tabs>
-        </div>
-        
-        <div>
-          <UpcomingEventsList />
-        </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          {record.checked_out_at ? 'Checked out' : 'Checked in'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(record.checked_out_at || record.checked_in_at!).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <AddEditChildDialog
+          isOpen={showAddChild}
+          onClose={() => setShowAddChild(false)}
+          onSave={handleAddChild}
+          isLoading={isAddingChild}
+        />
       </div>
-    </MainLayout>
+    </DashboardLayout>
   );
 };
 
