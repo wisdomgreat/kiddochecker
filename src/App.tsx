@@ -84,7 +84,7 @@ function App() {
 
   // Handle redirects when user and role are available
   useEffect(() => {
-    if (!isLoading && user && userRole && location.pathname === '/') {
+    if (!isLoading && user && userRole && (location.pathname === '/' || location.pathname === '')) {
       const targetRoute = getDefaultRoute();
       console.log("App.tsx - Redirecting from / to:", targetRoute);
       navigate(targetRoute, { replace: true });
@@ -96,7 +96,7 @@ function App() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <CircularProgress size="large" />
-        <span className="mt-4 text-gray-600">Starting KidCheck...</span>
+        <span className="mt-4 text-gray-600">Loading dashboard...</span>
       </div>
     );
   }
@@ -127,9 +127,13 @@ function App() {
         <Route path="/faq" element={<FAQ />} />
         
         {/* Default route - redirect based on user role */}
-        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
-        <Route path="" element={<Navigate to={getDefaultRoute()} replace />} />
-        <Route path="index" element={<Navigate to={getDefaultRoute()} replace />} />
+        <Route path="/" element={
+          user && userRole ? (
+            <Navigate to={getDefaultRoute()} replace />
+          ) : (
+            <Navigate to="/landing" replace />
+          )
+        } />
         
         {/* Admin Routes */}
         <Route path="/admin-dashboard" element={

@@ -36,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("Fetching role for user:", userId);
       
-      // Try using the RPC function first
+      // Use the RPC function first
       const { data: rpcData, error: rpcError } = await supabase.rpc('get_current_user_role');
       
       if (!rpcError && rpcData) {
@@ -44,23 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return rpcData as AppRole;
       }
       
-      console.log("RPC failed, trying direct query:", rpcError);
-      
-      // Fallback to direct query
-      const { data: roleData, error: queryError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (queryError) {
-        console.error("Error fetching user role:", queryError);
-        return 'parent'; // Default role
-      }
-      
-      const role = roleData?.role as AppRole || 'parent';
-      console.log("Got role from direct query:", role);
-      return role;
+      console.log("RPC failed, using fallback:", rpcError);
+      return 'parent'; // Default role
       
     } catch (error) {
       console.error("Error in fetchUserRole:", error);
@@ -133,29 +118,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log("Initializing auth...");
+    let mounted = true;
     
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         console.log("Auth state changed:", event, newSession ? "session exists" : "no session");
         
+        if (!mounted) return;
+        
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
         if (newSession?.user && event !== 'SIGNED_OUT') {
           console.log("Getting role for user after auth state change:", newSession.user.id);
-          const role = await fetchUserRole(newSession.user.id);
-          setUserRole(role);
-          
-          const setupCompleted = await checkSetupCompletion();
-          setIsSetupComplete(setupCompleted);
+          try {
+            const role = await fetchUserRole(newSession.user.id);
+            if (mounted) {
+              setUserRole(role);
+              
+              const setupCompleted = await checkSetupCompletion();
+              setIsSetupComplete(setupCompleted);
+            }
+          } catch (error) {
+            console.error("Error setting user role:", error);
+            if (mounted) setUserRole('parent');
+          }
         } else {
           console.log("No session or signed out");
-          setUserRole(null);
-          setIsSetupComplete(null);
+          if (mounted) {
+            setUserRole(null);
+            setIsSetupComplete(null);
+          }
         }
         
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     );
 
@@ -166,27 +163,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         console.log("Initial session check:", initialSession ? "session exists" : "no session");
         
-        if (initialSession?.user) {
+        if (initialSession?.user && mounted) {
           setSession(initialSession);
           setUser(initialSession.user);
           
           console.log("Getting initial role for user:", initialSession.user.id);
           const role = await fetchUserRole(initialSession.user.id);
-          setUserRole(role);
-          
-          const setupCompleted = await checkSetupCompletion();
-          setIsSetupComplete(setupCompleted);
+          if (mounted) {
+            setUserRole(role);
+            
+            const setupCompleted = await checkSetupCompletion();
+            setIsSetupComplete(setupCompleted);
+          }
         }
-        setIsLoading(false);
       } catch (error) {
         console.error("Error in initializeAuth:", error);
-        setIsLoading(false);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
     };
 
     initializeAuth();
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
