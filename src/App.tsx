@@ -58,6 +58,7 @@ function App() {
   console.log("App.tsx - Current user role:", userRole);
   console.log("App.tsx - Current path:", location.pathname);
   console.log("App.tsx - Is loading:", isLoading);
+  console.log("App.tsx - Is setup complete:", isSetupComplete);
   
   const getDefaultRoute = () => {
     if (!user) return '/landing';
@@ -88,7 +89,7 @@ function App() {
       console.log("App.tsx - Redirecting from / to:", targetRoute);
       navigate(targetRoute, { replace: true });
     }
-  }, [user, userRole, isLoading, location.pathname, navigate]);
+  }, [user, userRole, isLoading, location.pathname, navigate, isSetupComplete]);
 
   // Show loading indicator during auth loading
   if (isLoading) {
