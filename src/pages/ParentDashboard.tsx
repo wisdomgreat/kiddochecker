@@ -187,7 +187,7 @@ const ParentDashboard = () => {
                           {child?.first_name} {child?.last_name}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {record.classes?.name || 'No class assigned'}
+                          {record.class?.name || 'No class assigned'}
                         </p>
                       </div>
                       <div className="text-right">

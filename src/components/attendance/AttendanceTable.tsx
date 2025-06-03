@@ -25,7 +25,7 @@ const AttendanceTable = ({
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredAttendance = attendance.filter(record => {
-    const childName = `${record.children?.first_name || ''} ${record.children?.last_name || ''}`.toLowerCase();
+    const childName = `${record.child?.first_name || ''} ${record.child?.last_name || ''}`.toLowerCase();
     return childName.includes(searchTerm.toLowerCase());
   });
 
@@ -112,10 +112,10 @@ const AttendanceTable = ({
               {filteredAttendance.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell className="font-medium">
-                    {record.children?.first_name} {record.children?.last_name}
+                    {record.child?.first_name} {record.child?.last_name}
                   </TableCell>
                   <TableCell>
-                    {record.classes?.name || 'No class assigned'}
+                    {record.class?.name || 'No class assigned'}
                   </TableCell>
                   <TableCell>{formatTime(record.checked_in_at)}</TableCell>
                   <TableCell>{formatTime(record.checked_out_at)}</TableCell>

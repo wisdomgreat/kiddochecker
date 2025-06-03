@@ -53,9 +53,12 @@ export const useStaff = () => {
 
       // Create user role
       if (data.user) {
+        const validRoles = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
+        const roleToUse = validRoles.includes(staffData.role) ? staffData.role : 'staff';
+        
         const { error: roleError } = await supabase.rpc('create_user_role', {
           p_user_id: data.user.id,
-          p_role: staffData.role as any,
+          p_role: roleToUse as any,
           p_is_volunteer: staffData.is_volunteer || false,
         });
         
@@ -101,10 +104,13 @@ export const useStaff = () => {
 
       // Update role if changed
       if (updates.role) {
+        const validRoles = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
+        const roleToUse = validRoles.includes(updates.role) ? updates.role : 'staff';
+        
         const { error: roleError } = await supabase
           .from('user_roles')
           .update({
-            role: updates.role,
+            role: roleToUse,
             is_volunteer: updates.is_volunteer,
           })
           .eq('user_id', userId);
