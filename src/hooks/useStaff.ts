@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AppRole } from "@/types/supabase";
 
 export interface StaffMember {
   user_id: string;
@@ -53,12 +54,12 @@ export const useStaff = () => {
 
       // Create user role
       if (data.user) {
-        const validRoles = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
-        const roleToUse = validRoles.includes(staffData.role) ? staffData.role : 'staff';
+        const validRoles: AppRole[] = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
+        const roleToUse: AppRole = validRoles.includes(staffData.role as AppRole) ? staffData.role as AppRole : 'staff';
         
         const { error: roleError } = await supabase.rpc('create_user_role', {
           p_user_id: data.user.id,
-          p_role: roleToUse as any,
+          p_role: roleToUse,
           p_is_volunteer: staffData.is_volunteer || false,
         });
         
@@ -104,8 +105,8 @@ export const useStaff = () => {
 
       // Update role if changed
       if (updates.role) {
-        const validRoles = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
-        const roleToUse = validRoles.includes(updates.role) ? updates.role : 'staff';
+        const validRoles: AppRole[] = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
+        const roleToUse: AppRole = validRoles.includes(updates.role as AppRole) ? updates.role as AppRole : 'staff';
         
         const { error: roleError } = await supabase
           .from('user_roles')
