@@ -21,7 +21,7 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userRole, refreshSession } = useAuth();
+  const { user, userRole } = useAuth();
 
   const redirectBasedOnRole = (role: string) => {
     console.log("LoginForm: Redirecting based on role:", role);
@@ -88,9 +88,6 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
         title: "Login Successful",
         description: "You have been logged in successfully",
       });
-      
-      // Refresh session to get updated role
-      await refreshSession();
       
       // Get the return path from session storage
       const returnPath = sessionStorage.getItem("returnPath");
