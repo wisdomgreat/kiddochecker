@@ -7,10 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SearchForm from "@/components/check-out/SearchForm";
 import CheckoutTable from "@/components/check-out/CheckoutTable";
 import HelpSection from "@/components/check-out/HelpSection";
-import QrCodeScanner from "@/components/check-out/QrCodeScanner";
+import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import { CheckCircle, AlertTriangle, Info, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useDeviceRegistration } from "@/hooks/useDeviceRegistration";
+import { useAttendance } from "@/hooks/useAttendance";
 import { CheckoutItem } from "@/components/check-out/SearchForm";
 
 // Create a DeviceSetup component to handle the device registration flow
@@ -117,6 +118,7 @@ const CheckOutStation = () => {
   const [activeTab, setActiveTab] = useState<string>("search");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { checkOut } = useAttendance();
 
   const { 
     deviceId,
@@ -133,13 +135,31 @@ const CheckOutStation = () => {
   });
 
   // Handle QR code scanning
-  const handleScanComplete = (attendanceId: string) => {
-    console.log("QR Code scanned:", attendanceId);
-    // Implement the checkout process using the scanned attendance ID
-    toast({
-      title: "QR Code Scanned",
-      description: `Processing attendance ID: ${attendanceId}`,
-    });
+  const handleScanComplete = async (qrData: string) => {
+    console.log("QR Code scanned:", qrData);
+    
+    try {
+      // Parse QR code data (format: ATTENDANCE:id|CHILD:name|CLASS:class)
+      if (qrData.startsWith('ATTENDANCE:')) {
+        const attendanceId = qrData.split('|')[0].replace('ATTENDANCE:', '');
+        
+        // Perform checkout
+        await checkOut(attendanceId);
+        
+        toast({
+          title: "Checkout Successful",
+          description: "Child has been successfully checked out",
+        });
+      } else {
+        throw new Error("Invalid QR code format");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Checkout Failed",
+        description: error.message || "Failed to process QR code",
+        variant: "destructive",
+      });
+    }
   };
   
   // Loading state
@@ -202,7 +222,7 @@ const CheckOutStation = () => {
                     <TabsTrigger value="search">Search Child</TabsTrigger>
                   </TabsList>
                   <TabsContent value="scan" className="space-y-4">
-                    <QrCodeScanner onScanComplete={handleScanComplete} />
+                    <QRCodeScanner onScanComplete={handleScanComplete} />
                   </TabsContent>
                   <TabsContent value="search" className="space-y-4">
                     <SearchForm 

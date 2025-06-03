@@ -3,12 +3,17 @@ import React from "react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface QRCodeGeneratorProps {
-  userId: string;
-  userName: string;
+  attendanceId: string;
+  childName: string;
+  className?: string;
 }
 
-const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ userId, userName }) => {
-  const qrCodeValue = `USER:${userId}|NAME:${userName}`;
+const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ 
+  attendanceId, 
+  childName, 
+  className = "" 
+}) => {
+  const qrCodeValue = `ATTENDANCE:${attendanceId}|CHILD:${childName}|CLASS:${className}`;
   
   return (
     <div className="text-center">
@@ -22,7 +27,9 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ userId, userName }) =
       </div>
       <p className="mt-2 text-sm text-gray-600">Scan this code at check-out time</p>
       <div className="mt-2">
-        <p className="text-xs font-mono bg-gray-50 inline-block px-2 py-1 rounded">{userId.substring(0, 10)}</p>
+        <p className="text-xs font-mono bg-gray-50 inline-block px-2 py-1 rounded">
+          {attendanceId.substring(0, 10)}...
+        </p>
       </div>
     </div>
   );

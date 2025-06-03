@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle, Users, ArrowRight, AlertTriangle } from "lucide-react";
 import ClassSelectionForm from "@/components/check-in/ClassSelectionForm";
 import NameTagPrinter from "@/components/check-in/NameTagPrinter";
+import QRCodeGenerator from "@/components/check-in/QRCodeGenerator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
@@ -271,9 +272,10 @@ const CheckInProcess = () => {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="select-class">Select Class</TabsTrigger>
               <TabsTrigger value="print-tag" disabled={!currentChild.selectedClass}>Print Tag</TabsTrigger>
+              <TabsTrigger value="qr-code" disabled={!currentChild.attendanceId}>QR Code</TabsTrigger>
             </TabsList>
             
             <TabsContent value="select-class" className="py-4">
@@ -327,25 +329,38 @@ const CheckInProcess = () => {
                       }
                     </Button>
                   </div>
-                  
-                  {currentChild.checkedIn && (
-                    <div className="mt-4 flex justify-center">
-                      <Button 
-                        variant="default" 
-                        className="bg-green-600 hover:bg-green-700" 
-                        onClick={goToNextChild}
-                      >
-                        {currentChildIndex < children.length - 1 
-                          ? `Continue to Next Child (${children[currentChildIndex + 1].firstName})` 
-                          : "Complete Check-in"
-                        }
-                      </Button>
-                    </div>
-                  )}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="qr-code" className="py-4">
+              {currentChild.attendanceId && currentChild.selectedClass && (
+                <div className="text-center space-y-4">
+                  <h3 className="text-lg font-semibold">Checkout QR Code</h3>
+                  <QRCodeGenerator 
+                    attendanceId={currentChild.attendanceId}
+                    childName={`${currentChild.firstName} ${currentChild.lastName}`}
+                    className={currentChild.selectedClass.name}
+                  />
+                  <p className="text-sm text-gray-600">
+                    Save this QR code or take a screenshot for quick checkout
+                  </p>
                 </div>
               )}
             </TabsContent>
           </Tabs>
+          
+          {currentChild.checkedIn && (
+            <div className="mt-4 flex justify-center">
+              <Button 
+                variant="default" 
+                className="bg-green-600 hover:bg-green-700" 
+                onClick={() => setActiveTab("qr-code")}
+              >
+                View QR Code for Checkout
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </MainLayout>
