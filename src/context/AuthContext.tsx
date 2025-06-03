@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const getUserRole = async (userId: string): Promise<AppRole | null> => {
     try {
@@ -76,61 +77,91 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   useEffect(() => {
-    console.log("Initializing auth...");
+    let mounted = true;
     
-    // Get initial session
     const initializeAuth = async () => {
+      if (!mounted) return;
+      
       try {
+        console.log("Initializing auth...");
         const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
         
         if (initialSession?.user) {
           console.log("Initial session found for user:", initialSession.user.id);
           setSession(initialSession);
           setUser(initialSession.user);
           
-          // Get user role and setup status
+          // Get user role and setup status in parallel
           const [role, setupComplete] = await Promise.all([
             getUserRole(initialSession.user.id),
             checkSetupComplete()
           ]);
           
+          if (!mounted) return;
+          
           setUserRole(role);
           setIsSetupComplete(setupComplete);
         } else {
           console.log("No initial session found");
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          setIsSetupComplete(null);
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          setIsSetupComplete(null);
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setInitialized(true);
+        }
       }
     };
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        if (!mounted || !initialized) return;
+        
         console.log("Auth state changed:", event, currentSession?.user?.id || "none");
         
+        // Set session and user immediately
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
-        if (currentSession?.user) {
+        if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
           console.log("Getting role for user after auth state change:", currentSession.user.id);
           
-          // Get user role and setup status
-          const [role, setupComplete] = await Promise.all([
-            getUserRole(currentSession.user.id),
-            checkSetupComplete()
-          ]);
-          
-          setUserRole(role);
-          setIsSetupComplete(setupComplete);
-        } else {
+          try {
+            // Get user role and setup status
+            const [role, setupComplete] = await Promise.all([
+              getUserRole(currentSession.user.id),
+              checkSetupComplete()
+            ]);
+            
+            if (mounted) {
+              setUserRole(role);
+              setIsSetupComplete(setupComplete);
+            }
+          } catch (error) {
+            console.error("Error fetching user data after auth change:", error);
+          }
+        } else if (!currentSession?.user) {
           setUserRole(null);
           setIsSetupComplete(null);
         }
         
-        setIsLoading(false);
+        if (mounted && initialized) {
+          setIsLoading(false);
+        }
       }
     );
 
@@ -138,6 +169,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     initializeAuth();
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);

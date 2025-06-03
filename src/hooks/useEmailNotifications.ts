@@ -1,0 +1,72 @@
+
+import { useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface EmailNotificationData {
+  to: string;
+  subject: string;
+  message: string;
+  type: 'check_in' | 'check_out' | 'general' | 'weekly_report';
+  childName?: string;
+  className?: string;
+}
+
+export const useEmailNotifications = () => {
+  const { toast } = useToast();
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async (emailData: EmailNotificationData) => {
+      // Call the edge function for sending emails
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: emailData
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Email sent",
+        description: "Notification email has been sent successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Email sending error:", error);
+      toast({
+        title: "Email failed",
+        description: error.message || "Failed to send email notification",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendCheckInNotification = (parentEmail: string, childName: string, className: string) => {
+    sendEmailMutation.mutate({
+      to: parentEmail,
+      subject: `${childName} checked in successfully`,
+      message: `Your child ${childName} has been checked in to ${className} at ${new Date().toLocaleTimeString()}.`,
+      type: 'check_in',
+      childName,
+      className,
+    });
+  };
+
+  const sendCheckOutNotification = (parentEmail: string, childName: string, className: string) => {
+    sendEmailMutation.mutate({
+      to: parentEmail,
+      subject: `${childName} checked out successfully`,
+      message: `Your child ${childName} has been checked out from ${className} at ${new Date().toLocaleTimeString()}.`,
+      type: 'check_out',
+      childName,
+      className,
+    });
+  };
+
+  return {
+    sendEmail: sendEmailMutation.mutate,
+    sendCheckInNotification,
+    sendCheckOutNotification,
+    isLoading: sendEmailMutation.isPending,
+  };
+};
