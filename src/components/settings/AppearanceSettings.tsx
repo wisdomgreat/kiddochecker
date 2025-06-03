@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +24,7 @@ type ColorOption = {
   label: string;
   color: string;
   primaryColor: string;
+  primaryHsl: string;
 };
 
 const AppearanceSettings = () => {
@@ -32,10 +32,34 @@ const AppearanceSettings = () => {
   const [selectedColor, setSelectedColor] = useState<string>("purple");
 
   const colorOptions: ColorOption[] = [
-    { value: "purple", label: "Purple", color: "bg-purple-600", primaryColor: "#8B5CF6" },
-    { value: "blue", label: "Blue", color: "bg-blue-600", primaryColor: "#3b82f6" },
-    { value: "green", label: "Green", color: "bg-green-600", primaryColor: "#22c55e" },
-    { value: "orange", label: "Orange", color: "bg-orange-600", primaryColor: "#f97316" },
+    { 
+      value: "purple", 
+      label: "Purple", 
+      color: "bg-purple-600", 
+      primaryColor: "#8B5CF6",
+      primaryHsl: "252 95% 70%"
+    },
+    { 
+      value: "blue", 
+      label: "Blue", 
+      color: "bg-blue-600", 
+      primaryColor: "#3b82f6",
+      primaryHsl: "220 91% 60%"
+    },
+    { 
+      value: "green", 
+      label: "Green", 
+      color: "bg-green-600", 
+      primaryColor: "#22c55e",
+      primaryHsl: "142 71% 45%"
+    },
+    { 
+      value: "orange", 
+      label: "Orange", 
+      color: "bg-orange-600", 
+      primaryColor: "#f97316",
+      primaryHsl: "25 95% 53%"
+    },
   ];
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -60,25 +84,37 @@ const AppearanceSettings = () => {
         
         // Apply saved settings immediately on load
         applyThemeSettings(settings);
+      } else {
+        // Apply default settings if none saved
+        const defaultSettings: ThemeSettings = {
+          theme: "light",
+          colorScheme: "purple",
+          highContrast: false,
+          largeText: false,
+          animations: true
+        };
+        applyThemeSettings(defaultSettings);
       }
     } catch (error) {
       console.error("Error loading theme settings", error);
     }
   }, []);
 
-  // Function to apply theme settings
+  // Function to apply theme settings throughout the app
   const applyThemeSettings = (settings: ThemeSettings) => {
     console.log("Applying theme settings:", settings);
-    // Apply theme (light/dark/system)
     const root = document.documentElement;
+    const body = document.body;
+    
+    // Apply theme (light/dark/system)
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     
     if (settings.theme === "dark" || (settings.theme === "system" && prefersDark)) {
       root.classList.add("dark");
-      document.body.classList.add("dark");
+      body.classList.add("dark");
     } else {
       root.classList.remove("dark");
-      document.body.classList.remove("dark");
+      body.classList.remove("dark");
     }
     
     // Apply system theme listener if needed
@@ -87,10 +123,10 @@ const AppearanceSettings = () => {
       const handleChange = (e: MediaQueryListEvent) => {
         if (e.matches) {
           root.classList.add("dark");
-          document.body.classList.add("dark");
+          body.classList.add("dark");
         } else {
           root.classList.remove("dark");
-          document.body.classList.remove("dark");
+          body.classList.remove("dark");
         }
       };
       
@@ -103,57 +139,115 @@ const AppearanceSettings = () => {
       mediaQuery.addEventListener("change", handleChange);
     }
     
-    // Apply color scheme
+    // Apply color scheme throughout the app
     const colorOption = colorOptions.find(c => c.value === settings.colorScheme);
     if (colorOption) {
-      document.documentElement.style.setProperty("--color-primary", colorOption.primaryColor);
+      // Set CSS variables for consistent theming
+      root.style.setProperty("--color-primary", colorOption.primaryColor);
+      root.style.setProperty("--primary", colorOption.primaryHsl);
       
-      // Convert hex to HSL for CSS variables
-      const hslColor = hexToHSL(colorOption.primaryColor);
-      if (hslColor) {
-        document.documentElement.style.setProperty("--primary", `${hslColor.h} ${hslColor.s}% ${hslColor.l}%`);
-      }
+      // Apply to buttons, links, and interactive elements
+      const primaryElements = document.querySelectorAll('.btn-primary, .text-primary, .bg-primary, .border-primary');
+      primaryElements.forEach(element => {
+        if (element instanceof HTMLElement) {
+          element.style.setProperty('--tw-bg-opacity', '1');
+          element.style.backgroundColor = `rgb(${colorOption.primaryColor})`;
+        }
+      });
+      
+      // Update all purple-colored elements to use the new color scheme
+      updateColorClasses(settings.colorScheme);
     }
     
     // Apply accessibility settings
     applyAccessibilitySettings(settings);
   };
   
+  // Update color classes throughout the app
+  const updateColorClasses = (colorScheme: string) => {
+    const colorMap: Record<string, string[]> = {
+      purple: ['purple-600', 'purple-700', 'purple-500', 'purple-50', 'purple-100'],
+      blue: ['blue-600', 'blue-700', 'blue-500', 'blue-50', 'blue-100'],
+      green: ['green-600', 'green-700', 'green-500', 'green-50', 'green-100'],
+      orange: ['orange-600', 'orange-700', 'orange-500', 'orange-50', 'orange-100']
+    };
+    
+    // Create or update dynamic style sheet
+    let styleSheet = document.getElementById('dynamic-color-scheme');
+    if (!styleSheet) {
+      styleSheet = document.createElement('style');
+      styleSheet.id = 'dynamic-color-scheme';
+      document.head.appendChild(styleSheet);
+    }
+    
+    const colors = colorMap[colorScheme];
+    if (colors) {
+      const rules = `
+        .bg-purple-600, .hover\\:bg-purple-700:hover, .btn-primary { 
+          background-color: var(--color-primary) !important; 
+        }
+        .text-purple-600, .hover\\:text-purple-600:hover { 
+          color: var(--color-primary) !important; 
+        }
+        .border-purple-600, .focus\\:ring-purple-500:focus { 
+          border-color: var(--color-primary) !important; 
+        }
+        .bg-purple-50 { 
+          background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important; 
+        }
+        .bg-purple-100 { 
+          background-color: color-mix(in srgb, var(--color-primary) 20%, white) !important; 
+        }
+        .sidebar-item.active {
+          background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important;
+          color: var(--color-primary) !important;
+        }
+        .sidebar-item:hover {
+          background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important;
+          color: var(--color-primary) !important;
+        }
+      `;
+      
+      styleSheet.textContent = rules;
+    }
+  };
+  
   // Apply accessibility-specific settings
   const applyAccessibilitySettings = (settings: ThemeSettings) => {
     const { highContrast, largeText, animations } = settings;
     const root = document.documentElement;
+    const body = document.body;
     
     // High contrast mode
     if (highContrast) {
       root.classList.add("high-contrast");
-      document.body.classList.add("high-contrast");
+      body.classList.add("high-contrast");
       applyHighContrastStyles();
     } else {
       root.classList.remove("high-contrast");
-      document.body.classList.remove("high-contrast");
+      body.classList.remove("high-contrast");
       removeHighContrastStyles();
     }
     
     // Large text mode
     if (largeText) {
       root.classList.add("large-text");
-      document.body.classList.add("text-lg");
+      body.classList.add("text-lg");
       applyLargeTextStyles();
     } else {
       root.classList.remove("large-text");
-      document.body.classList.remove("text-lg");
+      body.classList.remove("text-lg");
       removeLargeTextStyles();
     }
     
     // Animations
     if (!animations) {
       root.classList.add("reduce-motion");
-      document.body.classList.add("reduce-motion");
+      body.classList.add("reduce-motion");
       applyReduceMotionStyles();
     } else {
       root.classList.remove("reduce-motion");
-      document.body.classList.remove("reduce-motion");
+      body.classList.remove("reduce-motion");
       removeReduceMotionStyles();
     }
   };
@@ -312,12 +406,12 @@ const AppearanceSettings = () => {
       
       localStorage.setItem("themeSettings", JSON.stringify(themeSettings));
       
-      // Apply the theme settings
+      // Apply the theme settings immediately
       applyThemeSettings(themeSettings);
       
       toast({
         title: "Appearance updated",
-        description: "Your appearance settings have been saved and applied.",
+        description: "Your appearance settings have been saved and applied throughout the app.",
       });
     } catch (error) {
       console.error("Error saving theme settings:", error);
@@ -426,7 +520,6 @@ const AppearanceSettings = () => {
                           
                           // Preview color change immediately
                           const currentSettings = form.getValues();
-                          // Ensure we're using a type-safe value for colorScheme
                           const typeSafeColorScheme = option.value as "purple" | "blue" | "green" | "orange";
                           applyThemeSettings({
                             theme: currentSettings.theme,
@@ -451,7 +544,7 @@ const AppearanceSettings = () => {
                     ))}
                   </div>
                   <FormDescription className="text-center">
-                    Choose a primary color for the application.
+                    Choose a primary color that will be applied throughout the entire application.
                   </FormDescription>
                 </FormItem>
               )}

@@ -1,6 +1,8 @@
+
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import AdminDashboard from '@/pages/AdminDashboard';
 import TeacherDashboard from '@/pages/TeacherDashboard';
 import ParentDashboard from '@/pages/ParentDashboard';
@@ -49,7 +51,7 @@ const Unauthorized = () => (
   </div>
 );
 
-function App() {
+function AppContent() {
   const { user, userRole, isLoading, isSetupComplete } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -240,6 +242,14 @@ function App() {
       </Routes>
       <Toaster />
     </>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 

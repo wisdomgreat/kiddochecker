@@ -19,7 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, LogIn, UserPlus, Loader2 } from "lucide-react";
-import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 
 // Create a schema for login validation
 const loginSchema = z.object({
@@ -35,9 +34,8 @@ const LoginPage = () => {
   const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [hasRedirected, setHasRedirected] = useState(false);
+  const [redirectHandled, setRedirectHandled] = useState(false);
   const isStaffLogin = location.state?.staffLogin || false;
-  const { navigateToDashboard } = useDashboardNavigation();
   
   // Initialize form with react-hook-form
   const form = useForm<LoginValues>({
@@ -48,18 +46,29 @@ const LoginPage = () => {
     },
   });
   
-  // Redirect if already logged in - but prevent infinite loops
+  // Handle redirects for authenticated users
   useEffect(() => {
-    if (user && userRole && !authLoading && !isLoading && !hasRedirected) {
-      console.log("LoginPage: Already logged in as:", userRole);
-      setHasRedirected(true);
-      setTimeout(() => {
-        navigateToDashboard();
-      }, 100);
+    if (user && userRole && !authLoading && !isLoading && !redirectHandled) {
+      console.log("LoginPage: Already authenticated, redirecting based on role:", userRole);
+      setRedirectHandled(true);
+      
+      // Determine redirect path based on role
+      let redirectPath = '/landing';
+      if (userRole === 'admin' || userRole === 'super_admin') {
+        redirectPath = '/admin-dashboard';
+      } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
+        redirectPath = '/teacher-dashboard';
+      } else if (userRole === 'parent') {
+        redirectPath = '/parent-dashboard';
+      }
+      
+      navigate(redirectPath, { replace: true });
     }
-  }, [user, userRole, authLoading, isLoading, hasRedirected, navigateToDashboard]);
+  }, [user, userRole, authLoading, isLoading, redirectHandled, navigate]);
   
   const onSubmit = async (values: LoginValues) => {
+    if (isLoading || authLoading) return;
+    
     try {
       setIsLoading(true);
       
@@ -71,18 +80,14 @@ const LoginPage = () => {
       
       if (error) throw error;
       
+      console.log("LoginPage: Login successful for user:", data.user?.id);
+      
       toast({
         title: "Login successful",
         description: "You are now logged in",
       });
 
-      // Let the auth context handle the redirect
-      if (data.user) {
-        // Wait for auth state to update then navigate
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-      }
+      // Don't manually redirect - let the auth state change handle it
       
     } catch (error: any) {
       console.error("Login error:", error);
@@ -104,8 +109,8 @@ const LoginPage = () => {
     navigate("/parent-registration");
   };
   
-  // Show loading if auth is being checked
-  if (authLoading) {
+  // Show loading if auth is being checked or we're redirecting
+  if (authLoading || (user && userRole && !redirectHandled)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

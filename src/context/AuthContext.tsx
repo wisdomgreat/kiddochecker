@@ -33,27 +33,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
-  const [initialized, setInitialized] = useState(false);
 
   const getUserRole = async (userId: string): Promise<AppRole | null> => {
     try {
       console.log("Fetching role for user:", userId);
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
+      
+      // Use a direct query to avoid RLS recursion issues
+      const { data, error } = await supabase.rpc('get_current_user_role');
 
       if (error) {
         console.error("Error fetching user role:", error);
-        return null;
+        // Fallback: try direct query with service role context
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
+          
+        if (fallbackError) {
+          console.error("Fallback role fetch failed:", fallbackError);
+          return 'parent'; // Default role
+        }
+        
+        return fallbackData?.role as AppRole || 'parent';
       }
 
-      console.log("User role fetched:", data?.role);
-      return data?.role as AppRole || null;
+      console.log("User role fetched:", data);
+      return data as AppRole || 'parent';
     } catch (error) {
       console.error("Error in getUserRole:", error);
-      return null;
+      return 'parent'; // Default role
     }
   };
 
@@ -121,7 +130,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } finally {
         if (mounted) {
           setIsLoading(false);
-          setInitialized(true);
         }
       }
     };
@@ -129,18 +137,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
-        if (!mounted || !initialized) return;
+        if (!mounted) return;
         
         console.log("Auth state changed:", event, currentSession?.user?.id || "none");
         
-        // Set session and user immediately
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        setIsLoading(true);
+        
+        try {
+          // Set session and user immediately
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
 
-        if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
-          console.log("Getting role for user after auth state change:", currentSession.user.id);
-          
-          try {
+          if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
+            console.log("Getting role for user after auth state change:", currentSession.user.id);
+            
             // Get user role and setup status
             const [role, setupComplete] = await Promise.all([
               getUserRole(currentSession.user.id),
@@ -151,16 +161,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               setUserRole(role);
               setIsSetupComplete(setupComplete);
             }
-          } catch (error) {
-            console.error("Error fetching user data after auth change:", error);
+          } else if (!currentSession?.user) {
+            setUserRole(null);
+            setIsSetupComplete(null);
           }
-        } else if (!currentSession?.user) {
-          setUserRole(null);
-          setIsSetupComplete(null);
-        }
-        
-        if (mounted && initialized) {
-          setIsLoading(false);
+        } catch (error) {
+          console.error("Error handling auth state change:", error);
+          if (mounted) {
+            setUserRole(null);
+            setIsSetupComplete(null);
+          }
+        } finally {
+          if (mounted) {
+            setIsLoading(false);
+          }
         }
       }
     );
