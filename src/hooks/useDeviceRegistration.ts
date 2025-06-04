@@ -1,162 +1,152 @@
 
-import { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { getDeviceProfile, registerDevice, isSetupCompleted } from "@/integrations/supabase/client";
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-export interface DeviceRegistrationState {
-  deviceId: string;
-  isRegistered: boolean;
-  deviceName: string;
-  showDeviceSetup: boolean;
-  isSetupComplete: boolean | null;
-  isLoading: boolean;
-  error: string | null;
-}
-
-export interface DeviceRegistrationProps {
+interface UseDeviceRegistrationProps {
   deviceType: 'check_in_kiosk' | 'check_out_station';
-  defaultDeviceName?: string;
+  defaultDeviceName: string;
 }
 
-export function useDeviceRegistration({ 
-  deviceType, 
-  defaultDeviceName 
-}: DeviceRegistrationProps) {
-  const [state, setState] = useState<DeviceRegistrationState>({
-    deviceId: "",
-    isRegistered: false,
-    deviceName: defaultDeviceName || "",
-    showDeviceSetup: false,
-    isSetupComplete: null,
-    isLoading: true,
-    error: null
-  });
+export const useDeviceRegistration = ({ deviceType, defaultDeviceName }: UseDeviceRegistrationProps) => {
+  const [deviceId, setDeviceId] = useState("");
+  const [deviceName, setDeviceName] = useState(defaultDeviceName);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showDeviceSetup, setShowDeviceSetup] = useState(false);
   const { toast } = useToast();
+
+  const generateDeviceId = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx?.fillText('Device fingerprint', 2, 2);
+    const fingerprint = canvas.toDataURL();
+    
+    return btoa(
+      navigator.userAgent + 
+      screen.width + 
+      screen.height + 
+      fingerprint.slice(-50)
+    ).slice(0, 20);
+  };
+
+  const checkSetupComplete = async (): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('organization_settings')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        console.error("Error checking setup:", error);
+        return false;
+      }
+
+      return data && data.length > 0;
+    } catch (error) {
+      console.error("Error in checkSetupComplete:", error);
+      return false;
+    }
+  };
+
+  const checkDeviceRegistration = async (devId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_device_profile', {
+        p_device_id: devId
+      });
+
+      if (error) {
+        console.error("Error checking device registration:", error);
+        setIsRegistered(false);
+        setShowDeviceSetup(true);
+      } else if (data && typeof data === 'object' && data !== null) {
+        setIsRegistered(true);
+        const deviceData = data as { name: string };
+        setDeviceName(deviceData.name || defaultDeviceName);
+        setShowDeviceSetup(false);
+      } else {
+        setIsRegistered(false);
+        setShowDeviceSetup(true);
+      }
+    } catch (error) {
+      console.error("Error checking device:", error);
+      setIsRegistered(false);
+      setShowDeviceSetup(true);
+    }
+  };
 
   useEffect(() => {
     const initializeDevice = async () => {
-      setState(prev => ({ ...prev, isLoading: true }));
+      setIsLoading(true);
       
-      try {
-        // Check if organization setup is completed
-        const setupComplete = await isSetupCompleted();
+      // Check if setup is complete
+      const setupComplete = await checkSetupComplete();
+      setIsSetupComplete(setupComplete);
+      
+      if (setupComplete) {
+        // Generate device ID
+        const generatedId = generateDeviceId();
+        setDeviceId(generatedId);
         
-        if (!setupComplete) {
-          setState(prev => ({ 
-            ...prev, 
-            isSetupComplete: false,
-            isLoading: false 
-          }));
-          return;
-        }
-
-        // Get or create device ID from local storage
-        let storedDeviceId = localStorage.getItem('device_id');
-        if (!storedDeviceId) {
-          storedDeviceId = uuidv4();
-          localStorage.setItem('device_id', storedDeviceId);
-        }
-        
-        // Check if device is registered
-        const deviceProfile = await getDeviceProfile(storedDeviceId);
-        
-        if (deviceProfile) {
-          // Fix: Check if deviceProfile is an object and properly access its properties
-          const deviceName = 
-            typeof deviceProfile === 'object' && deviceProfile !== null 
-              ? (deviceProfile as any).name || defaultDeviceName || (deviceType === 'check_in_kiosk' ? "Check-in Kiosk" : "Check-out Station") 
-              : defaultDeviceName || (deviceType === 'check_in_kiosk' ? "Check-in Kiosk" : "Check-out Station");
-              
-          setState(prev => ({
-            ...prev,
-            deviceId: storedDeviceId,
-            isRegistered: true,
-            deviceName,
-            isSetupComplete: setupComplete,
-          }));
-        } else {
-          setState(prev => ({
-            ...prev,
-            deviceId: storedDeviceId,
-            isRegistered: false,
-            showDeviceSetup: true,
-            isSetupComplete: setupComplete,
-          }));
-        }
-      } catch (error) {
-        console.error(`Error initializing ${deviceType}:`, error);
-        setState(prev => ({ 
-          ...prev, 
-          error: `Failed to initialize ${deviceType}` 
-        }));
-        
-        toast({
-          title: "Error",
-          description: `Failed to initialize ${deviceType}`,
-          variant: "destructive",
-        });
-      } finally {
-        setState(prev => ({ ...prev, isLoading: false }));
+        // Check device registration
+        await checkDeviceRegistration(generatedId);
       }
+      
+      setIsLoading(false);
     };
 
     initializeDevice();
-  }, [deviceType, defaultDeviceName, toast]);
+  }, []);
 
-  const handleRegisterDevice = async (customName?: string) => {
-    const deviceName = customName || state.deviceName;
-    
+  const handleRegisterDevice = async () => {
     if (!deviceName.trim()) {
       toast({
         title: "Error",
-        description: `Please provide a name for this ${deviceType}`,
+        description: "Please enter a device name",
         variant: "destructive",
       });
-      return false;
+      return;
     }
 
     try {
-      const result = await registerDevice({
-        device_id: state.deviceId,
-        name: deviceName,
-        type: deviceType,
+      const { data, error } = await supabase.rpc('register_device', {
+        p_device_id: deviceId,
+        p_name: deviceName,
+        p_type: deviceType,
+        p_location: 'Self-registered'
       });
 
-      if (result) {
-        setState(prev => ({ 
-          ...prev, 
-          isRegistered: true, 
-          showDeviceSetup: false,
-          deviceName 
-        }));
-        
-        toast({
-          title: "Success",
-          description: `${deviceType === 'check_in_kiosk' ? 'Kiosk' : 'Station'} registered successfully`,
-        });
-        
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error(`Error registering ${deviceType}:`, error);
+      if (error) throw error;
+
+      setIsRegistered(true);
+      setShowDeviceSetup(false);
       toast({
-        title: "Error",
-        description: `Failed to register ${deviceType}`,
+        title: "Device Registered",
+        description: `Device "${deviceName}" has been registered successfully`,
+      });
+    } catch (error: any) {
+      console.error("Error registering device:", error);
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Failed to register device",
         variant: "destructive",
       });
-      return false;
     }
   };
 
   const updateDeviceName = (name: string) => {
-    setState(prev => ({ ...prev, deviceName: name }));
+    setDeviceName(name);
   };
 
   return {
-    ...state,
+    deviceId,
+    deviceName,
+    isRegistered,
+    isSetupComplete,
+    isLoading,
+    showDeviceSetup,
     handleRegisterDevice,
     updateDeviceName
   };
-}
+};

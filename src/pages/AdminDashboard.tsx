@@ -5,18 +5,16 @@ import StatCards from '@/components/dashboard/StatCards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, GraduationCap, UserCheck, AlertTriangle, Plus, FileText } from 'lucide-react';
-import { useDashboardStats, useClassStatus, useRecentActivity } from '@/hooks/useDashboardData';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useNavigate } from 'react-router-dom';
 import { useChildren } from '@/hooks/useChildren';
 import { useClasses } from '@/hooks/useClasses';
-import { useUserRoles } from '@/hooks/useUserRoles';
+import useUserRoles from '@/hooks/useUserRoles';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: classStatus, isLoading: classLoading } = useClassStatus();
-  const { data: recentActivity, isLoading: activityLoading } = useRecentActivity();
   const { children } = useChildren();
   const { classes } = useClasses();
   const { data: users } = useUserRoles();
@@ -24,9 +22,9 @@ const AdminDashboard = () => {
   console.log("AdminDashboard - Current user:", user?.id);
 
   const dashboardStats = {
-    totalChildren: children.length,
-    totalClasses: classes.length,
-    checkedIn: stats?.checkedIn || 0,
+    totalChildren: children?.length || 0,
+    totalClasses: classes?.length || 0,
+    checkedIn: stats?.checkedInToday || 0,
     totalStaff: users?.filter(u => ['admin', 'teacher', 'staff'].includes(u.role)).length || 0,
   };
 
@@ -65,7 +63,7 @@ const AdminDashboard = () => {
               <CardTitle className="text-sm font-medium ml-2">Children</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{children.length}</div>
+              <div className="text-2xl font-bold">{children?.length || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Total registered children
               </p>
@@ -79,7 +77,7 @@ const AdminDashboard = () => {
               <CardTitle className="text-sm font-medium ml-2">Classes</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{classes.length}</div>
+              <div className="text-2xl font-bold">{classes?.length || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Active classes
               </p>
@@ -109,7 +107,7 @@ const AdminDashboard = () => {
               <CardTitle className="text-sm font-medium ml-2">Check-in/Out</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.checkedIn || 0}</div>
+              <div className="text-2xl font-bold">{stats?.checkedInToday || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Currently present
               </p>
@@ -125,17 +123,17 @@ const AdminDashboard = () => {
               <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              {activityLoading ? (
+              {statsLoading ? (
                 <div className="text-center py-8">Loading...</div>
-              ) : recentActivity && recentActivity.length > 0 ? (
+              ) : stats?.recentActivities && stats.recentActivities.length > 0 ? (
                 <div className="space-y-4">
-                  {recentActivity.slice(0, 5).map((activity: any, index: number) => (
+                  {stats.recentActivities.slice(0, 5).map((activity: any, index: number) => (
                     <div key={index} className="flex items-center space-x-3 text-sm">
                       <div className="w-2 h-2 bg-blue-600 rounded-full" />
                       <div className="flex-1">
-                        <p>{activity.description}</p>
+                        <p>{activity.action}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(activity.timestamp).toLocaleTimeString()}
+                          {activity.time}
                         </p>
                       </div>
                     </div>
@@ -155,19 +153,19 @@ const AdminDashboard = () => {
               <CardTitle>Class Status</CardTitle>
             </CardHeader>
             <CardContent>
-              {classLoading ? (
+              {statsLoading ? (
                 <div className="text-center py-8">Loading...</div>
-              ) : classStatus && classStatus.length > 0 ? (
+              ) : classes && classes.length > 0 ? (
                 <div className="space-y-4">
-                  {classStatus.slice(0, 5).map((classItem: any) => (
+                  {classes.slice(0, 5).map((classItem: any) => (
                     <div key={classItem.id} className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{classItem.name}</p>
-                        <p className="text-xs text-muted-foreground">{classItem.room}</p>
+                        <p className="text-xs text-muted-foreground">{classItem.room || 'No room assigned'}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">
-                          {classItem.checkedIn}/{classItem.capacity || '∞'}
+                          0/{classItem.capacity || '∞'}
                         </p>
                         <p className="text-xs text-muted-foreground">present</p>
                       </div>

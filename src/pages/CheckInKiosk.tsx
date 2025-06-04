@@ -10,8 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { QrCode, User, Clock, Settings, Wifi } from "lucide-react";
 import LoginForm from "@/components/check-in/LoginForm";
-import { CheckoutTable } from "@/components/check-out/CheckoutTable";
-import { SearchForm } from "@/components/check-out/SearchForm";
 
 const CheckInKiosk = () => {
   const [deviceId, setDeviceId] = useState("");
@@ -61,13 +59,14 @@ const CheckInKiosk = () => {
       if (error) {
         console.error("Error checking device registration:", error);
         setIsRegistered(false);
-      } else if (data) {
+      } else if (data && typeof data === 'object' && data !== null) {
         setIsRegistered(true);
-        setDeviceName(data.name);
+        const deviceData = data as { name: string };
+        setDeviceName(deviceData.name || 'Unknown Device');
         setIsConnected(true);
         toast({
           title: "Device Connected",
-          description: `Connected as ${data.name}`,
+          description: `Connected as ${deviceData.name || 'Unknown Device'}`,
         });
       } else {
         setIsRegistered(false);
@@ -219,13 +218,8 @@ const CheckInKiosk = () => {
               <p className="text-gray-600">Search for children to check them out</p>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <SearchForm />
-              </div>
-              <div className="lg:col-span-2">
-                <CheckoutTable />
-              </div>
+            <div className="text-center py-8">
+              <p className="text-gray-500">Check-out functionality will be available soon</p>
             </div>
           </TabsContent>
         </Tabs>

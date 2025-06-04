@@ -2,94 +2,57 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
-import { useEffect } from "react";
 
 export interface AttendanceRecord {
   id: string;
   child_id: string;
   class_id?: string;
-  checked_in_at: string;
+  checked_in_at?: string;
   checked_out_at?: string;
   checked_in_by?: string;
   checked_out_by?: string;
   attendance_date: string;
-  child?: {
-    first_name: string;
-    last_name: string;
-    allergies?: string;
-  };
-  class?: {
-    name: string;
-  };
 }
 
 export const useAttendance = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const attendanceQuery = useQuery({
+  const { data: attendance = [], isLoading, error, refetch } = useQuery({
     queryKey: ["attendance"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .select(`
-          *,
-          child:children(first_name, last_name, allergies),
-          class:classes(name)
-        `)
-        .order('checked_in_at', { ascending: false });
-      
-      if (error) throw error;
-      return data as AttendanceRecord[];
-    },
-    enabled: !!user,
-  });
+    queryFn: async (): Promise<AttendanceRecord[]> => {
+      try {
+        const { data, error } = await supabase
+          .from('attendance')
+          .select('*')
+          .order('checked_in_at', { ascending: false });
 
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('attendance-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'attendance'
-        },
-        (payload) => {
-          console.log('Real-time attendance update:', payload);
-          queryClient.invalidateQueries({ queryKey: ["attendance"] });
+        if (error) {
+          console.error("Error fetching attendance:", error);
+          throw error;
         }
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, queryClient]);
+        return data || [];
+      } catch (error: any) {
+        console.error("Error in useAttendance:", error);
+        throw new Error(`Failed to load attendance: ${error.message}`);
+      }
+    },
+  });
 
   const checkInMutation = useMutation({
     mutationFn: async ({ childId, classId }: { childId: string; classId?: string }) => {
-      const today = new Date().toISOString().split('T')[0];
-      
       const { data, error } = await supabase
         .from('attendance')
-        .insert([
-          {
-            child_id: childId,
-            class_id: classId,
-            attendance_date: today,
-            checked_in_at: new Date().toISOString(),
-            checked_in_by: user?.id,
-          }
-        ])
+        .insert({
+          child_id: childId,
+          class_id: classId,
+          attendance_date: new Date().toISOString().split('T')[0],
+          checked_in_at: new Date().toISOString(),
+        })
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -115,12 +78,11 @@ export const useAttendance = () => {
         .from('attendance')
         .update({
           checked_out_at: new Date().toISOString(),
-          checked_out_by: user?.id,
         })
         .eq('id', attendanceId)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -141,13 +103,13 @@ export const useAttendance = () => {
   });
 
   return {
-    attendance: attendanceQuery.data || [],
-    isLoading: attendanceQuery.isLoading,
-    error: attendanceQuery.error,
+    attendance,
+    isLoading,
+    error,
+    refetch,
     checkIn: checkInMutation.mutate,
     checkOut: checkOutMutation.mutate,
     isCheckingIn: checkInMutation.isPending,
     isCheckingOut: checkOutMutation.isPending,
-    refetch: attendanceQuery.refetch,
   };
 };
