@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ import {
   Phone,
   Shield,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 
 const StaffManagement = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -34,7 +33,6 @@ const StaffManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   
   const { staff, isLoading: isLoadingStaff, error } = useStaff();
 
@@ -58,7 +56,7 @@ const StaffManagement = () => {
 
   const staffColumns = [
     {
-      key: "name" as const,
+      key: "user_id" as keyof StaffMember,
       header: "Name",
       render: (value: string, item: StaffMember) => (
         <div className="flex items-center space-x-2">
@@ -76,7 +74,7 @@ const StaffManagement = () => {
       sortable: true,
     },
     {
-      key: "role" as const,
+      key: "role" as keyof StaffMember,
       header: "Role",
       render: (value: string) => (
         <div className="flex items-center">
@@ -95,7 +93,7 @@ const StaffManagement = () => {
       sortable: true,
     },
     {
-      key: "is_super_admin" as const,
+      key: "is_super_admin" as keyof StaffMember,
       header: "Super Admin",
       render: (value: boolean) => (
         value ? (
@@ -107,7 +105,7 @@ const StaffManagement = () => {
       ),
     },
     {
-      key: "phone" as const,
+      key: "phone" as keyof StaffMember,
       header: "Contact",
       render: (value: string, item: StaffMember) => (
         <div className="space-y-1">
@@ -125,7 +123,7 @@ const StaffManagement = () => {
       ),
     },
     {
-      key: "is_active" as const,
+      key: "is_active" as keyof StaffMember,
       header: "Status",
       render: (value: boolean) => (
         <div className="flex items-center">

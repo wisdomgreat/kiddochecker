@@ -13,13 +13,14 @@ import { useAttendance } from '@/hooks/useAttendance';
 import AttendanceTable from '@/components/attendance/AttendanceTable';
 
 const CheckInOutManagement = () => {
-  const { children } = useChildren();
-  const { classes } = useClasses();
-  const { attendance, checkIn, checkOut, isCheckingIn, isCheckingOut } = useAttendance();
+  const { children, isLoading: childrenLoading } = useChildren();
+  const { classes, isLoading: classesLoading } = useClasses();
+  const { attendance, checkIn, checkOut, isCheckingIn, isCheckingOut, isLoading: attendanceLoading } = useAttendance();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedChild, setSelectedChild] = useState<string>('');
 
+  // Filter out children who are already checked in
   const availableChildren = children.filter(child => {
     const isAlreadyCheckedIn = attendance.some(record => 
       record.child_id === child.id && !record.checked_out_at
@@ -42,11 +43,25 @@ const CheckInOutManagement = () => {
     }
   };
 
+  // Get today's attendance
   const todayAttendance = attendance.filter(record => 
     record.attendance_date === new Date().toISOString().split('T')[0]
   );
 
   const currentlyPresent = todayAttendance.filter(record => !record.checked_out_at);
+
+  if (childrenLoading || classesLoading || attendanceLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading check-in data...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

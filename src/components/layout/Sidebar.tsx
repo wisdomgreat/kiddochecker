@@ -19,7 +19,8 @@ import {
   Shield,
   Laptop,
   Menu,
-  X
+  X,
+  Baby
 } from "lucide-react";
 
 const Sidebar = ({
@@ -56,6 +57,12 @@ const Sidebar = ({
       label: "Dashboard",
       icon: <Home size={20} />,
       roles: ["parent"],
+    },
+    {
+      href: "/children-management",
+      label: "Children",
+      icon: <Baby size={20} />,
+      roles: ["admin", "super_admin", "parent"],
     },
     {
       href: "/events-management",

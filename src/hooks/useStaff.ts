@@ -24,16 +24,25 @@ export const useStaff = () => {
     queryKey: ["staff"],
     queryFn: async () => {
       console.log("Fetching staff members...");
-      const { data, error } = await supabase.rpc('get_staff_members');
       
-      if (error) {
-        console.error("Error fetching staff:", error);
-        throw error;
+      try {
+        const { data, error } = await supabase.rpc('get_staff_members');
+        
+        if (error) {
+          console.error("Error fetching staff:", error);
+          throw error;
+        }
+        
+        console.log("Staff data received:", data);
+        return (data || []) as StaffMember[];
+      } catch (error: any) {
+        console.error("Error in staffQuery:", error);
+        // Return empty array to prevent the page from breaking
+        return [] as StaffMember[];
       }
-      
-      console.log("Staff data received:", data);
-      return (data || []) as StaffMember[];
     },
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   const addStaffMutation = useMutation({

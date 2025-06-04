@@ -31,13 +31,6 @@ import { CircularProgress } from '@/components/ui/circular-progress';
 import { Toaster } from '@/components/ui/toaster';
 import ChildrenManagement from '@/pages/ChildrenManagement';
 
-// Footer pages
-import AboutUs from '@/pages/AboutUs';
-import PrivacyPolicy from '@/pages/PrivacyPolicy';
-import TermsOfService from '@/pages/TermsOfService';
-import ContactUs from '@/pages/ContactUs';
-import FAQ from '@/pages/FAQ';
-
 const Unauthorized = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4">
     <h1 className="text-2xl font-bold mb-4">Unauthorized Access</h1>
@@ -120,13 +113,6 @@ function AppContent() {
         
         {/* Organization setup route */}
         <Route path="/organization-setup" element={<OrganizationSetup />} />
-        
-        {/* Footer pages */}
-        <Route path="/about-us" element={<AboutUs />} />
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />
-        <Route path="/contact-us" element={<ContactUs />} />
-        <Route path="/faq" element={<FAQ />} />
         
         {/* Default route - redirect based on user role */}
         <Route path="/" element={
