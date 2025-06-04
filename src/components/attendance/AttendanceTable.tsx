@@ -1,153 +1,98 @@
 
-import { useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Clock, LogIn, LogOut, Search } from "lucide-react";
-import { AttendanceRecord } from "@/hooks/useAttendance";
-import { format } from "date-fns";
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Clock, User } from 'lucide-react';
+import { AttendanceRecord } from '@/hooks/useAttendance';
 
 interface AttendanceTableProps {
   attendance: AttendanceRecord[];
   onCheckOut: (attendanceId: string) => void;
   isCheckingOut: boolean;
-  showCheckOut?: boolean;
 }
 
-const AttendanceTable = ({ 
-  attendance, 
-  onCheckOut, 
-  isCheckingOut, 
-  showCheckOut = true 
-}: AttendanceTableProps) => {
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const filteredAttendance = attendance.filter(record => {
-    const childName = `${record.child?.first_name || ''} ${record.child?.last_name || ''}`.toLowerCase();
-    return childName.includes(searchTerm.toLowerCase());
-  });
-
-  const formatTime = (timestamp: string | undefined) => {
-    if (!timestamp) return '-';
-    return format(new Date(timestamp), 'HH:mm');
+const AttendanceTable: React.FC<AttendanceTableProps> = ({
+  attendance,
+  onCheckOut,
+  isCheckingOut
+}) => {
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
-
-  const getStatusBadge = (record: AttendanceRecord) => {
-    if (record.checked_out_at) {
-      return <Badge variant="secondary">Checked Out</Badge>;
-    }
-    return <Badge variant="default" className="bg-green-600">Present</Badge>;
-  };
-
-  const currentlyPresent = attendance.filter(record => !record.checked_out_at);
-  const checkedOut = attendance.filter(record => record.checked_out_at);
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <Clock className="h-4 w-4 text-blue-600" />
-            <CardTitle className="text-sm font-medium ml-2">
-              Total Check-ins
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{attendance.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <LogIn className="h-4 w-4 text-green-600" />
-            <CardTitle className="text-sm font-medium ml-2">
-              Currently Present
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{currentlyPresent.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-            <LogOut className="h-4 w-4 text-gray-600" />
-            <CardTitle className="text-sm font-medium ml-2">
-              Checked Out
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{checkedOut.length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4" />
-            <Input
-              placeholder="Search children..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <User className="h-5 w-5" />
+          Today's Attendance
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {attendance.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No attendance records for today
           </div>
-        </CardHeader>
-        <CardContent>
+        ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Child Name</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Check-in Time</TableHead>
-                <TableHead>Check-out Time</TableHead>
                 <TableHead>Status</TableHead>
-                {showCheckOut && <TableHead>Actions</TableHead>}
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAttendance.map((record) => (
+              {attendance.map((record) => (
                 <TableRow key={record.id}>
                   <TableCell className="font-medium">
-                    {record.child?.first_name} {record.child?.last_name}
+                    {record.child ? 
+                      `${record.child.first_name} ${record.child.last_name}` : 
+                      'Unknown Child'
+                    }
                   </TableCell>
                   <TableCell>
-                    {record.class?.name || 'No class assigned'}
+                    {record.class?.name || 'No Class'}
                   </TableCell>
-                  <TableCell>{formatTime(record.checked_in_at)}</TableCell>
-                  <TableCell>{formatTime(record.checked_out_at)}</TableCell>
-                  <TableCell>{getStatusBadge(record)}</TableCell>
-                  {showCheckOut && (
-                    <TableCell>
-                      {!record.checked_out_at && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onCheckOut(record.id)}
-                          disabled={isCheckingOut}
-                        >
-                          <LogOut className="h-4 w-4 mr-1" />
-                          Check Out
-                        </Button>
-                      )}
-                    </TableCell>
-                  )}
+                  <TableCell>
+                    {record.checked_in_at ? formatTime(record.checked_in_at) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {record.checked_out_at ? (
+                      <Badge variant="secondary">
+                        Checked Out ({formatTime(record.checked_out_at)})
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-600">Present</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {!record.checked_out_at && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onCheckOut(record.id)}
+                        disabled={isCheckingOut}
+                      >
+                        <Clock className="h-4 w-4 mr-1" />
+                        {isCheckingOut ? 'Checking Out...' : 'Check Out'}
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          
-          {filteredAttendance.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              {searchTerm ? 'No children found matching your search.' : 'No attendance records for today.'}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

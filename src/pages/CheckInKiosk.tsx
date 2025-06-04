@@ -1,158 +1,182 @@
 
 import { useState, useEffect } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { QrCode, User, Clock, Settings, Wifi } from "lucide-react";
+import { QrCode, User, Clock, Settings, Wifi, Search, UserPlus } from "lucide-react";
+import { useDeviceRegistration } from "@/hooks/useDeviceRegistration";
+import { useChildren } from "@/hooks/useChildren";
+import { useClasses } from "@/hooks/useClasses";
+import { useAttendance } from "@/hooks/useAttendance";
 import LoginForm from "@/components/check-in/LoginForm";
+import QRCodeScanner from "@/components/qr/QRCodeScanner";
 
 const CheckInKiosk = () => {
-  const [deviceId, setDeviceId] = useState("");
-  const [deviceName, setDeviceName] = useState("");
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("checkin");
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const location = useLocation();
+  
+  // Device registration
+  const { 
+    isRegistered,
+    deviceName,
+    showDeviceSetup,
+    isSetupComplete,
+    isLoading: deviceLoading,
+    handleRegisterDevice,
+    updateDeviceName
+  } = useDeviceRegistration({
+    deviceType: 'check_in_kiosk',
+    defaultDeviceName: "Check-in/Check-out Kiosk"
+  });
 
-  // Check if device ID is provided in URL
+  // Data hooks
+  const { children } = useChildren();
+  const { classes } = useClasses();
+  const { attendance, checkIn, checkOut, isCheckingIn, isCheckingOut } = useAttendance();
+
+  // Check-in states
+  const [selectedChild, setSelectedChild] = useState<string>('');
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Check-out states
+  const [checkoutSearchTerm, setCheckoutSearchTerm] = useState('');
+
+  // Set initial tab from URL params
   useEffect(() => {
-    const urlDeviceId = searchParams.get('device_id');
-    if (urlDeviceId) {
-      setDeviceId(urlDeviceId);
-      checkDeviceRegistration(urlDeviceId);
-    } else {
-      // Generate a device ID based on browser fingerprint
-      const browserFingerprint = generateDeviceId();
-      setDeviceId(browserFingerprint);
-      checkDeviceRegistration(browserFingerprint);
+    const tab = searchParams.get('tab');
+    if (tab === 'checkout') {
+      setActiveTab('checkout');
     }
   }, [searchParams]);
 
-  const generateDeviceId = () => {
-    // Simple device fingerprinting
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    ctx?.fillText('Device fingerprint', 2, 2);
-    const fingerprint = canvas.toDataURL();
-    
-    return btoa(
-      navigator.userAgent + 
-      screen.width + 
-      screen.height + 
-      fingerprint.slice(-50)
-    ).slice(0, 20);
+  // Filter available children for check-in
+  const availableChildren = children.filter(child => {
+    const isAlreadyCheckedIn = attendance.some(record => 
+      record.child_id === child.id && !record.checked_out_at
+    );
+    return !isAlreadyCheckedIn;
+  });
+
+  const filteredChildren = availableChildren.filter(child =>
+    `${child.first_name} ${child.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter checked-in children for check-out
+  const checkedInChildren = attendance.filter(record => 
+    !record.checked_out_at && 
+    record.child?.first_name &&
+    `${record.child.first_name} ${record.child.last_name}`.toLowerCase().includes(checkoutSearchTerm.toLowerCase())
+  );
+
+  const handleCheckIn = () => {
+    if (selectedChild) {
+      checkIn({ 
+        childId: selectedChild, 
+        classId: selectedClass || undefined 
+      });
+      setSelectedChild('');
+      setSelectedClass('');
+      setSearchTerm('');
+    }
   };
 
-  const checkDeviceRegistration = async (devId: string) => {
+  const handleQRCodeScan = (data: string) => {
+    // Parse QR code data - expecting format: ATTENDANCE:attendanceId|CHILD:childName|CLASS:className
     try {
-      const { data, error } = await supabase.rpc('get_device_profile', {
-        p_device_id: devId
-      });
-
-      if (error) {
-        console.error("Error checking device registration:", error);
-        setIsRegistered(false);
-      } else if (data && typeof data === 'object' && data !== null) {
-        setIsRegistered(true);
-        const deviceData = data as { name: string };
-        setDeviceName(deviceData.name || 'Unknown Device');
-        setIsConnected(true);
-        toast({
-          title: "Device Connected",
-          description: `Connected as ${deviceData.name || 'Unknown Device'}`,
-        });
+      const parts = data.split('|');
+      const attendanceIdPart = parts.find(part => part.startsWith('ATTENDANCE:'));
+      
+      if (attendanceIdPart) {
+        const attendanceId = attendanceIdPart.split(':')[1];
+        checkOut(attendanceId);
       } else {
-        setIsRegistered(false);
+        toast({
+          title: "Invalid QR Code",
+          description: "This QR code is not valid for checkout",
+          variant: "destructive",
+        });
       }
     } catch (error) {
-      console.error("Error checking device:", error);
-      setIsRegistered(false);
-    }
-  };
-
-  const registerDevice = async () => {
-    if (!deviceName.trim()) {
       toast({
-        title: "Error",
-        description: "Please enter a device name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('register_device', {
-        p_device_id: deviceId,
-        p_name: deviceName,
-        p_type: 'check_in_kiosk',
-        p_location: 'Self-registered'
-      });
-
-      if (error) throw error;
-
-      setIsRegistered(true);
-      setIsConnected(true);
-      toast({
-        title: "Device Registered",
-        description: `Device "${deviceName}" has been registered successfully`,
-      });
-    } catch (error: any) {
-      console.error("Error registering device:", error);
-      toast({
-        title: "Registration Failed",
-        description: error.message || "Failed to register device",
+        title: "QR Code Error",
+        description: "Unable to process QR code",
         variant: "destructive",
       });
     }
   };
 
-  if (!isRegistered) {
+  if (deviceLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center">
-              <Settings className="h-8 w-8 text-blue-600" />
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading kiosk...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSetupComplete === false) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+        <Card className="max-w-sm w-full">
+          <CardContent className="pt-6 text-center">
+            <div className="bg-amber-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <Settings className="h-8 w-8 text-amber-600" />
             </div>
-            <CardTitle className="text-2xl">Device Setup</CardTitle>
-            <p className="text-gray-600">Register this device as a check-in/check-out kiosk</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Device ID</label>
-              <Input 
-                value={deviceId} 
-                readOnly 
-                className="bg-gray-50"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                This ID is automatically generated for this device
-              </p>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Device Name</label>
-              <Input 
-                placeholder="e.g., Front Desk Kiosk"
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-              />
-            </div>
-            
-            <Button 
-              onClick={registerDevice}
-              className="w-full"
-              disabled={!deviceName.trim()}
-            >
-              Register Device
+            <h2 className="text-xl font-semibold mb-2">Setup Required</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              System setup needed before using check-in
+            </p>
+            <Button className="w-full">
+              Complete Setup
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (showDeviceSetup) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+        <Card className="max-w-sm w-full">
+          <CardContent className="pt-6">
+            <div className="text-center mb-4">
+              <div className="bg-blue-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <Settings className="h-8 w-8 text-blue-600" />
+              </div>
+              <h2 className="text-xl font-semibold">Device Setup</h2>
+              <p className="text-sm text-gray-500">Register this kiosk device</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Device Name
+                </label>
+                <Input
+                  placeholder="e.g., Front Desk Kiosk"
+                  value={deviceName}
+                  onChange={(e) => updateDeviceName(e.target.value)}
+                />
+              </div>
+              
+              <Button 
+                onClick={handleRegisterDevice}
+                className="w-full"
+                disabled={!deviceName.trim()}
+              >
+                Register Device
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -175,9 +199,9 @@ const CheckInKiosk = () => {
           </div>
           
           <div className="flex items-center space-x-3">
-            <Badge variant={isConnected ? "default" : "destructive"} className="flex items-center space-x-1">
+            <Badge variant={isRegistered ? "default" : "destructive"} className="flex items-center space-x-1">
               <Wifi className="h-3 w-3" />
-              <span>{isConnected ? "Connected" : "Offline"}</span>
+              <span>{isRegistered ? "Connected" : "Offline"}</span>
             </Badge>
             <div className="text-right">
               <div className="text-sm font-medium">{new Date().toLocaleDateString()}</div>
@@ -203,11 +227,75 @@ const CheckInKiosk = () => {
 
           <TabsContent value="checkin" className="space-y-6">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold mb-2">Welcome! Please Sign In</h2>
-              <p className="text-gray-600">Parents can check in their children here</p>
+              <h2 className="text-2xl font-bold mb-2">Check In Children</h2>
+              <p className="text-gray-600">Select a child and class for check-in</p>
             </div>
             
-            <div className="flex justify-center">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Check-In</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Search Child</label>
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                      <Input
+                        placeholder="Search by name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Select Child</label>
+                    <Select value={selectedChild} onValueChange={setSelectedChild}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose child" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredChildren.map((child) => (
+                          <SelectItem key={child.id} value={child.id}>
+                            {child.first_name} {child.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Select Class (Optional)</label>
+                    <Select value={selectedClass} onValueChange={setSelectedClass}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No specific class</SelectItem>
+                        {classes.map((classItem) => (
+                          <SelectItem key={classItem.id} value={classItem.id}>
+                            {classItem.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button 
+                    onClick={handleCheckIn} 
+                    disabled={!selectedChild || isCheckingIn}
+                    className="w-full"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    {isCheckingIn ? 'Checking In...' : 'Check In'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="text-center">
               <LoginForm onSignUp={() => {}} />
             </div>
           </TabsContent>
@@ -215,11 +303,58 @@ const CheckInKiosk = () => {
           <TabsContent value="checkout" className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold mb-2">Check Out Children</h2>
-              <p className="text-gray-600">Search for children to check them out</p>
+              <p className="text-gray-600">Scan QR code or search for children to check them out</p>
             </div>
             
-            <div className="text-center py-8">
-              <p className="text-gray-500">Check-out functionality will be available soon</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <QRCodeScanner onScanComplete={handleQRCodeScan} />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manual Check-out</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+                    <Input
+                      placeholder="Search checked-in children..."
+                      value={checkoutSearchTerm}
+                      onChange={(e) => setCheckoutSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {checkedInChildren.map((record) => (
+                      <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">
+                            {record.child ? `${record.child.first_name} ${record.child.last_name}` : 'Unknown Child'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {record.class?.name || 'No Class'} • 
+                            Checked in: {record.checked_in_at ? new Date(record.checked_in_at).toLocaleTimeString() : 'Unknown'}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => checkOut(record.id)}
+                          disabled={isCheckingOut}
+                        >
+                          <Clock className="h-4 w-4 mr-1" />
+                          Check Out
+                        </Button>
+                      </div>
+                    ))}
+                    
+                    {checkedInChildren.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        {checkoutSearchTerm ? 'No matching children found' : 'No children checked in'}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>

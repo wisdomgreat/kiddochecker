@@ -1,6 +1,15 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { CheckoutItem } from "@/components/check-out/SearchForm";
+
+export interface CheckoutItem {
+  id: string;
+  name: string;
+  class: string;
+  status: string;
+  time: string;
+  child_id: string;
+  attendance_id: string;
+}
 
 // Function to fetch recent checkouts
 export const fetchRecentCheckouts = async (): Promise<CheckoutItem[]> => {

@@ -19,8 +19,10 @@ export const useRealtimeAttendance = () => {
         },
         (payload) => {
           console.log('Real-time attendance update:', payload);
-          // Refetch attendance data when changes occur
-          refetch();
+          // Use setTimeout to prevent recursive calls
+          setTimeout(() => {
+            refetch();
+          }, 0);
         }
       )
       .subscribe((status) => {
