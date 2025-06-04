@@ -12,6 +12,13 @@ export interface AttendanceRecord {
   checked_in_by?: string;
   checked_out_by?: string;
   attendance_date: string;
+  child?: {
+    first_name: string;
+    last_name: string;
+  };
+  class?: {
+    name: string;
+  };
 }
 
 export const useAttendance = () => {
@@ -24,7 +31,11 @@ export const useAttendance = () => {
       try {
         const { data, error } = await supabase
           .from('attendance')
-          .select('*')
+          .select(`
+            *,
+            child:children(first_name, last_name),
+            class:classes(name)
+          `)
           .order('checked_in_at', { ascending: false });
 
         if (error) {
