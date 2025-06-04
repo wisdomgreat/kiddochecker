@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "@/components/layout/MainLayout";
@@ -7,10 +8,9 @@ import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import AddStaffForm from "@/components/staff/AddStaffForm";
 import EditStaffForm from "@/components/staff/EditStaffForm";
-import { StaffMember, AppRole } from "@/types/supabase";
+import { useStaff, StaffMember } from "@/hooks/useStaff";
 import {
   UserPlus,
   Search,
@@ -25,7 +25,6 @@ import {
   Shield,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigation } from "@/hooks/use-navigation";
 
 const StaffManagement = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -36,48 +35,10 @@ const StaffManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const navigation = useNavigation();
   
-  const { data: staffMembers = [], isLoading: isLoadingStaff } = useQuery({
-    queryKey: ["staff-members"],
-    queryFn: async () => {
-      try {
-        if (!user) throw new Error("User not authenticated");
-        
-        const { data, error } = await supabase.rpc('get_staff_members');
+  const { staff, isLoading: isLoadingStaff, error } = useStaff();
 
-        if (error) {
-          console.error("Error using get_staff_members RPC:", error);
-          throw error;
-        }
-
-        return data ? data.map((staff: any): StaffMember => ({
-          id: staff.user_id,
-          user_id: staff.user_id,
-          email: staff.email || '',
-          first_name: staff.first_name || '',
-          last_name: staff.last_name || '',
-          role: staff.role as AppRole || 'teacher',
-          phone: staff.phone || '',
-          is_active: staff.is_active || false,
-          is_super_admin: staff.is_super_admin || false,
-          is_volunteer: staff.is_volunteer || false,
-          created_at: new Date().toISOString(),
-        })) : [];
-      } catch (error: any) {
-        console.error("Error fetching staff members:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load staff members: " + (error.message || "Unknown error"),
-          variant: "destructive",
-        });
-        return [];
-      }
-    },
-    enabled: !!user,
-  });
-
-  const filteredStaffMembers = staffMembers.filter((member) => {
+  const filteredStaffMembers = staff.filter((member) => {
     const searchMatch =
       member.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       member.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -99,7 +60,7 @@ const StaffManagement = () => {
     {
       key: "name" as const,
       header: "Name",
-      render: (value: string, item: any) => (
+      render: (value: string, item: StaffMember) => (
         <div className="flex items-center space-x-2">
           <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
             <span className="text-purple-600 font-medium">
@@ -129,12 +90,12 @@ const StaffManagement = () => {
             }`} />
           </div>
           <span className="capitalize">{value}</span>
-          </div>
+        </div>
       ),
       sortable: true,
     },
     {
-      key: "isSuperAdmin" as const,
+      key: "is_super_admin" as const,
       header: "Super Admin",
       render: (value: boolean) => (
         value ? (
@@ -148,7 +109,7 @@ const StaffManagement = () => {
     {
       key: "phone" as const,
       header: "Contact",
-      render: (value: string, item: any) => (
+      render: (value: string, item: StaffMember) => (
         <div className="space-y-1">
           <div className="flex items-center text-xs text-gray-600">
             <Mail size={14} className="mr-1" />
@@ -164,7 +125,7 @@ const StaffManagement = () => {
       ),
     },
     {
-      key: "isActive" as const,
+      key: "is_active" as const,
       header: "Status",
       render: (value: boolean) => (
         <div className="flex items-center">
@@ -198,6 +159,26 @@ const StaffManagement = () => {
       ),
     },
   ];
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex justify-center items-center py-8">
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-red-600">Error Loading Staff</h3>
+            <p className="text-sm text-gray-500 mt-2">{error.message}</p>
+            <Button 
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["staff"] })}
+              className="mt-4"
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -247,7 +228,7 @@ const StaffManagement = () => {
               <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
               <span>Loading staff members...</span>
             </div>
-          ) : staffMembers.length === 0 ? (
+          ) : staff.length === 0 ? (
             <div className="text-center py-8">
               <User className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No staff members found</h3>
@@ -267,7 +248,7 @@ const StaffManagement = () => {
             <DataTable
               columns={staffColumns}
               data={filteredStaffMembers}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.user_id}
               searchable={false}
               loading={isLoadingStaff}
             />
@@ -278,7 +259,7 @@ const StaffManagement = () => {
       <AddStaffForm 
         open={isAddDialogOpen} 
         onOpenChange={setIsAddDialogOpen}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["staff-members"] })}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["staff"] })}
       />
 
       {selectedStaffMember && (
@@ -287,7 +268,7 @@ const StaffManagement = () => {
           onOpenChange={setIsEditDialogOpen}
           staffMember={selectedStaffMember}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["staff-members"] });
+            queryClient.invalidateQueries({ queryKey: ["staff"] });
             setSelectedStaffMember(null);
           }}
         />

@@ -83,7 +83,7 @@ const AddEditChildDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {child ? 'Edit Child' : 'Add New Child'}
@@ -130,6 +130,7 @@ const AddEditChildDialog = ({
               value={formData.allergies}
               onChange={(e) => handleChange('allergies', e.target.value)}
               placeholder="List any allergies or dietary restrictions..."
+              className="min-h-[60px]"
             />
           </div>
           
@@ -140,6 +141,7 @@ const AddEditChildDialog = ({
               value={formData.medical_info}
               onChange={(e) => handleChange('medical_info', e.target.value)}
               placeholder="Any medical conditions or medications..."
+              className="min-h-[60px]"
             />
           </div>
           
@@ -170,6 +172,7 @@ const AddEditChildDialog = ({
               value={formData.notes}
               onChange={(e) => handleChange('notes', e.target.value)}
               placeholder="Any additional information..."
+              className="min-h-[60px]"
             />
           </div>
 

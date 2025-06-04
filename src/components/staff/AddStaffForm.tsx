@@ -31,15 +31,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { AppRole } from "@/types/supabase";
+import { useStaff } from "@/hooks/useStaff";
 
 const staffFormSchema = z.object({
   email: z.string().email({
     message: "Please enter a valid email address.",
-  }),
-  password: z.string().min(8, {
-    message: "Password must be at least 8 characters.",
   }),
   firstName: z.string().min(1, {
     message: "First name is required.",
@@ -66,12 +62,12 @@ interface AddStaffFormProps {
 const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { addStaff } = useStaff();
   
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
     defaultValues: {
       email: "",
-      password: "",
       firstName: "",
       lastName: "",
       phone: "",
@@ -85,40 +81,13 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
     try {
       setIsSubmitting(true);
       
-      // 1. Create the user account
-      const { data: userData, error: signUpError } = await supabase.auth.signUp({
+      addStaff({
         email: values.email,
-        password: values.password,
-        options: {
-          data: {
-            first_name: values.firstName,
-            last_name: values.lastName,
-            phone: values.phone,
-          }
-        }
-      });
-      
-      if (signUpError) throw signUpError;
-      
-      if (!userData.user) {
-        throw new Error("Failed to create user account");
-      }
-      
-      // 2. Update the user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .update({ 
-          role: values.role as AppRole,
-          is_super_admin: values.isSuperAdmin,
-          is_volunteer: values.isVolunteer
-        })
-        .eq('user_id', userData.user.id);
-      
-      if (roleError) throw roleError;
-      
-      toast({
-        title: "Success",
-        description: "Staff member has been created successfully"
+        first_name: values.firstName,
+        last_name: values.lastName,
+        phone: values.phone,
+        role: values.role,
+        is_volunteer: values.isVolunteer,
       });
       
       form.reset();
@@ -139,7 +108,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Staff Member</DialogTitle>
           <DialogDescription>
@@ -195,20 +164,6 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
             
             <FormField
               control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Enter password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
               name="phone"
               render={({ field }) => (
                 <FormItem>
@@ -253,12 +208,12 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                 control={form.control}
                 name="isSuperAdmin"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">
                         Super Admin
                       </FormLabel>
-                      <FormDescription>
+                      <FormDescription className="text-sm">
                         Super admins have unrestricted access to all features
                       </FormDescription>
                     </div>
@@ -277,12 +232,12 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
               control={form.control}
               name="isVolunteer"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
                       Volunteer
                     </FormLabel>
-                    <FormDescription>
+                    <FormDescription className="text-sm">
                       Mark this person as a volunteer rather than paid staff
                     </FormDescription>
                   </div>
@@ -296,7 +251,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className="pt-4">
               <Button 
                 type="button" 
                 variant="outline" 

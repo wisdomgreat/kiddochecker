@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,13 +31,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { StaffMember } from "@/types/supabase";
+import { useStaff, StaffMember } from "@/hooks/useStaff";
 
-// Define the staff roles type explicitly instead of using AppRole
-type StaffRole = "admin" | "staff" | "teacher" | "teacher_assistant";
-
-const staffEditFormSchema = z.object({
+const editStaffFormSchema = z.object({
   firstName: z.string().min(1, {
     message: "First name is required.",
   }),
@@ -50,10 +46,9 @@ const staffEditFormSchema = z.object({
   }),
   isSuperAdmin: z.boolean().default(false),
   isVolunteer: z.boolean().default(false),
-  isActive: z.boolean().default(true),
 });
 
-type StaffEditFormValues = z.infer<typeof staffEditFormSchema>;
+type EditStaffFormValues = z.infer<typeof editStaffFormSchema>;
 
 interface EditStaffFormProps {
   open: boolean;
@@ -62,59 +57,50 @@ interface EditStaffFormProps {
   onSuccess: () => void;
 }
 
-const EditStaffForm = ({ 
-  open, 
-  onOpenChange, 
-  staffMember,
-  onSuccess 
-}: EditStaffFormProps) => {
+const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaffFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { updateStaff } = useStaff();
   
-  const form = useForm<StaffEditFormValues>({
-    resolver: zodResolver(staffEditFormSchema),
+  const form = useForm<EditStaffFormValues>({
+    resolver: zodResolver(editStaffFormSchema),
     defaultValues: {
       firstName: staffMember.first_name || "",
       lastName: staffMember.last_name || "",
       phone: staffMember.phone || "",
-      role: (staffMember.role as StaffRole) || "teacher",
+      role: staffMember.role as any || "teacher",
       isSuperAdmin: staffMember.is_super_admin || false,
       isVolunteer: staffMember.is_volunteer || false,
-      isActive: staffMember.is_active || false,
     },
   });
+
+  useEffect(() => {
+    if (staffMember) {
+      form.reset({
+        firstName: staffMember.first_name || "",
+        lastName: staffMember.last_name || "",
+        phone: staffMember.phone || "",
+        role: staffMember.role as any || "teacher",
+        isSuperAdmin: staffMember.is_super_admin || false,
+        isVolunteer: staffMember.is_volunteer || false,
+      });
+    }
+  }, [staffMember, form]);
   
-  const handleSubmit = async (values: StaffEditFormValues) => {
+  const handleSubmit = async (values: EditStaffFormValues) => {
     try {
       setIsSubmitting(true);
       
-      // 1. Update profile information
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
+      updateStaff({
+        userId: staffMember.user_id,
+        updates: {
           first_name: values.firstName,
           last_name: values.lastName,
           phone: values.phone,
-        })
-        .eq('id', staffMember.user_id);
-      
-      if (profileError) throw profileError;
-      
-      // 2. Update user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .update({
           role: values.role,
           is_super_admin: values.isSuperAdmin,
           is_volunteer: values.isVolunteer,
-        })
-        .eq('user_id', staffMember.user_id);
-      
-      if (roleError) throw roleError;
-      
-      toast({
-        title: "Success",
-        description: "Staff member has been updated successfully"
+        }
       });
       
       onOpenChange(false);
@@ -134,7 +120,7 @@ const EditStaffForm = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Staff Member</DialogTitle>
           <DialogDescription>
@@ -152,7 +138,7 @@ const EditStaffForm = ({
                   <FormItem>
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input placeholder="Enter first name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -166,7 +152,7 @@ const EditStaffForm = ({
                   <FormItem>
                     <FormLabel>Last Name</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input placeholder="Enter last name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -194,7 +180,7 @@ const EditStaffForm = ({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a role" />
@@ -220,12 +206,12 @@ const EditStaffForm = ({
                 control={form.control}
                 name="isSuperAdmin"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">
                         Super Admin
                       </FormLabel>
-                      <FormDescription>
+                      <FormDescription className="text-sm">
                         Super admins have unrestricted access to all features
                       </FormDescription>
                     </div>
@@ -244,12 +230,12 @@ const EditStaffForm = ({
               control={form.control}
               name="isVolunteer"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
                       Volunteer
                     </FormLabel>
-                    <FormDescription>
+                    <FormDescription className="text-sm">
                       Mark this person as a volunteer rather than paid staff
                     </FormDescription>
                   </div>
@@ -262,31 +248,8 @@ const EditStaffForm = ({
                 </FormItem>
               )}
             />
-            
-            <FormField
-              control={form.control}
-              name="isActive"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      Active Status
-                    </FormLabel>
-                    <FormDescription>
-                      Inactive users cannot sign in to the system
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
 
-            <DialogFooter>
+            <DialogFooter className="pt-4">
               <Button 
                 type="button" 
                 variant="outline" 
@@ -296,7 +259,7 @@ const EditStaffForm = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Updating..." : "Save Changes"}
+                {isSubmitting ? "Updating..." : "Update Staff Member"}
               </Button>
             </DialogFooter>
           </form>

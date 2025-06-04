@@ -23,9 +23,16 @@ export const useStaff = () => {
   const staffQuery = useQuery({
     queryKey: ["staff"],
     queryFn: async () => {
+      console.log("Fetching staff members...");
       const { data, error } = await supabase.rpc('get_staff_members');
-      if (error) throw error;
-      return data as StaffMember[];
+      
+      if (error) {
+        console.error("Error fetching staff:", error);
+        throw error;
+      }
+      
+      console.log("Staff data received:", data);
+      return (data || []) as StaffMember[];
     },
   });
 
@@ -38,35 +45,42 @@ export const useStaff = () => {
       role: string;
       is_volunteer?: boolean;
     }) => {
-      // This would typically involve inviting the user via email
-      // For now, we'll create a placeholder implementation
-      const { data, error } = await supabase.auth.admin.createUser({
+      console.log("Creating staff member:", staffData);
+      
+      // Create user account
+      const { data: userData, error: signUpError } = await supabase.auth.signUp({
         email: staffData.email,
-        email_confirm: true,
-        user_metadata: {
-          first_name: staffData.first_name,
-          last_name: staffData.last_name,
-          phone: staffData.phone,
+        password: 'TempPass123!', // Temporary password
+        options: {
+          data: {
+            first_name: staffData.first_name,
+            last_name: staffData.last_name,
+            phone: staffData.phone,
+          }
         }
       });
 
-      if (error) throw error;
+      if (signUpError) throw signUpError;
 
-      // Create user role
-      if (data.user) {
-        const validRoles: AppRole[] = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
-        const roleToUse: AppRole = validRoles.includes(staffData.role as AppRole) ? staffData.role as AppRole : 'staff';
-        
-        const { error: roleError } = await supabase.rpc('create_user_role', {
-          p_user_id: data.user.id,
-          p_role: roleToUse,
-          p_is_volunteer: staffData.is_volunteer || false,
-        });
-        
-        if (roleError) throw roleError;
+      if (!userData.user) {
+        throw new Error("Failed to create user account");
       }
 
-      return data.user;
+      // Update user role
+      const validRoles: AppRole[] = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
+      const roleToUse: AppRole = validRoles.includes(staffData.role as AppRole) ? staffData.role as AppRole : 'staff';
+      
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ 
+          role: roleToUse,
+          is_volunteer: staffData.is_volunteer || false
+        })
+        .eq('user_id', userData.user.id);
+
+      if (roleError) throw roleError;
+
+      return userData.user;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
@@ -76,6 +90,7 @@ export const useStaff = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error adding staff:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to add staff member",
@@ -89,6 +104,8 @@ export const useStaff = () => {
       userId: string; 
       updates: Partial<StaffMember> 
     }) => {
+      console.log("Updating staff member:", userId, updates);
+      
       // Update profile
       if (updates.first_name || updates.last_name || updates.phone) {
         const { error: profileError } = await supabase
@@ -127,6 +144,7 @@ export const useStaff = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error updating staff:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update staff member",
