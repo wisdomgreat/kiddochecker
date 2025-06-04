@@ -1,100 +1,54 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { AppRole, UserRoleData } from "@/types/supabase";
-import { UserProfile } from "@/types/users";
-import { useAuth } from "@/context/AuthContext";
+import { UserProfile, formatUserData } from "@/types/users";
 
-export const useUserRoles = () => {
-  const { toast } = useToast();
-  const { user } = useAuth();
-
+const useUserRoles = () => {
   return useQuery({
     queryKey: ["users"],
-    queryFn: async () => {
+    queryFn: async (): Promise<UserProfile[]> => {
       try {
-        if (!user) throw new Error("User not authenticated");
+        console.log("Fetching users with roles...");
         
-        // Get all profiles directly - avoid using problematic query that might have ambiguous columns
-        console.log("Fetching user profiles directly...");
-        
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, phone, created_at');
-          
-        if (profilesError) throw profilesError;
-        
-        // Get email addresses
-        const { data: emailsData, error: emailsError } = await supabase
-          .from('auth_users_with_emails')
-          .select('id, email');
-          
-        if (emailsError) throw emailsError;
-        
-        // Create email lookup map
-        const emailsMap: Record<string, string> = {};
-        if (emailsData) {
-          emailsData.forEach((item: any) => {
-            if (item && item.id && item.email) {
-              emailsMap[item.id] = item.email;
-            }
-          });
+        // Use the new RPC function that bypasses RLS issues
+        const { data, error } = await supabase.rpc('get_users_with_roles');
+
+        if (error) {
+          console.error("Error fetching users:", error);
+          throw error;
         }
-        
-        // Direct query for user roles with explicit table name to avoid ambiguity
-        const { data: userRolesData, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('id, user_id, role, is_super_admin, is_volunteer');
-          
-        if (rolesError) throw rolesError;
-        
-        // Create roles lookup map
-        const rolesMap: Record<string, any> = {};
-        if (userRolesData) {
-          userRolesData.forEach((role: any) => {
-            if (role && role.user_id) {
-              rolesMap[role.user_id] = {
-                role: role.role,
-                is_super_admin: role.is_super_admin,
-                is_volunteer: role.is_volunteer
-              };
-            }
-          });
+
+        console.log("Raw user data:", data);
+
+        if (!data || data.length === 0) {
+          console.log("No users found");
+          return [];
         }
+
+        // Format the data to match UserProfile interface
+        const formattedUsers = data.map((user: any) => formatUserData({
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          role: user.role,
+          is_super_admin: user.is_super_admin,
+          is_active: user.is_active,
+          created_at: new Date().toISOString(), // Default value
+          phone: '', // Default value
+          children: 0 // Default value
+        }));
+
+        console.log("Formatted users:", formattedUsers);
+        return formattedUsers;
         
-        // Combine data
-        return (profilesData || []).map((profile): UserProfile => {
-          const roleData = rolesMap[profile.id] || { role: 'parent', is_super_admin: false, is_volunteer: false };
-          
-          return {
-            id: profile.id,
-            email: emailsMap[profile.id] || '',
-            firstName: profile.first_name || '',
-            lastName: profile.last_name || '',
-            role: roleData.role as AppRole || 'parent',
-            roleData: {
-              role: roleData.role as AppRole || 'parent',
-              is_super_admin: !!roleData.is_super_admin,
-              is_volunteer: !!roleData.is_volunteer
-            },
-            phone: profile.phone || '',
-            createdAt: profile.created_at || '',
-            isActive: true, // Default value
-            children: 0,    // Would need another query to get this
-          };
-        });
       } catch (error: any) {
-        console.error("Error fetching users:", error);
-        toast({
-          title: "Error",
-          description: `Failed to load users: ${error.message || "Unknown error"}`,
-          variant: "destructive",
-        });
-        return [];
+        console.error("Error in useUserRoles:", error);
+        throw new Error(`Failed to load users: ${error.message}`);
       }
     },
-    enabled: !!user,
+    retry: 2,
+    retryDelay: 1000,
   });
 };
 

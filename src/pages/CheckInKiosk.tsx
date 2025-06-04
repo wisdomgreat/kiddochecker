@@ -1,70 +1,158 @@
 
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import LoginForm from "@/components/check-in/LoginForm";
-import RegistrationPrompt from "@/components/check-in/RegistrationPrompt";
-import { useNavigate, Link } from "react-router-dom";
-import { Info, Users, ArrowRight, LogIn } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { useDeviceRegistration } from "@/hooks/useDeviceRegistration";
+import { supabase } from "@/integrations/supabase/client";
+import { QrCode, User, Clock, Settings, Wifi } from "lucide-react";
+import LoginForm from "@/components/check-in/LoginForm";
+import { CheckoutTable } from "@/components/check-out/CheckoutTable";
+import { SearchForm } from "@/components/check-out/SearchForm";
 
 const CheckInKiosk = () => {
-  const [showRegistration, setShowRegistration] = useState(false);
-  const navigate = useNavigate();
+  const [deviceId, setDeviceId] = useState("");
+  const [deviceName, setDeviceName] = useState("");
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState("checkin");
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  
-  const { 
-    deviceId,
-    isRegistered,
-    deviceName,
-    showDeviceSetup,
-    isSetupComplete,
-    isLoading,
-    handleRegisterDevice,
-    updateDeviceName
-  } = useDeviceRegistration({
-    deviceType: 'check_in_kiosk',
-    defaultDeviceName: "Check-in Kiosk"
-  });
+  const location = useLocation();
 
-  const handleRegister = () => {
-    navigate("/parent-registration");
+  // Check if device ID is provided in URL
+  useEffect(() => {
+    const urlDeviceId = searchParams.get('device_id');
+    if (urlDeviceId) {
+      setDeviceId(urlDeviceId);
+      checkDeviceRegistration(urlDeviceId);
+    } else {
+      // Generate a device ID based on browser fingerprint
+      const browserFingerprint = generateDeviceId();
+      setDeviceId(browserFingerprint);
+      checkDeviceRegistration(browserFingerprint);
+    }
+  }, [searchParams]);
+
+  const generateDeviceId = () => {
+    // Simple device fingerprinting
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx?.fillText('Device fingerprint', 2, 2);
+    const fingerprint = canvas.toDataURL();
+    
+    return btoa(
+      navigator.userAgent + 
+      screen.width + 
+      screen.height + 
+      fingerprint.slice(-50)
+    ).slice(0, 20);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-        <p className="ml-2 text-gray-600">Loading kiosk...</p>
-      </div>
-    );
-  }
+  const checkDeviceRegistration = async (devId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_device_profile', {
+        p_device_id: devId
+      });
 
-  if (isSetupComplete === false) {
+      if (error) {
+        console.error("Error checking device registration:", error);
+        setIsRegistered(false);
+      } else if (data) {
+        setIsRegistered(true);
+        setDeviceName(data.name);
+        setIsConnected(true);
+        toast({
+          title: "Device Connected",
+          description: `Connected as ${data.name}`,
+        });
+      } else {
+        setIsRegistered(false);
+      }
+    } catch (error) {
+      console.error("Error checking device:", error);
+      setIsRegistered(false);
+    }
+  };
+
+  const registerDevice = async () => {
+    if (!deviceName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a device name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('register_device', {
+        p_device_id: deviceId,
+        p_name: deviceName,
+        p_type: 'check_in_kiosk',
+        p_location: 'Self-registered'
+      });
+
+      if (error) throw error;
+
+      setIsRegistered(true);
+      setIsConnected(true);
+      toast({
+        title: "Device Registered",
+        description: `Device "${deviceName}" has been registered successfully`,
+      });
+    } catch (error: any) {
+      console.error("Error registering device:", error);
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Failed to register device",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (!isRegistered) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-        <Card className="max-w-lg w-full">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-amber-100 rounded-full p-2">
-                <Info className="h-6 w-6 text-amber-600" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-xl font-semibold">Setup Required</h2>
-                <p className="text-sm text-gray-500">The system has not been set up yet</p>
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center">
+              <Settings className="h-8 w-8 text-blue-600" />
+            </div>
+            <CardTitle className="text-2xl">Device Setup</CardTitle>
+            <p className="text-gray-600">Register this device as a check-in/check-out kiosk</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Device ID</label>
+              <Input 
+                value={deviceId} 
+                readOnly 
+                className="bg-gray-50"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                This ID is automatically generated for this device
+              </p>
             </div>
             
-            <p className="mb-4 text-gray-600">
-              Please complete the organization setup process before using the check-in kiosk.
-            </p>
+            <div>
+              <label className="block text-sm font-medium mb-2">Device Name</label>
+              <Input 
+                placeholder="e.g., Front Desk Kiosk"
+                value={deviceName}
+                onChange={(e) => setDeviceName(e.target.value)}
+              />
+            </div>
             
             <Button 
-              onClick={() => navigate('/organization-setup')}
+              onClick={registerDevice}
               className="w-full"
+              disabled={!deviceName.trim()}
             >
-              Go to Organization Setup
+              Register Device
             </Button>
           </CardContent>
         </Card>
@@ -72,149 +160,76 @@ const CheckInKiosk = () => {
     );
   }
 
-  if (showDeviceSetup) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-        <Card className="max-w-lg w-full">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-blue-100 rounded-full p-2">
-                <Info className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-xl font-semibold">Kiosk Setup</h2>
-                <p className="text-sm text-gray-500">This device needs to be registered</p>
-              </div>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b p-4">
+        <div className="flex items-center justify-between max-w-6xl mx-auto">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <QrCode className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Check-In/Out Kiosk</h1>
+              <p className="text-sm text-gray-500">{deviceName}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <Badge variant={isConnected ? "default" : "destructive"} className="flex items-center space-x-1">
+              <Wifi className="h-3 w-3" />
+              <span>{isConnected ? "Connected" : "Offline"}</span>
+            </Badge>
+            <div className="text-right">
+              <div className="text-sm font-medium">{new Date().toLocaleDateString()}</div>
+              <div className="text-xs text-gray-500">{new Date().toLocaleTimeString()}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto p-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="checkin" className="flex items-center space-x-2">
+              <User className="h-4 w-4" />
+              <span>Check In</span>
+            </TabsTrigger>
+            <TabsTrigger value="checkout" className="flex items-center space-x-2">
+              <Clock className="h-4 w-4" />
+              <span>Check Out</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="checkin" className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold mb-2">Welcome! Please Sign In</h2>
+              <p className="text-gray-600">Parents can check in their children here</p>
             </div>
             
-            <div className="space-y-4 mt-4">
-              <div>
-                <label htmlFor="deviceName" className="block text-sm font-medium text-gray-700">
-                  Kiosk Name
-                </label>
-                <input
-                  type="text"
-                  id="deviceName"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="e.g., Main Entrance Kiosk"
-                  value={deviceName}
-                  onChange={(e) => updateDeviceName(e.target.value)}
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Give this check-in kiosk a descriptive name to identify it
-                </p>
+            <div className="flex justify-center">
+              <LoginForm onSignUp={() => {}} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="checkout" className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold mb-2">Check Out Children</h2>
+              <p className="text-gray-600">Search for children to check them out</p>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <SearchForm />
               </div>
-              
-              <Button 
-                onClick={() => handleRegisterDevice()}
-                className="w-full"
-              >
-                Register Kiosk
-              </Button>
-              
-              <p className="text-center text-sm text-gray-500">
-                Note: This is a one-time setup for this device
-              </p>
-              
-              <div className="pt-2 border-t border-gray-200">
-                <Link to="/login" className="flex items-center justify-center text-sm text-blue-600 hover:text-blue-800">
-                  <LogIn className="h-4 w-4 mr-1" />
-                  Staff Login
-                </Link>
+              <div className="lg:col-span-2">
+                <CheckoutTable />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-        <div className="flex items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Parent Check-in Kiosk</h1>
-          {isRegistered && deviceName && (
-            <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-              {deviceName}
-            </span>
-          )}
-        </div>
-        <div className="flex space-x-2">
-          <Link to="/login" className="flex items-center text-sm text-blue-600 hover:text-blue-800">
-            <LogIn className="h-4 w-4 mr-1" />
-            Staff Login
-          </Link>
-        </div>
-      </header>
-
-      {/* Main content */}
-      <main className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-        <div className="w-full max-w-4xl grid md:grid-cols-2 gap-8">
-          {/* Left column - Login form */}
-          <div className="space-y-6">
-            {showRegistration ? (
-              <RegistrationPrompt onSignUp={handleRegister} />
-            ) : (
-              <LoginForm 
-                onSignUp={() => setShowRegistration(true)} 
-              />
-            )}
-          </div>
-
-          {/* Right column - Information */}
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center">
-                  <Users className="h-5 w-5 mr-2 text-blue-500" />
-                  Welcome to Child Check-in
-                </h2>
-                <p className="text-gray-600 mb-4">
-                  Please sign in with your phone number and PIN to check in your children. 
-                  If this is your first time, you'll need to register first.
-                </p>
-                <div className="space-y-3">
-                  <div className="flex items-start">
-                    <div className="bg-blue-100 rounded-full p-1 mt-0.5">
-                      <ArrowRight className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <p className="ml-2 text-sm text-gray-600">
-                      Quick and secure check-in for your children
-                    </p>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="bg-blue-100 rounded-full p-1 mt-0.5">
-                      <ArrowRight className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <p className="ml-2 text-sm text-gray-600">
-                      Printable name tags with secure pick-up codes
-                    </p>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="bg-blue-100 rounded-full p-1 mt-0.5">
-                      <ArrowRight className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <p className="ml-2 text-sm text-gray-600">
-                      Easy class selection for age-appropriate rooms
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-6">
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={handleRegister}
-                  >
-                    New Parent? Register Here
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </main>
     </div>
   );
 };

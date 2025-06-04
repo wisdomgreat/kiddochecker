@@ -38,28 +38,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       console.log("Fetching role for user:", userId);
       
-      // Use a direct query to avoid RLS recursion issues
+      // Use the security definer function to avoid RLS recursion
       const { data, error } = await supabase.rpc('get_current_user_role');
 
       if (error) {
         console.error("Error fetching user role:", error);
-        // Fallback: try direct query with service role context
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .single();
-          
-        if (fallbackError) {
-          console.error("Fallback role fetch failed:", fallbackError);
-          return 'parent'; // Default role
-        }
-        
-        return fallbackData?.role as AppRole || 'parent';
+        return 'parent'; // Default role
       }
 
       console.log("User role fetched:", data);
-      return data as AppRole || 'parent';
+      return (data as AppRole) || 'parent';
     } catch (error) {
       console.error("Error in getUserRole:", error);
       return 'parent'; // Default role
@@ -102,16 +90,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setSession(initialSession);
           setUser(initialSession.user);
           
-          // Get user role and setup status in parallel
-          const [role, setupComplete] = await Promise.all([
-            getUserRole(initialSession.user.id),
-            checkSetupComplete()
-          ]);
-          
-          if (!mounted) return;
-          
-          setUserRole(role);
-          setIsSetupComplete(setupComplete);
+          // Use setTimeout to defer additional queries and avoid deadlocks
+          setTimeout(async () => {
+            if (!mounted) return;
+            
+            try {
+              const [role, setupComplete] = await Promise.all([
+                getUserRole(initialSession.user.id),
+                checkSetupComplete()
+              ]);
+              
+              if (mounted) {
+                setUserRole(role);
+                setIsSetupComplete(setupComplete);
+              }
+            } catch (error) {
+              console.error("Error fetching user data:", error);
+              if (mounted) {
+                setUserRole('parent');
+                setIsSetupComplete(false);
+              }
+            }
+          }, 100);
         } else {
           console.log("No initial session found");
           setSession(null);
@@ -136,45 +136,43 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
+      (event, currentSession) => {
         if (!mounted) return;
         
         console.log("Auth state changed:", event, currentSession?.user?.id || "none");
         
-        setIsLoading(true);
-        
-        try {
-          // Set session and user immediately
-          setSession(currentSession);
-          setUser(currentSession?.user ?? null);
+        // Set session and user immediately
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-          if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
-            console.log("Getting role for user after auth state change:", currentSession.user.id);
+        if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
+          console.log("Getting role for user after auth state change:", currentSession.user.id);
+          
+          // Use setTimeout to avoid blocking the auth state change handler
+          setTimeout(async () => {
+            if (!mounted) return;
             
-            // Get user role and setup status
-            const [role, setupComplete] = await Promise.all([
-              getUserRole(currentSession.user.id),
-              checkSetupComplete()
-            ]);
-            
-            if (mounted) {
-              setUserRole(role);
-              setIsSetupComplete(setupComplete);
+            try {
+              const [role, setupComplete] = await Promise.all([
+                getUserRole(currentSession.user.id),
+                checkSetupComplete()
+              ]);
+              
+              if (mounted) {
+                setUserRole(role);
+                setIsSetupComplete(setupComplete);
+              }
+            } catch (error) {
+              console.error("Error handling auth state change:", error);
+              if (mounted) {
+                setUserRole('parent');
+                setIsSetupComplete(false);
+              }
             }
-          } else if (!currentSession?.user) {
-            setUserRole(null);
-            setIsSetupComplete(null);
-          }
-        } catch (error) {
-          console.error("Error handling auth state change:", error);
-          if (mounted) {
-            setUserRole(null);
-            setIsSetupComplete(null);
-          }
-        } finally {
-          if (mounted) {
-            setIsLoading(false);
-          }
+          }, 100);
+        } else if (!currentSession?.user) {
+          setUserRole(null);
+          setIsSetupComplete(null);
         }
       }
     );
