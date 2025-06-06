@@ -34,7 +34,7 @@ const CheckInManagement = () => {
     if (selectedChild) {
       checkIn({ 
         childId: selectedChild, 
-        classId: selectedClass || undefined 
+        classId: selectedClass === 'no-class' ? undefined : selectedClass 
       });
       setSelectedChild('');
       setSelectedClass('');
@@ -152,7 +152,7 @@ const CheckInManagement = () => {
                   <SelectValue placeholder="Choose class" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific class</SelectItem>
+                  <SelectItem value="no-class">No specific class</SelectItem>
                   {classes.map((classItem) => (
                     <SelectItem key={classItem.id} value={classItem.id}>
                       {classItem.name}
