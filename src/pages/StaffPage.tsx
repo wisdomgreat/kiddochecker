@@ -20,6 +20,7 @@ const StaffPage = () => {
   );
 
   const handleAddStaff = (staffData: any) => {
+    console.log('Adding staff:', staffData);
     addStaff(staffData);
     setShowAddForm(false);
   };
@@ -132,10 +133,12 @@ const StaffPage = () => {
 
         {/* Add Staff Form */}
         <AddStaffForm
-          isOpen={showAddForm}
-          onClose={() => setShowAddForm(false)}
-          onSubmit={handleAddStaff}
-          isLoading={isAddingStaff}
+          open={showAddForm}
+          onOpenChange={setShowAddForm}
+          onSuccess={() => {
+            setShowAddForm(false);
+            console.log('Staff added successfully');
+          }}
         />
       </div>
     </DashboardLayout>
