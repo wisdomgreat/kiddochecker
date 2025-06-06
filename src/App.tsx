@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/toaster';
@@ -33,29 +33,27 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <div className="min-h-screen bg-background">
-            <Routes>
-              {/* Main Dashboard Routes */}
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/staff" element={<StaffPage />} />
-              <Route path="/children" element={<ChildrenPage />} />
-              <Route path="/classes" element={<ClassesPage />} />
-              <Route path="/check-in-out" element={<CheckInOutPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/roles" element={<RolesPage />} />
-              
-              {/* Check-in/out Process Routes */}
-              <Route path="/check-in-process" element={<CheckInProcessPage />} />
-              <Route path="/check-out-process" element={<CheckOutProcessPage />} />
-              <Route path="/check-in-setup" element={<CheckInSetupPage />} />
-            </Routes>
-          </div>
-          <Toaster />
-        </Router>
+        <div className="min-h-screen bg-background">
+          <Routes>
+            {/* Main Dashboard Routes */}
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/staff" element={<StaffPage />} />
+            <Route path="/children" element={<ChildrenPage />} />
+            <Route path="/classes" element={<ClassesPage />} />
+            <Route path="/check-in-out" element={<CheckInOutPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/users" element={<UsersPage />} />
+            <Route path="/roles" element={<RolesPage />} />
+            
+            {/* Check-in/out Process Routes */}
+            <Route path="/check-in-process" element={<CheckInProcessPage />} />
+            <Route path="/check-out-process" element={<CheckOutProcessPage />} />
+            <Route path="/check-in-setup" element={<CheckInSetupPage />} />
+          </Routes>
+        </div>
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );
