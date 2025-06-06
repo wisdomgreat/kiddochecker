@@ -1,22 +1,29 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Search, Clock } from 'lucide-react';
+import { UserPlus, Search, Clock, BarChart3, Calendar, UserCheck } from 'lucide-react';
 import { useChildren } from '@/hooks/useChildren';
 import { useClasses } from '@/hooks/useClasses';
 import { useAttendance } from '@/hooks/useAttendance';
+import { useDatabaseFunctions } from '@/hooks/useDatabaseFunctions';
 
 const CheckInProcessPage = () => {
   const [activeTab, setActiveTab] = useState('checkin');
+  const { executeFunction } = useDatabaseFunctions();
   const { children, isLoading: childrenLoading } = useChildren();
   const { classes, isLoading: classesLoading } = useClasses();
   const { attendance, checkIn, checkOut, isCheckingIn, isCheckingOut } = useAttendance();
+  const [todayStats, setTodayStats] = useState({
+    totalCheckins: 0,
+    currentlyPresent: 0,
+    notCheckedIn: 0
+  });
   
   // Check-in states
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,6 +32,27 @@ const CheckInProcessPage = () => {
   
   // Check-out states
   const [checkoutSearchTerm, setCheckoutSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchAttendanceStats = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const totalCheckins = attendance.filter(a => a.attendance_date === today).length;
+        const currentlyPresent = attendance.filter(a => !a.checked_out_at && a.attendance_date === today).length;
+        const notCheckedIn = children.length - currentlyPresent;
+        
+        setTodayStats({
+          totalCheckins,
+          currentlyPresent,
+          notCheckedIn: notCheckedIn >= 0 ? notCheckedIn : 0
+        });
+      } catch (error) {
+        console.error("Error fetching attendance stats:", error);
+      }
+    };
+    
+    fetchAttendanceStats();
+  }, [attendance, children]);
 
   // Filter out children who are already checked in
   const availableChildren = children.filter(child => {
@@ -80,6 +108,63 @@ const CheckInProcessPage = () => {
               Manage child attendance in one place
             </p>
           </div>
+          
+          <div className="flex gap-2">
+            <Button variant="outline">
+              <Calendar className="h-4 w-4 mr-2" />
+              View History
+            </Button>
+            <Button>
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Attendance Report
+            </Button>
+          </div>
+        </div>
+
+        {/* Daily stats cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
+                <UserPlus className="h-4 w-4 text-blue-600 mr-2" />
+                Total Check-ins
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{todayStats.totalCheckins}</div>
+              <p className="text-sm text-muted-foreground">Today</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
+                <UserCheck className="h-4 w-4 text-green-600 mr-2" />
+                Currently Present
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">
+                {todayStats.currentlyPresent}
+              </div>
+              <p className="text-sm text-muted-foreground">Active now</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center text-lg">
+                <Badge variant="outline" className="mr-2">Available</Badge>
+                Not Checked In
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-gray-600">
+                {todayStats.notCheckedIn}
+              </div>
+              <p className="text-sm text-muted-foreground">Children</p>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -98,6 +183,9 @@ const CheckInProcessPage = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Quick Check-In</CardTitle>
+                <CardDescription>
+                  Search for a child and check them in to a specific class
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -131,7 +219,7 @@ const CheckInProcessPage = () => {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Select Class (Optional)</label>
+                    <label className="text-sm font-medium mb-2 block">Select Class</label>
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
                       <SelectTrigger>
                         <SelectValue placeholder="Choose class" />
@@ -159,51 +247,46 @@ const CheckInProcessPage = () => {
               </CardContent>
             </Card>
 
-            {/* Daily Check-In Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                  <UserPlus className="h-4 w-4 text-blue-600" />
-                  <CardTitle className="text-sm font-medium ml-2">Total Check-ins</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{attendance.filter(a => a.attendance_date === new Date().toISOString().split('T')[0]).length}</div>
-                  <p className="text-xs text-muted-foreground">Today</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                  <Badge className="bg-green-600 text-white">Present</Badge>
-                  <CardTitle className="text-sm font-medium ml-2">Currently Present</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {attendance.filter(a => !a.checked_out_at && a.attendance_date === new Date().toISOString().split('T')[0]).length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Active now</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                  <Badge variant="secondary">Available</Badge>
-                  <CardTitle className="text-sm font-medium ml-2">Not Checked In</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-gray-600">
-                    {availableChildren.length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Children</p>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Children</CardTitle>
+                <CardDescription>Children who are not yet checked in today</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredChildren.slice(0, 9).map((child) => (
+                    <div 
+                      key={child.id}
+                      className="border p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedChild(child.id)}
+                    >
+                      <div className="font-medium">{child.first_name} {child.last_name}</div>
+                      <div className="text-sm text-gray-500">
+                        {child.age ? `Age: ${child.age}` : 'No age recorded'}
+                      </div>
+                      {child.allergies && (
+                        <Badge variant="outline" className="mt-1 bg-yellow-50 text-yellow-800 border-yellow-200">
+                          Allergies
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {filteredChildren.length === 0 && (
+                    <div className="col-span-full text-center py-8 text-gray-500">
+                      All children are already checked in or no children match your search
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="checkout" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Check Out Children</CardTitle>
+                <CardDescription>Search and check out children who are currently present</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -233,6 +316,7 @@ const CheckInProcessPage = () => {
                           size="sm"
                           onClick={() => checkOut(record.id)}
                           disabled={isCheckingOut}
+                          className="bg-green-600 hover:bg-green-700"
                         >
                           <Clock className="h-4 w-4 mr-1" />
                           Check Out
@@ -249,41 +333,6 @@ const CheckInProcessPage = () => {
                 </div>
               </CardContent>
             </Card>
-            
-            {/* Today's Check Out Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                  <Badge variant="outline">Total</Badge>
-                  <CardTitle className="text-sm font-medium ml-2">Checked Out Today</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {attendance.filter(a => 
-                      a.checked_out_at && 
-                      a.attendance_date === new Date().toISOString().split('T')[0]
-                    ).length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Children</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-                  <Badge variant="secondary">Remaining</Badge>
-                  <CardTitle className="text-sm font-medium ml-2">Still Present</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-amber-600">
-                    {attendance.filter(a => 
-                      !a.checked_out_at && 
-                      a.attendance_date === new Date().toISOString().split('T')[0]
-                    ).length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Need check-out</p>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
         </Tabs>
       </div>

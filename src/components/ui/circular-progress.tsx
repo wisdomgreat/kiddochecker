@@ -1,37 +1,39 @@
 
+import React from "react";
 import { cn } from "@/lib/utils";
 
-type CircularProgressProps = {
-  size?: "small" | "medium" | "large";
-  color?: "primary" | "secondary" | "default";
+interface CircularProgressProps {
+  size?: "small" | "default" | "large";
+  color?: "default" | "primary" | "secondary" | "destructive";
   className?: string;
-};
+}
 
-export const CircularProgress = ({
-  size = "medium",
+export function CircularProgress({
+  size = "default",
   color = "primary",
   className,
-}: CircularProgressProps) => {
-  const sizeMap = {
-    small: "h-6 w-6",
-    medium: "h-10 w-10",
-    large: "h-16 w-16",
+}: CircularProgressProps) {
+  const sizeClasses = {
+    small: "h-5 w-5 border-2",
+    default: "h-8 w-8 border-2",
+    large: "h-12 w-12 border-3",
   };
 
-  const colorMap = {
-    primary: "border-purple-500",
-    secondary: "border-blue-500",
-    default: "border-gray-300",
+  const colorClasses = {
+    default: "border-gray-300 border-t-gray-600",
+    primary: "border-blue-200 border-t-blue-600",
+    secondary: "border-purple-200 border-t-purple-600",
+    destructive: "border-red-200 border-t-red-600",
   };
 
   return (
     <div
       className={cn(
-        "rounded-full border-4 border-t-transparent animate-spin",
-        sizeMap[size],
-        colorMap[color],
+        "inline-block rounded-full animate-spin",
+        sizeClasses[size],
+        colorClasses[color],
         className
       )}
     />
   );
-};
+}

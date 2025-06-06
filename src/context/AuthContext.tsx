@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole } from '@/types/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSetupComplete, setIsSetupComplete] = useState<boolean | null>(null);
+  const { toast } = useToast();
 
   const getUserRole = async (userId: string): Promise<AppRole | null> => {
     try {
@@ -76,11 +78,65 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     let mounted = true;
     
+    // Set up auth state listener FIRST to prevent missing auth state changes during initialization
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        if (!mounted) return;
+        
+        console.log("Auth state changed:", event, currentSession?.user?.id || "none");
+        
+        // Set session and user immediately
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        // Clear userRole when signing out
+        if (event === 'SIGNED_OUT') {
+          setUserRole(null);
+          setIsSetupComplete(null);
+          return;
+        }
+
+        // For other auth events, fetch additional data needed
+        if (currentSession?.user) {
+          // We use setTimeout to avoid blocking the auth state change handler
+          // and prevent potential deadlocks with Supabase auth
+          setTimeout(async () => {
+            if (!mounted) return;
+            
+            try {
+              const [role, setupComplete] = await Promise.all([
+                getUserRole(currentSession.user.id),
+                checkSetupComplete()
+              ]);
+              
+              if (mounted) {
+                setUserRole(role);
+                setIsSetupComplete(setupComplete);
+              }
+            } catch (error) {
+              console.error("Error handling auth state change:", error);
+              if (mounted) {
+                setUserRole('parent'); // Default role
+                setIsSetupComplete(false);
+                
+                toast({
+                  title: "Warning",
+                  description: "Could not retrieve your user role. Some features may be limited.",
+                  variant: "destructive"
+                });
+              }
+            }
+          }, 100);
+        }
+      }
+    );
+
+    // THEN check for existing session
     const initializeAuth = async () => {
       if (!mounted) return;
       
       try {
-        console.log("Initializing auth...");
+        setIsLoading(true);
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -110,6 +166,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 setUserRole('parent');
                 setIsSetupComplete(false);
               }
+            } finally {
+              if (mounted) {
+                setIsLoading(false);
+              }
             }
           }, 100);
         } else {
@@ -118,6 +178,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setUser(null);
           setUserRole(null);
           setIsSetupComplete(null);
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error initializing auth:", error);
@@ -126,58 +187,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setUser(null);
           setUserRole(null);
           setIsSetupComplete(null);
-        }
-      } finally {
-        if (mounted) {
           setIsLoading(false);
         }
       }
     };
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        if (!mounted) return;
-        
-        console.log("Auth state changed:", event, currentSession?.user?.id || "none");
-        
-        // Set session and user immediately
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-
-        if (currentSession?.user && event !== 'TOKEN_REFRESHED') {
-          console.log("Getting role for user after auth state change:", currentSession.user.id);
-          
-          // Use setTimeout to avoid blocking the auth state change handler
-          setTimeout(async () => {
-            if (!mounted) return;
-            
-            try {
-              const [role, setupComplete] = await Promise.all([
-                getUserRole(currentSession.user.id),
-                checkSetupComplete()
-              ]);
-              
-              if (mounted) {
-                setUserRole(role);
-                setIsSetupComplete(setupComplete);
-              }
-            } catch (error) {
-              console.error("Error handling auth state change:", error);
-              if (mounted) {
-                setUserRole('parent');
-                setIsSetupComplete(false);
-              }
-            }
-          }, 100);
-        } else if (!currentSession?.user) {
-          setUserRole(null);
-          setIsSetupComplete(null);
-        }
-      }
-    );
-
-    // Initialize auth
     initializeAuth();
 
     return () => {
@@ -189,13 +203,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     try {
       setIsLoading(true);
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       setUser(null);
       setSession(null);
       setUserRole(null);
       setIsSetupComplete(null);
-    } catch (error) {
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out",
+      });
+      
+    } catch (error: any) {
       console.error("Error signing out:", error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out: " + (error.message || "Unknown error"),
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

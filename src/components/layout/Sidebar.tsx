@@ -7,8 +7,16 @@ import {
   Settings,
   LayoutDashboard,
   List,
-  User
+  User,
+  Calendar,
+  FileText,
+  LogOut,
+  School,
+  Clock,
+  Shield,
+  Home
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
   className?: string;
@@ -16,7 +24,7 @@ interface SidebarProps {
 
 const Sidebar = ({ className }: SidebarProps) => {
   const { pathname } = useLocation();
-  const { user, userRole } = useAuth();
+  const { user, userRole, signOut } = useAuth();
 
   const isAdmin = userRole === "admin" || userRole === "super_admin";
   const isTeacher = userRole === "teacher" || userRole === "teacher_assistant";
@@ -44,19 +52,19 @@ const Sidebar = ({ className }: SidebarProps) => {
     {
       title: "Classes",
       href: "/classes",
-      icon: List,
+      icon: School,
       showTo: ["admin", "teacher", "staff"]
     },
     {
       title: "Check-In/Out",
       href: "/check-in-out",
-      icon: User,
+      icon: Clock,
       showTo: ["admin", "teacher", "staff"]
     },
     {
       title: "Check-In Process",
       href: "/check-in-process",
-      icon: User,
+      icon: Clock,
       showTo: ["admin", "teacher", "staff"]
     },
     {
@@ -68,8 +76,14 @@ const Sidebar = ({ className }: SidebarProps) => {
     {
       title: "Reports",
       href: "/reports",
-      icon: List,
+      icon: FileText,
       showTo: ["admin", "teacher"]
+    },
+    {
+      title: "Calendar",
+      href: "/calendar",
+      icon: Calendar,
+      showTo: ["admin", "teacher", "staff", "parent"]
     },
     {
       title: "Users",
@@ -80,7 +94,7 @@ const Sidebar = ({ className }: SidebarProps) => {
     {
       title: "Roles",
       href: "/roles",
-      icon: Users,
+      icon: Shield,
       showTo: ["admin"]
     },
     {
@@ -88,6 +102,12 @@ const Sidebar = ({ className }: SidebarProps) => {
       href: "/settings",
       icon: Settings,
       showTo: ["admin"]
+    },
+    {
+      title: "Parent Home",
+      href: "/parent-dashboard",
+      icon: Home,
+      showTo: ["parent"]
     }
   ];
 
@@ -99,14 +119,19 @@ const Sidebar = ({ className }: SidebarProps) => {
     (userRole === "parent" && item.showTo.includes("parent"))
   );
 
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
-    <div className={cn("w-64 bg-white border-r min-h-screen p-4", className)}>
+    <div className={cn("w-64 bg-white border-r h-full p-4 flex flex-col", className)}>
       <div className="flex items-center justify-center mb-8 pt-4">
-        <div className="bg-primary/90 text-primary-foreground p-2 rounded-lg">
+        <div className="bg-primary text-primary-foreground p-2 rounded-lg">
           <div className="font-bold text-xl">KidCheck</div>
         </div>
       </div>
-      <nav className="space-y-1">
+      
+      <nav className="space-y-1 flex-1">
         {filteredNavItems.map((item) => (
           <Link
             key={item.href}
@@ -125,8 +150,8 @@ const Sidebar = ({ className }: SidebarProps) => {
       </nav>
       
       {user && (
-        <div className="absolute bottom-4 left-4 right-4 p-3 border-t">
-          <div className="flex items-center">
+        <div className="mt-auto pt-4 border-t">
+          <div className="flex items-center mb-4">
             <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
               {user.email?.substring(0, 1).toUpperCase() || 'U'}
             </div>
@@ -135,6 +160,15 @@ const Sidebar = ({ className }: SidebarProps) => {
               <p className="text-xs text-gray-500 capitalize">{userRole}</p>
             </div>
           </div>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full flex items-center justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       )}
     </div>

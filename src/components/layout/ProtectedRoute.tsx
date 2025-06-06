@@ -58,9 +58,9 @@ const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) =>
     
     // Determine where to redirect based on user's role
     if (userRole === 'admin' || userRole === 'super_admin') {
-      return <Navigate to='/admin-dashboard' replace />;
+      return <Navigate to='/dashboard' replace />;
     } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-      return <Navigate to='/teacher-dashboard' replace />;
+      return <Navigate to='/dashboard' replace />;
     } else if (userRole === 'parent') {
       return <Navigate to='/parent-dashboard' replace />;
     } else {

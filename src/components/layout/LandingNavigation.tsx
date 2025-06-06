@@ -27,7 +27,7 @@ const LandingNavigation = ({ className }: { className?: string }) => {
     <nav className={cn("flex items-center justify-between p-4 bg-white shadow-sm", className)}>
       <div className="flex items-center">
         <Link to="/" className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
             <span className="text-white font-bold text-sm">K</span>
           </div>
           <span className="font-bold text-xl ml-2">KidCheck</span>
@@ -36,9 +36,9 @@ const LandingNavigation = ({ className }: { className?: string }) => {
       
       {/* Desktop navigation */}
       <div className="hidden md:flex space-x-6">
-        <Link to="/about-us" className="text-gray-700 hover:text-purple-700 font-medium">About</Link>
-        <Link to="/faq" className="text-gray-700 hover:text-purple-700 font-medium">FAQ</Link>
-        <Link to="/contact-us" className="text-gray-700 hover:text-purple-700 font-medium">Contact</Link>
+        <Link to="/about-us" className="text-gray-700 hover:text-blue-700 font-medium">About</Link>
+        <Link to="/faq" className="text-gray-700 hover:text-blue-700 font-medium">FAQ</Link>
+        <Link to="/contact-us" className="text-gray-700 hover:text-blue-700 font-medium">Contact</Link>
       </div>
       
       {/* Mobile menu button */}
@@ -74,9 +74,9 @@ const LandingNavigation = ({ className }: { className?: string }) => {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-white shadow-md z-50 py-4 px-6 flex flex-col space-y-4">
-          <Link to="/about-us" className="text-gray-700 hover:text-purple-700 font-medium py-2">About</Link>
-          <Link to="/faq" className="text-gray-700 hover:text-purple-700 font-medium py-2">FAQ</Link>
-          <Link to="/contact-us" className="text-gray-700 hover:text-purple-700 font-medium py-2">Contact</Link>
+          <Link to="/about-us" className="text-gray-700 hover:text-blue-700 font-medium py-2">About</Link>
+          <Link to="/faq" className="text-gray-700 hover:text-blue-700 font-medium py-2">FAQ</Link>
+          <Link to="/contact-us" className="text-gray-700 hover:text-blue-700 font-medium py-2">Contact</Link>
           <div className="border-t border-gray-200 pt-4">
             {user ? (
               <Button 
