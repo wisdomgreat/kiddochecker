@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useStaff, StaffMember } from "@/hooks/useStaff";
+import { AppRole } from "@/types/supabase";
 
 const editStaffFormSchema = z.object({
   firstName: z.string().min(1, {
@@ -97,7 +98,7 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
           first_name: values.firstName,
           last_name: values.lastName,
           phone: values.phone,
-          role: values.role,
+          role: values.role as AppRole,
           is_super_admin: values.isSuperAdmin,
           is_volunteer: values.isVolunteer,
         }

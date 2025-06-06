@@ -27,7 +27,7 @@ export function useDatabaseFunctions(): DatabaseFunctionsReturn {
     try {
       console.log(`Executing RPC function: ${functionName}`, params);
       
-      const { data, error } = await supabase.rpc(functionName, params || {});
+      const { data, error } = await supabase.rpc(functionName as any, params || {});
       
       if (error) {
         console.error(`Error executing ${functionName}:`, error);

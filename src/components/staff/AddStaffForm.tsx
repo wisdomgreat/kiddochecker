@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useStaff } from "@/hooks/useStaff";
+import { AppRole } from "@/types/supabase";
 
 const staffFormSchema = z.object({
   email: z.string().email({
@@ -86,7 +87,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
         first_name: values.firstName,
         last_name: values.lastName,
         phone: values.phone,
-        role: values.role,
+        role: values.role as AppRole,
         is_volunteer: values.isVolunteer,
       });
       
