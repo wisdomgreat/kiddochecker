@@ -23,22 +23,16 @@ import {
   Baby
 } from "lucide-react";
 
-const Sidebar = ({
-  className,
-}: {
-  className?: string;
-}) => {
+const Sidebar = ({ className }: { className?: string }) => {
   const { userRole, signOut } = useAuth();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(isMobile);
   
-  // Function to toggle sidebar collapse state
   const toggleCollapse = () => {
     setCollapsed(!collapsed);
   };
 
-  // Define navigation links by role
   const mainLinks = [
     {
       href: "/admin-dashboard",
@@ -132,7 +126,6 @@ const Sidebar = ({
     },
   ];
 
-  // Filter links based on user role
   const filteredMainLinks = userRole 
     ? mainLinks.filter(link => link.roles.includes(userRole))
     : [];
@@ -145,7 +138,6 @@ const Sidebar = ({
     ? userLinks.filter(link => link.roles.includes(userRole))
     : [];
 
-  // Add fallback links if no role matches (prevents empty sidebar)
   if (filteredMainLinks.length === 0) {
     filteredMainLinks.push({
       href: "/landing",

@@ -8,10 +8,6 @@ import TeacherDashboard from '@/pages/TeacherDashboard';
 import ParentDashboard from '@/pages/ParentDashboard';
 import CheckInKiosk from '@/pages/CheckInKiosk';
 import CheckOutStation from '@/pages/CheckOutStation';
-import ClassesManagement from '@/pages/ClassesManagement';
-import UsersManagement from '@/pages/UsersManagement';
-import TeacherProfile from '@/pages/TeacherProfile';
-import ReportsDashboard from '@/pages/ReportsDashboard';
 import UserProfile from '@/pages/UserProfile';
 import Settings from '@/pages/Settings';
 import NotFound from '@/pages/NotFound';
@@ -21,15 +17,20 @@ import ParentRegistration from '@/pages/ParentRegistration';
 import CheckInProcess from '@/pages/CheckInProcess';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import OrganizationSetup from '@/pages/OrganizationSetup';
-import StaffManagement from '@/pages/StaffManagement';
 import EventsManagement from '@/pages/EventsManagement';
 import KioskManagement from '@/pages/KioskManagement';
 import RolesManagement from '@/pages/RolesManagement';
 import RolePermissionsManagement from '@/pages/RolePermissionsManagement';
-import CheckInOutManagement from '@/pages/CheckInOutManagement';
+import ReportsDashboard from '@/pages/ReportsDashboard';
+import UsersManagement from '@/pages/UsersManagement';
 import { CircularProgress } from '@/components/ui/circular-progress';
 import { Toaster } from '@/components/ui/toaster';
-import ChildrenManagement from '@/pages/ChildrenManagement';
+
+// Import new refactored pages
+import CheckInOutPage from '@/pages/CheckInOutPage';
+import StaffPage from '@/pages/StaffPage';
+import ChildrenPage from '@/pages/ChildrenPage';
+import ClassesPage from '@/pages/ClassesPage';
 
 const Unauthorized = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -52,8 +53,6 @@ function AppContent() {
   console.log("App.tsx - Current user:", user?.id || "none");
   console.log("App.tsx - Current user role:", userRole);
   console.log("App.tsx - Current path:", location.pathname);
-  console.log("App.tsx - Is loading:", isLoading);
-  console.log("App.tsx - Is setup complete:", isSetupComplete);
   
   const getDefaultRoute = () => {
     if (!user) return '/landing';
@@ -77,7 +76,6 @@ function AppContent() {
     }
   };
 
-  // Handle redirects when user and role are available
   useEffect(() => {
     if (!isLoading && user && userRole && (location.pathname === '/' || location.pathname === '')) {
       const targetRoute = getDefaultRoute();
@@ -86,7 +84,6 @@ function AppContent() {
     }
   }, [user, userRole, isLoading, location.pathname, navigate, isSetupComplete]);
 
-  // Show loading indicator during auth loading
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
@@ -106,7 +103,7 @@ function AppContent() {
         <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="/404" element={<NotFound />} />
         
-        {/* Kiosk routes - public but with device registration */}
+        {/* Kiosk routes */}
         <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
         <Route path="/check-out-station" element={<CheckOutStation />} />
         <Route path="/check-in-process" element={<CheckInProcess />} />
@@ -114,7 +111,7 @@ function AppContent() {
         {/* Organization setup route */}
         <Route path="/organization-setup" element={<OrganizationSetup />} />
         
-        {/* Default route - redirect based on user role */}
+        {/* Default route */}
         <Route path="/" element={
           user && userRole ? (
             <Navigate to={getDefaultRoute()} replace />
@@ -138,19 +135,19 @@ function AppContent() {
         
         <Route path="/staff-management" element={
           <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-            <StaffManagement />
+            <StaffPage />
           </ProtectedRoute>
         } />
         
         <Route path="/children-management" element={
           <ProtectedRoute allowedRoles={['admin', 'super_admin', 'parent']}>
-            <ChildrenManagement />
+            <ChildrenPage />
           </ProtectedRoute>
         } />
         
         <Route path="/classes-management" element={
           <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant']}>
-            <ClassesManagement />
+            <ClassesPage />
           </ProtectedRoute>
         } />
         
@@ -162,7 +159,7 @@ function AppContent() {
         
         <Route path="/check-in-out" element={
           <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-            <CheckInOutManagement />
+            <CheckInOutPage />
           </ProtectedRoute>
         } />
         
@@ -200,12 +197,6 @@ function AppContent() {
         <Route path="/teacher-dashboard" element={
           <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
             <TeacherDashboard />
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/teacher-profile" element={
-          <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-            <TeacherProfile />
           </ProtectedRoute>
         } />
         
