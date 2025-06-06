@@ -1,293 +1,143 @@
 
-import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, useLocation } from 'react-router-dom';
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  Calendar,
-  User,
   Users,
-  Home,
-  School,
-  BarChart2,
   Settings,
-  LogOut,
-  UserPlus,
-  CheckCircle,
-  Shield,
-  Laptop,
-  Menu,
-  X,
-  Baby
+  LayoutDashboard,
+  List,
+  User
 } from "lucide-react";
 
-const Sidebar = ({ className }: { className?: string }) => {
-  const { userRole, signOut } = useAuth();
-  const isMobile = useIsMobile();
-  const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(isMobile);
-  
-  const toggleCollapse = () => {
-    setCollapsed(!collapsed);
-  };
+interface SidebarProps {
+  className?: string;
+}
 
-  const mainLinks = [
+const Sidebar = ({ className }: SidebarProps) => {
+  const { pathname } = useLocation();
+  const { user, userRole } = useAuth();
+
+  const isAdmin = userRole === "admin" || userRole === "super_admin";
+  const isTeacher = userRole === "teacher" || userRole === "teacher_assistant";
+  const isStaff = userRole === "staff";
+
+  const navItems = [
     {
-      href: "/admin-dashboard",
-      label: "Dashboard",
-      icon: <Home size={20} />,
-      roles: ["admin", "super_admin"],
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: LayoutDashboard,
+      showTo: ["all"]
     },
     {
-      href: "/teacher-dashboard",
-      label: "Dashboard",
-      icon: <Home size={20} />,
-      roles: ["teacher", "teacher_assistant", "staff"],
+      title: "Children",
+      href: "/children",
+      icon: User,
+      showTo: ["admin", "teacher", "staff", "parent"]
     },
     {
-      href: "/parent-dashboard",
-      label: "Dashboard",
-      icon: <Home size={20} />,
-      roles: ["parent"],
+      title: "Staff",
+      href: "/staff",
+      icon: Users,
+      showTo: ["admin"]
     },
     {
-      href: "/children-management",
-      label: "Children",
-      icon: <Baby size={20} />,
-      roles: ["admin", "super_admin", "parent"],
+      title: "Classes",
+      href: "/classes",
+      icon: List,
+      showTo: ["admin", "teacher", "staff"]
     },
     {
-      href: "/events-management",
-      label: "Events",
-      icon: <Calendar size={20} />,
-      roles: ["admin", "super_admin", "teacher", "teacher_assistant", "staff"],
-    },
-    {
-      href: "/classes-management",
-      label: "Classes",
-      icon: <School size={20} />,
-      roles: ["admin", "super_admin", "teacher", "teacher_assistant"],
-    },
-    {
+      title: "Check-In/Out",
       href: "/check-in-out",
-      label: "Check In/Out",
-      icon: <CheckCircle size={20} />,
-      roles: ["admin", "super_admin", "teacher", "teacher_assistant", "staff"],
+      icon: User,
+      showTo: ["admin", "teacher", "staff"]
     },
     {
-      href: "/users-management",
-      label: "Users",
-      icon: <Users size={20} />,
-      roles: ["admin", "super_admin"],
+      title: "Check-In Process",
+      href: "/check-in-process",
+      icon: User,
+      showTo: ["admin", "teacher", "staff"]
     },
     {
-      href: "/reports-dashboard",
-      label: "Reports",
-      icon: <BarChart2 size={20} />,
-      roles: ["admin", "super_admin", "teacher"],
-    },
-  ];
-
-  const managementLinks = [
-    {
-      href: "/staff-management",
-      label: "Staff",
-      icon: <UserPlus size={20} />,
-      roles: ["admin", "super_admin"],
+      title: "Check-In Setup",
+      href: "/check-in-setup",
+      icon: Settings,
+      showTo: ["admin"]
     },
     {
-      href: "/roles-management",
-      label: "Roles",
-      icon: <Shield size={20} />,
-      roles: ["admin", "super_admin"],
+      title: "Reports",
+      href: "/reports",
+      icon: List,
+      showTo: ["admin", "teacher"]
     },
     {
-      href: "/kiosk-management",
-      label: "Devices & Kiosks",
-      icon: <Laptop size={20} />,
-      roles: ["admin", "super_admin"],
+      title: "Users",
+      href: "/users",
+      icon: Users,
+      showTo: ["admin"]
     },
     {
+      title: "Roles",
+      href: "/roles",
+      icon: Users,
+      showTo: ["admin"]
+    },
+    {
+      title: "Settings",
       href: "/settings",
-      label: "Settings",
-      icon: <Settings size={20} />,
-      roles: ["admin", "super_admin"],
-    },
+      icon: Settings,
+      showTo: ["admin"]
+    }
   ];
 
-  const userLinks = [
-    {
-      href: "/user-profile",
-      label: "Profile",
-      icon: <User size={20} />,
-      roles: ["admin", "super_admin", "teacher", "teacher_assistant", "staff", "parent"],
-    },
-  ];
-
-  const filteredMainLinks = userRole 
-    ? mainLinks.filter(link => link.roles.includes(userRole))
-    : [];
-  
-  const filteredManagementLinks = userRole 
-    ? managementLinks.filter(link => link.roles.includes(userRole))
-    : [];
-  
-  const filteredUserLinks = userRole 
-    ? userLinks.filter(link => link.roles.includes(userRole))
-    : [];
-
-  if (filteredMainLinks.length === 0) {
-    filteredMainLinks.push({
-      href: "/landing",
-      label: "Home",
-      icon: <Home size={20} />,
-      roles: ["any"],
-    });
-  }
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/landing', { replace: true });
-  };
+  const filteredNavItems = navItems.filter(item => 
+    item.showTo.includes("all") || 
+    (isAdmin && item.showTo.includes("admin")) ||
+    (isTeacher && item.showTo.includes("teacher")) ||
+    (isStaff && item.showTo.includes("staff")) ||
+    (userRole === "parent" && item.showTo.includes("parent"))
+  );
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col bg-white border-r border-gray-200 h-full py-4 transition-all duration-300",
-        collapsed ? "w-[70px]" : "w-[250px]",
-        className
-      )}
-    >
-      <div className="px-3 mb-6 flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">K</span>
-          </div>
-          {!collapsed && (
-            <span className="font-bold text-xl ml-2">KidCheck</span>
-          )}
+    <div className={cn("w-64 bg-white border-r min-h-screen p-4", className)}>
+      <div className="flex items-center justify-center mb-8 pt-4">
+        <div className="bg-primary/90 text-primary-foreground p-2 rounded-lg">
+          <div className="font-bold text-xl">KidCheck</div>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={toggleCollapse}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          {collapsed ? <Menu size={20} /> : <X size={20} />}
-        </Button>
       </div>
-
-      <div className="space-y-1 px-3">
-        <h2
-          className={cn(
-            "text-xs font-semibold text-gray-400 px-2 py-1.5",
-            collapsed && "sr-only"
-          )}
-        >
-          MAIN MENU
-        </h2>
-        {filteredMainLinks.map((link) => (
-          <NavLink
-            key={link.href}
-            to={link.href}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
-                isActive
-                  ? "bg-purple-100 text-purple-700"
-                  : "text-gray-700 hover:bg-gray-100",
-                collapsed && "justify-center"
-              )
-            }
+      <nav className="space-y-1">
+        {filteredNavItems.map((item) => (
+          <Link
+            key={item.href}
+            to={item.href}
+            className={cn(
+              "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              pathname === item.href
+                ? "bg-primary/10 text-primary hover:bg-primary/20"
+                : "text-gray-600 hover:bg-gray-100"
+            )}
           >
-            <span className={cn("mr-2", collapsed && "mr-0")}>{link.icon}</span>
-            {!collapsed && link.label}
-          </NavLink>
+            <item.icon className="h-5 w-5 mr-3" />
+            {item.title}
+          </Link>
         ))}
-      </div>
-
-      {filteredManagementLinks.length > 0 && (
-        <div className="mt-6 space-y-1 px-3">
-          <h2
-            className={cn(
-              "text-xs font-semibold text-gray-400 px-2 py-1.5",
-              collapsed && "sr-only"
-            )}
-          >
-            MANAGEMENT
-          </h2>
-          {filteredManagementLinks.map((link) => (
-            <NavLink
-              key={link.href}
-              to={link.href}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
-                  isActive
-                    ? "bg-purple-100 text-purple-700"
-                    : "text-gray-700 hover:bg-gray-100",
-                  collapsed && "justify-center"
-                )
-              }
-            >
-              <span className={cn("mr-2", collapsed && "mr-0")}>
-                {link.icon}
-              </span>
-              {!collapsed && link.label}
-            </NavLink>
-          ))}
+      </nav>
+      
+      {user && (
+        <div className="absolute bottom-4 left-4 right-4 p-3 border-t">
+          <div className="flex items-center">
+            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
+              {user.email?.substring(0, 1).toUpperCase() || 'U'}
+            </div>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-gray-700">{user.email}</p>
+              <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+            </div>
+          </div>
         </div>
       )}
-
-      {filteredUserLinks.length > 0 && (
-        <div className="mt-6 space-y-1 px-3">
-          <h2
-            className={cn(
-              "text-xs font-semibold text-gray-400 px-2 py-1.5",
-              collapsed && "sr-only"
-            )}
-          >
-            MY ACCOUNT
-          </h2>
-          {filteredUserLinks.map((link) => (
-            <NavLink
-              key={link.href}
-              to={link.href}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center rounded-md px-2 py-1.5 text-sm font-medium",
-                  isActive
-                    ? "bg-purple-100 text-purple-700"
-                    : "text-gray-700 hover:bg-gray-100",
-                  collapsed && "justify-center"
-                )
-              }
-            >
-              <span className={cn("mr-2", collapsed && "mr-0")}>
-                {link.icon}
-              </span>
-              {!collapsed && link.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-auto px-3">
-        <Button
-          variant="ghost"
-          className={cn(
-            "flex items-center w-full rounded-md px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100",
-            collapsed && "justify-center"
-          )}
-          onClick={handleSignOut}
-        >
-          <LogOut size={20} className={cn("mr-2", collapsed && "mr-0")} />
-          {!collapsed && "Sign Out"}
-        </Button>
-      </div>
-    </aside>
+    </div>
   );
 };
 

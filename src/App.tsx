@@ -14,11 +14,12 @@ import ReportsPage from '@/pages/ReportsPage';
 import SettingsPage from '@/pages/SettingsPage';
 import UsersPage from '@/pages/UsersPage';
 import RolesPage from '@/pages/RolesPage';
+import CheckInOutManagement from '@/pages/CheckInOutManagement';
 
 // Check-in related pages
 import CheckInProcessPage from '@/pages/CheckInProcessPage';
-import CheckOutProcessPage from '@/pages/CheckOutProcessPage';
 import CheckInSetupPage from '@/pages/CheckInSetupPage';
+import CheckInKiosk from '@/pages/CheckInKiosk';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,7 +42,7 @@ function App() {
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/children" element={<ChildrenPage />} />
             <Route path="/classes" element={<ClassesPage />} />
-            <Route path="/check-in-out" element={<CheckInOutPage />} />
+            <Route path="/check-in-out" element={<CheckInOutManagement />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/users" element={<UsersPage />} />
@@ -49,8 +50,8 @@ function App() {
             
             {/* Check-in/out Process Routes */}
             <Route path="/check-in-process" element={<CheckInProcessPage />} />
-            <Route path="/check-out-process" element={<CheckOutProcessPage />} />
             <Route path="/check-in-setup" element={<CheckInSetupPage />} />
+            <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
           </Routes>
         </div>
         <Toaster />

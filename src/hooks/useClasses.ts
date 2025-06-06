@@ -22,6 +22,7 @@ export const useClasses = () => {
     queryKey: ["classes"],
     queryFn: async (): Promise<Class[]> => {
       try {
+        // Direct query without joins to avoid recursion
         const { data, error } = await supabase
           .from('classes')
           .select('*')
@@ -35,7 +36,7 @@ export const useClasses = () => {
         return data || [];
       } catch (error: any) {
         console.error("Error in useClasses:", error);
-        throw new Error(`Failed to load classes: ${error.message}`);
+        return []; // Return empty array to prevent UI from breaking
       }
     },
   });

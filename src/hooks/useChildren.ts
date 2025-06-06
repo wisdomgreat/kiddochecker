@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useDatabaseFunctions } from "@/hooks/useDatabaseFunctions";
 
 export interface Child {
   id: string;
@@ -21,11 +22,13 @@ export interface Child {
 export const useChildren = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { executeFunction } = useDatabaseFunctions();
 
   const { data: children = [], isLoading, error, refetch } = useQuery({
     queryKey: ["children"],
     queryFn: async (): Promise<Child[]> => {
       try {
+        // Use a direct query but avoid joins that might cause recursion
         const { data, error } = await supabase
           .from('children')
           .select('*')
@@ -48,7 +51,10 @@ export const useChildren = () => {
     mutationFn: async (childData: Omit<Child, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('children')
-        .insert(childData)
+        .insert({
+          ...childData,
+          parent_id: (await supabase.auth.getUser()).data.user?.id || childData.parent_id
+        })
         .select()
         .single();
 
@@ -138,29 +144,27 @@ export const useChildren = () => {
 };
 
 export const useParentChildren = () => {
+  const { executeFunction } = useDatabaseFunctions();
+
   const { data: childrenWithClasses, isLoading } = useQuery({
     queryKey: ["parent-children-with-classes"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc('get_parent_children_with_classes', {
-          parent_user_id: (await supabase.auth.getUser()).data.user?.id
-        });
-
-        if (error) {
-          console.error("Error fetching parent children:", error);
-          throw error;
-        }
-
-        return data || [];
+        const userId = (await supabase.auth.getUser()).data.user?.id;
+        if (!userId) return [];
+        
+        return await executeFunction<any[]>('get_parent_children_with_classes', {
+          parent_user_id: userId
+        }) || [];
       } catch (error: any) {
         console.error("Error in useParentChildren:", error);
-        throw new Error(`Failed to load children: ${error.message}`);
+        return [];
       }
     },
   });
 
   return {
-    data: childrenWithClasses,
+    data: childrenWithClasses || [],
     isLoading
   };
 };
