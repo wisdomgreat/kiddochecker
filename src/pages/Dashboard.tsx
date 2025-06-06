@@ -4,19 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, GraduationCap, UserCheck, AlertTriangle, Plus, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useChildren } from '@/hooks/useChildren';
-import { useClasses } from '@/hooks/useClasses';
-import { useStaffManagement } from '@/hooks/useStaffManagement';
-import { useAttendance } from '@/hooks/useAttendance';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { children } = useChildren();
-  const { classes } = useClasses();
-  const { staff } = useStaffManagement();
-  const { attendance } = useAttendance();
 
-  const currentlyPresent = attendance.filter(record => !record.checked_out_at);
+  // Mock data for now - will be replaced with real data hooks later
+  const totalChildren = 0;
+  const totalClasses = 0;
+  const totalStaff = 0;
+  const currentlyPresent = 0;
 
   return (
     <DashboardLayout>
@@ -49,7 +45,7 @@ const Dashboard = () => {
               <CardTitle className="text-sm font-medium ml-2">Total Children</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{children?.length || 0}</div>
+              <div className="text-2xl font-bold">{totalChildren}</div>
               <p className="text-xs text-muted-foreground">Registered</p>
             </CardContent>
           </Card>
@@ -61,7 +57,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {classes?.length || 0}
+                {totalClasses}
               </div>
               <p className="text-xs text-muted-foreground">Classes available</p>
             </CardContent>
@@ -74,7 +70,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-purple-600">
-                {staff?.length || 0}
+                {totalStaff}
               </div>
               <p className="text-xs text-muted-foreground">Active staff</p>
             </CardContent>
@@ -86,7 +82,7 @@ const Dashboard = () => {
               <CardTitle className="text-sm font-medium ml-2">Currently Present</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{currentlyPresent.length}</div>
+              <div className="text-2xl font-bold text-orange-600">{currentlyPresent}</div>
               <p className="text-xs text-muted-foreground">Checked in today</p>
             </CardContent>
           </Card>

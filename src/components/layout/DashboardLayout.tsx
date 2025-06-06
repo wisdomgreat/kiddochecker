@@ -1,9 +1,6 @@
 
 import React, { ReactNode } from 'react';
-import Sidebar from './Sidebar';
-import Footer from './Footer';
 import { useAuth } from '@/context/AuthContext';
-import { CircularProgress } from '../ui/circular-progress';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -15,8 +12,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <CircularProgress size="large" />
-        <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p className="text-gray-600">Loading dashboard...</p>
       </div>
     );
   }
@@ -24,14 +21,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col">
       <div className="flex flex-1">
-        <Sidebar />
         <main className="flex-1 p-6 overflow-auto bg-gray-50">
           <div className="container mx-auto">
             {children}
           </div>
         </main>
       </div>
-      <Footer />
     </div>
   );
 };
