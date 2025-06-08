@@ -1,177 +1,169 @@
 
-import { Link, useLocation } from 'react-router-dom';
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import {
-  Users,
-  Settings,
-  LayoutDashboard,
-  List,
-  User,
-  Calendar,
-  FileText,
-  LogOut,
-  School,
-  Clock,
-  Shield,
-  Home
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { 
+  Home, 
+  Users, 
+  UserPlus, 
+  Calendar, 
+  MessageSquare, 
+  FileText, 
+  Settings, 
+  LogOut, 
+  Menu,
+  BookOpen,
+  ClipboardCheck,
+  BarChart3,
+  Shield,
+  Clock,
+  Baby,
+  Monitor,
+  UserCheck,
+  Building
+} from "lucide-react";
 
-interface SidebarProps {
-  className?: string;
-}
+const Sidebar = () => {
+  const location = useLocation();
+  const { logout, userRole } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-const Sidebar = ({ className }: SidebarProps) => {
-  const { pathname } = useLocation();
-  const { user, userRole, signOut } = useAuth();
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isTeacher = userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff';
+  const isParent = userRole === 'parent';
 
-  const isAdmin = userRole === "admin" || userRole === "super_admin";
-  const isTeacher = userRole === "teacher" || userRole === "teacher_assistant";
-  const isStaff = userRole === "staff";
+  const getNavigationItems = () => {
+    const baseItems = [
+      { name: "Dashboard", href: "/", icon: Home, roles: ['all'] },
+    ];
 
-  const navItems = [
-    {
-      title: "Dashboard",
-      href: "/dashboard",
-      icon: LayoutDashboard,
-      showTo: ["all"]
-    },
-    {
-      title: "Children",
-      href: "/children",
-      icon: User,
-      showTo: ["admin", "teacher", "staff", "parent"]
-    },
-    {
-      title: "Staff",
-      href: "/staff",
-      icon: Users,
-      showTo: ["admin"]
-    },
-    {
-      title: "Classes",
-      href: "/classes",
-      icon: School,
-      showTo: ["admin", "teacher", "staff"]
-    },
-    {
-      title: "Check-In/Out",
-      href: "/check-in-out",
-      icon: Clock,
-      showTo: ["admin", "teacher", "staff"]
-    },
-    {
-      title: "Check-In Process",
-      href: "/check-in-process",
-      icon: Clock,
-      showTo: ["admin", "teacher", "staff"]
-    },
-    {
-      title: "Check-In Setup",
-      href: "/check-in-setup",
-      icon: Settings,
-      showTo: ["admin"]
-    },
-    {
-      title: "Reports",
-      href: "/reports",
-      icon: FileText,
-      showTo: ["admin", "teacher"]
-    },
-    {
-      title: "Calendar",
-      href: "/calendar",
-      icon: Calendar,
-      showTo: ["admin", "teacher", "staff", "parent"]
-    },
-    {
-      title: "Users",
-      href: "/users",
-      icon: Users,
-      showTo: ["admin"]
-    },
-    {
-      title: "Roles",
-      href: "/roles",
-      icon: Shield,
-      showTo: ["admin"]
-    },
-    {
-      title: "Settings",
-      href: "/settings",
-      icon: Settings,
-      showTo: ["admin"]
-    },
-    {
-      title: "Parent Home",
-      href: "/parent-dashboard",
-      icon: Home,
-      showTo: ["parent"]
+    const adminItems = [
+      { name: "User Management", href: "/users", icon: Users, roles: ['admin', 'super_admin'] },
+      { name: "Staff Management", href: "/staff", icon: UserCheck, roles: ['admin', 'super_admin'] },
+      { name: "Children Management", href: "/children", icon: Baby, roles: ['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff'] },
+      { name: "Classes Management", href: "/classes-management", icon: BookOpen, roles: ['admin', 'super_admin'] },
+      { name: "Classes", href: "/classes", icon: BookOpen, roles: ['teacher', 'teacher_assistant', 'staff'] },
+      { name: "Device Management", href: "/device-management", icon: Monitor, roles: ['admin', 'super_admin'] },
+      { name: "Roles & Permissions", href: "/roles", icon: Shield, roles: ['admin', 'super_admin'] },
+      { name: "Organization Setup", href: "/organization-setup", icon: Building, roles: ['admin', 'super_admin'] },
+    ];
+
+    const commonItems = [
+      { name: "Check-In/Out", href: "/check-in-out", icon: ClipboardCheck, roles: ['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff', 'parent'] },
+      { name: "Calendar", href: "/calendar", icon: Calendar, roles: ['all'] },
+      { name: "Family Connect", href: "/family-connect", icon: MessageSquare, roles: ['all'] },
+      { name: "Reports", href: "/reports", icon: BarChart3, roles: ['admin', 'super_admin', 'teacher'] },
+      { name: "Settings", href: "/settings", icon: Settings, roles: ['all'] },
+    ];
+
+    const parentItems = [
+      { name: "My Children", href: "/children", icon: Baby, roles: ['parent'] },
+      { name: "Attendance Rewards", href: "/attendance-rewards", icon: Clock, roles: ['parent'] },
+    ];
+
+    let items = [...baseItems];
+
+    if (isAdmin) {
+      items = [...items, ...adminItems];
     }
-  ];
 
-  const filteredNavItems = navItems.filter(item => 
-    item.showTo.includes("all") || 
-    (isAdmin && item.showTo.includes("admin")) ||
-    (isTeacher && item.showTo.includes("teacher")) ||
-    (isStaff && item.showTo.includes("staff")) ||
-    (userRole === "parent" && item.showTo.includes("parent"))
-  );
+    if (isTeacher) {
+      items = [...items, ...adminItems.filter(item => 
+        item.roles.includes('teacher') || 
+        item.roles.includes('teacher_assistant') || 
+        item.roles.includes('staff')
+      )];
+    }
 
-  const handleSignOut = async () => {
-    await signOut();
+    if (isParent) {
+      items = [...items, ...parentItems];
+    }
+
+    items = [...items, ...commonItems];
+
+    return items.filter(item => 
+      item.roles.includes('all') || 
+      item.roles.includes(userRole || '')
+    );
   };
 
+  const navigationItems = getNavigationItems();
+
+  const isActive = (href: string) => {
+    if (href === "/") {
+      return location.pathname === "/";
+    }
+    return location.pathname.startsWith(href);
+  };
+
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col">
+      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+        <Link to="/" className="flex items-center gap-2 font-semibold">
+          <BookOpen className="h-6 w-6" />
+          <span>Admin Panel</span>
+        </Link>
+      </div>
+      <ScrollArea className="flex-1">
+        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                  isActive(item.href) && "bg-muted text-primary"
+                )}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Icon className="h-4 w-4" />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+      </ScrollArea>
+      <div className="mt-auto p-4">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={logout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className={cn("w-64 bg-white border-r h-full p-4 flex flex-col", className)}>
-      <div className="flex items-center justify-center mb-8 pt-4">
-        <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-          <div className="font-bold text-xl">KidCheck</div>
+    <>
+      {/* Mobile sidebar */}
+      <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <SheetTrigger asChild>
+          <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle navigation menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="flex flex-col p-0">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop sidebar */}
+      <div className="hidden border-r bg-muted/40 md:block">
+        <div className="flex h-full max-h-screen flex-col gap-2 w-64">
+          <SidebarContent />
         </div>
       </div>
-      
-      <nav className="space-y-1 flex-1">
-        {filteredNavItems.map((item) => (
-          <Link
-            key={item.href}
-            to={item.href}
-            className={cn(
-              "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
-              pathname === item.href
-                ? "bg-primary/10 text-primary hover:bg-primary/20"
-                : "text-gray-600 hover:bg-gray-100"
-            )}
-          >
-            <item.icon className="h-5 w-5 mr-3" />
-            {item.title}
-          </Link>
-        ))}
-      </nav>
-      
-      {user && (
-        <div className="mt-auto pt-4 border-t">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center">
-              {user.email?.substring(0, 1).toUpperCase() || 'U'}
-            </div>
-            <div className="ml-3">
-              <p className="text-xs font-medium text-gray-700">{user.email}</p>
-              <p className="text-xs text-gray-500 capitalize">{userRole}</p>
-            </div>
-          </div>
-          
-          <Button 
-            variant="ghost" 
-            className="w-full flex items-center justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
-            onClick={handleSignOut}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 

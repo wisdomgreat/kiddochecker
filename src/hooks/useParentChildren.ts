@@ -25,6 +25,27 @@ export const useParentChildren = () => {
       if (!user) return [];
 
       try {
+        // First try to use the database function if it exists
+        const { data: functionData, error: functionError } = await supabase.rpc('get_parent_children_with_classes', {
+          parent_user_id: user.id
+        });
+
+        if (!functionError && functionData) {
+          return functionData.map((child: any) => ({
+            child_id: child.child_id,
+            first_name: child.first_name,
+            last_name: child.last_name,
+            age: child.age,
+            allergies: child.allergies,
+            medical_info: child.medical_info,
+            emergency_contact_name: child.emergency_contact_name,
+            emergency_contact_phone: child.emergency_contact_phone,
+            notes: child.notes,
+            current_class_name: child.current_class_name
+          }));
+        }
+
+        // Fallback to direct query if function doesn't exist
         const { data, error } = await supabase
           .from('children')
           .select(`
@@ -46,7 +67,6 @@ export const useParentChildren = () => {
           throw error;
         }
 
-        // Transform the data to match the expected interface
         return (data || []).map(child => ({
           child_id: child.id,
           first_name: child.first_name,
@@ -57,7 +77,7 @@ export const useParentChildren = () => {
           emergency_contact_name: child.emergency_contact_name,
           emergency_contact_phone: child.emergency_contact_phone,
           notes: child.notes,
-          current_class_name: undefined // This would need to be fetched from attendance/class assignments
+          current_class_name: undefined
         }));
       } catch (error: any) {
         console.error("Error in useParentChildren:", error);

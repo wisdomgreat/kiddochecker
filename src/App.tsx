@@ -22,6 +22,14 @@ import CheckInProcessPage from "@/pages/CheckInProcessPage";
 import FamilyConnectPage from "@/pages/FamilyConnectPage";
 import CalendarPage from "@/pages/CalendarPage";
 import ParentRegistrationPage from "@/pages/ParentRegistrationPage";
+import CheckInOutManagement from "@/pages/CheckInOutManagement";
+import DeviceManagement from "@/pages/DeviceManagement";
+import OrganizationSetup from "@/pages/OrganizationSetup";
+import RolesPage from "@/pages/RolesPage";
+import StaffPage from "@/pages/StaffPage";
+import ReportsPage from "@/pages/ReportsPage";
+import SettingsPage from "@/pages/SettingsPage";
+import AttendanceRewardsPage from "@/pages/AttendanceRewardsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -76,6 +84,11 @@ const App = () => (
               <UsersPage />
             </ProtectedRoute>
           } />
+          <Route path="/staff" element={
+            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <StaffPage />
+            </ProtectedRoute>
+          } />
           <Route path="/children" element={
             <ProtectedRoute>
               <ChildrenPage />
@@ -93,7 +106,7 @@ const App = () => (
           } />
           <Route path="/check-in-out" element={
             <ProtectedRoute>
-              <CheckInProcessPage />
+              <CheckInOutManagement />
             </ProtectedRoute>
           } />
           <Route path="/family-connect" element={
@@ -106,14 +119,34 @@ const App = () => (
               <CalendarPage />
             </ProtectedRoute>
           } />
-          <Route path="/staff" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-              <UsersPage />
-            </ProtectedRoute>
-          } />
           <Route path="/reports" element={
             <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher']}>
-              <Dashboard />
+              <ReportsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/device-management" element={
+            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <DeviceManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/organization-setup" element={
+            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <OrganizationSetup />
+            </ProtectedRoute>
+          } />
+          <Route path="/roles" element={
+            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <RolesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/attendance-rewards" element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <AttendanceRewardsPage />
             </ProtectedRoute>
           } />
         </Routes>
