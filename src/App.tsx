@@ -1,66 +1,80 @@
 
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/context/AuthContext';
-import { Toaster } from '@/components/ui/toaster';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
 
-// Pages
-import Dashboard from '@/pages/Dashboard';
-import StaffPage from '@/pages/StaffPage';
-import ChildrenPage from '@/pages/ChildrenPage';
-import ClassesPage from '@/pages/ClassesPage';
-import CheckInOutPage from '@/pages/CheckInOutPage';
-import ReportsPage from '@/pages/ReportsPage';
-import SettingsPage from '@/pages/SettingsPage';
-import UsersPage from '@/pages/UsersPage';
-import RolesPage from '@/pages/RolesPage';
-import LandingPage from '@/pages/LandingPage';
-import LoginPage from '@/pages/LoginPage';
-import ParentRegistrationPage from '@/pages/ParentRegistrationPage';
-import ParentDashboard from '@/pages/ParentDashboard';
-import CalendarPage from '@/pages/CalendarPage';
-
-// Check-in related pages
-import CheckInProcessPage from '@/pages/CheckInProcessPage';
-import CheckInSetupPage from '@/pages/CheckInSetupPage';
-import CheckInKiosk from '@/pages/CheckInKiosk';
-
-// Unique Features
-import FamilyConnectPage from '@/pages/FamilyConnectPage';
-import AttendanceRewardsPage from '@/pages/AttendanceRewardsPage';
+// Import all pages
+import LandingPage from "@/pages/LandingPage";
+import LoginPage from "@/pages/LoginPage";
+import ParentRegistration from "@/pages/ParentRegistration";
+import AboutUsPage from "@/pages/AboutUsPage";
+import Dashboard from "@/pages/Dashboard";
+import Index from "@/pages/Index";
+import UsersPage from "@/pages/UsersPage";
+import ChildrenPage from "@/pages/ChildrenPage";
+import ClassesPage from "@/pages/ClassesPage";
+import ClassesManagement from "@/pages/ClassesManagement";
+import CheckInProcessPage from "@/pages/CheckInProcessPage";
+import FamilyConnectPage from "@/pages/FamilyConnectPage";
+import CalendarPage from "@/pages/CalendarPage";
+import ParentRegistrationPage from "@/pages/ParentRegistrationPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
       retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 60000,
     },
   },
 });
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <div className="min-h-screen bg-background">
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
           <Routes>
-            {/* Public Routes */}
+            {/* Public routes */}
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/parent-registration" element={<ParentRegistrationPage />} />
-            <Route path="/" element={<Navigate to="/landing" />} />
+            <Route path="/parent-registration" element={<ParentRegistration />} />
+            <Route path="/about-us" element={<AboutUsPage />} />
             
-            {/* Protected Routes */}
-            <Route path="/dashboard" element={
+            {/* Protected routes */}
+            <Route path="/" element={
               <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard" element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
                 <Dashboard />
               </ProtectedRoute>
             } />
-            <Route path="/staff" element={
+            <Route path="/admin-dashboard" element={
               <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                <StaffPage />
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/teacher-dashboard" element={
+              <ProtectedRoute allowedRoles={['teacher', 'teacher_assistant', 'staff']}>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/parent-dashboard" element={
+              <ProtectedRoute allowedRoles={['parent']}>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <UsersPage />
               </ProtectedRoute>
             } />
             <Route path="/children" element={
@@ -69,80 +83,45 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/classes" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
                 <ClassesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/classes-management" element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <ClassesManagement />
               </ProtectedRoute>
             } />
             <Route path="/check-in-out" element={
               <ProtectedRoute>
-                <CheckInOutPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/reports" element={
-              <ProtectedRoute allowedRoles={['admin', 'teacher', 'super_admin']}>
-                <ReportsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                <SettingsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/users" element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                <UsersPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/roles" element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                <RolesPage />
-              </ProtectedRoute>
-            } />
-            
-            {/* Check-in system Routes */}
-            <Route path="/check-in-process" element={
-              <ProtectedRoute>
                 <CheckInProcessPage />
               </ProtectedRoute>
             } />
-            <Route path="/check-in-setup" element={
-              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                <CheckInSetupPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
-            
-            {/* Parent routes */}
-            <Route path="/parent-dashboard" element={
-              <ProtectedRoute allowedRoles={['parent']}>
-                <ParentDashboard />
-              </ProtectedRoute>
-            } />
-            
-            {/* Calendar */}
-            <Route path="/calendar" element={
-              <ProtectedRoute>
-                <CalendarPage />
-              </ProtectedRoute>
-            } />
-            
-            {/* Unique Features */}
             <Route path="/family-connect" element={
               <ProtectedRoute>
                 <FamilyConnectPage />
               </ProtectedRoute>
             } />
-            <Route path="/attendance-rewards" element={
+            <Route path="/calendar" element={
               <ProtectedRoute>
-                <AttendanceRewardsPage />
+                <CalendarPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/staff" element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <UsersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher']}>
+                <Dashboard />
               </ProtectedRoute>
             } />
           </Routes>
-        </div>
-        <Toaster />
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-}
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;

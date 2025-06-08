@@ -2,18 +2,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 export interface Child {
   id: string;
+  parent_id: string;
   first_name: string;
   last_name: string;
   age?: number;
-  parent_id: string;
   allergies?: string;
   medical_info?: string;
-  notes?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
+  notes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -21,37 +22,39 @@ export interface Child {
 export const useChildren = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, userRole } = useAuth();
 
   const { data: children = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["children"],
+    queryKey: ["children", user?.id],
     queryFn: async (): Promise<Child[]> => {
+      if (!user) return [];
+
       try {
-        console.log("Fetching children...");
+        let query = supabase.from('children').select('*');
         
-        const { data, error } = await supabase
-          .from('children')
-          .select('*')
-          .order('first_name');
+        // If user is a parent, only show their children
+        if (userRole === 'parent') {
+          query = query.eq('parent_id', user.id);
+        }
+        
+        const { data, error } = await query.order('first_name');
 
         if (error) {
           console.error("Error fetching children:", error);
           throw error;
         }
 
-        console.log("Children data received:", data);
         return data || [];
       } catch (error: any) {
         console.error("Error in useChildren:", error);
-        throw new Error(`Failed to load children: ${error.message}`);
+        return [];
       }
     },
+    enabled: !!user,
   });
 
   const addChildMutation = useMutation({
     mutationFn: async (childData: Omit<Child, 'id' | 'created_at' | 'updated_at'>) => {
-      console.log("Adding child:", childData);
-      
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
       const { data, error } = await supabase
@@ -63,12 +66,7 @@ export const useChildren = () => {
         .select()
         .single();
 
-      if (error) {
-        console.error("Error adding child:", error);
-        throw error;
-      }
-      
-      console.log("Child added successfully:", data);
+      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -79,7 +77,7 @@ export const useChildren = () => {
       });
     },
     onError: (error: any) => {
-      console.error("Error in addChildMutation:", error);
+      console.error("Error adding child:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to add child",
@@ -89,22 +87,15 @@ export const useChildren = () => {
   });
 
   const updateChildMutation = useMutation({
-    mutationFn: async (childData: Partial<Child> & { id: string }) => {
-      console.log("Updating child:", childData);
-      
+    mutationFn: async ({ id, ...childData }: Partial<Child> & { id: string }) => {
       const { data, error } = await supabase
         .from('children')
         .update(childData)
-        .eq('id', childData.id)
+        .eq('id', id)
         .select()
         .single();
 
-      if (error) {
-        console.error("Error updating child:", error);
-        throw error;
-      }
-      
-      console.log("Child updated successfully:", data);
+      if (error) throw error;
       return data;
     },
     onSuccess: () => {
@@ -115,7 +106,7 @@ export const useChildren = () => {
       });
     },
     onError: (error: any) => {
-      console.error("Error in updateChildMutation:", error);
+      console.error("Error updating child:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update child",
@@ -126,32 +117,25 @@ export const useChildren = () => {
 
   const deleteChildMutation = useMutation({
     mutationFn: async (childId: string) => {
-      console.log("Deleting child:", childId);
-      
       const { error } = await supabase
         .from('children')
         .delete()
         .eq('id', childId);
 
-      if (error) {
-        console.error("Error deleting child:", error);
-        throw error;
-      }
-      
-      console.log("Child deleted successfully");
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["children"] });
       toast({
         title: "Success",
-        description: "Child deleted successfully",
+        description: "Child removed successfully",
       });
     },
     onError: (error: any) => {
-      console.error("Error in deleteChildMutation:", error);
+      console.error("Error deleting child:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete child",
+        description: error.message || "Failed to remove child",
         variant: "destructive",
       });
     },
@@ -167,36 +151,8 @@ export const useChildren = () => {
     deleteChild: deleteChildMutation.mutate,
     isAddingChild: addChildMutation.isPending,
     isUpdatingChild: updateChildMutation.isPending,
+    isDeletingChild: deleteChildMutation.isPending,
   };
 };
 
-export const useParentChildren = () => {
-  const { data: childrenWithClasses, isLoading } = useQuery({
-    queryKey: ["parent-children-with-classes"],
-    queryFn: async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return [];
-        
-        const { data, error } = await supabase.rpc('get_parent_children_with_classes', {
-          parent_user_id: user.id
-        });
-        
-        if (error) {
-          console.error("Error fetching parent children:", error);
-          return [];
-        }
-        
-        return data || [];
-      } catch (error: any) {
-        console.error("Error in useParentChildren:", error);
-        return [];
-      }
-    },
-  });
-
-  return {
-    data: childrenWithClasses || [],
-    isLoading
-  };
-};
+export default useChildren;

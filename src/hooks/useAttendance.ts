@@ -13,10 +13,12 @@ export interface AttendanceRecord {
   checked_out_by?: string;
   attendance_date: string;
   child?: {
+    id: string;
     first_name: string;
     last_name: string;
   };
   class?: {
+    id: string;
     name: string;
   };
 }
@@ -29,68 +31,24 @@ export const useAttendance = () => {
     queryKey: ["attendance"],
     queryFn: async (): Promise<AttendanceRecord[]> => {
       try {
-        // First, get attendance records
-        const { data: attendanceData, error: attendanceError } = await supabase
+        const { data, error } = await supabase
           .from('attendance')
-          .select('*')
+          .select(`
+            *,
+            child:children(id, first_name, last_name),
+            class:classes(id, name)
+          `)
           .order('checked_in_at', { ascending: false });
 
-        if (attendanceError) {
-          console.error("Error fetching attendance:", attendanceError);
-          throw attendanceError;
+        if (error) {
+          console.error("Error fetching attendance:", error);
+          throw error;
         }
 
-        if (!attendanceData || attendanceData.length === 0) {
-          return [];
-        }
-
-        // Get child data separately
-        const childIds = [...new Set(attendanceData.map(record => record.child_id))];
-        const { data: childData, error: childError } = await supabase
-          .from('children')
-          .select('id, first_name, last_name')
-          .in('id', childIds);
-
-        if (childError) {
-          console.error("Error fetching children for attendance:", childError);
-        }
-
-        const childMap = new Map();
-        if (childData) {
-          childData.forEach(child => {
-            childMap.set(child.id, { first_name: child.first_name, last_name: child.last_name });
-          });
-        }
-
-        // Get class data separately
-        const classIds = [...new Set(attendanceData.filter(record => record.class_id).map(record => record.class_id))];
-        const { data: classData, error: classError } = await supabase
-          .from('classes')
-          .select('id, name')
-          .in('id', classIds);
-
-        if (classError) {
-          console.error("Error fetching classes for attendance:", classError);
-        }
-
-        const classMap = new Map();
-        if (classData) {
-          classData.forEach(cls => {
-            classMap.set(cls.id, { name: cls.name });
-          });
-        }
-
-        // Combine the data
-        const combinedData: AttendanceRecord[] = attendanceData.map(record => ({
-          ...record,
-          child: childMap.get(record.child_id) || undefined,
-          class: record.class_id ? classMap.get(record.class_id) || undefined : undefined,
-        }));
-
-        return combinedData;
+        return data || [];
       } catch (error: any) {
         console.error("Error in useAttendance:", error);
-        return []; // Return empty array to prevent UI from breaking
+        return [];
       }
     },
   });
@@ -101,12 +59,12 @@ export const useAttendance = () => {
         .from('attendance')
         .insert({
           child_id: childId,
-          class_id: classId,
-          attendance_date: new Date().toISOString().split('T')[0],
+          class_id: classId || null,
           checked_in_at: new Date().toISOString(),
-          checked_in_by: (await supabase.auth.getUser()).data.user?.id,
+          attendance_date: new Date().toISOString().split('T')[0]
         })
-        .select();
+        .select()
+        .single();
 
       if (error) throw error;
       return data;
@@ -119,6 +77,7 @@ export const useAttendance = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error checking in:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to check in child",
@@ -132,11 +91,11 @@ export const useAttendance = () => {
       const { data, error } = await supabase
         .from('attendance')
         .update({
-          checked_out_at: new Date().toISOString(),
-          checked_out_by: (await supabase.auth.getUser()).data.user?.id,
+          checked_out_at: new Date().toISOString()
         })
         .eq('id', attendanceId)
-        .select();
+        .select()
+        .single();
 
       if (error) throw error;
       return data;
@@ -149,6 +108,7 @@ export const useAttendance = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error checking out:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to check out child",
@@ -168,3 +128,5 @@ export const useAttendance = () => {
     isCheckingOut: checkOutMutation.isPending,
   };
 };
+
+export default useAttendance;
