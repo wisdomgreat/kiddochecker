@@ -1,74 +1,38 @@
 
-import { ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/types/supabase';
-import { CircularProgress } from '@/components/ui/circular-progress';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedRoles?: AppRole[];
 }
 
-const ProtectedRoute = ({ children, allowedRoles = [] }: ProtectedRouteProps) => {
-  const { user, userRole, isLoading } = useAuth();
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+  const { user, userRole, loading } = useAuth();
   const location = useLocation();
-  const { toast } = useToast();
-  
-  // Save the current path for redirect after login
-  useEffect(() => {
-    if (!user && !isLoading) {
-      sessionStorage.setItem("returnPath", location.pathname);
-      console.log("Protected route: Saving return path:", location.pathname);
-    }
-  }, [user, isLoading, location.pathname]);
 
-  // Show loading state while checking auth
-  if (isLoading) {
+  // Show loading while auth is being determined
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-8">
-        <CircularProgress size="large" />
-        <p className="mt-4 text-gray-600">Verifying your access...</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
   // Redirect to login if not authenticated
   if (!user) {
-    console.log("Protected route: No authenticated user, redirecting to login");
-    toast({
-      title: "Authentication required",
-      description: "Please log in to access this page",
-      variant: "destructive"
-    });
-    
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Check role-based access if roles are specified
-  if (allowedRoles.length > 0 && userRole && !allowedRoles.includes(userRole)) {
-    console.log('Access denied for path:', location.pathname, 'User role:', userRole, 'Required roles:', allowedRoles);
-    
-    toast({
-      title: "Access denied",
-      description: `You don't have permission to access this page`,
-      variant: "destructive"
-    });
-    
-    // Determine where to redirect based on user's role
-    if (userRole === 'admin' || userRole === 'super_admin') {
-      return <Navigate to='/dashboard' replace />;
-    } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-      return <Navigate to='/dashboard' replace />;
-    } else if (userRole === 'parent') {
-      return <Navigate to='/parent-dashboard' replace />;
-    } else {
-      return <Navigate to='/landing' replace />;
-    }
+  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
+    console.info("Access denied for path:", location.pathname, "User role:", userRole, "Required roles:", allowedRoles);
+    return <Navigate to="/landing" replace />;
   }
 
-  // User is authenticated and has appropriate role
   return <>{children}</>;
 };
 

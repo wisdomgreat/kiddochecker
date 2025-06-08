@@ -21,43 +21,31 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userRole } = useAuth();
-
-  const redirectBasedOnRole = (role: string) => {
-    console.log("LoginForm: Redirecting based on role:", role);
-    if (role === 'admin' || role === 'super_admin') {
-      navigate('/admin-dashboard', { replace: true });
-    } else if (role === 'teacher' || role === 'teacher_assistant' || role === 'staff') {
-      navigate('/teacher-dashboard', { replace: true });
-    } else if (role === 'parent') {
-      navigate('/parent-dashboard', { replace: true });
-    } else {
-      navigate('/landing', { replace: true });
-    }
-  };
+  const { user, userRole, loading: authLoading } = useAuth();
 
   // Only redirect if already logged in and not in loading state
   useEffect(() => {
-    if (user && userRole && !loading) {
+    if (user && userRole && !authLoading && !loading) {
       console.log("LoginForm: User already logged in with role:", userRole);
       
       // Check if we're not already on the correct dashboard
       const currentPath = location.pathname;
+      let shouldRedirect = false;
+      
       if (userRole === 'admin' || userRole === 'super_admin') {
-        if (currentPath !== '/admin-dashboard') {
-          redirectBasedOnRole(userRole);
-        }
+        shouldRedirect = currentPath !== '/dashboard';
       } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-        if (currentPath !== '/teacher-dashboard') {
-          redirectBasedOnRole(userRole);
-        }
+        shouldRedirect = currentPath !== '/dashboard';
       } else if (userRole === 'parent') {
-        if (currentPath !== '/parent-dashboard') {
-          redirectBasedOnRole(userRole);
-        }
+        shouldRedirect = currentPath !== '/parent-dashboard';
+      }
+      
+      if (shouldRedirect) {
+        const redirectPath = userRole === 'parent' ? '/parent-dashboard' : '/dashboard';
+        navigate(redirectPath, { replace: true });
       }
     }
-  }, [user, userRole, loading, location.pathname]);
+  }, [user, userRole, authLoading, loading, location.pathname, navigate]);
 
   const handleContinue = async () => {
     try {
@@ -89,22 +77,8 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
         description: "You have been logged in successfully",
       });
       
-      // Get the return path from session storage
-      const returnPath = sessionStorage.getItem("returnPath");
-      console.log("LoginForm: Return path from session:", returnPath);
+      // The useEffect will handle the redirect
       
-      // Handle redirects after successful login
-      if (data.user) {
-        if (returnPath && returnPath !== "/login" && returnPath !== "/check-in-process") {
-          sessionStorage.removeItem("returnPath");
-          navigate(returnPath, { replace: true });
-        } else {
-          // Wait for auth context to update with role before redirecting
-          setTimeout(() => {
-            window.location.reload(); // Force a refresh to ensure auth state is properly updated
-          }, 100);
-        }
-      }
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
