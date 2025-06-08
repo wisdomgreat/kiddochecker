@@ -37,7 +37,6 @@ export const useStaff = () => {
         return (data || []) as StaffMember[];
       } catch (error: any) {
         console.error("Error in staffQuery:", error);
-        // Return empty array to prevent the page from breaking
         return [] as StaffMember[];
       }
     },
@@ -59,7 +58,7 @@ export const useStaff = () => {
       // Create user account
       const { data: userData, error: signUpError } = await supabase.auth.signUp({
         email: staffData.email,
-        password: 'TempPass123!', // Temporary password
+        password: 'TempPass123!',
         options: {
           data: {
             first_name: staffData.first_name,
@@ -69,13 +68,21 @@ export const useStaff = () => {
         }
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error("Error creating user:", signUpError);
+        throw signUpError;
+      }
 
       if (!userData.user) {
         throw new Error("Failed to create user account");
       }
 
-      // Update user role
+      console.log("User created successfully:", userData.user.id);
+
+      // Wait a moment for the trigger to create the user_role
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Update the role that was created by the trigger
       const validRoles: AppRole[] = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
       const roleToUse: AppRole = validRoles.includes(staffData.role as AppRole) ? staffData.role as AppRole : 'staff';
       
@@ -87,8 +94,12 @@ export const useStaff = () => {
         })
         .eq('user_id', userData.user.id);
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error("Error updating role:", roleError);
+        throw roleError;
+      }
 
+      console.log("Staff member created successfully");
       return userData.user;
     },
     onSuccess: () => {
@@ -126,7 +137,10 @@ export const useStaff = () => {
           })
           .eq('id', userId);
         
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error("Error updating profile:", profileError);
+          throw profileError;
+        }
       }
 
       // Update role if changed
@@ -142,8 +156,13 @@ export const useStaff = () => {
           })
           .eq('user_id', userId);
         
-        if (roleError) throw roleError;
+        if (roleError) {
+          console.error("Error updating role:", roleError);
+          throw roleError;
+        }
       }
+      
+      console.log("Staff member updated successfully");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });

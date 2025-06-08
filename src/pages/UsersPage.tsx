@@ -32,9 +32,11 @@ const UsersPage = () => {
 
     setIsCreating(true);
     try {
+      console.log("Creating user:", newUserForm);
+      
       const { data, error } = await supabase.auth.signUp({
         email: newUserForm.email,
-        password: 'TempPass123!', // Temporary password
+        password: 'TempPass123!',
         options: {
           data: {
             first_name: newUserForm.firstName,
@@ -43,7 +45,12 @@ const UsersPage = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating user:", error);
+        throw error;
+      }
+
+      console.log("User created successfully:", data);
 
       toast({
         title: "Success",

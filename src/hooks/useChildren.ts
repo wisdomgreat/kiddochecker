@@ -2,7 +2,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useDatabaseFunctions } from "@/hooks/useDatabaseFunctions";
 
 export interface Child {
   id: string;
@@ -22,13 +21,13 @@ export interface Child {
 export const useChildren = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { executeFunction } = useDatabaseFunctions();
 
   const { data: children = [], isLoading, error, refetch } = useQuery({
     queryKey: ["children"],
     queryFn: async (): Promise<Child[]> => {
       try {
-        // Use a direct query but avoid joins that might cause recursion
+        console.log("Fetching children...");
+        
         const { data, error } = await supabase
           .from('children')
           .select('*')
@@ -39,6 +38,7 @@ export const useChildren = () => {
           throw error;
         }
 
+        console.log("Children data received:", data);
         return data || [];
       } catch (error: any) {
         console.error("Error in useChildren:", error);
@@ -49,16 +49,26 @@ export const useChildren = () => {
 
   const addChildMutation = useMutation({
     mutationFn: async (childData: Omit<Child, 'id' | 'created_at' | 'updated_at'>) => {
+      console.log("Adding child:", childData);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+
       const { data, error } = await supabase
         .from('children')
         .insert({
           ...childData,
-          parent_id: (await supabase.auth.getUser()).data.user?.id || childData.parent_id
+          parent_id: user.id
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error adding child:", error);
+        throw error;
+      }
+      
+      console.log("Child added successfully:", data);
       return data;
     },
     onSuccess: () => {
@@ -69,6 +79,7 @@ export const useChildren = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error in addChildMutation:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to add child",
@@ -79,6 +90,8 @@ export const useChildren = () => {
 
   const updateChildMutation = useMutation({
     mutationFn: async (childData: Partial<Child> & { id: string }) => {
+      console.log("Updating child:", childData);
+      
       const { data, error } = await supabase
         .from('children')
         .update(childData)
@@ -86,7 +99,12 @@ export const useChildren = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating child:", error);
+        throw error;
+      }
+      
+      console.log("Child updated successfully:", data);
       return data;
     },
     onSuccess: () => {
@@ -97,6 +115,7 @@ export const useChildren = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error in updateChildMutation:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update child",
@@ -107,12 +126,19 @@ export const useChildren = () => {
 
   const deleteChildMutation = useMutation({
     mutationFn: async (childId: string) => {
+      console.log("Deleting child:", childId);
+      
       const { error } = await supabase
         .from('children')
         .delete()
         .eq('id', childId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting child:", error);
+        throw error;
+      }
+      
+      console.log("Child deleted successfully");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["children"] });
@@ -122,6 +148,7 @@ export const useChildren = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error in deleteChildMutation:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete child",
@@ -144,18 +171,23 @@ export const useChildren = () => {
 };
 
 export const useParentChildren = () => {
-  const { executeFunction } = useDatabaseFunctions();
-
   const { data: childrenWithClasses, isLoading } = useQuery({
     queryKey: ["parent-children-with-classes"],
     queryFn: async () => {
       try {
-        const userId = (await supabase.auth.getUser()).data.user?.id;
-        if (!userId) return [];
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
         
-        return await executeFunction<any[]>('get_parent_children_with_classes', {
-          parent_user_id: userId
-        }) || [];
+        const { data, error } = await supabase.rpc('get_parent_children_with_classes', {
+          parent_user_id: user.id
+        });
+        
+        if (error) {
+          console.error("Error fetching parent children:", error);
+          return [];
+        }
+        
+        return data || [];
       } catch (error: any) {
         console.error("Error in useParentChildren:", error);
         return [];

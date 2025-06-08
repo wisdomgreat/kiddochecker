@@ -10,7 +10,6 @@ const useUserRoles = () => {
       try {
         console.log("Fetching users with roles...");
         
-        // Use the new RPC function that bypasses RLS issues
         const { data, error } = await supabase.rpc('get_users_with_roles');
 
         if (error) {
@@ -25,7 +24,6 @@ const useUserRoles = () => {
           return [];
         }
 
-        // Format the data to match UserProfile interface
         const formattedUsers = data.map((user: any) => formatUserData({
           id: user.id,
           email: user.email,
@@ -34,9 +32,9 @@ const useUserRoles = () => {
           role: user.role,
           is_super_admin: user.is_super_admin,
           is_active: user.is_active,
-          created_at: new Date().toISOString(), // Default value
-          phone: '', // Default value
-          children: 0 // Default value
+          created_at: new Date().toISOString(),
+          phone: '',
+          children: 0
         }));
 
         console.log("Formatted users:", formattedUsers);
