@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { RefreshCcw, UserPlus } from 'lucide-react';
+import { assignUserRole } from '@/utils/roleUtils';
 
 interface UserCreationFormProps {
   onUserCreated: () => void;
@@ -36,6 +37,8 @@ export const UserCreationForm = ({ onUserCreated }: UserCreationFormProps) => {
     try {
       console.log("Creating user:", newUserForm);
       
+      // Create user with admin.createUser (this will trigger the handle_new_user function)
+      // Since we're not setting is_org_creator=true, it will get the default parent role
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newUserForm.email,
         password: 'TempPass123!',
@@ -44,6 +47,7 @@ export const UserCreationForm = ({ onUserCreated }: UserCreationFormProps) => {
           first_name: newUserForm.firstName,
           last_name: newUserForm.lastName,
           phone: newUserForm.phone
+          // Note: not setting is_org_creator, so default parent role will be assigned
         }
       });
 
@@ -53,28 +57,21 @@ export const UserCreationForm = ({ onUserCreated }: UserCreationFormProps) => {
       }
 
       if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            first_name: newUserForm.firstName,
-            last_name: newUserForm.lastName,
-            phone: newUserForm.phone
-          });
-
-        if (profileError) {
-          console.error("Error creating profile:", profileError);
-        }
-
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
-            role: newUserForm.role
-          });
-
-        if (roleError) {
-          console.error("Error creating role:", roleError);
+        // Profile creation is handled by the database trigger
+        
+        // If the selected role is different from 'parent', update it
+        if (newUserForm.role !== 'parent') {
+          console.log(`Updating user role from 'parent' to '${newUserForm.role}'`);
+          const roleResult = await assignUserRole(authData.user.id, newUserForm.role);
+          
+          if (!roleResult.success) {
+            console.error("Error updating user role:", roleResult.error);
+            toast({
+              title: "Warning",
+              description: "User created but role assignment failed. Please update the role manually.",
+              variant: "destructive",
+            });
+          }
         }
       }
 

@@ -688,6 +688,10 @@ export type Database = {
       }
     }
     Functions: {
+      assign_organization_creator_role: {
+        Args: { p_user_id: string; p_org_id: string }
+        Returns: boolean
+      }
       check_sql_query_safety: {
         Args: { query: string }
         Returns: boolean

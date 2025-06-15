@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { assignUserRole } from "@/utils/roleUtils";
 
 interface OrganizationFormValues {
   organizationName: string;
@@ -24,7 +23,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
     try {
       console.log("Creating organization with values:", values);
 
-      // First, sign up the admin user using regular signup
+      // First, sign up the admin user with organization creator flag
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.adminEmail,
         password: values.adminPassword,
@@ -34,6 +33,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
             first_name: values.adminFirstName,
             last_name: values.adminLastName,
             phone: values.adminPhone || '',
+            is_org_creator: true, // This prevents auto-assignment of parent role
           }
         }
       });
@@ -64,37 +64,25 @@ export const useOrganizationCreation = (onComplete: () => void) => {
 
       console.log("Organization created:", orgData);
 
-      // Create profile for admin user (this should already be done by trigger, but ensure it exists)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: authData.user.id,
-          first_name: values.adminFirstName,
-          last_name: values.adminLastName,
-          phone: values.adminPhone || '',
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        // Don't throw here, profile creation is not critical for org setup
-      }
-
       // Wait a moment to ensure user is fully created
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Now assign super admin role using the utility function
-      console.log("Assigning super_admin role to user:", authData.user.id);
-      const roleResult = await assignUserRole(authData.user.id, 'super_admin', true);
+      // Now assign super admin role using the new database function
+      console.log("Assigning super_admin role to organization creator:", authData.user.id);
+      const { data: roleResult, error: roleError } = await supabase.rpc('assign_organization_creator_role', {
+        p_user_id: authData.user.id,
+        p_org_id: orgData,
+      });
 
-      if (!roleResult.success) {
-        console.error('Failed to assign super admin role:', roleResult.error);
+      if (roleError || !roleResult) {
+        console.error('Failed to assign organization creator role:', roleError);
         toast({
           title: "Warning",
           description: "Organization created but admin role assignment failed. Please assign super admin role manually.",
           variant: "destructive",
         });
       } else {
-        console.log('Super admin role assigned successfully');
+        console.log('Organization creator role assigned successfully');
       }
 
       toast({
