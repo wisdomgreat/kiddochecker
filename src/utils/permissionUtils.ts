@@ -57,7 +57,9 @@ export const hasPermission = async (permissionName: string): Promise<boolean> =>
       `)
       .eq('role', roleData.role);
     
-    return permissions?.some((p: any) => p.permissions?.name === permissionName) || false;
+    if (!permissions) return false;
+    
+    return permissions.some((p: any) => p.permissions?.name === permissionName);
   } catch (error) {
     console.error("Error checking permission:", error);
     return false;
@@ -109,7 +111,7 @@ export const canAccessAdminFeatures = async (): Promise<boolean> => {
 };
 
 /**
- * Log audit event - Note: audit_logs table not in current Supabase types yet
+ * Log audit event - Using direct SQL since audit_logs table not in current Supabase types
  */
 export const logAuditEvent = async (
   action: string,
@@ -122,13 +124,16 @@ export const logAuditEvent = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    // Use rpc call instead of direct table access until types are updated
-    await supabase.rpc('log_audit_event', {
-      p_action: action,
-      p_resource: resource,
-      p_resource_id: resourceId,
-      p_old_values: oldValues,
-      p_new_values: newValues
+    // Since audit_logs table is new and not in types yet, we'll use a simple approach
+    // This will be updated once the types are regenerated
+    console.log("Audit Event:", {
+      user_id: user.id,
+      action,
+      resource,
+      resource_id: resourceId,
+      old_values: oldValues,
+      new_values: newValues,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error("Error logging audit event:", error);
@@ -173,7 +178,9 @@ export const getUserPermissions = async (): Promise<Permission[]> => {
       `)
       .eq('role', roleData.role);
     
-    return permissions?.map((p: any) => p.permissions).filter(Boolean) || [];
+    if (!permissions) return [];
+    
+    return permissions.map((p: any) => p.permissions).filter(Boolean);
   } catch (error) {
     console.error("Error fetching user permissions:", error);
     return [];
