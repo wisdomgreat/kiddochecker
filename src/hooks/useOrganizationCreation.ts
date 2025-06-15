@@ -78,21 +78,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         // Don't throw here, profile creation is not critical for org setup
       }
 
-      // Clear any existing roles first (including auto-assigned parent role)
-      const { error: deleteRoleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', authData.user.id);
-
-      if (deleteRoleError) {
-        console.error('Error deleting existing roles:', deleteRoleError);
-        // Continue anyway, we'll try to insert the super_admin role
-      }
-
-      // Small delay to ensure deletion is processed
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Create super admin role - this should work now with the fixed RLS policies
+      // Create super admin role directly - the new RLS policies should handle this correctly
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
