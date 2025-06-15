@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import Sidebar from "./Sidebar";
+import EnhancedSidebar from "./EnhancedSidebar";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -60,12 +60,12 @@ const MainLayout = ({ children }: MainLayoutProps) => {
         />
       )}
       
-      {/* Sidebar - make sure it's always visible on desktop */}
+      {/* Enhanced Sidebar */}
       <div className={`
         fixed md:static inset-y-0 left-0 z-20 transform transition-transform duration-200 ease-in-out
         ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
-        <Sidebar />
+        <EnhancedSidebar />
       </div>
       
       {/* Main content area */}

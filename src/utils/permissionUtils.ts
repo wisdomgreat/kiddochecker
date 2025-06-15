@@ -3,91 +3,260 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppRole } from "@/types/supabase";
 
 /**
- * Check if a user has a specific permission
- * @param resource - The resource being accessed
- * @param action - The action being performed
- * @returns Promise<boolean> - Whether the user has permission
+ * Enhanced permission system with granular controls
  */
-export const hasPermission = async (resource: string, action: string): Promise<boolean> => {
+
+export interface Permission {
+  id: string;
+  name: string;
+  resource: string;
+  action: string;
+  description?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  user_id: string;
+  action: string;
+  resource: string;
+  resource_id?: string;
+  old_values?: any;
+  new_values?: any;
+  timestamp: string;
+}
+
+/**
+ * Check if current user has a specific permission
+ */
+export const hasPermission = async (permissionName: string): Promise<boolean> => {
   try {
-    // First check if the user is logged in
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     
-    // Check if the user is an admin (admins have all permissions)
+    // Get user role
     const { data: roleData } = await supabase
       .from('user_roles')
-      .select('is_super_admin, role')
+      .select('role, is_super_admin')
       .eq('user_id', user.id)
       .maybeSingle();
     
-    if (roleData?.is_super_admin || roleData?.role === 'super_admin' || roleData?.role === 'admin') {
+    if (!roleData) return false;
+    
+    // Super admins have all permissions
+    if (roleData.role === 'super_admin' || roleData.is_super_admin) {
       return true;
     }
     
-    // Check for specific permission through the permissions table
-    const { data, error } = await supabase
+    // Check role-specific permissions
+    const { data: permissions } = await supabase
       .from('role_permissions')
       .select(`
         permissions:permission_id (
-          resource,
-          action
+          name
         )
       `)
-      .eq('permissions.resource', resource)
-      .eq('permissions.action', action);
+      .eq('role', roleData.role);
     
-    if (error) {
-      console.error("Error checking permission:", error);
-      return false;
-    }
-    
-    return data && data.length > 0;
+    return permissions?.some(p => p.permissions?.name === permissionName) || false;
   } catch (error) {
-    console.error("Error in hasPermission:", error);
+    console.error("Error checking permission:", error);
     return false;
   }
 };
 
 /**
- * Get user role and determine if they have admin access
+ * Check if user can access parent features
  */
-export const getUserRoleInfo = async (): Promise<{
-  role: AppRole | null;
-  isAdmin: boolean;
-}> => {
+export const canAccessParentFeatures = async (): Promise<boolean> => {
   try {
-    // Get the current user
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { role: null, isAdmin: false };
-    }
+    if (!user) return false;
     
-    // Get the user's role
-    const { data } = await supabase
+    const { data: roleData } = await supabase
       .from('user_roles')
-      .select('role, is_super_admin')
+      .select('role')
       .eq('user_id', user.id)
       .maybeSingle();
-      
-    if (!data) {
-      return { role: null, isAdmin: false };
-    }
     
-    return {
-      role: data.role,
-      isAdmin: data.role === 'admin' || data.role === 'super_admin' || !!data.is_super_admin
-    };
+    return roleData?.role === 'parent';
   } catch (error) {
-    console.error("Error getting user role info:", error);
-    return { role: null, isAdmin: false };
+    console.error("Error checking parent access:", error);
+    return false;
   }
 };
 
 /**
- * Helper function to check if a user has admin access
+ * Check if user can access admin features
  */
-export const isAdmin = async (): Promise<boolean> => {
-  const { isAdmin } = await getUserRoleInfo();
-  return isAdmin;
+export const canAccessAdminFeatures = async (): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role, is_super_admin')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (!roleData) return false;
+    
+    return ['admin', 'super_admin'].includes(roleData.role) || roleData.is_super_admin;
+  } catch (error) {
+    console.error("Error checking admin access:", error);
+    return false;
+  }
+};
+
+/**
+ * Log audit event
+ */
+export const logAuditEvent = async (
+  action: string,
+  resource: string,
+  resourceId?: string,
+  oldValues?: any,
+  newValues?: any
+): Promise<void> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    await supabase.from('audit_logs').insert({
+      user_id: user.id,
+      action,
+      resource,
+      resource_id: resourceId,
+      old_values: oldValues,
+      new_values: newValues
+    });
+  } catch (error) {
+    console.error("Error logging audit event:", error);
+  }
+};
+
+/**
+ * Get user's permissions
+ */
+export const getUserPermissions = async (): Promise<Permission[]> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role, is_super_admin')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (!roleData) return [];
+    
+    // Super admins get all permissions
+    if (roleData.role === 'super_admin' || roleData.is_super_admin) {
+      const { data: allPermissions } = await supabase
+        .from('permissions')
+        .select('*');
+      return allPermissions || [];
+    }
+    
+    // Get role-specific permissions
+    const { data: permissions } = await supabase
+      .from('role_permissions')
+      .select(`
+        permissions:permission_id (
+          id,
+          name,
+          resource,
+          action,
+          description
+        )
+      `)
+      .eq('role', roleData.role);
+    
+    return permissions?.map(p => p.permissions).filter(Boolean) || [];
+  } catch (error) {
+    console.error("Error fetching user permissions:", error);
+    return [];
+  }
+};
+
+/**
+ * Role-based permission checks
+ */
+export const PERMISSIONS = {
+  // User management
+  VIEW_USERS: 'view_users',
+  CREATE_USERS: 'create_users',
+  EDIT_USERS: 'edit_users',
+  DELETE_USERS: 'delete_users',
+  MANAGE_ROLES: 'manage_roles',
+  
+  // Children management
+  VIEW_CHILDREN: 'view_children',
+  CREATE_CHILDREN: 'create_children',
+  EDIT_CHILDREN: 'edit_children',
+  DELETE_CHILDREN: 'delete_children',
+  
+  // Class management
+  VIEW_CLASSES: 'view_classes',
+  CREATE_CLASSES: 'create_classes',
+  EDIT_CLASSES: 'edit_classes',
+  DELETE_CLASSES: 'delete_classes',
+  MANAGE_CLASS_ASSIGNMENTS: 'manage_class_assignments',
+  
+  // Reports
+  VIEW_REPORTS: 'view_reports',
+  CREATE_REPORTS: 'create_reports',
+  EXPORT_REPORTS: 'export_reports',
+  
+  // Organization
+  MANAGE_ORGANIZATION: 'manage_organization',
+  VIEW_AUDIT_LOGS: 'view_audit_logs',
+  MANAGE_PERMISSIONS: 'manage_permissions',
+  
+  // Attendance
+  CHECKIN_CHILDREN: 'checkin_children',
+  CHECKOUT_CHILDREN: 'checkout_children',
+  VIEW_ATTENDANCE: 'view_attendance',
+  
+  // Communication
+  SEND_MESSAGES: 'send_messages',
+  VIEW_MESSAGES: 'view_messages',
+  MANAGE_EVENTS: 'manage_events'
+} as const;
+
+/**
+ * Role hierarchy for access control
+ */
+export const ROLE_HIERARCHY: Record<AppRole, number> = {
+  'super_admin': 6,
+  'admin': 5,
+  'staff': 4,
+  'teacher': 3,
+  'teacher_assistant': 2,
+  'parent': 1
+};
+
+/**
+ * Check if user role has sufficient privilege level
+ */
+export const hasRoleLevel = async (requiredLevel: number): Promise<boolean> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role, is_super_admin')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (!roleData) return false;
+    
+    const userLevel = ROLE_HIERARCHY[roleData.role] || 0;
+    return userLevel >= requiredLevel;
+  } catch (error) {
+    console.error("Error checking role level:", error);
+    return false;
+  }
 };

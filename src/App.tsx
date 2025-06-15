@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
-import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import EnhancedProtectedRoute from "@/components/layout/EnhancedProtectedRoute";
 
 // Import all pages
 import LandingPage from "@/pages/LandingPage";
@@ -30,6 +30,7 @@ import StaffPage from "@/pages/StaffPage";
 import ReportsPage from "@/pages/ReportsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import AttendanceRewardsPage from "@/pages/AttendanceRewardsPage";
+import AccessDeniedPage from "@/pages/AccessDeniedPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,102 +53,111 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
           <Route path="/parent-registration" element={<ParentRegistration />} />
           <Route path="/about-us" element={<AboutUsPage />} />
+          <Route path="/access-denied" element={<AccessDeniedPage />} />
           
-          {/* Protected routes */}
+          {/* Protected routes with enhanced security */}
           <Route path="/" element={
-            <ProtectedRoute>
+            <EnhancedProtectedRoute>
               <Index />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
+          
+          {/* Admin-only routes */}
           <Route path="/dashboard" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
+            <EnhancedProtectedRoute requireAdminAccess>
               <Dashboard />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
           <Route path="/admin-dashboard" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <Dashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/teacher-dashboard" element={
-            <ProtectedRoute allowedRoles={['teacher', 'teacher_assistant', 'staff']}>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/parent-dashboard" element={
-            <ProtectedRoute allowedRoles={['parent']}>
-              <Dashboard />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
           <Route path="/users" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <UsersPage />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
           <Route path="/staff" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <StaffPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/children" element={
-            <ProtectedRoute>
-              <ChildrenPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/classes" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
-              <ClassesPage />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
           <Route path="/classes-management" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <ClassesManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/check-in-out" element={
-            <ProtectedRoute>
-              <CheckInOutManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/family-connect" element={
-            <ProtectedRoute>
-              <FamilyConnectPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/calendar" element={
-            <ProtectedRoute>
-              <CalendarPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/reports" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher']}>
-              <ReportsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/settings" element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
           <Route path="/device-management" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <DeviceManagement />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
           <Route path="/organization-setup" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <OrganizationSetup />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
           } />
           <Route path="/roles" element={
-            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <RolesPage />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
+          } />
+          
+          {/* Staff/Teacher routes */}
+          <Route path="/teacher-dashboard" element={
+            <EnhancedProtectedRoute allowedRoles={['teacher', 'teacher_assistant', 'staff']}>
+              <Dashboard />
+            </EnhancedProtectedRoute>
+          } />
+          <Route path="/classes" element={
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff']}>
+              <ClassesPage />
+            </EnhancedProtectedRoute>
+          } />
+          
+          {/* Parent-only routes */}
+          <Route path="/parent-dashboard" element={
+            <EnhancedProtectedRoute requireParentAccess>
+              <Dashboard />
+            </EnhancedProtectedRoute>
           } />
           <Route path="/attendance-rewards" element={
-            <ProtectedRoute allowedRoles={['parent']}>
+            <EnhancedProtectedRoute requireParentAccess>
               <AttendanceRewardsPage />
-            </ProtectedRoute>
+            </EnhancedProtectedRoute>
+          } />
+          
+          {/* Mixed access routes - context-dependent */}
+          <Route path="/children" element={
+            <EnhancedProtectedRoute>
+              <ChildrenPage />
+            </EnhancedProtectedRoute>
+          } />
+          <Route path="/check-in-out" element={
+            <EnhancedProtectedRoute>
+              <CheckInOutManagement />
+            </EnhancedProtectedRoute>
+          } />
+          <Route path="/family-connect" element={
+            <EnhancedProtectedRoute>
+              <FamilyConnectPage />
+            </EnhancedProtectedRoute>
+          } />
+          <Route path="/calendar" element={
+            <EnhancedProtectedRoute>
+              <CalendarPage />
+            </EnhancedProtectedRoute>
+          } />
+          <Route path="/reports" element={
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher']}>
+              <ReportsPage />
+            </EnhancedProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <EnhancedProtectedRoute>
+              <SettingsPage />
+            </EnhancedProtectedRoute>
           } />
         </Routes>
       </TooltipProvider>
