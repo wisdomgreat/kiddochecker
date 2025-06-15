@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { AppRole } from "@/types/supabase";
 
@@ -47,16 +46,19 @@ export const hasPermission = async (permissionName: string): Promise<boolean> =>
       return true;
     }
     
-    // Check role-specific permissions with simpler query structure
+    // Convert role to string to avoid type inference issues
+    const roleString = String(roleData.role);
+    
+    // Check role-specific permissions with explicit typing
     const { data: permissions, error: permError } = await supabase
       .from('role_permissions')
       .select('permission_id')
-      .eq('role', roleData.role);
+      .eq('role', roleString);
     
     if (permError || !permissions) return false;
     
     // Get permission details separately to avoid deep nesting
-    const permissionIds = permissions.map(p => p.permission_id);
+    const permissionIds = permissions.map((p: any) => p.permission_id);
     if (permissionIds.length === 0) return false;
     
     const { data: permissionDetails } = await supabase
@@ -66,7 +68,7 @@ export const hasPermission = async (permissionName: string): Promise<boolean> =>
     
     if (!permissionDetails) return false;
     
-    return permissionDetails.some(p => p.name === permissionName);
+    return permissionDetails.some((p: any) => p.name === permissionName);
   } catch (error) {
     console.error("Error checking permission:", error);
     return false;
@@ -118,7 +120,7 @@ export const canAccessAdminFeatures = async (): Promise<boolean> => {
 };
 
 /**
- * Log audit event - Using direct SQL since audit_logs table not in current Supabase types
+ * Log audit event - Using console log for now since audit_logs table not in current Supabase types
  */
 export const logAuditEvent = async (
   action: string,
@@ -131,8 +133,7 @@ export const logAuditEvent = async (
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     
-    // Since audit_logs table is new and not in types yet, we'll use a simple approach
-    // This will be updated once the types are regenerated
+    // Log to console for now - will be updated once audit_logs table is available
     console.log("Audit Event:", {
       user_id: user.id,
       action,
@@ -171,15 +172,18 @@ export const getUserPermissions = async (): Promise<Permission[]> => {
       return allPermissions || [];
     }
     
+    // Convert role to string to avoid type inference issues
+    const roleString = String(roleData.role);
+    
     // Get role-specific permissions with simpler approach
     const { data: rolePermissions } = await supabase
       .from('role_permissions')
       .select('permission_id')
-      .eq('role', roleData.role);
+      .eq('role', roleString);
     
     if (!rolePermissions) return [];
     
-    const permissionIds = rolePermissions.map(rp => rp.permission_id);
+    const permissionIds = rolePermissions.map((rp: any) => rp.permission_id);
     if (permissionIds.length === 0) return [];
     
     const { data: permissions } = await supabase
