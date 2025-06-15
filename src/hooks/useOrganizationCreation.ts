@@ -66,7 +66,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
       // Create profile for admin user
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: authData.user.id,
           first_name: values.adminFirstName,
           last_name: values.adminLastName,
@@ -78,17 +78,19 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         // Don't throw here, profile creation is not critical for org setup
       }
 
-      // First, delete any auto-assigned 'parent' role (from handle_new_user trigger)
+      // COMPLETELY REPLACE the role - delete any existing roles first, then insert super_admin
       const { error: deleteRoleError } = await supabase
         .from('user_roles')
         .delete()
-        .eq('user_id', authData.user.id)
-        .eq('role', 'parent');
+        .eq('user_id', authData.user.id);
 
       if (deleteRoleError) {
-        console.error('Error deleting auto-assigned parent role:', deleteRoleError);
-        // Continue anyway, as we'll insert the super_admin role
+        console.error('Error deleting existing roles:', deleteRoleError);
+        // Continue anyway, we'll try to insert the super_admin role
       }
+
+      // Wait a moment to ensure deletion is complete
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Create super admin role (not just admin)
       const { error: roleError } = await supabase
@@ -101,8 +103,10 @@ export const useOrganizationCreation = (onComplete: () => void) => {
 
       if (roleError) {
         console.error('Error creating super admin role:', roleError);
-        // Don't throw here, role can be assigned later
+        throw new Error('Failed to assign super admin role: ' + roleError.message);
       }
+
+      console.log('Super admin role assigned successfully');
 
       toast({
         title: "Organization Created Successfully",
