@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { AppRole } from "@/types/supabase";
 
@@ -46,29 +47,43 @@ export const hasPermission = async (permissionName: string): Promise<boolean> =>
       return true;
     }
     
-    // Convert role to string to avoid type inference issues
-    const roleString = String(roleData.role);
+    // Use a direct approach to avoid type inference issues
+    const userRole = roleData.role as string;
     
-    // Check role-specific permissions with explicit typing
-    const { data: permissions, error: permError } = await supabase
+    // Get permission IDs for this role
+    const { data: rolePerms } = await supabase
       .from('role_permissions')
       .select('permission_id')
-      .eq('role', roleString);
+      .eq('role', userRole);
     
-    if (permError || !permissions) return false;
+    if (!rolePerms || rolePerms.length === 0) return false;
     
-    // Get permission details separately to avoid deep nesting
-    const permissionIds = permissions.map((p: any) => p.permission_id);
-    if (permissionIds.length === 0) return false;
+    // Extract permission IDs with explicit typing
+    const permIds: string[] = [];
+    for (const perm of rolePerms) {
+      if (perm.permission_id) {
+        permIds.push(perm.permission_id);
+      }
+    }
     
-    const { data: permissionDetails } = await supabase
+    if (permIds.length === 0) return false;
+    
+    // Check if any of these permissions match what we're looking for
+    const { data: perms } = await supabase
       .from('permissions')
       .select('name')
-      .in('id', permissionIds);
+      .in('id', permIds);
     
-    if (!permissionDetails) return false;
+    if (!perms) return false;
     
-    return permissionDetails.some((p: any) => p.name === permissionName);
+    // Check if permission exists
+    for (const perm of perms) {
+      if (perm.name === permissionName) {
+        return true;
+      }
+    }
+    
+    return false;
   } catch (error) {
     console.error("Error checking permission:", error);
     return false;
@@ -76,7 +91,7 @@ export const hasPermission = async (permissionName: string): Promise<boolean> =>
 };
 
 /**
- * Check if user can access parent features
+ * Check if user can access parent features - STRICT: Admin users cannot access parent features
  */
 export const canAccessParentFeatures = async (): Promise<boolean> => {
   try {
@@ -85,11 +100,19 @@ export const canAccessParentFeatures = async (): Promise<boolean> => {
     
     const { data: roleData } = await supabase
       .from('user_roles')
-      .select('role')
+      .select('role, is_super_admin')
       .eq('user_id', user.id)
       .maybeSingle();
     
-    return roleData?.role === 'parent';
+    if (!roleData) return false;
+    
+    // STRICT RULE: Admin and super_admin users cannot access parent features
+    if (roleData.role === 'admin' || roleData.role === 'super_admin' || roleData.is_super_admin) {
+      return false;
+    }
+    
+    // Only parent role can access parent features
+    return roleData.role === 'parent';
   } catch (error) {
     console.error("Error checking parent access:", error);
     return false;
@@ -112,7 +135,7 @@ export const canAccessAdminFeatures = async (): Promise<boolean> => {
     
     if (!roleData) return false;
     
-    return ['admin', 'super_admin'].includes(roleData.role) || roleData.is_super_admin;
+    return ['admin', 'super_admin'].includes(roleData.role as string) || roleData.is_super_admin;
   } catch (error) {
     console.error("Error checking admin access:", error);
     return false;
@@ -149,7 +172,7 @@ export const logAuditEvent = async (
 };
 
 /**
- * Get user's permissions
+ * Get user's permissions with simplified approach
  */
 export const getUserPermissions = async (): Promise<Permission[]> => {
   try {
@@ -172,24 +195,30 @@ export const getUserPermissions = async (): Promise<Permission[]> => {
       return allPermissions || [];
     }
     
-    // Convert role to string to avoid type inference issues
-    const roleString = String(roleData.role);
+    // Get role permissions with explicit typing
+    const userRole = roleData.role as string;
     
-    // Get role-specific permissions with simpler approach
-    const { data: rolePermissions } = await supabase
+    const { data: rolePerms } = await supabase
       .from('role_permissions')
       .select('permission_id')
-      .eq('role', roleString);
+      .eq('role', userRole);
     
-    if (!rolePermissions) return [];
+    if (!rolePerms || rolePerms.length === 0) return [];
     
-    const permissionIds = rolePermissions.map((rp: any) => rp.permission_id);
-    if (permissionIds.length === 0) return [];
+    // Extract permission IDs safely
+    const permIds: string[] = [];
+    for (const perm of rolePerms) {
+      if (perm.permission_id) {
+        permIds.push(perm.permission_id);
+      }
+    }
+    
+    if (permIds.length === 0) return [];
     
     const { data: permissions } = await supabase
       .from('permissions')
       .select('*')
-      .in('id', permissionIds);
+      .in('id', permIds);
     
     return permissions || [];
   } catch (error) {

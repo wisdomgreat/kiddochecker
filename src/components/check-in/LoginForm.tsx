@@ -23,26 +23,28 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const location = useLocation();
   const { user, userRole, loading: authLoading } = useAuth();
 
-  // Only redirect if already logged in and not in loading state
+  // Enhanced role-based navigation that respects admin restrictions
   useEffect(() => {
     if (user && userRole && !authLoading && !loading) {
       console.log("LoginForm: User already logged in with role:", userRole);
       
       // Check if we're not already on the correct dashboard
       const currentPath = location.pathname;
-      let shouldRedirect = false;
+      let targetPath = '/';
       
+      // Strict role-based dashboard routing
       if (userRole === 'admin' || userRole === 'super_admin') {
-        shouldRedirect = currentPath !== '/dashboard';
+        targetPath = '/dashboard'; // Admin users go to main dashboard (admin features)
       } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-        shouldRedirect = currentPath !== '/dashboard';
+        targetPath = '/dashboard'; // Staff users go to main dashboard
       } else if (userRole === 'parent') {
-        shouldRedirect = currentPath !== '/parent-dashboard';
+        targetPath = '/parent-dashboard'; // Parents get their own dashboard
       }
       
-      if (shouldRedirect) {
-        const redirectPath = userRole === 'parent' ? '/parent-dashboard' : '/dashboard';
-        navigate(redirectPath, { replace: true });
+      // Only redirect if not already on the correct path
+      if (currentPath !== targetPath && currentPath !== '/login') {
+        console.log("LoginForm: Redirecting to:", targetPath);
+        navigate(targetPath, { replace: true });
       }
     }
   }, [user, userRole, authLoading, loading, location.pathname, navigate]);
@@ -77,7 +79,7 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
         description: "You have been logged in successfully",
       });
       
-      // The useEffect will handle the redirect
+      // The useEffect will handle the role-based redirect
       
     } catch (error: any) {
       console.error("Login error:", error);
