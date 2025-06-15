@@ -32,6 +32,16 @@ import {
 } from "lucide-react";
 import { PERMISSIONS } from "@/utils/permissionUtils";
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<any>;
+  roles?: string[];
+  permission?: string;
+  adminOnly?: boolean;
+  parentOnly?: boolean;
+}
+
 const EnhancedSidebar = () => {
   const location = useLocation();
   const { signOut, userRole } = useAuth();
@@ -39,12 +49,12 @@ const EnhancedSidebar = () => {
   const { canAccessParent, canAccessAdmin } = useRoleAccess();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const getNavigationItems = () => {
-    const baseItems = [
+  const getNavigationItems = (): NavigationItem[] => {
+    const baseItems: NavigationItem[] = [
       { name: "Dashboard", href: "/", icon: Home, roles: ['all'] },
     ];
 
-    const adminItems = [
+    const adminItems: NavigationItem[] = [
       { 
         name: "User Management", 
         href: "/users", 
@@ -103,7 +113,7 @@ const EnhancedSidebar = () => {
       },
     ];
 
-    const staffItems = [
+    const staffItems: NavigationItem[] = [
       { 
         name: "Classes", 
         href: "/classes", 
@@ -112,7 +122,7 @@ const EnhancedSidebar = () => {
       },
     ];
 
-    const commonItems = [
+    const commonItems: NavigationItem[] = [
       { 
         name: "Check-In/Out", 
         href: "/check-in-out", 
@@ -145,7 +155,7 @@ const EnhancedSidebar = () => {
       },
     ];
 
-    const parentItems = [
+    const parentItems: NavigationItem[] = [
       { 
         name: "My Children", 
         href: "/children", 
@@ -160,7 +170,7 @@ const EnhancedSidebar = () => {
       },
     ];
 
-    let items = [...baseItems];
+    let items: NavigationItem[] = [...baseItems];
 
     // Add admin items only if user has admin access
     if (canAccessAdmin) {
