@@ -1,43 +1,32 @@
 
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { z } from "zod";
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle, 
-  CardFooter 
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { ArrowLeft, LogIn, UserPlus, Loader2 } from "lucide-react";
+import { Loader2, Building, ArrowLeft } from "lucide-react";
+import { OrganizationWizard } from "@/components/organization/OrganizationWizard";
 
-// Create a schema for login validation
 const loginSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
-  const { user, userRole, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [redirectHandled, setRedirectHandled] = useState(false);
-  const isStaffLogin = location.state?.staffLogin || false;
-  
-  // Initialize form with react-hook-form
+  const [showOrgSetup, setShowOrgSetup] = useState(false);
+
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -45,52 +34,25 @@ const LoginPage = () => {
       password: "",
     },
   });
-  
-  // Handle redirects for authenticated users
-  useEffect(() => {
-    if (user && userRole && !authLoading && !isLoading && !redirectHandled) {
-      console.log("LoginPage: Already authenticated, redirecting based on role:", userRole);
-      setRedirectHandled(true);
-      
-      // Determine redirect path based on role
-      let redirectPath = '/landing';
-      if (userRole === 'admin' || userRole === 'super_admin') {
-        redirectPath = '/admin-dashboard';
-      } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-        redirectPath = '/teacher-dashboard';
-      } else if (userRole === 'parent') {
-        redirectPath = '/parent-dashboard';
-      }
-      
-      navigate(redirectPath, { replace: true });
-    }
-  }, [user, userRole, authLoading, isLoading, redirectHandled, navigate]);
-  
+
   const onSubmit = async (values: LoginValues) => {
-    if (isLoading || authLoading) return;
-    
     try {
       setIsLoading(true);
       
-      console.log("LoginPage: Attempting login with:", values.email);
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
-      
+
       if (error) throw error;
-      
-      console.log("LoginPage: Login successful for user:", data.user?.id);
-      
+
       toast({
         title: "Login successful",
-        description: "You are now logged in",
+        description: "Welcome back!",
       });
 
-      // Don't manually redirect - let the auth state change handle it
-      
+      navigate("/dashboard");
     } catch (error: any) {
-      console.error("Login error:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -100,52 +62,55 @@ const LoginPage = () => {
       setIsLoading(false);
     }
   };
-  
-  const handleBackToLanding = () => {
-    navigate("/landing");
+
+  const handleOrgSetupComplete = () => {
+    setShowOrgSetup(false);
+    toast({
+      title: "Organization Setup Complete",
+      description: "Your organization has been successfully created!",
+    });
   };
-  
-  const handleParentRegistration = () => {
-    navigate("/parent-registration");
-  };
-  
-  // Show loading if auth is being checked or we're redirecting
-  if (authLoading || (user && userRole && !redirectHandled)) {
+
+  if (showOrgSetup) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-          <p>Checking authentication...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="absolute top-4 left-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => setShowOrgSetup(false)}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Login
+          </Button>
         </div>
+        <OrganizationWizard onComplete={handleOrgSetupComplete} />
       </div>
     );
   }
-  
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="absolute top-4 left-4">
-        <Button 
-          variant="ghost" 
-          onClick={handleBackToLanding} 
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Home
-        </Button>
+        <Link to="/landing">
+          <Button 
+            variant="ghost" 
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </Button>
+        </Link>
       </div>
       
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-center">
-            {isStaffLogin ? "Staff Login" : "Log In to Your Account"}
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
           <CardDescription className="text-center">
-            {isStaffLogin 
-              ? "Log in with your staff credentials" 
-              : "Welcome back! Please enter your details"}
+            Enter your credentials to access your account
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
@@ -155,10 +120,10 @@ const LoginPage = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter your email" 
-                        type="email" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter your email"
+                        type="email"
+                        {...field}
                         disabled={isLoading}
                       />
                     </FormControl>
@@ -174,10 +139,10 @@ const LoginPage = () => {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter your password" 
-                        type="password" 
-                        {...field} 
+                      <Input
+                        placeholder="Enter your password"
+                        type="password"
+                        {...field}
                         disabled={isLoading}
                       />
                     </FormControl>
@@ -186,45 +151,44 @@ const LoginPage = () => {
                 )}
               />
               
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Logging in...
+                    Signing in...
                   </>
                 ) : (
-                  <>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Log In
-                  </>
+                  "Sign In"
                 )}
               </Button>
             </form>
           </Form>
-        </CardContent>
-        
-        {!isStaffLogin && (
-          <CardFooter className="flex justify-center border-t pt-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-500 mb-2">
-                Don't have an account?
-              </p>
-              <Button 
-                variant="outline" 
-                onClick={handleParentRegistration}
-                className="w-full"
-                disabled={isLoading}
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Register as a Parent
-              </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
             </div>
-          </CardFooter>
-        )}
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-gray-50 px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => setShowOrgSetup(true)}
+          >
+            <Building className="mr-2 h-4 w-4" />
+            Set Up New Organization
+          </Button>
+
+          <div className="text-center text-sm">
+            <span className="text-muted-foreground">Don't have an account? </span>
+            <Link to="/parent-registration" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
