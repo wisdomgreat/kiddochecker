@@ -64,62 +64,80 @@ export const OrganizationWizard = ({ onComplete }: OrganizationWizardProps) => {
   const handleSubmit = async (values: OrganizationFormValues) => {
     setIsSubmitting(true);
     try {
-      // Create admin user first
-      const { data: userData, error: userError } = await supabase.auth.admin.createUser({
+      console.log("Creating organization with values:", values);
+
+      // First, sign up the admin user using regular signup
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.adminEmail,
         password: values.adminPassword,
-        email_confirm: true,
-        user_metadata: {
-          first_name: values.adminFirstName,
-          last_name: values.adminLastName,
-          phone: values.adminPhone || '',
-        },
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            first_name: values.adminFirstName,
+            last_name: values.adminLastName,
+            phone: values.adminPhone || '',
+          }
+        }
       });
 
-      if (userError) throw userError;
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
+      }
+
+      console.log("User created successfully:", authData.user.id);
 
       // Create organization
       const { data: orgData, error: orgError } = await supabase.rpc('create_organization', {
         org_name: values.organizationName,
         primary_color: values.primaryColor,
         font_family: values.fontFamily,
-        creator_id: userData.user?.id,
+        creator_id: authData.user.id,
       });
 
-      if (orgError) throw orgError;
+      if (orgError) {
+        console.error("Organization creation error:", orgError);
+        throw orgError;
+      }
+
+      console.log("Organization created:", orgData);
 
       // Create profile for admin user
-      if (userData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userData.user.id,
-            first_name: values.adminFirstName,
-            last_name: values.adminLastName,
-            phone: values.adminPhone || '',
-          });
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          first_name: values.adminFirstName,
+          last_name: values.adminLastName,
+          phone: values.adminPhone || '',
+        });
 
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-        }
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        // Don't throw here, profile creation is not critical for org setup
+      }
 
-        // Create admin role
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userData.user.id,
-            role: 'admin',
-            is_super_admin: true,
-          });
+      // Create admin role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: authData.user.id,
+          role: 'admin',
+          is_super_admin: true,
+        });
 
-        if (roleError) {
-          console.error('Error creating admin role:', roleError);
-        }
+      if (roleError) {
+        console.error('Error creating admin role:', roleError);
+        // Don't throw here, role can be assigned later
       }
 
       toast({
         title: "Organization Created Successfully",
-        description: "Your organization has been set up. The admin user can now log in.",
+        description: "Your organization has been set up. Please check your email to confirm your account.",
       });
 
       onComplete();
