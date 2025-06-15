@@ -29,7 +29,7 @@ import {
 
 const Sidebar = () => {
   const location = useLocation();
-  const { logout, userRole } = useAuth();
+  const { signOut, userRole } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
@@ -133,7 +133,7 @@ const Sidebar = () => {
         <Button
           variant="outline"
           className="w-full justify-start"
-          onClick={logout}
+          onClick={signOut}
         >
           <LogOut className="mr-2 h-4 w-4" />
           Logout

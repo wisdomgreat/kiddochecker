@@ -34,22 +34,45 @@ export const useMessages = () => {
       if (!user) return [];
 
       try {
-        const { data, error } = await supabase
+        // First get the messages
+        const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
-          .select(`
-            *,
-            sender:profiles!messages_sender_id_fkey(first_name, last_name),
-            recipient:profiles!messages_recipient_id_fkey(first_name, last_name)
-          `)
+          .select('*')
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error("Error fetching messages:", error);
-          throw error;
+        if (messagesError) {
+          console.error("Error fetching messages:", messagesError);
+          throw messagesError;
         }
 
-        return data || [];
+        if (!messagesData) return [];
+
+        // Get unique user IDs for profiles lookup
+        const userIds = Array.from(new Set([
+          ...messagesData.map(msg => msg.sender_id),
+          ...messagesData.filter(msg => msg.recipient_id).map(msg => msg.recipient_id!)
+        ]));
+
+        // Fetch profiles for all users
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+          // Continue without profiles if there's an error
+        }
+
+        // Map messages with profile data
+        const messagesWithProfiles: Message[] = messagesData.map(msg => ({
+          ...msg,
+          sender: profiles?.find(p => p.id === msg.sender_id) || undefined,
+          recipient: msg.recipient_id ? profiles?.find(p => p.id === msg.recipient_id) || undefined : undefined
+        }));
+
+        return messagesWithProfiles;
       } catch (error: any) {
         console.error("Error in useMessages:", error);
         return [];
