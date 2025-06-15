@@ -33,33 +33,40 @@ export const hasPermission = async (permissionName: string): Promise<boolean> =>
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     
-    // Get user role
-    const { data: roleData } = await supabase
+    // Get user role with explicit typing
+    const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role, is_super_admin')
       .eq('user_id', user.id)
       .maybeSingle();
     
-    if (!roleData) return false;
+    if (roleError || !roleData) return false;
     
     // Super admins have all permissions
     if (roleData.role === 'super_admin' || roleData.is_super_admin) {
       return true;
     }
     
-    // Check role-specific permissions
-    const { data: permissions } = await supabase
+    // Check role-specific permissions with simpler query structure
+    const { data: permissions, error: permError } = await supabase
       .from('role_permissions')
-      .select(`
-        permissions:permission_id (
-          name
-        )
-      `)
+      .select('permission_id')
       .eq('role', roleData.role);
     
-    if (!permissions) return false;
+    if (permError || !permissions) return false;
     
-    return permissions.some((p: any) => p.permissions?.name === permissionName);
+    // Get permission details separately to avoid deep nesting
+    const permissionIds = permissions.map(p => p.permission_id);
+    if (permissionIds.length === 0) return false;
+    
+    const { data: permissionDetails } = await supabase
+      .from('permissions')
+      .select('name')
+      .in('id', permissionIds);
+    
+    if (!permissionDetails) return false;
+    
+    return permissionDetails.some(p => p.name === permissionName);
   } catch (error) {
     console.error("Error checking permission:", error);
     return false;
@@ -164,23 +171,23 @@ export const getUserPermissions = async (): Promise<Permission[]> => {
       return allPermissions || [];
     }
     
-    // Get role-specific permissions
-    const { data: permissions } = await supabase
+    // Get role-specific permissions with simpler approach
+    const { data: rolePermissions } = await supabase
       .from('role_permissions')
-      .select(`
-        permissions:permission_id (
-          id,
-          name,
-          resource,
-          action,
-          description
-        )
-      `)
+      .select('permission_id')
       .eq('role', roleData.role);
     
-    if (!permissions) return [];
+    if (!rolePermissions) return [];
     
-    return permissions.map((p: any) => p.permissions).filter(Boolean);
+    const permissionIds = rolePermissions.map(rp => rp.permission_id);
+    if (permissionIds.length === 0) return [];
+    
+    const { data: permissions } = await supabase
+      .from('permissions')
+      .select('*')
+      .in('id', permissionIds);
+    
+    return permissions || [];
   } catch (error) {
     console.error("Error fetching user permissions:", error);
     return [];
