@@ -78,7 +78,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         // Don't throw here, profile creation is not critical for org setup
       }
 
-      // COMPLETELY REPLACE the role - delete any existing roles first, then insert super_admin
+      // Clear any existing roles first (including auto-assigned parent role)
       const { error: deleteRoleError } = await supabase
         .from('user_roles')
         .delete()
@@ -89,10 +89,10 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         // Continue anyway, we'll try to insert the super_admin role
       }
 
-      // Wait a moment to ensure deletion is complete
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Small delay to ensure deletion is processed
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Create super admin role (not just admin)
+      // Create super admin role - this should work now with the fixed RLS policies
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -103,10 +103,15 @@ export const useOrganizationCreation = (onComplete: () => void) => {
 
       if (roleError) {
         console.error('Error creating super admin role:', roleError);
-        throw new Error('Failed to assign super admin role: ' + roleError.message);
+        toast({
+          title: "Warning",
+          description: "Organization created but admin role assignment failed. Please assign super admin role manually.",
+          variant: "destructive",
+        });
+        // Don't throw here, let the organization creation succeed
+      } else {
+        console.log('Super admin role assigned successfully');
       }
-
-      console.log('Super admin role assigned successfully');
 
       toast({
         title: "Organization Created Successfully",
