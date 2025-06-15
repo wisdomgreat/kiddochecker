@@ -15,6 +15,7 @@ import { useClasses } from "@/hooks/useClasses";
 import { useAttendance } from "@/hooks/useAttendance";
 import LoginForm from "@/components/check-in/LoginForm";
 import QRCodeScanner from "@/components/qr/QRCodeScanner";
+import QuickCheckInPanel from "@/components/check-in/QuickCheckInPanel";
 
 const CheckInKiosk = () => {
   const [activeTab, setActiveTab] = useState("checkin");
@@ -212,7 +213,7 @@ const CheckInKiosk = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-4 md:p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="checkin" className="flex items-center space-x-2">
@@ -231,14 +232,18 @@ const CheckInKiosk = () => {
               <p className="text-gray-600">Select a child and class for check-in</p>
             </div>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Check-In</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Search Child</label>
+            {/* Mobile-optimized layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Quick Check-In Panel */}
+              <QuickCheckInPanel />
+              
+              {/* Detailed Check-In Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Detailed Check-In</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
                     <div className="relative">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                       <Input
@@ -248,10 +253,7 @@ const CheckInKiosk = () => {
                         className="pl-8"
                       />
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Select Child</label>
                     <Select value={selectedChild} onValueChange={setSelectedChild}>
                       <SelectTrigger>
                         <SelectValue placeholder="Choose child" />
@@ -264,13 +266,10 @@ const CheckInKiosk = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
 
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Select Class (Optional)</label>
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Choose class" />
+                        <SelectValue placeholder="Choose class (optional)" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="no-class">No specific class</SelectItem>
@@ -281,20 +280,21 @@ const CheckInKiosk = () => {
                         ))}
                       </SelectContent>
                     </Select>
+
+                    <Button 
+                      onClick={handleCheckIn} 
+                      disabled={!selectedChild || isCheckingIn}
+                      className="w-full"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      {isCheckingIn ? 'Checking In...' : 'Check In'}
+                    </Button>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                  <Button 
-                    onClick={handleCheckIn} 
-                    disabled={!selectedChild || isCheckingIn}
-                    className="w-full"
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    {isCheckingIn ? 'Checking In...' : 'Check In'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
+            {/* Login Form for parents */}
             <div className="text-center">
               <LoginForm onSignUp={() => {}} />
             </div>
