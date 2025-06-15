@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { assignUserRole } from "@/utils/roleUtils";
 
 interface OrganizationFormValues {
   organizationName: string;
@@ -28,7 +29,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         email: values.adminEmail,
         password: values.adminPassword,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/admin-dashboard`,
           data: {
             first_name: values.adminFirstName,
             last_name: values.adminLastName,
@@ -63,7 +64,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
 
       console.log("Organization created:", orgData);
 
-      // Create profile for admin user
+      // Create profile for admin user (this should already be done by trigger, but ensure it exists)
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -78,30 +79,27 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         // Don't throw here, profile creation is not critical for org setup
       }
 
-      // Create super admin role directly - the new RLS policies should handle this correctly
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: 'super_admin',
-          is_super_admin: true,
-        });
+      // Wait a moment to ensure user is fully created
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (roleError) {
-        console.error('Error creating super admin role:', roleError);
+      // Now assign super admin role using the utility function
+      console.log("Assigning super_admin role to user:", authData.user.id);
+      const roleResult = await assignUserRole(authData.user.id, 'super_admin', true);
+
+      if (!roleResult.success) {
+        console.error('Failed to assign super admin role:', roleResult.error);
         toast({
           title: "Warning",
           description: "Organization created but admin role assignment failed. Please assign super admin role manually.",
           variant: "destructive",
         });
-        // Don't throw here, let the organization creation succeed
       } else {
         console.log('Super admin role assigned successfully');
       }
 
       toast({
         title: "Organization Created Successfully",
-        description: "Your organization has been set up. Please check your email to confirm your account.",
+        description: "Your organization has been set up. Please check your email to confirm your account, then sign in to access the admin dashboard.",
       });
 
       onComplete();

@@ -21,14 +21,14 @@ export const useDashboardNavigation = () => {
       case 'parent':
         return '/parent-dashboard';
       default:
-        return '/dashboard';
+        return '/';
     }
   }, [userRole]);
 
   const navigateToDashboard = useCallback(() => {
-    console.log('Navigating to dashboard:', dashboardPath);
-    navigate(dashboardPath);
-  }, [navigate, dashboardPath]);
+    console.log('Navigating to dashboard for role:', userRole, 'Path:', dashboardPath);
+    navigate(dashboardPath, { replace: true });
+  }, [navigate, dashboardPath, userRole]);
 
   return { navigateToDashboard, dashboardPath };
 };

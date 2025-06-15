@@ -1,6 +1,8 @@
 
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
+import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import StatCards from "@/components/dashboard/StatCards";
@@ -13,11 +15,11 @@ import {
   useDashboardStats,
   useRealtimeUpdates 
 } from "@/hooks/useDashboardData";
-import { useQueryClient } from "@tanstack/react-query";
 
 const Dashboard = () => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const { userRole } = useAuth();
+  const { navigateToDashboard } = useDashboardNavigation();
   
   const { 
     data: activityData = [], 
@@ -42,6 +44,14 @@ const Dashboard = () => {
 
   // Use the real-time updates hook
   const { hasNewActivity, hasClassChanges, resetFlags } = useRealtimeUpdates();
+
+  // Redirect users to their appropriate dashboard if they land on root
+  useEffect(() => {
+    if (userRole && window.location.pathname === '/') {
+      console.log("Root page redirect for role:", userRole);
+      navigateToDashboard();
+    }
+  }, [userRole, navigateToDashboard]);
 
   // Effect to handle real-time updates by refetching data
   useEffect(() => {

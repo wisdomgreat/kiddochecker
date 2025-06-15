@@ -9,6 +9,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
 import { useAuth } from "@/context/AuthContext";
+import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 
 interface LoginFormProps {
   onSignUp: () => void;
@@ -22,32 +23,24 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, userRole, loading: authLoading } = useAuth();
+  const { navigateToDashboard } = useDashboardNavigation();
 
-  // Enhanced role-based navigation that respects admin restrictions
+  // Enhanced role-based navigation using consolidated navigation system
   useEffect(() => {
     if (user && userRole && !authLoading && !loading) {
       console.log("LoginForm: User already logged in with role:", userRole);
       
-      // Check if we're not already on the correct dashboard
+      // Check if we're not already on a dashboard
       const currentPath = location.pathname;
-      let targetPath = '/';
+      const isDashboardPath = currentPath.includes('dashboard') || currentPath === '/';
       
-      // Strict role-based dashboard routing
-      if (userRole === 'admin' || userRole === 'super_admin') {
-        targetPath = '/dashboard'; // Admin users go to main dashboard (admin features)
-      } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
-        targetPath = '/dashboard'; // Staff users go to main dashboard
-      } else if (userRole === 'parent') {
-        targetPath = '/parent-dashboard'; // Parents get their own dashboard
-      }
-      
-      // Only redirect if not already on the correct path
-      if (currentPath !== targetPath && currentPath !== '/login') {
-        console.log("LoginForm: Redirecting to:", targetPath);
-        navigate(targetPath, { replace: true });
+      // Only redirect if not already on the correct dashboard
+      if (!isDashboardPath || currentPath === '/login') {
+        console.log("LoginForm: Redirecting to appropriate dashboard");
+        navigateToDashboard();
       }
     }
-  }, [user, userRole, authLoading, loading, location.pathname, navigate]);
+  }, [user, userRole, authLoading, loading, location.pathname, navigateToDashboard]);
 
   const handleContinue = async () => {
     try {
@@ -79,7 +72,7 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
         description: "You have been logged in successfully",
       });
       
-      // The useEffect will handle the role-based redirect
+      // The useEffect will handle the role-based redirect using the consolidated navigation
       
     } catch (error: any) {
       console.error("Login error:", error);
