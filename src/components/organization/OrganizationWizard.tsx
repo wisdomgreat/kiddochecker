@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -121,17 +120,17 @@ export const OrganizationWizard = ({ onComplete }: OrganizationWizardProps) => {
         // Don't throw here, profile creation is not critical for org setup
       }
 
-      // Create admin role
+      // Create super admin role (not just admin)
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
           user_id: authData.user.id,
-          role: 'admin',
+          role: 'super_admin',
           is_super_admin: true,
         });
 
       if (roleError) {
-        console.error('Error creating admin role:', roleError);
+        console.error('Error creating super admin role:', roleError);
         // Don't throw here, role can be assigned later
       }
 

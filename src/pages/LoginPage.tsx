@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,8 @@ const LoginPage = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showOrgSetup, setShowOrgSetup] = useState(false);
+  const [hasOrganization, setHasOrganization] = useState(false);
+  const [checkingOrganization, setCheckingOrganization] = useState(true);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -34,6 +36,30 @@ const LoginPage = () => {
       password: "",
     },
   });
+
+  // Check if organization exists
+  useEffect(() => {
+    const checkOrganizationExists = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('organization_settings')
+          .select('id')
+          .limit(1);
+
+        if (error) {
+          console.error('Error checking organization:', error);
+        } else {
+          setHasOrganization(data && data.length > 0);
+        }
+      } catch (error) {
+        console.error('Error checking organization:', error);
+      } finally {
+        setCheckingOrganization(false);
+      }
+    };
+
+    checkOrganizationExists();
+  }, []);
 
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -65,6 +91,7 @@ const LoginPage = () => {
 
   const handleOrgSetupComplete = () => {
     setShowOrgSetup(false);
+    setHasOrganization(true);
     toast({
       title: "Organization Setup Complete",
       description: "Your organization has been successfully created!",
@@ -173,14 +200,23 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => setShowOrgSetup(true)}
-          >
-            <Building className="mr-2 h-4 w-4" />
-            Set Up New Organization
-          </Button>
+          {/* Only show organization setup button if no organization exists */}
+          {!checkingOrganization && !hasOrganization && (
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowOrgSetup(true)}
+            >
+              <Building className="mr-2 h-4 w-4" />
+              Set Up New Organization
+            </Button>
+          )}
+
+          {checkingOrganization && (
+            <div className="flex justify-center">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          )}
 
           <div className="text-center text-sm">
             <span className="text-muted-foreground">Don't have an account? </span>
