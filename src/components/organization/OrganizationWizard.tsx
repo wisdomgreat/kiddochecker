@@ -120,6 +120,18 @@ export const OrganizationWizard = ({ onComplete }: OrganizationWizardProps) => {
         // Don't throw here, profile creation is not critical for org setup
       }
 
+      // First, delete any auto-assigned 'parent' role (from handle_new_user trigger)
+      const { error: deleteRoleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', authData.user.id)
+        .eq('role', 'parent');
+
+      if (deleteRoleError) {
+        console.error('Error deleting auto-assigned parent role:', deleteRoleError);
+        // Continue anyway, as we'll insert the super_admin role
+      }
+
       // Create super admin role (not just admin)
       const { error: roleError } = await supabase
         .from('user_roles')
