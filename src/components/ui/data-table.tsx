@@ -1,23 +1,16 @@
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, MoreVertical, Search } from "lucide-react";
-
-interface Column<T> {
-  key: keyof T | "actions"; // Allow "actions" as a special key
-  header: string;
-  render?: (value: any, item: T) => React.ReactNode;
-  sortable?: boolean;
-}
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { ColumnDef, flexRender, getCoreRowModel, getSortedRowModel, SortingState, useReactTable } from "@tanstack/react-table";
 
 interface DataTableProps<T> {
-  columns: Column<T>[];
+  columns: ColumnDef<T>[];
   data: T[];
   keyExtractor: (item: T) => string;
   searchable?: boolean;
   searchPlaceholder?: string;
   onRowClick?: (item: T) => void;
   loading?: boolean;
-  pagination?: boolean; // Add pagination prop
 }
 
 export function DataTable<T>({
@@ -28,42 +21,28 @@ export function DataTable<T>({
   searchPlaceholder = "Search...",
   onRowClick,
   loading = false,
-  pagination = false, // Default to false
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof T | null;
-    direction: "asc" | "desc" | null;
-  }>({ key: null, direction: null });
+  const [sorting, setSorting] = useState<SortingState>([]);
 
-  const handleSort = (key: keyof T) => {
-    let direction: "asc" | "desc" | null = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
-      direction = null;
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortConfig.key || !sortConfig.direction) return 0;
-    
-    const aValue = a[sortConfig.key];
-    const bValue = b[sortConfig.key];
-    
-    if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-    if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  const filteredData = sortedData.filter((item) => {
+  const filteredData = data.filter((item) => {
     if (!searchTerm) return true;
     
     return Object.values(item).some((value) => {
       if (value === null || value === undefined) return false;
       return String(value).toLowerCase().includes(searchTerm.toLowerCase());
     });
+  });
+
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
+    state: {
+      sorting,
+    },
   });
 
   return (
@@ -86,34 +65,37 @@ export function DataTable<T>({
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
-            <tr>
-              {columns.map((column) => (
-                <th
-                  key={String(column.key)}
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  {column.key !== "actions" && column.sortable ? (
-                    <button
-                      className="flex items-center gap-1 hover:text-gray-700"
-                      onClick={() => handleSort(column.key as keyof T)}
-                    >
-                      {column.header}
-                      {sortConfig.key === column.key && (
-                        sortConfig.direction === "asc" ? (
-                          <ChevronUp size={16} />
-                        ) : sortConfig.direction === "desc" ? (
-                          <ChevronDown size={16} />
-                        ) : null
-                      )}
-                    </button>
-                  ) : (
-                    column.header
-                  )}
-                </th>
-              ))}
-              {/* Remove the extra actions column that was hardcoded */}
-            </tr>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div
+                        className={
+                          header.column.getCanSort()
+                            ? "cursor-pointer select-none flex items-center gap-1 hover:text-gray-700"
+                            : ""
+                        }
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {{
+                          asc: <ChevronUp size={16} />,
+                          desc: <ChevronDown size={16} />,
+                        }[header.column.getIsSorted() as string] ?? null}
+                      </div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
@@ -131,21 +113,19 @@ export function DataTable<T>({
                   </div>
                 </td>
               </tr>
-            ) : filteredData.length > 0 ? (
-              filteredData.map((item) => (
+            ) : table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
                 <tr 
-                  key={keyExtractor(item)} 
-                  className={`table-row ${onRowClick ? 'cursor-pointer' : ''}`}
-                  onClick={onRowClick ? () => onRowClick(item) : undefined}
+                  key={keyExtractor(row.original)} 
+                  className={`table-row ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 >
-                  {columns.map((column) => (
+                  {row.getVisibleCells().map((cell) => (
                     <td
-                      key={`${keyExtractor(item)}-${String(column.key)}`}
+                      key={cell.id}
                       className="px-6 py-4 whitespace-nowrap text-sm text-gray-800"
                     >
-                      {column.render
-                        ? column.render(column.key === "actions" ? null : item[column.key as keyof T], item)
-                        : column.key !== "actions" ? String(item[column.key as keyof T] || "") : ""}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>

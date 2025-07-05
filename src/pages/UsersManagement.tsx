@@ -88,6 +88,11 @@ const UsersManagement = () => {
     }
   };
 
+  const handleCloseDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setSelectedUser(null);
+  };
+
   // Generate the user table columns
   const userColumns = getUserTableColumns({
     onEdit: handleEditUser,
@@ -132,9 +137,12 @@ const UsersManagement = () => {
 
       <DeleteUserDialog 
         isOpen={isDeleteDialogOpen}
+        onClose={handleCloseDialog}
         onOpenChange={setIsDeleteDialogOpen}
-        selectedUser={selectedUser}
+        onConfirm={handleDeleteUser}
         onDelete={handleDeleteUser}
+        user={null}
+        selectedUser={selectedUser}
       />
     </MainLayout>
   );
