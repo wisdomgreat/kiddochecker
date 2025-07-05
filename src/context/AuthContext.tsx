@@ -35,12 +35,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error("Error fetching user role:", error);
+        // Default to parent role on error, but don't assume admin access
         setUserRole('parent');
         return;
       }
 
       console.log("User role fetched:", data);
-      setUserRole((data as AppRole) || 'parent');
+      // Ensure we have a valid role, default to parent if null/undefined
+      const validRole = (data as AppRole) || 'parent';
+      setUserRole(validRole);
     } catch (error) {
       console.error("Exception fetching user role:", error);
       if (mounted.current) {
@@ -53,14 +56,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
-      if (mounted.current) {
-        setUser(null);
-        setSession(null);
-        setUserRole(null);
+      // Clear state immediately for security
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
+      
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error signing out:", error);
       }
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("Exception during sign out:", error);
     }
   }, []);
 
@@ -79,17 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        if (session) {
+        if (session?.user) {
           console.log("Initial session found for user:", session.user.id);
           setSession(session);
           setUser(session.user);
           
-          // Defer role fetching to avoid blocking
-          setTimeout(() => {
-            if (mounted.current) {
-              fetchUserRole(session.user.id);
-            }
-          }, 100);
+          // Fetch role immediately but don't block loading state
+          fetchUserRole(session.user.id);
         }
         
         setLoading(false);
@@ -107,21 +109,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         console.log("Auth state changed:", event, session?.user?.id);
         
+        // Handle sign out immediately for security
+        if (event === 'SIGNED_OUT' || !session) {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          setLoading(false);
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user && event !== 'TOKEN_REFRESHED') {
-          // Defer role fetching to avoid blocking the auth flow
-          setTimeout(() => {
-            if (mounted.current) {
-              fetchUserRole(session.user.id);
-            }
-          }, 100);
-        } else if (!session) {
-          setUserRole(null);
+          // Fetch role for new sessions
+          fetchUserRole(session.user.id);
         }
         
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        if (event === 'SIGNED_IN') {
           setLoading(false);
         }
       }

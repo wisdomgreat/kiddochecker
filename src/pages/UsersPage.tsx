@@ -1,131 +1,148 @@
 
-import { useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, RefreshCcw } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { DataTable } from '@/components/ui/data-table';
-import { getUserTableColumns } from '@/components/users/UserTableColumns';
-import { UserCreationForm } from '@/components/users/UserCreationForm';
-import useUserRoles from '@/hooks/useUserRoles';
-import { UserProfile } from '@/types/users';
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import MainLayout from "@/components/layout/MainLayout";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { RefreshCcw } from "lucide-react";
+import { getUserTableColumns } from "@/components/users/UserTableColumns";
+import UserFilters from "@/components/users/UserFilters";
+import UserActionButtons from "@/components/users/UserActionButtons";
+import EmptyUserState from "@/components/users/EmptyUserState";
+import DeleteUserDialog from "@/components/users/DeleteUserDialog";
+import useUserRoles from "@/hooks/useUserRoles";
+import { UserProfile } from "@/types/users";
 
 const UsersPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const { toast } = useToast();
-  const { data: users = [], isLoading, refetch } = useUserRoles();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  
+  const { data: users = [], isLoading } = useUserRoles();
 
-  const handleEditUser = (user: UserProfile) => {
+  const filteredUsers = users.filter((userItem) => {
+    const searchMatch =
+      userItem.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userItem.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userItem.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userItem.role?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (activeTab === "all") return searchMatch;
+    if (activeTab === "parents") return userItem.role === "parent" && searchMatch;
+    if (activeTab === "staff") return (userItem.role === "staff" || userItem.role === "teacher" || userItem.role === "teacher_assistant") && searchMatch;
+    return false;
+  });
+
+  const handleEditUser = (userItem: UserProfile) => {
     toast({
       title: "Edit User",
-      description: `Editing ${user.firstName} ${user.lastName} (Feature coming soon)`,
+      description: `Editing ${userItem.firstName} ${userItem.lastName} (Feature coming soon)`,
     });
   };
 
-  const handleDeleteUser = async (user: UserProfile) => {
+  const handleDeleteConfirmation = (userItem: UserProfile) => {
+    setSelectedUser(userItem);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    
     try {
-      const { error } = await supabase.auth.admin.deleteUser(user.id);
-      if (error) throw error;
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', selectedUser.id);
+        
+      if (profileError) throw profileError;
+      
+      const { error: authError } = await supabase.auth.admin.deleteUser(selectedUser.id);
+      
+      if (authError) throw authError;
       
       toast({
         title: "Success",
-        description: `User ${user.firstName} ${user.lastName} deleted successfully`,
+        description: `${selectedUser.firstName} ${selectedUser.lastName} has been deleted`,
       });
       
-      refetch();
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+      
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      
     } catch (error: any) {
+      console.error("Error deleting user:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete user",
+        description: `Failed to delete user: ${error.message || "Unknown error"}`,
         variant: "destructive",
       });
     }
   };
 
-  const filteredUsers = users.filter((user) =>
-    user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleCloseDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setSelectedUser(null);
+  };
 
   const userColumns = getUserTableColumns({
     onEdit: handleEditUser,
-    onDelete: handleDeleteUser
+    onDelete: handleDeleteConfirmation
   });
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-            <p className="text-muted-foreground">
-              Manage users, their roles, and permissions.
-            </p>
-          </div>
-        </div>
-
-        <Tabs defaultValue="create" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="create">Create User</TabsTrigger>
-            <TabsTrigger value="manage">Manage Users</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="create" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Create New User</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <UserCreationForm onUserCreated={refetch} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="manage" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>User List</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2 mb-4">
-                  <Search className="h-4 w-4 text-gray-500" />
-                  <Input
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                  />
-                  <Button onClick={() => refetch()} variant="outline">
-                    <RefreshCcw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-                {isLoading ? (
-                  <div className="flex justify-center items-center py-8">
-                    <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
-                    <span>Loading users...</span>
-                  </div>
-                ) : (
-                  <DataTable
-                    columns={userColumns}
-                    data={filteredUsers}
-                    keyExtractor={(item) => item.id}
-                    searchable={false}
-                    loading={isLoading}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+    <MainLayout>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">User Management</h1>
+        <UserActionButtons />
       </div>
-    </DashboardLayout>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <UserFilters 
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
+              <span>Loading users...</span>
+            </div>
+          ) : users.length === 0 ? (
+            <EmptyUserState searchTerm={searchTerm} />
+          ) : (
+            <DataTable
+              columns={userColumns}
+              data={filteredUsers}
+              keyExtractor={(item) => item.id}
+              searchable={false}
+              loading={isLoading}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <DeleteUserDialog 
+        isOpen={isDeleteDialogOpen}
+        onClose={handleCloseDialog}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDeleteUser}
+        onDelete={handleDeleteUser}
+        user={selectedUser}
+        selectedUser={selectedUser}
+      />
+    </MainLayout>
   );
 };
 

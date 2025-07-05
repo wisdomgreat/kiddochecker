@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AppRole } from "@/types/supabase";
 
 export const AdminAccess = () => {
   const [showLoginForm, setShowLoginForm] = useState(false);
@@ -33,51 +33,53 @@ export const AdminAccess = () => {
     try {
       setLoading(true);
       
-      // Attempt to sign in with provided credentials
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
       
       if (error) throw error;
       
-      // Check user role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .single();
+      if (!data.user) {
+        throw new Error("Authentication failed");
+      }
       
-      // Use type assertion to handle our updated enum values
-      const userRole = roleData?.role as AppRole;
+      // Get user role using the RPC function
+      const { data: roleData, error: roleError } = await supabase.rpc('get_current_user_role');
       
-      if (userRole === 'admin') {
+      if (roleError) {
+        console.error("Role fetch error:", roleError);
+        throw new Error("Unable to determine user permissions");
+      }
+      
+      const userRole = roleData;
+      
+      if (userRole === 'admin' || userRole === 'super_admin') {
         toast({
           title: "Admin Login Successful",
           description: "Welcome to the admin dashboard",
         });
         navigate("/admin-dashboard");
-      } else if (userRole === 'teacher') {
+      } else if (userRole === 'teacher' || userRole === 'teacher_assistant' || userRole === 'staff') {
         toast({
-          title: "Teacher Login Successful",
+          title: "Staff Login Successful",
           description: "Welcome to the teacher dashboard",
         });
         navigate("/teacher-dashboard");
       } else {
-        // If the user doesn't have an admin or teacher role
         toast({
           title: "Access Denied",
-          description: "You don't have teacher or administrator privileges",
+          description: "You don't have staff or administrator privileges",
           variant: "destructive",
         });
-        // Sign out the user since they don't have the right role
         await supabase.auth.signOut();
       }
       
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Login Failed",
-        description: error.message || "Failed to authenticate",
+        description: error.message || "Authentication failed",
         variant: "destructive",
       });
     } finally {
@@ -121,6 +123,7 @@ export const AdminAccess = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 required
+                disabled={loading}
               />
             </div>
             
@@ -134,11 +137,13 @@ export const AdminAccess = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   required
+                  disabled={loading}
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none disabled:opacity-50"
+                  disabled={loading}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -151,6 +156,7 @@ export const AdminAccess = () => {
                 variant="outline"
                 onClick={() => setShowLoginForm(false)}
                 className="flex-1"
+                disabled={loading}
               >
                 Cancel
               </Button>

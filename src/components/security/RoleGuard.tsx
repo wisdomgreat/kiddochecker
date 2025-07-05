@@ -1,6 +1,5 @@
 
 import { ReactNode } from 'react';
-import { usePermissions, useRoleAccess } from '@/hooks/usePermissions';
 import { useAuth } from '@/context/AuthContext';
 import { AppRole } from '@/types/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -8,7 +7,6 @@ import { ShieldX, AlertTriangle } from 'lucide-react';
 
 interface RoleGuardProps {
   children: ReactNode;
-  requiredPermission?: string;
   allowedRoles?: AppRole[];
   requireParentAccess?: boolean;
   requireAdminAccess?: boolean;
@@ -17,15 +15,12 @@ interface RoleGuardProps {
 
 const RoleGuard = ({ 
   children, 
-  requiredPermission,
   allowedRoles,
   requireParentAccess,
   requireAdminAccess,
   fallback 
 }: RoleGuardProps) => {
   const { userRole, loading } = useAuth();
-  const { checkPermission } = usePermissions();
-  const { canAccessParent, canAccessAdmin } = useRoleAccess();
 
   if (loading) {
     return (
@@ -40,24 +35,19 @@ const RoleGuard = ({
     return fallback || <AccessDenied reason="insufficient_role" />;
   }
 
-  // Check permission-based access
-  if (requiredPermission && !checkPermission(requiredPermission)) {
-    return fallback || <AccessDenied reason="insufficient_permission" />;
-  }
-
   // STRICT: Check parent feature access - Admin users are explicitly blocked
   if (requireParentAccess) {
     if (userRole === 'admin' || userRole === 'super_admin') {
       return fallback || <AccessDenied reason="admin_blocked_from_parent" />;
     }
     
-    if (!canAccessParent) {
+    if (userRole !== 'parent') {
       return fallback || <AccessDenied reason="parent_access_denied" />;
     }
   }
 
   // Check admin feature access
-  if (requireAdminAccess && !canAccessAdmin) {
+  if (requireAdminAccess && userRole !== 'admin' && userRole !== 'super_admin') {
     return fallback || <AccessDenied reason="admin_access_denied" />;
   }
 
@@ -69,8 +59,6 @@ const AccessDenied = ({ reason }: { reason: string }) => {
     switch (reason) {
       case 'insufficient_role':
         return 'Your account role does not have access to this feature.';
-      case 'insufficient_permission':
-        return 'You do not have the required permissions to access this feature.';
       case 'admin_blocked_from_parent':
         return 'Admin accounts cannot access parent features for security reasons. Admin users are restricted to administrative functions only.';
       case 'parent_access_denied':
