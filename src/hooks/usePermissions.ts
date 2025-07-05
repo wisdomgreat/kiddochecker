@@ -47,19 +47,11 @@ export const usePermissions = () => {
 };
 
 export const useRoleAccess = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   
-  const { data: canAccessParent = false } = useQuery({
-    queryKey: ["canAccessParent", user?.id],
-    queryFn: canAccessParentFeatures,
-    enabled: !!user,
-  });
-  
-  const { data: canAccessAdmin = false } = useQuery({
-    queryKey: ["canAccessAdmin", user?.id],
-    queryFn: canAccessAdminFeatures,
-    enabled: !!user,
-  });
+  // Simplified role access checks based on userRole
+  const canAccessParent = userRole === 'parent';
+  const canAccessAdmin = userRole === 'admin' || userRole === 'super_admin';
   
   return {
     canAccessParent,

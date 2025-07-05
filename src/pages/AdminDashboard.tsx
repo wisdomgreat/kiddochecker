@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import StatCards from '@/components/dashboard/StatCards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, GraduationCap, UserCheck, AlertTriangle, Plus, FileText, Clock } from 'lucide-react';
+import { Users, GraduationCap, UserCheck, Plus, FileText, Clock, Baby } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useNavigate } from 'react-router-dom';
 import { useChildren } from '@/hooks/useChildren';
@@ -59,7 +59,7 @@ const AdminDashboard = () => {
           <Card className="cursor-pointer hover:shadow-md transition-shadow" 
                 onClick={() => navigate('/children')}>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Users className="h-4 w-4 text-blue-600" />
+              <Baby className="h-4 w-4 text-blue-600" />
               <CardTitle className="text-sm font-medium ml-2">Children</CardTitle>
             </CardHeader>
             <CardContent>

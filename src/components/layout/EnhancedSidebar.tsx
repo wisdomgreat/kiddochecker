@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { usePermissions, useRoleAccess } from "@/hooks/usePermissions";
+import { useRoleAccess } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Home, 
   Users, 
-  UserPlus, 
   Calendar, 
   MessageSquare, 
   FileText, 
@@ -30,14 +29,12 @@ import {
   AlertTriangle,
   Eye
 } from "lucide-react";
-import { PERMISSIONS } from "@/utils/permissionUtils";
 
 interface NavigationItem {
   name: string;
   href: string;
   icon: React.ComponentType<any>;
   roles?: string[];
-  permission?: string;
   adminOnly?: boolean;
   parentOnly?: boolean;
 }
@@ -45,7 +42,6 @@ interface NavigationItem {
 const EnhancedSidebar = () => {
   const location = useLocation();
   const { signOut, userRole } = useAuth();
-  const { checkPermission } = usePermissions();
   const { canAccessParent, canAccessAdmin } = useRoleAccess();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -59,66 +55,43 @@ const EnhancedSidebar = () => {
         name: "User Management", 
         href: "/users", 
         icon: Users, 
-        permission: PERMISSIONS.VIEW_USERS,
         adminOnly: true 
       },
       { 
         name: "Staff Management", 
         href: "/staff", 
         icon: UserCheck, 
-        permission: PERMISSIONS.VIEW_USERS,
         adminOnly: true 
       },
       { 
         name: "Children Management", 
         href: "/children", 
         icon: Baby, 
-        permission: PERMISSIONS.VIEW_CHILDREN,
         adminOnly: true 
       },
       { 
         name: "Classes Management", 
         href: "/classes-management", 
         icon: BookOpen, 
-        permission: PERMISSIONS.VIEW_CLASSES,
         adminOnly: true 
       },
       { 
         name: "Device Management", 
         href: "/device-management", 
         icon: Monitor, 
-        permission: PERMISSIONS.MANAGE_ORGANIZATION,
         adminOnly: true 
       },
       { 
         name: "Roles & Permissions", 
         href: "/roles", 
         icon: Shield, 
-        permission: PERMISSIONS.MANAGE_ROLES,
         adminOnly: true 
       },
       { 
         name: "Organization Setup", 
         href: "/organization-setup", 
         icon: Building, 
-        permission: PERMISSIONS.MANAGE_ORGANIZATION,
         adminOnly: true 
-      },
-      { 
-        name: "Audit Logs", 
-        href: "/audit-logs", 
-        icon: Eye, 
-        permission: PERMISSIONS.VIEW_AUDIT_LOGS,
-        adminOnly: true 
-      },
-    ];
-
-    const staffItems: NavigationItem[] = [
-      { 
-        name: "Classes", 
-        href: "/classes", 
-        icon: BookOpen, 
-        permission: PERMISSIONS.VIEW_CLASSES 
       },
     ];
 
@@ -127,7 +100,7 @@ const EnhancedSidebar = () => {
         name: "Check-In/Out", 
         href: "/check-in-out", 
         icon: ClipboardCheck, 
-        permission: PERMISSIONS.CHECKIN_CHILDREN 
+        roles: ['all'] 
       },
       { 
         name: "Calendar", 
@@ -139,13 +112,13 @@ const EnhancedSidebar = () => {
         name: "Family Connect", 
         href: "/family-connect", 
         icon: MessageSquare, 
-        permission: PERMISSIONS.VIEW_MESSAGES 
+        roles: ['all'] 
       },
       { 
         name: "Reports", 
         href: "/reports", 
         icon: BarChart3, 
-        permission: PERMISSIONS.VIEW_REPORTS 
+        roles: ['admin', 'super_admin', 'teacher'] 
       },
       { 
         name: "Settings", 
@@ -174,25 +147,18 @@ const EnhancedSidebar = () => {
 
     // Add admin items only if user has admin access
     if (canAccessAdmin) {
-      items = [...items, ...adminItems.filter(item => 
-        !item.permission || checkPermission(item.permission)
-      )];
+      items = [...items, ...adminItems];
     }
-
-    // Add staff items if user has appropriate permissions
-    items = [...items, ...staffItems.filter(item => 
-      !item.permission || checkPermission(item.permission)
-    )];
 
     // Add parent items only if user has parent access
     if (canAccessParent) {
       items = [...items, ...parentItems];
     }
 
-    // Add common items based on permissions
+    // Add common items based on roles
     items = [...items, ...commonItems.filter(item => {
       if (item.roles?.includes('all')) return true;
-      if (item.permission) return checkPermission(item.permission);
+      if (item.roles?.includes(userRole || '')) return true;
       return false;
     })];
 

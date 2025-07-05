@@ -141,7 +141,7 @@ const UsersManagement = () => {
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleDeleteUser}
         onDelete={handleDeleteUser}
-        user={null}
+        user={selectedUser}
         selectedUser={selectedUser}
       />
     </MainLayout>

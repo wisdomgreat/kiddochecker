@@ -13,6 +13,7 @@ import LoginPage from "@/pages/LoginPage";
 import ParentRegistration from "@/pages/ParentRegistration";
 import AboutUsPage from "@/pages/AboutUsPage";
 import Dashboard from "@/pages/Dashboard";
+import AdminDashboard from "@/pages/AdminDashboard";
 import Index from "@/pages/Index";
 import UsersPage from "@/pages/UsersPage";
 import ChildrenPage from "@/pages/ChildrenPage";
@@ -62,15 +63,15 @@ const App = () => (
             </EnhancedProtectedRoute>
           } />
           
-          {/* Admin-only routes */}
+          {/* Admin-only routes - Fixed to use proper admin access */}
           <Route path="/dashboard" element={
-            <EnhancedProtectedRoute requireAdminAccess>
+            <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
               <Dashboard />
             </EnhancedProtectedRoute>
           } />
           <Route path="/admin-dashboard" element={
             <EnhancedProtectedRoute allowedRoles={['admin', 'super_admin']}>
-              <Dashboard />
+              <AdminDashboard />
             </EnhancedProtectedRoute>
           } />
           <Route path="/users" element={
