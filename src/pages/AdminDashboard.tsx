@@ -4,7 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import StatCards from '@/components/dashboard/StatCards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, GraduationCap, UserCheck, AlertTriangle, Plus, FileText } from 'lucide-react';
+import { Users, GraduationCap, UserCheck, AlertTriangle, Plus, FileText, Clock } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useNavigate } from 'react-router-dom';
 import { useChildren } from '@/hooks/useChildren';
@@ -12,20 +12,20 @@ import { useClasses } from '@/hooks/useClasses';
 import useUserRoles from '@/hooks/useUserRoles';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { children } = useChildren();
   const { classes } = useClasses();
   const { data: users } = useUserRoles();
 
-  console.log("AdminDashboard - Current user:", user?.id);
+  console.log("AdminDashboard - Current user:", user?.id, "Role:", userRole);
 
   const dashboardStats = {
     totalChildren: children?.length || 0,
     totalClasses: classes?.length || 0,
     checkedIn: stats?.checkedInToday || 0,
-    totalStaff: users?.filter(u => ['admin', 'teacher', 'staff'].includes(u.role)).length || 0,
+    totalStaff: users?.filter(u => ['admin', 'teacher', 'staff', 'super_admin'].includes(u.role)).length || 0,
   };
 
   return (
@@ -40,11 +40,11 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="flex space-x-2">
-            <Button onClick={() => navigate('/users-management')}>
+            <Button onClick={() => navigate('/users')}>
               <Users className="h-4 w-4 mr-2" />
               Manage Users
             </Button>
-            <Button onClick={() => navigate('/reports-dashboard')}>
+            <Button onClick={() => navigate('/reports')}>
               <FileText className="h-4 w-4 mr-2" />
               Reports
             </Button>
@@ -57,7 +57,7 @@ const AdminDashboard = () => {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="cursor-pointer hover:shadow-md transition-shadow" 
-                onClick={() => navigate('/children-management')}>
+                onClick={() => navigate('/children')}>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <Users className="h-4 w-4 text-blue-600" />
               <CardTitle className="text-sm font-medium ml-2">Children</CardTitle>
@@ -85,14 +85,14 @@ const AdminDashboard = () => {
           </Card>
 
           <Card className="cursor-pointer hover:shadow-md transition-shadow" 
-                onClick={() => navigate('/staff-management')}>
+                onClick={() => navigate('/staff')}>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <UserCheck className="h-4 w-4 text-purple-600" />
               <CardTitle className="text-sm font-medium ml-2">Staff</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {users?.filter(u => ['admin', 'teacher', 'staff'].includes(u.role)).length || 0}
+                {users?.filter(u => ['admin', 'teacher', 'staff', 'super_admin'].includes(u.role)).length || 0}
               </div>
               <p className="text-xs text-muted-foreground">
                 Staff members
@@ -103,7 +103,7 @@ const AdminDashboard = () => {
           <Card className="cursor-pointer hover:shadow-md transition-shadow" 
                 onClick={() => navigate('/check-in-out')}>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <Clock className="h-4 w-4 text-orange-600" />
               <CardTitle className="text-sm font-medium ml-2">Check-in/Out</CardTitle>
             </CardHeader>
             <CardContent>
@@ -124,7 +124,10 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               {statsLoading ? (
-                <div className="text-center py-8">Loading...</div>
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                  <span>Loading...</span>
+                </div>
               ) : stats?.recentActivities && stats.recentActivities.length > 0 ? (
                 <div className="space-y-4">
                   {stats.recentActivities.slice(0, 5).map((activity: any, index: number) => (
@@ -154,7 +157,10 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               {statsLoading ? (
-                <div className="text-center py-8">Loading...</div>
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                  <span>Loading...</span>
+                </div>
               ) : classes && classes.length > 0 ? (
                 <div className="space-y-4">
                   {classes.slice(0, 5).map((classItem: any) => (
