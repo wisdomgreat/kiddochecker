@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ import { useDeviceRegistration } from "@/hooks/useDeviceRegistration";
 import { useChildren } from "@/hooks/useChildren";
 import { useClasses } from "@/hooks/useClasses";
 import { useAttendance } from "@/hooks/useAttendance";
+import { useDebounce } from "@/hooks/useDebounce";
+import LoadingSpinner from "@/components/ui/loading-spinner";
+import ErrorFallback from "@/components/error/ErrorFallback";
 import LoginForm from "@/components/check-in/LoginForm";
 import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import QuickCheckInPanel from "@/components/check-in/QuickCheckInPanel";
@@ -36,18 +39,20 @@ const CheckInKiosk = () => {
     defaultDeviceName: "Check-in/Check-out Kiosk"
   });
 
-  // Data hooks
-  const { children } = useChildren();
-  const { classes } = useClasses();
-  const { attendance, checkIn, checkOut, isCheckingIn, isCheckingOut } = useAttendance();
+  // Data hooks with error handling
+  const { children, isLoading: childrenLoading, error: childrenError } = useChildren();
+  const { classes, isLoading: classesLoading, error: classesError } = useClasses();
+  const { attendance, checkIn, checkOut, isCheckingIn, isCheckingOut, error: attendanceError } = useAttendance();
 
   // Check-in states
   const [selectedChild, setSelectedChild] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Check-out states
   const [checkoutSearchTerm, setCheckoutSearchTerm] = useState('');
+
+  // Debounced search terms for performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedCheckoutSearchTerm = useDebounce(checkoutSearchTerm, 300);
 
   // Set initial tab from URL params
   useEffect(() => {
@@ -57,39 +62,58 @@ const CheckInKiosk = () => {
     }
   }, [searchParams]);
 
-  // Filter available children for check-in
-  const availableChildren = children.filter(child => {
-    const isAlreadyCheckedIn = attendance.some(record => 
-      record.child_id === child.id && !record.checked_out_at
+  // Memoized filtered data for performance
+  const availableChildren = useMemo(() => {
+    return children.filter(child => {
+      const isAlreadyCheckedIn = attendance.some(record => 
+        record.child_id === child.id && !record.checked_out_at
+      );
+      return !isAlreadyCheckedIn;
+    });
+  }, [children, attendance]);
+
+  const filteredChildren = useMemo(() => {
+    return availableChildren.filter(child =>
+      `${child.first_name} ${child.last_name}`.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     );
-    return !isAlreadyCheckedIn;
-  });
+  }, [availableChildren, debouncedSearchTerm]);
 
-  const filteredChildren = availableChildren.filter(child =>
-    `${child.first_name} ${child.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const checkedInChildren = useMemo(() => {
+    return attendance.filter(record => 
+      !record.checked_out_at && 
+      record.child?.first_name &&
+      `${record.child.first_name} ${record.child.last_name}`.toLowerCase().includes(debouncedCheckoutSearchTerm.toLowerCase())
+    );
+  }, [attendance, debouncedCheckoutSearchTerm]);
 
-  // Filter checked-in children for check-out
-  const checkedInChildren = attendance.filter(record => 
-    !record.checked_out_at && 
-    record.child?.first_name &&
-    `${record.child.first_name} ${record.child.last_name}`.toLowerCase().includes(checkoutSearchTerm.toLowerCase())
-  );
+  const handleCheckIn = async () => {
+    if (!selectedChild) {
+      toast({
+        title: "Error",
+        description: "Please select a child to check in",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const handleCheckIn = () => {
-    if (selectedChild) {
-      checkIn({ 
+    try {
+      await checkIn({ 
         childId: selectedChild, 
         classId: selectedClass === 'no-class' ? undefined : selectedClass 
       });
       setSelectedChild('');
       setSelectedClass('');
       setSearchTerm('');
+    } catch (error: any) {
+      toast({
+        title: "Check-in Failed",
+        description: error.message || "Failed to check in child",
+        variant: "destructive",
+      });
     }
   };
 
   const handleQRCodeScan = (data: string) => {
-    // Parse QR code data - expecting format: ATTENDANCE:attendanceId|CHILD:childName|CLASS:className
     try {
       const parts = data.split('|');
       const attendanceIdPart = parts.find(part => part.startsWith('ATTENDANCE:'));
@@ -113,13 +137,20 @@ const CheckInKiosk = () => {
     }
   };
 
-  if (deviceLoading) {
+  // Handle errors
+  if (childrenError || classesError || attendanceError) {
+    return (
+      <ErrorFallback 
+        error={childrenError || classesError || attendanceError}
+        message="Failed to load kiosk data. Please try refreshing the page."
+      />
+    );
+  }
+
+  if (deviceLoading || childrenLoading || classesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading kiosk...</p>
-        </div>
+        <LoadingSpinner size="lg" text="Loading kiosk..." />
       </div>
     );
   }
@@ -232,12 +263,9 @@ const CheckInKiosk = () => {
               <p className="text-gray-600">Select a child and class for check-in</p>
             </div>
             
-            {/* Mobile-optimized layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Quick Check-In Panel */}
               <QuickCheckInPanel />
               
-              {/* Detailed Check-In Form */}
               <Card>
                 <CardHeader>
                   <CardTitle>Detailed Check-In</CardTitle>
@@ -286,16 +314,21 @@ const CheckInKiosk = () => {
                       disabled={!selectedChild || isCheckingIn}
                       className="w-full"
                     >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      {isCheckingIn ? 'Checking In...' : 'Check In'}
+                      {isCheckingIn ? (
+                        <LoadingSpinner size="sm" text="Checking In..." />
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Check In
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Login Form for parents */}
-            <div className="text-center">
+            <div className="flex justify-center">
               <LoginForm onSignUp={() => {}} />
             </div>
           </TabsContent>
@@ -341,15 +374,21 @@ const CheckInKiosk = () => {
                           onClick={() => checkOut(record.id)}
                           disabled={isCheckingOut}
                         >
-                          <Clock className="h-4 w-4 mr-1" />
-                          Check Out
+                          {isCheckingOut ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            <>
+                              <Clock className="h-4 w-4 mr-1" />
+                              Check Out
+                            </>
+                          )}
                         </Button>
                       </div>
                     ))}
                     
                     {checkedInChildren.length === 0 && (
                       <div className="text-center py-8 text-gray-500">
-                        {checkoutSearchTerm ? 'No matching children found' : 'No children checked in'}
+                        {debouncedCheckoutSearchTerm ? 'No matching children found' : 'No children checked in'}
                       </div>
                     )}
                   </div>
