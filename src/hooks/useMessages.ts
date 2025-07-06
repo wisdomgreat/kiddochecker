@@ -30,21 +30,38 @@ export const useMessages = () => {
       if (!user?.id) return [];
 
       try {
-        const { data, error } = await supabase
+        // First get messages without the problematic join
+        const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
-          .select(`
-            *,
-            sender:profiles!messages_sender_id_fkey(first_name, last_name)
-          `)
+          .select('*')
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error("Error fetching messages:", error);
+        if (messagesError) {
+          console.error("Error fetching messages:", messagesError);
           return [];
         }
 
-        return data || [];
+        if (!messagesData || messagesData.length === 0) {
+          return [];
+        }
+
+        // Get unique sender IDs
+        const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
+        
+        // Get sender profiles separately
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', senderIds);
+
+        // Combine the data
+        const messagesWithSenders = messagesData.map(message => ({
+          ...message,
+          sender: profiles?.find(profile => profile.id === message.sender_id) || undefined
+        }));
+
+        return messagesWithSenders;
       } catch (error: any) {
         console.error("Error in useMessages:", error);
         return [];

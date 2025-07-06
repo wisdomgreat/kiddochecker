@@ -31,7 +31,13 @@ export const useDevices = () => {
           return [];
         }
 
-        return data || [];
+        // Transform the data to match our Device interface
+        return (data || []).map(device => ({
+          ...device,
+          type: (device.type === 'check_in_kiosk' || device.type === 'check_out_station') 
+            ? device.type as 'check_in_kiosk' | 'check_out_station'
+            : 'check_in_kiosk' // default fallback
+        }));
       } catch (error: any) {
         console.error("Error in useDevices:", error);
         return [];
