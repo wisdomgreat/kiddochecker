@@ -31,8 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { useStaff } from "@/hooks/useStaff";
-import { AppRole } from "@/types/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 const staffFormSchema = z.object({
   email: z.string().email({
@@ -48,7 +47,6 @@ const staffFormSchema = z.object({
   role: z.enum(["admin", "staff", "teacher", "teacher_assistant"] as const, {
     required_error: "Please select a role.",
   }),
-  isSuperAdmin: z.boolean().default(false),
   isVolunteer: z.boolean().default(false),
 });
 
@@ -63,7 +61,6 @@ interface AddStaffFormProps {
 const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { addStaff } = useStaff();
   
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
@@ -73,7 +70,6 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
       lastName: "",
       phone: "",
       role: "teacher",
-      isSuperAdmin: false,
       isVolunteer: false,
     },
   });
@@ -82,15 +78,50 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
     try {
       setIsSubmitting(true);
       
-      addStaff({
+      // Create user account
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: values.email,
-        first_name: values.firstName,
-        last_name: values.lastName,
-        phone: values.phone,
-        role: values.role as AppRole,
-        is_volunteer: values.isVolunteer,
+        password: 'TempPass123!', // Temporary password
+        email_confirm: true,
+        user_metadata: {
+          first_name: values.firstName,
+          last_name: values.lastName,
+          phone: values.phone
+        }
       });
-      
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            first_name: values.firstName,
+            last_name: values.lastName,
+            phone: values.phone
+          });
+
+        if (profileError) console.error("Profile error:", profileError);
+
+        // Create user role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: authData.user.id,
+            role: values.role,
+            is_volunteer: values.isVolunteer
+          });
+
+        if (roleError) throw roleError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Staff member added successfully! They will receive login instructions via email.",
+      });
+
       form.reset();
       onOpenChange(false);
       onSuccess();
@@ -114,6 +145,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
           <DialogTitle>Add New Staff Member</DialogTitle>
           <DialogDescription>
             Create a new account for a staff member, teacher, or administrator.
+            They will receive login instructions via email.
           </DialogDescription>
         </DialogHeader>
 
@@ -203,31 +235,6 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                 </FormItem>
               )}
             />
-            
-            {form.watch("role") === "admin" && (
-              <FormField
-                control={form.control}
-                name="isSuperAdmin"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Super Admin
-                      </FormLabel>
-                      <FormDescription className="text-sm">
-                        Super admins have unrestricted access to all features
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            )}
             
             <FormField
               control={form.control}

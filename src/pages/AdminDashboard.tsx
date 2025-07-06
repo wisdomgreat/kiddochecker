@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Users, 
@@ -14,7 +13,8 @@ import {
   Calendar,
   MessageSquare,
   Building,
-  Monitor
+  Monitor,
+  UserPlus
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -132,20 +132,23 @@ const AdminDashboard = () => {
     }
   ];
 
-  const handleNavigation = (path: string) => {
-    console.log('Navigating to:', path);
-    navigate(path);
-  };
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <Button onClick={() => navigate('/settings')}>
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Link to="/parent-registration">
+              <Button variant="outline">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Parent Registration
+              </Button>
+            </Link>
+            <Button onClick={() => navigate('/settings')}>
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
 
         {/* Stats Overview */}
@@ -198,25 +201,23 @@ const AdminDashboard = () => {
             {quickActions.map((action) => {
               const Icon = action.icon;
               return (
-                <Card 
-                  key={action.path} 
-                  className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
-                  onClick={() => handleNavigation(action.path)}
-                >
-                  <CardHeader>
-                    <div className="flex items-center space-x-2">
-                      <div className={`p-2 rounded-lg ${action.color}`}>
-                        <Icon className="h-6 w-6 text-white" />
+                <Link key={action.path} to={action.path}>
+                  <Card className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-105">
+                    <CardHeader>
+                      <div className="flex items-center space-x-2">
+                        <div className={`p-2 rounded-lg ${action.color}`}>
+                          <Icon className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{action.title}</CardTitle>
+                        </div>
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">{action.title}</CardTitle>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">{action.description}</p>
-                  </CardContent>
-                </Card>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">{action.description}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
               );
             })}
           </div>
