@@ -117,7 +117,7 @@ const App = () => (
                   element={
                     <EnhancedProtectedRoute requireAdminAccess>
                       <Settings />
-                    </EnhancedProte…Route>
+                    </EnhancedProtectedRoute>
                   } 
                 />
                 
