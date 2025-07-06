@@ -530,6 +530,41 @@ export type Database = {
           },
         ]
       }
+      qr_codes: {
+        Row: {
+          child_id: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          qr_data: string
+        }
+        Insert: {
+          child_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          qr_data: string
+        }
+        Update: {
+          child_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          qr_data?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qr_codes_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string

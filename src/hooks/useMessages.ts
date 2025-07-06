@@ -17,79 +17,57 @@ export interface Message {
     first_name?: string;
     last_name?: string;
   };
-  recipient?: {
-    first_name?: string;
-    last_name?: string;
-  };
 }
 
 export const useMessages = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
-  const { data: messages = [], isLoading, error } = useQuery({
+  const { data: messages = [], isLoading, error, refetch } = useQuery({
     queryKey: ["messages", user?.id],
     queryFn: async (): Promise<Message[]> => {
-      if (!user) return [];
+      if (!user?.id) return [];
 
       try {
-        // First get the messages
-        const { data: messagesData, error: messagesError } = await supabase
+        const { data, error } = await supabase
           .from('messages')
-          .select('*')
+          .select(`
+            *,
+            sender:profiles!messages_sender_id_fkey(first_name, last_name)
+          `)
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false });
 
-        if (messagesError) {
-          console.error("Error fetching messages:", messagesError);
-          throw messagesError;
+        if (error) {
+          console.error("Error fetching messages:", error);
+          return [];
         }
 
-        if (!messagesData) return [];
-
-        // Get unique user IDs for profiles lookup
-        const userIds = Array.from(new Set([
-          ...messagesData.map(msg => msg.sender_id),
-          ...messagesData.filter(msg => msg.recipient_id).map(msg => msg.recipient_id!)
-        ]));
-
-        // Fetch profiles for all users
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .in('id', userIds);
-
-        if (profilesError) {
-          console.error("Error fetching profiles:", profilesError);
-          // Continue without profiles if there's an error
-        }
-
-        // Map messages with profile data
-        const messagesWithProfiles: Message[] = messagesData.map(msg => ({
-          ...msg,
-          sender: profiles?.find(p => p.id === msg.sender_id) || undefined,
-          recipient: msg.recipient_id ? profiles?.find(p => p.id === msg.recipient_id) || undefined : undefined
-        }));
-
-        return messagesWithProfiles;
+        return data || [];
       } catch (error: any) {
         console.error("Error in useMessages:", error);
         return [];
       }
     },
-    enabled: !!user,
+    enabled: !!user?.id,
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (messageData: { recipient_id?: string; subject?: string; content: string }) => {
-      if (!user) throw new Error("User not authenticated");
+    mutationFn: async (messageData: {
+      subject?: string;
+      content: string;
+      recipient_id?: string;
+    }) => {
+      if (!user?.id) throw new Error("User not authenticated");
 
       const { data, error } = await supabase
         .from('messages')
         .insert({
           sender_id: user.id,
-          ...messageData
+          subject: messageData.subject,
+          content: messageData.content,
+          recipient_id: messageData.recipient_id || null,
         })
         .select()
         .single();
@@ -114,29 +92,14 @@ export const useMessages = () => {
     },
   });
 
-  const markAsReadMutation = useMutation({
-    mutationFn: async (messageId: string) => {
-      const { data, error } = await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('id', messageId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-    },
-  });
-
   return {
     messages,
     isLoading,
     error,
+    refetch,
     sendMessage: sendMessageMutation.mutate,
     isSending: sendMessageMutation.isPending,
-    markAsRead: markAsReadMutation.mutate,
   };
 };
+
+export default useMessages;

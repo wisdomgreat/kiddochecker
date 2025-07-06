@@ -1,8 +1,8 @@
+
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { useRoleAccess } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -40,9 +40,12 @@ interface NavigationItem {
 
 const EnhancedSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { signOut, userRole } = useAuth();
-  const { canAccessParent, canAccessAdmin } = useRoleAccess();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const canAccessAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const canAccessParent = userRole === 'parent';
 
   const getNavigationItems = (): NavigationItem[] => {
     const baseItems: NavigationItem[] = [
@@ -87,7 +90,7 @@ const EnhancedSidebar = () => {
         name: "Check-In/Out", 
         href: "/check-in-out", 
         icon: ClipboardCheck, 
-        roles: ['admin', 'staff', 'teacher'] 
+        roles: ['admin', 'staff', 'teacher', 'super_admin'] 
       },
       { 
         name: "Calendar", 
@@ -114,12 +117,6 @@ const EnhancedSidebar = () => {
         name: "My Children", 
         href: "/children-management", 
         icon: Baby, 
-        parentOnly: true 
-      },
-      { 
-        name: "Attendance Rewards", 
-        href: "/attendance-rewards", 
-        icon: Clock, 
         parentOnly: true 
       },
     ];
@@ -180,13 +177,31 @@ const EnhancedSidebar = () => {
     }
   };
 
+  const handleNavigation = (href: string) => {
+    console.log('Navigating to:', href);
+    setIsMobileMenuOpen(false);
+    navigate(href);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-        <Link to="/" className="flex items-center gap-2 font-semibold">
+        <button 
+          onClick={() => handleNavigation('/')} 
+          className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity"
+        >
           <BookOpen className="h-6 w-6" />
           <span>Admin Panel</span>
-        </Link>
+        </button>
       </div>
       
       {/* Role indicator */}
@@ -212,14 +227,13 @@ const EnhancedSidebar = () => {
           {navigationItems.map((item) => {
             const Icon = item.icon;
             return (
-              <Link
+              <button
                 key={item.href}
-                to={item.href}
+                onClick={() => handleNavigation(item.href)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary w-full text-left",
                   isActive(item.href) && "bg-muted text-primary"
                 )}
-                onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Icon className="h-4 w-4" />
                 {item.name}
@@ -233,7 +247,7 @@ const EnhancedSidebar = () => {
                     Parent
                   </Badge>
                 )}
-              </Link>
+              </button>
             );
           })}
         </nav>
@@ -243,7 +257,7 @@ const EnhancedSidebar = () => {
         <Button
           variant="outline"
           className="w-full justify-start"
-          onClick={signOut}
+          onClick={handleSignOut}
         >
           <LogOut className="mr-2 h-4 w-4" />
           Logout
