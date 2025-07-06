@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import AdminDashboard from "@/pages/AdminDashboard";
 import UsersManagement from "@/pages/UsersManagement";
 import StaffManagement from "@/pages/StaffManagement";
@@ -17,7 +17,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import CalendarPage from "@/pages/CalendarPage";
 import FamilyConnectPage from "@/pages/FamilyConnectPage";
 import SettingsPage from "@/pages/SettingsPage";
-import OrganizationSetupPage from "@/pages/OrganizationSetupPage";
+import OrganizationSetup from "@/pages/OrganizationSetup";
 import ChildrenManagement from "@/pages/ChildrenManagement";
 import LoginPage from "@/pages/LoginPage";
 import ParentRegistrationPage from "@/pages/ParentRegistrationPage";
@@ -105,7 +105,7 @@ function App() {
               
               <Route path="/organization-setup" element={
                 <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                  <OrganizationSetupPage />
+                  <OrganizationSetup />
                 </ProtectedRoute>
               } />
               
