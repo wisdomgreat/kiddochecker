@@ -7,56 +7,25 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { MessageSquare, Send, Users, Bell } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useMessages } from '@/hooks/useMessages';
 
 const FamilyConnectPage = () => {
-  const { user } = useAuth();
   const [newMessage, setNewMessage] = useState('');
   const [newSubject, setNewSubject] = useState('');
+  
+  const { messages, sendMessage, isSending } = useMessages();
 
-  const { data: messages } = useQuery({
-    queryKey: ['messages', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender:profiles!messages_sender_id_fkey(first_name, last_name),
-          recipient:profiles!messages_recipient_id_fkey(first_name, last_name)
-        `)
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id
-  });
+  const handleSendMessage = () => {
+    if (!newMessage.trim()) return;
 
-  const sendMessage = async () => {
-    if (!user?.id || !newMessage.trim()) return;
+    sendMessage({
+      subject: newSubject || 'General Message',
+      content: newMessage,
+      recipient_id: undefined // For now, sending to admin/general
+    });
 
-    const { error } = await supabase
-      .from('messages')
-      .insert({
-        sender_id: user.id,
-        subject: newSubject || 'General Message',
-        content: newMessage,
-        recipient_id: null // For now, sending to admin/general
-      });
-
-    if (error) {
-      console.error('Error sending message:', error);
-    } else {
-      setNewMessage('');
-      setNewSubject('');
-      // Refresh messages
-      window.location.reload();
-    }
+    setNewMessage('');
+    setNewSubject('');
   };
 
   return (
@@ -97,9 +66,12 @@ const FamilyConnectPage = () => {
                   onChange={(e) => setNewMessage(e.target.value)}
                   rows={4}
                 />
-                <Button onClick={sendMessage} disabled={!newMessage.trim()}>
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={!newMessage.trim() || isSending}
+                >
                   <Send className="h-4 w-4 mr-2" />
-                  Send Message
+                  {isSending ? 'Sending...' : 'Send Message'}
                 </Button>
               </CardContent>
             </Card>
@@ -110,13 +82,13 @@ const FamilyConnectPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {messages?.map((message) => (
+                  {messages.map((message) => (
                     <div key={message.id} className="border rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <h4 className="font-medium">{message.subject}</h4>
+                          <h4 className="font-medium">{message.subject || 'No Subject'}</h4>
                           <p className="text-sm text-gray-600">
-                            From: {message.sender?.first_name} {message.sender?.last_name}
+                            From: {message.sender?.first_name || 'Unknown'} {message.sender?.last_name || 'User'}
                           </p>
                         </div>
                         <div className="text-right">
@@ -124,7 +96,7 @@ const FamilyConnectPage = () => {
                             {message.is_read ? "Read" : "Unread"}
                           </Badge>
                           <p className="text-xs text-gray-500 mt-1">
-                            {new Date(message.created_at || '').toLocaleDateString()}
+                            {new Date(message.created_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -132,7 +104,7 @@ const FamilyConnectPage = () => {
                     </div>
                   ))}
 
-                  {!messages || messages.length === 0 && (
+                  {messages.length === 0 && (
                     <p className="text-gray-500 text-center py-8">No messages yet.</p>
                   )}
                 </div>
