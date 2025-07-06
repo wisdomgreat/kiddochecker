@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
-import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import AdminDashboard from "@/pages/AdminDashboard";
 import UsersManagement from "@/pages/UsersManagement";
 import StaffManagement from "@/pages/StaffManagement";
