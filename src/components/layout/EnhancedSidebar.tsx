@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -53,20 +52,14 @@ const EnhancedSidebar = () => {
     const adminItems: NavigationItem[] = [
       { 
         name: "User Management", 
-        href: "/users", 
+        href: "/users-management", 
         icon: Users, 
         adminOnly: true 
       },
       { 
         name: "Staff Management", 
-        href: "/staff", 
+        href: "/staff-management", 
         icon: UserCheck, 
-        adminOnly: true 
-      },
-      { 
-        name: "Children Management", 
-        href: "/children", 
-        icon: Baby, 
         adminOnly: true 
       },
       { 
@@ -76,21 +69,15 @@ const EnhancedSidebar = () => {
         adminOnly: true 
       },
       { 
-        name: "Device Management", 
-        href: "/device-management", 
-        icon: Monitor, 
-        adminOnly: true 
-      },
-      { 
-        name: "Roles & Permissions", 
-        href: "/roles", 
-        icon: Shield, 
-        adminOnly: true 
-      },
-      { 
         name: "Organization Setup", 
         href: "/organization-setup", 
         icon: Building, 
+        adminOnly: true 
+      },
+      { 
+        name: "Settings", 
+        href: "/settings", 
+        icon: Settings, 
         adminOnly: true 
       },
     ];
@@ -100,7 +87,7 @@ const EnhancedSidebar = () => {
         name: "Check-In/Out", 
         href: "/check-in-out", 
         icon: ClipboardCheck, 
-        roles: ['all'] 
+        roles: ['admin', 'staff', 'teacher'] 
       },
       { 
         name: "Calendar", 
@@ -118,20 +105,14 @@ const EnhancedSidebar = () => {
         name: "Reports", 
         href: "/reports", 
         icon: BarChart3, 
-        roles: ['admin', 'super_admin', 'teacher'] 
-      },
-      { 
-        name: "Settings", 
-        href: "/settings", 
-        icon: Settings, 
-        roles: ['all'] 
+        roles: ['admin', 'super_admin', 'teacher', 'staff'] 
       },
     ];
 
     const parentItems: NavigationItem[] = [
       { 
         name: "My Children", 
-        href: "/children", 
+        href: "/children-management", 
         icon: Baby, 
         parentOnly: true 
       },

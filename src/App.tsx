@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +26,12 @@ import Settings from "./pages/Settings";
 import OrganizationSetup from "./pages/OrganizationSetup";
 import NotFound from "./pages/NotFound";
 import AccessDeniedPage from "./pages/AccessDeniedPage";
+
+// New enhanced pages
+import CheckInOutPage from "./pages/CheckInOutPage";
+import ReportsPage from "./pages/ReportsPage";
+import CalendarPage from "./pages/CalendarPage";
+import FamilyConnectPage from "./pages/FamilyConnectPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -133,6 +138,40 @@ const App = () => (
                 
                 {/* Check-in system routes */}
                 <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+                
+                {/* New enhanced routes */}
+                <Route 
+                  path="/check-in-out" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']}>
+                      <CheckInOutPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/reports" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'staff', 'teacher']}>
+                      <ReportsPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/calendar" 
+                  element={
+                    <ProtectedRoute>
+                      <CalendarPage />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/family-connect" 
+                  element={
+                    <ProtectedRoute>
+                      <FamilyConnectPage />
+                    </ProtectedRoute>
+                  } 
+                />
                 
                 {/* Fallback routes */}
                 <Route path="/dashboard" element={<Navigate to="/" replace />} />
