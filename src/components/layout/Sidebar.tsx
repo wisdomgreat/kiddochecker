@@ -42,13 +42,9 @@ const Sidebar = () => {
     ];
 
     const adminItems = [
-      { name: "User Management", href: "/users", icon: Users, roles: ['admin', 'super_admin'] },
-      { name: "Staff Management", href: "/staff", icon: UserCheck, roles: ['admin', 'super_admin'] },
-      { name: "Children Management", href: "/children", icon: Baby, roles: ['admin', 'super_admin', 'teacher', 'teacher_assistant', 'staff'] },
+      { name: "User Management", href: "/users-management", icon: Users, roles: ['admin', 'super_admin'] },
+      { name: "Staff Management", href: "/staff-management", icon: UserCheck, roles: ['admin', 'super_admin'] },
       { name: "Classes Management", href: "/classes-management", icon: BookOpen, roles: ['admin', 'super_admin'] },
-      { name: "Classes", href: "/classes", icon: BookOpen, roles: ['teacher', 'teacher_assistant', 'staff'] },
-      { name: "Device Management", href: "/device-management", icon: Monitor, roles: ['admin', 'super_admin'] },
-      { name: "Roles & Permissions", href: "/roles", icon: Shield, roles: ['admin', 'super_admin'] },
       { name: "Organization Setup", href: "/organization-setup", icon: Building, roles: ['admin', 'super_admin'] },
     ];
 
@@ -57,12 +53,11 @@ const Sidebar = () => {
       { name: "Calendar", href: "/calendar", icon: Calendar, roles: ['all'] },
       { name: "Family Connect", href: "/family-connect", icon: MessageSquare, roles: ['all'] },
       { name: "Reports", href: "/reports", icon: BarChart3, roles: ['admin', 'super_admin', 'teacher'] },
-      { name: "Settings", href: "/settings", icon: Settings, roles: ['all'] },
+      { name: "Settings", href: "/settings", icon: Settings, roles: ['admin', 'super_admin'] },
     ];
 
     const parentItems = [
-      { name: "My Children", href: "/children", icon: Baby, roles: ['parent'] },
-      { name: "Attendance Rewards", href: "/attendance-rewards", icon: Clock, roles: ['parent'] },
+      { name: "My Children", href: "/children-management", icon: Baby, roles: ['parent'] },
     ];
 
     let items = [...baseItems];
@@ -105,7 +100,7 @@ const Sidebar = () => {
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <BookOpen className="h-6 w-6" />
-          <span>Admin Panel</span>
+          <span>KiddoChecker</span>
         </Link>
       </div>
       <ScrollArea className="flex-1">
@@ -136,7 +131,7 @@ const Sidebar = () => {
           onClick={signOut}
         >
           <LogOut className="mr-2 h-4 w-4" />
-          Logout
+          Sign Out
         </Button>
       </div>
     </div>

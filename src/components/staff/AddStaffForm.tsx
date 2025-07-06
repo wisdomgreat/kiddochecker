@@ -69,7 +69,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
       firstName: "",
       lastName: "",
       phone: "",
-      role: "teacher",
+      role: "staff",
       isVolunteer: false,
     },
   });
@@ -77,44 +77,47 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
   const handleSubmit = async (values: StaffFormValues) => {
     try {
       setIsSubmitting(true);
+      console.log("Creating staff member with values:", values);
       
-      // Create user account
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Create user account using signUp instead of admin.createUser
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: values.email,
         password: 'TempPass123!', // Temporary password
-        email_confirm: true,
-        user_metadata: {
-          first_name: values.firstName,
-          last_name: values.lastName,
-          phone: values.phone
-        }
-      });
-
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // Create profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
+        options: {
+          data: {
             first_name: values.firstName,
             last_name: values.lastName,
             phone: values.phone
-          });
+          }
+        }
+      });
 
-        if (profileError) console.error("Profile error:", profileError);
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw new Error(`Failed to create user account: ${authError.message}`);
+      }
 
-        // Create user role
+      console.log("User created:", authData.user?.id);
+
+      if (authData.user) {
+        // Wait a moment for the trigger to create the profile and user_role
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Update the role that was created by the trigger
         const { error: roleError } = await supabase
           .from('user_roles')
-          .insert({
-            user_id: authData.user.id,
+          .update({ 
             role: values.role,
             is_volunteer: values.isVolunteer
-          });
+          })
+          .eq('user_id', authData.user.id);
 
-        if (roleError) throw roleError;
+        if (roleError) {
+          console.error("Role update error:", roleError);
+          // Don't throw here as the user was created successfully
+        }
+
+        console.log("Staff member created successfully");
       }
 
       toast({
@@ -130,7 +133,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
       console.error("Error creating staff member:", error);
       toast({
         title: "Error",
-        description: error.message || "Could not create staff member",
+        description: error.message || "Could not create staff member. Please try again.",
         variant: "destructive",
       });
     } finally {

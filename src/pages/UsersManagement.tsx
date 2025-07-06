@@ -13,6 +13,7 @@ import UserFilters from "@/components/users/UserFilters";
 import UserActionButtons from "@/components/users/UserActionButtons";
 import EmptyUserState from "@/components/users/EmptyUserState";
 import DeleteUserDialog from "@/components/users/DeleteUserDialog";
+import RoleAssignmentDialog from "@/components/users/RoleAssignmentDialog";
 import useUserRoles from "@/hooks/useUserRoles";
 import { UserProfile } from "@/types/users";
 
@@ -20,12 +21,12 @@ const UsersManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // Use the custom hook to fetch users data
   const { data: users = [], isLoading } = useUserRoles();
 
   const filteredUsers = users.filter((userItem) => {
@@ -37,7 +38,7 @@ const UsersManagement = () => {
 
     if (activeTab === "all") return searchMatch;
     if (activeTab === "parents") return userItem.role === "parent" && searchMatch;
-    if (activeTab === "staff") return (userItem.role === "staff" || userItem.role === "teacher" || userItem.role === "teacher_assistant") && searchMatch;
+    if (activeTab === "staff") return (userItem.role === "staff" || userItem.role === "teacher" || userItem.role === "teacher_assistant" || userItem.role === "admin") && searchMatch;
     return false;
   });
 
@@ -46,6 +47,11 @@ const UsersManagement = () => {
       title: "Edit User",
       description: `Editing ${userItem.firstName} ${userItem.lastName} (Feature coming soon)`,
     });
+  };
+
+  const handleAssignRole = (userItem: UserProfile) => {
+    setSelectedUser(userItem);
+    setIsRoleDialogOpen(true);
   };
 
   const handleDeleteConfirmation = (userItem: UserProfile) => {
@@ -90,13 +96,14 @@ const UsersManagement = () => {
 
   const handleCloseDialog = () => {
     setIsDeleteDialogOpen(false);
+    setIsRoleDialogOpen(false);
     setSelectedUser(null);
   };
 
-  // Generate the user table columns
   const userColumns = getUserTableColumns({
     onEdit: handleEditUser,
-    onDelete: handleDeleteConfirmation
+    onDelete: handleDeleteConfirmation,
+    onAssignRole: handleAssignRole
   });
 
   return (
@@ -143,6 +150,16 @@ const UsersManagement = () => {
         onDelete={handleDeleteUser}
         user={selectedUser}
         selectedUser={selectedUser}
+      />
+
+      <RoleAssignmentDialog
+        isOpen={isRoleDialogOpen}
+        onOpenChange={setIsRoleDialogOpen}
+        user={selectedUser}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ["users"] });
+          handleCloseDialog();
+        }}
       />
     </MainLayout>
   );
