@@ -56,22 +56,83 @@ const FamilyConnectPage = () => {
 
   const fetchMessages = async () => {
     try {
-      const { data, error } = await supabase
+      console.log('Fetching messages for user:', user?.id);
+      
+      // First get the messages without the join
+      const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:profiles!messages_sender_id_fkey(first_name, last_name, email),
-          recipient:profiles!messages_recipient_id_fkey(first_name, last_name, email)
-        `)
+        .select('*')
         .or(`sender_id.eq.${user?.id},recipient_id.eq.${user?.id}`)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching messages:', error);
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError);
         return;
       }
 
-      setMessages(data || []);
+      console.log('Raw messages data:', messagesData);
+
+      if (!messagesData || messagesData.length === 0) {
+        console.log('No messages found');
+        setMessages([]);
+        return;
+      }
+
+      // Get unique user IDs from messages
+      const userIds = [...new Set([
+        ...messagesData.map(m => m.sender_id),
+        ...messagesData.map(m => m.recipient_id).filter(Boolean)
+      ])];
+
+      console.log('User IDs to fetch profiles for:', userIds);
+
+      // Get profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+      }
+
+      // Get emails from auth_users_with_emails view
+      const { data: authUsers, error: authError } = await supabase
+        .from('auth_users_with_emails')
+        .select('id, email')
+        .in('id', userIds);
+
+      if (authError) {
+        console.error('Error fetching auth users:', authError);
+      }
+
+      console.log('Profiles data:', profiles);
+      console.log('Auth users data:', authUsers);
+
+      // Combine the data
+      const messagesWithProfiles = messagesData.map(message => {
+        const senderProfile = profiles?.find(p => p.id === message.sender_id);
+        const senderAuth = authUsers?.find(a => a.id === message.sender_id);
+        const recipientProfile = profiles?.find(p => p.id === message.recipient_id);
+        const recipientAuth = authUsers?.find(a => a.id === message.recipient_id);
+
+        return {
+          ...message,
+          sender: senderProfile || senderAuth ? {
+            first_name: senderProfile?.first_name,
+            last_name: senderProfile?.last_name,
+            email: senderAuth?.email
+          } : undefined,
+          recipient: recipientProfile || recipientAuth ? {
+            first_name: recipientProfile?.first_name,
+            last_name: recipientProfile?.last_name,
+            email: recipientAuth?.email
+          } : undefined
+        };
+      });
+
+      console.log('Final messages with profiles:', messagesWithProfiles);
+      setMessages(messagesWithProfiles);
     } catch (error) {
       console.error('Error in fetchMessages:', error);
     }
@@ -91,6 +152,8 @@ const FamilyConnectPage = () => {
         return;
       }
 
+      console.log('User roles data:', userRoles);
+
       // Get profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -100,6 +163,8 @@ const FamilyConnectPage = () => {
         console.error('Error fetching profiles:', profilesError);
         return;
       }
+
+      console.log('Profiles data:', profiles);
 
       // Get emails from auth.users (using the view)
       const { data: authUsers, error: authError } = await supabase
@@ -111,12 +176,14 @@ const FamilyConnectPage = () => {
         return;
       }
 
+      console.log('Auth users data:', authUsers);
+
       // Combine the data
       const combinedData: UserProfile[] = userRoles
         .filter(role => role.user_id !== user?.id) // Exclude current user
         .map(role => {
-          const profile = profiles.find(p => p.id === role.user_id);
-          const authUser = authUsers.find(au => au.id === role.user_id);
+          const profile = profiles?.find(p => p.id === role.user_id);
+          const authUser = authUsers?.find(au => au.id === role.user_id);
           
           return {
             id: role.user_id,
