@@ -606,6 +606,69 @@ export type Database = {
           },
         ]
       }
+      staff_invitations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          first_name: string
+          id: string
+          invitation_token: string
+          invited_by: string | null
+          last_name: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          first_name: string
+          id?: string
+          invitation_token: string
+          invited_by?: string | null
+          last_name: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          first_name?: string
+          id?: string
+          invitation_token?: string
+          invited_by?: string | null
+          last_name?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_invitations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teachers: {
         Row: {
           class_id: string | null

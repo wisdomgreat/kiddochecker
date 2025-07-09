@@ -34,7 +34,7 @@ export function SimpleStaffForm() {
     setIsSubmitting(true);
 
     try {
-      // Create a temporary staff invitation record
+      // Create a staff invitation record
       const { data, error } = await supabase
         .from('staff_invitations')
         .insert({
