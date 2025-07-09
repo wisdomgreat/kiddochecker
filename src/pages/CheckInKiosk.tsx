@@ -1,437 +1,272 @@
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { QrCode, Phone, Lock, Users, Clock, CheckCircle, ArrowLeft, Monitor } from "lucide-react";
-import QRCodeGenerator from "@/components/qr/QRCodeGenerator";
-
-interface Child {
-  id: string;
-  first_name: string;
-  last_name: string;
-  parent_id: string;
-}
-
-interface Class {
-  id: string;
-  name: string;
-}
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  QrCode, 
+  Users, 
+  Clock, 
+  User,
+  Phone,
+  Lock,
+  AlertCircle,
+  CheckCircle,
+  ArrowRight,
+  HelpCircle
+} from 'lucide-react';
 
 const CheckInKiosk = () => {
-  const [step, setStep] = useState<'auth' | 'select' | 'success'>('auth');
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [pin, setPin] = useState("");
-  const [children, setChildren] = useState<Child[]>([]);
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [selectedChild, setSelectedChild] = useState<string>("");
-  const [selectedClass, setSelectedClass] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [authenticatedParentId, setAuthenticatedParentId] = useState<string | null>(null);
-  const [attendanceId, setAttendanceId] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [pin, setPin] = useState('');
+  const [step, setStep] = useState<'phone' | 'pin' | 'children'>('phone');
+  const [children, setChildren] = useState([
+    { id: '1', name: 'Emma Johnson', age: 7, class: 'Room 103', checkedIn: false },
+    { id: '2', name: 'Noah Johnson', age: 5, class: 'Room 101', checkedIn: false },
+  ]);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const formatPhoneNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+    if (match) {
+      return `(${match[1]}) ${match[2]}-${match[3]}`;
+    }
+    return value;
+  };
 
-  useEffect(() => {
-    loadClasses();
-  }, []);
-
-  const loadClasses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('classes')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      setClasses(data || []);
-    } catch (error) {
-      console.error('Error loading classes:', error);
+  const handlePhoneSubmit = () => {
+    if (phoneNumber.length >= 10) {
+      setStep('pin');
     }
   };
 
-  const handleParentAuth = async () => {
-    if (!phoneNumber || !pin) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both phone number and PIN/password",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const fakeEmail = `${cleanedPhone}@phone.local`;
-      
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: pin,
-      });
-
-      if (authError) {
-        throw new Error("Invalid phone number or PIN. Please try again.");
-      }
-
-      if (!authData.user) {
-        throw new Error("Authentication failed");
-      }
-
-      // Get children for this parent
-      const { data: childrenData, error: childrenError } = await supabase
-        .from('children')
-        .select('id, first_name, last_name, parent_id')
-        .eq('parent_id', authData.user.id);
-
-      if (childrenError) throw childrenError;
-
-      if (!childrenData || childrenData.length === 0) {
-        throw new Error("No children found for this account");
-      }
-
-      setChildren(childrenData);
-      setAuthenticatedParentId(authData.user.id);
-      setStep('select');
-      
-      toast({
-        title: "Authentication Successful",
-        description: `Welcome! Please select your child to check in.`,
-      });
-
-    } catch (error: any) {
-      console.error('Authentication error:', error);
-      toast({
-        title: "Authentication Failed",
-        description: error.message || "Please check your phone number and PIN",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  const handlePinSubmit = () => {
+    if (pin.length === 4) {
+      setStep('children');
     }
   };
 
-  const handleCheckIn = async () => {
-    if (!selectedChild) {
-      toast({
-        title: "Selection Required",
-        description: "Please select a child to check in",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!authenticatedParentId) {
-      toast({
-        title: "Authentication Error",
-        description: "Please authenticate again",
-        variant: "destructive",
-      });
-      setStep('auth');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Check if child is already checked in today
-      const { data: existingAttendance, error: checkError } = await supabase
-        .from('attendance')
-        .select('*')
-        .eq('child_id', selectedChild)
-        .eq('attendance_date', today)
-        .is('checked_out_at', null);
-
-      if (checkError) throw checkError;
-
-      if (existingAttendance && existingAttendance.length > 0) {
-        throw new Error("This child is already checked in today");
-      }
-
-      // Create attendance record
-      const attendanceData = {
-        child_id: selectedChild,
-        class_id: selectedClass || null,
-        checked_in_at: new Date().toISOString(),
-        checked_in_by: authenticatedParentId,
-        attendance_date: today
-      };
-
-      const { data: newAttendance, error: insertError } = await supabase
-        .from('attendance')
-        .insert(attendanceData)
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      setAttendanceId(newAttendance.id);
-      setStep('success');
-      
-      toast({
-        title: "Check-In Successful!",
-        description: "Your child has been checked in successfully.",
-      });
-
-    } catch (error: any) {
-      console.error('Check-in error:', error);
-      toast({
-        title: "Check-In Failed",
-        description: error.message || "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleCheckIn = (childId: string) => {
+    setChildren(prev => prev.map(child => 
+      child.id === childId ? { ...child, checkedIn: true } : child
+    ));
+    toast({
+      title: "Check-in Successful",
+      description: "Child has been checked in safely",
+    });
   };
 
-  const resetKiosk = () => {
-    setStep('auth');
-    setPhoneNumber("");
-    setPin("");
-    setChildren([]);
-    setSelectedChild("");
-    setSelectedClass("");
-    setAuthenticatedParentId(null);
-    setAttendanceId(null);
-  };
+  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const selectedChildData = children.find(child => child.id === selectedChild);
-  const selectedClassData = classes.find(cls => cls.id === selectedClass);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Monitor className="h-12 w-12 text-blue-600" />
-            <h1 className="text-4xl font-bold text-gray-900">KiddoChecker Kiosk</h1>
-          </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="text-2xl font-semibold text-gray-700">
-              {currentTime.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
+  if (step === 'phone') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <QrCode className="h-8 w-8 text-white" />
             </div>
-            <div className="text-3xl font-bold text-blue-600 mt-2">
-              {currentTime.toLocaleTimeString('en-US', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-              })}
-            </div>
+            <h1 className="text-3xl font-bold text-blue-600 mb-2">Welcome to ChurchCheck</h1>
+            <p className="text-gray-600">Please enter your phone number to check in your children</p>
           </div>
-        </div>
 
-        {/* Authentication Step */}
-        {step === 'auth' && (
-          <Card className="shadow-xl">
+          {/* Login Card */}
+          <Card className="shadow-xl border-0">
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl flex items-center justify-center gap-2">
-                <Phone className="h-6 w-6 text-blue-600" />
-                Parent Authentication
-              </CardTitle>
-              <p className="text-gray-600 mt-2">Enter your phone number and PIN to check in your child</p>
+              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <User className="h-6 w-6 text-blue-600" />
+              </div>
+              <CardTitle className="text-xl font-semibold text-gray-900">Parent Login</CardTitle>
+              <p className="text-sm text-gray-600">Enter your credentials to continue</p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-lg font-medium mb-2">Phone Number</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
                     type="tel"
                     placeholder="(555) 123-4567"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="text-xl p-6 h-14"
-                    autoFocus
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-lg font-medium mb-2">PIN / Password</label>
-                  <Input
-                    type="password"
-                    placeholder="Enter your PIN or password"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    className="text-xl p-6 h-14"
-                    onKeyPress={(e) => e.key === 'Enter' && handleParentAuth()}
+                    onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                    className="pl-10 h-12 text-lg"
+                    maxLength={14}
                   />
                 </div>
               </div>
 
               <Button 
-                onClick={handleParentAuth}
-                disabled={!phoneNumber || !pin || loading}
-                className="w-full h-14 text-xl bg-blue-600 hover:bg-blue-700"
+                onClick={handlePhoneSubmit}
+                disabled={phoneNumber.length < 10}
+                className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700"
               >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white mr-2"></div>
-                    Authenticating...
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    <Lock className="mr-2 h-6 w-6" />
-                    Authenticate
-                  </div>
-                )}
+                Continue
+                <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
 
-              <div className="text-center">
-                <p className="text-sm text-gray-500">
-                  Don't have an account? Contact the front desk for assistance.
-                </p>
+              <div className="text-center space-y-3">
+                <p className="text-sm text-gray-500">Need help? Ask a staff member for assistance</p>
+                <Button variant="link" className="text-blue-600 text-sm">
+                  New Parent? Register Here
+                </Button>
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Child Selection Step */}
-        {step === 'select' && (
-          <Card className="shadow-xl">
+          {/* Footer */}
+          <div className="text-center mt-6">
+            <Button variant="ghost" className="text-gray-500 text-sm">
+              Admin Access
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'pin') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card className="shadow-xl border-0">
             <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl flex items-center justify-center gap-2">
-                <Users className="h-6 w-6 text-green-600" />
-                Select Child to Check In
-              </CardTitle>
-              <p className="text-gray-600 mt-2">Choose your child and their class (optional)</p>
+              <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Lock className="h-6 w-6 text-green-600" />
+              </div>
+              <CardTitle className="text-xl font-semibold text-gray-900">Enter PIN</CardTitle>
+              <p className="text-sm text-gray-600">Enter your 4-digit PIN to continue</p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-lg font-medium mb-3">Select Child</label>
-                  <Select value={selectedChild} onValueChange={setSelectedChild}>
-                    <SelectTrigger className="h-14 text-lg">
-                      <SelectValue placeholder="Choose your child" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {children.map((child) => (
-                        <SelectItem key={child.id} value={child.id} className="text-lg p-3">
-                          {child.first_name} {child.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block text-lg font-medium mb-3">Select Class (Optional)</label>
-                  <Select value={selectedClass} onValueChange={setSelectedClass}>
-                    <SelectTrigger className="h-14 text-lg">
-                      <SelectValue placeholder="Choose a class (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="" className="text-lg p-3">No specific class</SelectItem>
-                      {classes.map((cls) => (
-                        <SelectItem key={cls.id} value={cls.id} className="text-lg p-3">
-                          {cls.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">PIN</label>
+                <Input
+                  type="password"
+                  placeholder="Enter your 4-digit PIN"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.slice(0, 4))}
+                  className="h-12 text-lg text-center tracking-widest"
+                  maxLength={4}
+                />
               </div>
-
-              {selectedChild && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-lg mb-2">Check-In Summary</h3>
-                  <div className="space-y-1">
-                    <p><strong>Child:</strong> {selectedChildData?.first_name} {selectedChildData?.last_name}</p>
-                    <p><strong>Class:</strong> {selectedClassData?.name || 'No class selected'}</p>
-                    <p><strong>Time:</strong> {currentTime.toLocaleTimeString()}</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-4">
-                <Button 
-                  variant="outline"
-                  onClick={resetKiosk}
-                  className="flex-1 h-14 text-lg"
-                >
-                  <ArrowLeft className="mr-2 h-5 w-5" />
-                  Back
-                </Button>
-                
-                <Button 
-                  onClick={handleCheckIn}
-                  disabled={!selectedChild || loading}
-                  className="flex-1 h-14 text-lg bg-green-600 hover:bg-green-700"
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white mr-2"></div>
-                      Checking In...
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <CheckCircle className="mr-2 h-6 w-6" />
-                      Check In
-                    </div>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Success Step */}
-        {step === 'success' && (
-          <Card className="shadow-xl border-green-200 bg-green-50">
-            <CardContent className="text-center py-12">
-              <CheckCircle className="h-24 w-24 text-green-600 mx-auto mb-6" />
-              <h2 className="text-3xl font-bold text-green-800 mb-4">Check-In Successful!</h2>
-              
-              {selectedChildData && attendanceId && (
-                <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-                  <h3 className="text-xl font-semibold mb-4">Check-In Details</h3>
-                  <div className="space-y-2 text-lg mb-4">
-                    <p><strong>Child:</strong> {selectedChildData.first_name} {selectedChildData.last_name}</p>
-                    <p><strong>Class:</strong> {selectedClassData?.name || 'No class assigned'}</p>
-                    <p><strong>Check-In Time:</strong> {currentTime.toLocaleTimeString()}</p>
-                    <Badge className="mt-2 bg-green-100 text-green-800">Successfully Checked In</Badge>
-                  </div>
-                  
-                  <div className="mt-6">
-                    <h4 className="text-lg font-semibold mb-2">Check-Out QR Code</h4>
-                    <QRCodeGenerator
-                      attendanceId={attendanceId}
-                      childName={`${selectedChildData.first_name} ${selectedChildData.last_name}`}
-                      className={selectedClassData?.name}
-                      size={150}
-                    />
-                  </div>
-                </div>
-              )}
 
               <Button 
-                onClick={resetKiosk}
-                className="h-14 text-xl px-8 bg-blue-600 hover:bg-blue-700"
+                onClick={handlePinSubmit}
+                disabled={pin.length !== 4}
+                className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
               >
-                Check In Another Child
+                Verify PIN
+                <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
-              
-              <p className="text-gray-600 mt-4">
-                Have a great day! Remember to check out when you leave.
+
+              <Button 
+                variant="outline" 
+                onClick={() => setStep('phone')}
+                className="w-full h-12"
+              >
+                Back to Phone Number
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Check In Your Children</h1>
+          <p className="text-gray-600">Select the children you'd like to check in today</p>
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Clock className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-500">Current time: {currentTime}</span>
+          </div>
+        </div>
+
+        {/* Children Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {children.map((child) => (
+            <Card key={child.id} className="shadow-lg border-0 overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{child.name}</h3>
+                      <p className="text-sm text-gray-600">Age {child.age} • {child.class}</p>
+                    </div>
+                  </div>
+                  {child.checkedIn && (
+                    <CheckCircle className="h-8 w-8 text-green-600" />
+                  )}
+                </div>
+
+                {child.checkedIn ? (
+                  <div className="space-y-3">
+                    <Badge className="w-full justify-center py-2 bg-green-100 text-green-800 hover:bg-green-100">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Checked In Successfully
+                    </Badge>
+                    <p className="text-sm text-gray-600 text-center">
+                      Checked in at {currentTime}
+                    </p>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={() => handleCheckIn(child.id)}
+                    className="w-full h-12 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Users className="h-5 w-5 mr-2" />
+                    Check In {child.name}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button 
+            variant="outline" 
+            size="lg"
+            onClick={() => setStep('phone')}
+            className="px-8"
+          >
+            Check In Different Family
+          </Button>
+          <Button 
+            size="lg"
+            className="px-8 bg-green-600 hover:bg-green-700"
+            disabled={!children.some(child => child.checkedIn)}
+          >
+            <CheckCircle className="h-5 w-5 mr-2" />
+            Complete Check-In
+          </Button>
+        </div>
+
+        {/* Help Section */}
+        <div className="mt-8 text-center">
+          <Card className="bg-orange-50 border-orange-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-center gap-2 text-orange-700">
+                <HelpCircle className="h-5 w-5" />
+                <span className="font-medium">Need Help?</span>
+              </div>
+              <p className="text-sm text-orange-600 mt-1">
+                Ask any staff member for assistance with check-in
               </p>
             </CardContent>
           </Card>
-        )}
+        </div>
       </div>
     </div>
   );
