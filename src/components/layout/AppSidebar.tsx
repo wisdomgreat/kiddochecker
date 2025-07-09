@@ -43,7 +43,8 @@ interface NavigationItem {
 }
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
   const { signOut, userRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -203,7 +204,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={cn("border-r", collapsed ? "w-14" : "w-64")} collapsible>
+    <Sidebar className={cn("border-r", collapsed ? "w-14" : "w-64")} collapsible="icon">
       {/* Header */}
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
         {!collapsed && (
