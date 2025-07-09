@@ -54,17 +54,13 @@ const ClassesManagement = () => {
           // Safely extract teacher name with proper null checks
           let teacher_name: string | undefined = undefined;
           
-          // More explicit null checks to satisfy TypeScript
-          if (teacherProfile !== null && teacherProfile !== undefined) {
-            if (typeof teacherProfile === 'object' && 
-                'first_name' in teacherProfile && 
-                'last_name' in teacherProfile) {
-              const firstName = teacherProfile.first_name;
-              const lastName = teacherProfile.last_name;
-              
-              if (firstName && lastName) {
-                teacher_name = `${firstName} ${lastName}`;
-              }
+          // Check if teacherProfile exists and has the required structure
+          if (teacherProfile && typeof teacherProfile === 'object') {
+            // Use type assertion after confirming the structure
+            const profile = teacherProfile as { first_name?: string; last_name?: string };
+            
+            if (profile.first_name && profile.last_name) {
+              teacher_name = `${profile.first_name} ${profile.last_name}`;
             }
           }
           
