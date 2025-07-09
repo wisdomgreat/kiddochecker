@@ -17,3 +17,7 @@ export interface ClassTeacher {
   created_at: string;
   updated_at: string;
 }
+
+export interface ClassWithTeacher extends Class {
+  teacher_name?: string;
+}

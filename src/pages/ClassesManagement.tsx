@@ -9,17 +9,7 @@ import SimpleLayout from "@/components/layout/SimpleLayout";
 import AddEditClassDialog from "@/components/classes/AddEditClassDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
-interface ClassWithTeacher {
-  id: string;
-  name: string;
-  description: string;
-  age_range: string;
-  capacity: number;
-  room: string;
-  created_at: string;
-  teacher_name?: string;
-}
+import { ClassWithTeacher } from "@/types/classes";
 
 const ClassesManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,44 +19,50 @@ const ClassesManagement = () => {
   const { data: classes = [], isLoading, refetch } = useQuery({
     queryKey: ['classes-with-teachers'],
     queryFn: async (): Promise<ClassWithTeacher[]> => {
-      // First get all classes
-      const { data: classesData, error: classesError } = await supabase
-        .from('classes')
-        .select('*');
-      
-      if (classesError) {
-        console.error('Error fetching classes:', classesError);
-        throw classesError;
-      }
-
-      // Then get teacher assignments
-      const { data: teachersData, error: teachersError } = await supabase
-        .from('teachers')
-        .select(`
-          class_id,
-          profiles!teachers_user_id_fkey (
-            first_name,
-            last_name
-          )
-        `);
-
-      if (teachersError) {
-        console.error('Error fetching teachers:', teachersError);
-        // Don't throw error, just continue without teacher data
-      }
-
-      // Map classes with teacher names
-      return (classesData || []).map(cls => {
-        const teacher = teachersData?.find(t => t.class_id === cls.id);
-        const teacherProfile = teacher?.profiles;
+      try {
+        // First get all classes
+        const { data: classesData, error: classesError } = await supabase
+          .from('classes')
+          .select('*');
         
-        return {
-          ...cls,
-          teacher_name: teacherProfile ? 
-            `${teacherProfile.first_name} ${teacherProfile.last_name}` : 
-            undefined
-        };
-      });
+        if (classesError) {
+          console.error('Error fetching classes:', classesError);
+          throw classesError;
+        }
+
+        // Then get teacher assignments with profiles
+        const { data: teachersData, error: teachersError } = await supabase
+          .from('teachers')
+          .select(`
+            class_id,
+            user_id,
+            profiles!inner (
+              first_name,
+              last_name
+            )
+          `);
+
+        if (teachersError) {
+          console.error('Error fetching teachers:', teachersError);
+          // Continue without teacher data
+        }
+
+        // Map classes with teacher names
+        return (classesData || []).map(cls => {
+          const teacher = teachersData?.find(t => t.class_id === cls.id);
+          const teacherProfile = teacher?.profiles;
+          
+          return {
+            ...cls,
+            teacher_name: teacherProfile && typeof teacherProfile === 'object' && 'first_name' in teacherProfile ? 
+              `${teacherProfile.first_name} ${teacherProfile.last_name}` : 
+              undefined
+          } as ClassWithTeacher;
+        });
+      } catch (error) {
+        console.error('Error in classes query:', error);
+        return [];
+      }
     },
   });
 
@@ -89,30 +85,35 @@ const ClassesManagement = () => {
   };
 
   const handleSaveClass = async (classData: any) => {
-    if (selectedClass) {
-      // Update existing class
-      const { error } = await supabase
-        .from('classes')
-        .update(classData)
-        .eq('id', selectedClass.id);
-      
-      if (error) {
-        console.error('Error updating class:', error);
-        throw error;
+    try {
+      if (selectedClass) {
+        // Update existing class
+        const { error } = await supabase
+          .from('classes')
+          .update(classData)
+          .eq('id', selectedClass.id);
+        
+        if (error) {
+          console.error('Error updating class:', error);
+          throw error;
+        }
+      } else {
+        // Create new class
+        const { error } = await supabase
+          .from('classes')
+          .insert([classData]);
+        
+        if (error) {
+          console.error('Error creating class:', error);
+          throw error;
+        }
       }
-    } else {
-      // Create new class
-      const { error } = await supabase
-        .from('classes')
-        .insert([classData]);
       
-      if (error) {
-        console.error('Error creating class:', error);
-        throw error;
-      }
+      handleCloseForm();
+    } catch (error) {
+      console.error('Error saving class:', error);
+      throw error;
     }
-    
-    handleCloseForm();
   };
 
   if (isLoading) {
