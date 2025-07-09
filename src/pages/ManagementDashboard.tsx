@@ -49,7 +49,7 @@ const ManagementDashboard = () => {
       icon: Monitor,
       onClick: navigateToManagement.devices,
       count: devices.length,
-      status: (devices.length > 0 ? 'active' : 'warning') as const,
+      status: devices.length > 0 ? 'active' as const : 'warning' as const,
     },
     {
       title: "Classes Management",
