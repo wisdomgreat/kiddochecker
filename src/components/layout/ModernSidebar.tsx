@@ -20,7 +20,7 @@ import {
 import { NavLink, useLocation } from 'react-router-dom';
 
 const ModernSidebar = () => {
-  const { user, userRole, logout } = useAuth();
+  const { user, userRole, signOut } = useAuth();
   const { navigateToDashboard } = useDashboardNavigation();
   const { navigateToManagement } = useManagementNavigation();
   const location = useLocation();
@@ -129,7 +129,7 @@ const ModernSidebar = () => {
           </div>
         </div>
         <Button
-          onClick={logout}
+          onClick={signOut}
           variant="outline"
           size="sm"
           className="w-full justify-start text-gray-700 hover:text-gray-900"
