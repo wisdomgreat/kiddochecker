@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Search, Filter, Download } from 'lucide-react';
+import { UserPlus, Search, Download, Clock, Users, QrCode, Monitor } from 'lucide-react';
 import { useChildren } from '@/hooks/useChildren';
 import { useClasses } from '@/hooks/useClasses';
 import { useAttendance } from '@/hooks/useAttendance';
@@ -20,10 +20,13 @@ const CheckInOutManagement = () => {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedChild, setSelectedChild] = useState<string>('');
 
-  // Filter out children who are already checked in
+  // Filter out children who are already checked in today
   const availableChildren = children.filter(child => {
+    const today = new Date().toISOString().split('T')[0];
     const isAlreadyCheckedIn = attendance.some(record => 
-      record.child_id === child.id && !record.checked_out_at
+      record.child_id === child.id && 
+      record.attendance_date === today && 
+      !record.checked_out_at
     );
     return !isAlreadyCheckedIn;
   });
@@ -32,23 +35,34 @@ const CheckInOutManagement = () => {
     `${child.first_name} ${child.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCheckIn = () => {
-    if (selectedChild) {
-      checkIn({ 
+  const handleCheckIn = async () => {
+    if (!selectedChild) return;
+    
+    try {
+      await checkIn({ 
         childId: selectedChild, 
-        classId: selectedClass === 'no-class' ? undefined : selectedClass 
+        classId: selectedClass === 'no-class' || !selectedClass ? undefined : selectedClass 
       });
       setSelectedChild('');
       setSelectedClass('');
+      setSearchTerm('');
+    } catch (error) {
+      console.error('Check-in failed:', error);
     }
   };
 
   // Get today's attendance
+  const today = new Date().toISOString().split('T')[0];
   const todayAttendance = attendance.filter(record => 
-    record.attendance_date === new Date().toISOString().split('T')[0]
+    record.attendance_date === today
   );
 
   const currentlyPresent = todayAttendance.filter(record => !record.checked_out_at);
+  const totalCheckedOut = todayAttendance.filter(record => record.checked_out_at);
+
+  const openKioskMode = () => {
+    window.open('/check-in-kiosk', '_blank', 'fullscreen=yes,toolbar=no,location=no,status=no,menubar=no');
+  };
 
   if (childrenLoading || classesLoading || attendanceLoading) {
     return (
@@ -71,10 +85,14 @@ const CheckInOutManagement = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Check-In/Out Management</h1>
             <p className="text-muted-foreground">
-              Manage child attendance and check-in/out processes.
+              Manage child attendance and check-in/out processes for {new Date().toLocaleDateString()}.
             </p>
           </div>
           <div className="flex space-x-2">
+            <Button onClick={openKioskMode}>
+              <Monitor className="h-4 w-4 mr-2" />
+              Open Kiosk Mode
+            </Button>
             <Button variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Export Report
@@ -84,6 +102,17 @@ const CheckInOutManagement = () => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <Users className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium ml-2">Currently Present</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{currentlyPresent.length}</div>
+              <p className="text-xs text-muted-foreground">Active now</p>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
               <UserPlus className="h-4 w-4 text-blue-600" />
@@ -97,36 +126,23 @@ const CheckInOutManagement = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Badge className="bg-green-600 text-white">Present</Badge>
-              <CardTitle className="text-sm font-medium ml-2">Currently Present</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{currentlyPresent.length}</div>
-              <p className="text-xs text-muted-foreground">Active now</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Badge variant="secondary">Out</Badge>
+              <Clock className="h-4 w-4 text-orange-600" />
               <CardTitle className="text-sm font-medium ml-2">Checked Out</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-600">
-                {todayAttendance.length - currentlyPresent.length}
-              </div>
+              <div className="text-2xl font-bold text-gray-600">{totalCheckedOut.length}</div>
               <p className="text-xs text-muted-foreground">Today</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-              <Filter className="h-4 w-4 text-purple-600" />
-              <CardTitle className="text-sm font-medium ml-2">Available to Check-in</CardTitle>
+              <QrCode className="h-4 w-4 text-purple-600" />
+              <CardTitle className="text-sm font-medium ml-2">Available</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-purple-600">{availableChildren.length}</div>
-              <p className="text-xs text-muted-foreground">Children</p>
+              <p className="text-xs text-muted-foreground">To check in</p>
             </CardContent>
           </Card>
         </div>
@@ -197,11 +213,30 @@ const CheckInOutManagement = () => {
         </Card>
 
         {/* Attendance Table */}
-        <AttendanceTable
-          attendance={todayAttendance}
-          onCheckOut={checkOut}
-          isCheckingOut={isCheckingOut}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Today's Attendance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {todayAttendance.length > 0 ? (
+              <AttendanceTable
+                attendance={todayAttendance}
+                onCheckOut={checkOut}
+                isCheckingOut={isCheckingOut}
+              />
+            ) : (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2">No attendance records yet</h3>
+                <p className="text-muted-foreground mb-4">Start checking in children to see attendance data</p>
+                <Button onClick={openKioskMode}>
+                  <Monitor className="h-4 w-4 mr-2" />
+                  Open Kiosk Mode
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

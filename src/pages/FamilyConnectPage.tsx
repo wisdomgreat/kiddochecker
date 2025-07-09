@@ -1,59 +1,61 @@
 
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { useMessages } from '@/hooks/useMessages';
+import { Badge } from '@/components/ui/badge';
+import { MessageSquare, Send, Users, Mail } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useMessages } from '@/hooks/useMessages';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { 
-  Send, 
-  Inbox, 
-  Mail, 
-  Users, 
-  Info,
-  MessageCircle,
-  Reply
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+
+interface Recipient {
+  id: string;
+  name: string;
+  role: string;
+}
 
 const FamilyConnectPage = () => {
   const { user, userRole } = useAuth();
   const { messages, sendMessage, isSending } = useMessages();
-  const [activeTab, setActiveTab] = useState('inbox');
-  const [newMessage, setNewMessage] = useState({
+  const { toast } = useToast();
+  
+  const [messageData, setMessageData] = useState({
     subject: '',
     content: '',
-    recipient_id: ''
+    recipientId: ''
   });
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [isLoadingRecipients, setIsLoadingRecipients] = useState(true);
 
   // Fetch available recipients based on user role
-  const { data: availableRecipients = [] } = useQuery({
-    queryKey: ['available-recipients', userRole],
-    queryFn: async () => {
-      if (!user) return [];
+  useEffect(() => {
+    const fetchRecipients = async () => {
+      if (!user || !userRole) return;
       
+      setIsLoadingRecipients(true);
       try {
         if (userRole === 'parent') {
-          // Parents can message admins and staff
+          // Parents can message admins, staff, and teachers
           const { data: userRoles, error: userRolesError } = await supabase
             .from('user_roles')
             .select('user_id, role')
-            .in('role', ['admin', 'super_admin', 'staff', 'teacher']);
+            .in('role', ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']);
           
           if (userRolesError) {
             console.error('Error fetching user roles for parent:', userRolesError);
-            return [];
+            setRecipients([]);
+            return;
           }
 
-          if (!userRoles || userRoles.length === 0) return [];
+          if (!userRoles || userRoles.length === 0) {
+            setRecipients([]);
+            return;
+          }
 
           // Get profiles for these users
           const userIds = userRoles.map(ur => ur.user_id);
@@ -64,11 +66,12 @@ const FamilyConnectPage = () => {
 
           if (profilesError) {
             console.error('Error fetching profiles for parent:', profilesError);
-            return [];
+            setRecipients([]);
+            return;
           }
 
           // Combine user roles with profiles
-          return userRoles.map(userRole => {
+          const recipientList = userRoles.map(userRole => {
             const profile = profiles?.find(p => p.id === userRole.user_id);
             return {
               id: userRole.user_id,
@@ -76,8 +79,10 @@ const FamilyConnectPage = () => {
               role: userRole.role
             };
           });
+          
+          setRecipients(recipientList);
         } else {
-          // Staff/admins can message parents and other staff
+          // Staff/admins can message everyone except themselves
           const { data: userRoles, error: userRolesError } = await supabase
             .from('user_roles')
             .select('user_id, role')
@@ -85,10 +90,14 @@ const FamilyConnectPage = () => {
           
           if (userRolesError) {
             console.error('Error fetching user roles for staff:', userRolesError);
-            return [];
+            setRecipients([]);
+            return;
           }
 
-          if (!userRoles || userRoles.length === 0) return [];
+          if (!userRoles || userRoles.length === 0) {
+            setRecipients([]);
+            return;
+          }
 
           // Get profiles for these users
           const userIds = userRoles.map(ur => ur.user_id);
@@ -99,11 +108,12 @@ const FamilyConnectPage = () => {
 
           if (profilesError) {
             console.error('Error fetching profiles for staff:', profilesError);
-            return [];
+            setRecipients([]);
+            return;
           }
 
           // Combine user roles with profiles
-          return userRoles.map(userRole => {
+          const recipientList = userRoles.map(userRole => {
             const profile = profiles?.find(p => p.id === userRole.user_id);
             return {
               id: userRole.user_id,
@@ -111,210 +121,216 @@ const FamilyConnectPage = () => {
               role: userRole.role
             };
           });
+          
+          setRecipients(recipientList);
         }
       } catch (error) {
         console.error('Error in recipients query:', error);
-        return [];
+        setRecipients([]);
+      } finally {
+        setIsLoadingRecipients(false);
       }
-    },
-    enabled: !!user
-  });
+    };
+
+    fetchRecipients();
+  }, [user, userRole]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.content.trim() || !newMessage.recipient_id) return;
+    
+    if (!messageData.content.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!messageData.recipientId) {
+      toast({
+        title: "Error",
+        description: "Please select a recipient",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       await sendMessage({
-        subject: newMessage.subject || 'No Subject',
-        content: newMessage.content,
-        recipient_id: newMessage.recipient_id
+        subject: messageData.subject || 'No Subject',
+        content: messageData.content,
+        recipient_id: messageData.recipientId,
       });
       
-      setNewMessage({ subject: '', content: '', recipient_id: '' });
-      setActiveTab('inbox');
+      setMessageData({ subject: '', content: '', recipientId: '' });
     } catch (error) {
       console.error('Failed to send message:', error);
     }
   };
 
-  const sentMessages = messages.filter(msg => msg.sender_id === user?.id);
-  const receivedMessages = messages.filter(msg => msg.recipient_id === user?.id);
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'super_admin':
+        return 'bg-purple-100 text-purple-800';
+      case 'admin':
+        return 'bg-red-100 text-red-800';
+      case 'staff':
+        return 'bg-blue-100 text-blue-800';
+      case 'teacher':
+        return 'bg-green-100 text-green-800';
+      case 'teacher_assistant':
+        return 'bg-teal-100 text-teal-800';
+      case 'parent':
+        return 'bg-amber-100 text-amber-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Family Connect</h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Family Connect</h1>
+            <p className="text-muted-foreground">
+              Send messages to staff, teachers, and other parents in your community.
+            </p>
+          </div>
         </div>
 
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            <strong>How Family Connect works:</strong>
-            <ul className="mt-2 list-disc list-inside space-y-1 text-sm">
-              <li>Parents can send messages to administrators and staff members</li>
-              <li>Staff and administrators can communicate with parents and other staff</li>
-              <li>Select a specific recipient from the dropdown - messages are private, not broadcast</li>
-              <li>Check your inbox regularly for new messages and replies</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="inbox" className="flex items-center gap-2">
-              <Inbox className="h-4 w-4" />
-              Inbox ({receivedMessages.length})
-            </TabsTrigger>
-            <TabsTrigger value="sent" className="flex items-center gap-2">
-              <Send className="h-4 w-4" />
-              Sent ({sentMessages.length})
-            </TabsTrigger>
-            <TabsTrigger value="compose" className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4" />
-              Compose
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="inbox">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Received Messages
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {receivedMessages.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No messages received yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {receivedMessages.map((message) => (
-                      <div key={message.id} className="border rounded-lg p-4 hover:bg-muted/50">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{message.subject}</h4>
-                            {!message.is_read && (
-                              <Badge variant="secondary">New</Badge>
-                            )}
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          From: {message.sender?.first_name} {message.sender?.last_name}
-                        </p>
-                        <p className="text-sm">{message.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sent">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Send className="h-5 w-5" />
-                  Sent Messages
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {sentMessages.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Send className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No messages sent yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {sentMessages.map((message) => (
-                      <div key={message.id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-medium">{message.subject}</h4>
-                          <span className="text-sm text-muted-foreground">
-                            {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          To: {availableRecipients.find(r => r.id === message.recipient_id)?.name || 'Unknown Recipient'}
-                        </p>
-                        <p className="text-sm">{message.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="compose">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5" />
-                  Compose Message
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSendMessage} className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Recipient *</label>
-                    <Select value={newMessage.recipient_id} onValueChange={(value) => 
-                      setNewMessage(prev => ({ ...prev, recipient_id: value }))
-                    }>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Send Message */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Send className="h-5 w-5 mr-2" />
+                Send Message
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSendMessage} className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Select Recipient *</label>
+                  {isLoadingRecipients ? (
+                    <div className="text-sm text-gray-500">Loading recipients...</div>
+                  ) : (
+                    <Select 
+                      value={messageData.recipientId} 
+                      onValueChange={(value) => setMessageData({ ...messageData, recipientId: value })}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a recipient" />
+                        <SelectValue placeholder="Choose recipient" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableRecipients.map((recipient) => (
+                        {recipients.map((recipient) => (
                           <SelectItem key={recipient.id} value={recipient.id}>
-                            {recipient.name} ({recipient.role})
+                            <div className="flex items-center justify-between w-full">
+                              <span>{recipient.name}</span>
+                              <Badge 
+                                variant="outline" 
+                                className={`ml-2 text-xs ${getRoleBadgeColor(recipient.role)}`}
+                              >
+                                {recipient.role.replace('_', ' ')}
+                              </Badge>
+                            </div>
                           </SelectItem>
                         ))}
+                        {recipients.length === 0 && (
+                          <SelectItem value="no-recipients" disabled>
+                            No recipients available
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Subject</label>
+                  <Input
+                    value={messageData.subject}
+                    onChange={(e) => setMessageData({ ...messageData, subject: e.target.value })}
+                    placeholder="Enter message subject (optional)"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Message *</label>
+                  <Textarea
+                    value={messageData.content}
+                    onChange={(e) => setMessageData({ ...messageData, content: e.target.value })}
+                    placeholder="Type your message here..."
+                    rows={6}
+                    required
+                  />
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={isSending || !messageData.recipientId || !messageData.content.trim()}
+                  className="w-full"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isSending ? 'Sending...' : 'Send Message'}
+                </Button>
+              </form>
+
+              {recipients.length === 0 && !isLoadingRecipients && (
+                <div className="mt-4 p-4 bg-amber-50 rounded-lg">
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 text-amber-600 mr-2" />
+                    <div>
+                      <h4 className="font-medium text-amber-800">No recipients available</h4>
+                      <p className="text-sm text-amber-700">
+                        Contact your administrator to set up messaging permissions.
+                      </p>
+                    </div>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Subject</label>
-                    <Input
-                      value={newMessage.subject}
-                      onChange={(e) => setNewMessage(prev => ({ ...prev, subject: e.target.value }))}
-                      placeholder="Enter message subject"
-                    />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Message History */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Mail className="h-5 w-5 mr-2" />
+                Recent Messages
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {messages.length > 0 ? (
+                  messages.slice(0, 5).map((message) => (
+                    <div key={message.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium">{message.subject || 'No Subject'}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {message.sender?.first_name} {message.sender?.last_name}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        {message.content}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(message.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p>No messages yet</p>
+                    <p className="text-sm">Start a conversation by sending your first message</p>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Message *</label>
-                    <Textarea
-                      value={newMessage.content}
-                      onChange={(e) => setNewMessage(prev => ({ ...prev, content: e.target.value }))}
-                      placeholder="Type your message here..."
-                      rows={6}
-                      required
-                    />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    disabled={isSending || !newMessage.content.trim() || !newMessage.recipient_id}
-                    className="w-full"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    {isSending ? 'Sending...' : 'Send Message'}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </DashboardLayout>
   );
