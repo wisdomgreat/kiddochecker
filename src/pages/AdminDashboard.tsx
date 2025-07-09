@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import AppLayout from '@/components/layout/AppLayout';
 import { 
   Users, 
   UserCheck, 
@@ -96,6 +97,13 @@ const AdminDashboard = () => {
       color: 'bg-orange-500'
     },
     {
+      title: 'Device Management',
+      description: 'Manage check-in devices',
+      icon: Monitor,
+      path: '/device-management',
+      color: 'bg-teal-500'
+    },
+    {
       title: 'Reports',
       description: 'View attendance and system reports',
       icon: BarChart3,
@@ -117,26 +125,29 @@ const AdminDashboard = () => {
       color: 'bg-pink-500'
     },
     {
-      title: 'Settings',
-      description: 'System configuration',
-      icon: Settings,
-      path: '/settings',
-      color: 'bg-gray-500'
-    },
-    {
       title: 'Organization Setup',
       description: 'Configure organization',
       icon: Building,
       path: '/organization-setup',
       color: 'bg-cyan-500'
+    },
+    {
+      title: 'System Settings',
+      description: 'System configuration',
+      icon: Settings,
+      path: '/settings',
+      color: 'bg-gray-500'
     }
   ];
 
   return (
-    <DashboardLayout>
+    <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-muted-foreground">System overview and administration tools.</p>
+          </div>
           <div className="flex items-center space-x-2">
             <Link to="/parent-registration">
               <Button variant="outline">
@@ -144,6 +155,13 @@ const AdminDashboard = () => {
                 Parent Registration
               </Button>
             </Link>
+            <Button 
+              onClick={() => window.open('/check-in-kiosk', '_blank', 'fullscreen=yes')}
+              variant="outline"
+            >
+              <Monitor className="h-4 w-4 mr-2" />
+              Open Kiosk
+            </Button>
             <Button onClick={() => navigate('/settings')}>
               <Settings className="h-4 w-4 mr-2" />
               Settings
@@ -160,6 +178,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{userCount}</div>
+              <p className="text-xs text-muted-foreground">Registered users</p>
             </CardContent>
           </Card>
 
@@ -170,6 +189,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{childrenCount}</div>
+              <p className="text-xs text-muted-foreground">Enrolled children</p>
             </CardContent>
           </Card>
 
@@ -180,6 +200,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{classesCount}</div>
+              <p className="text-xs text-muted-foreground">Available classes</p>
             </CardContent>
           </Card>
 
@@ -190,14 +211,15 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{todayAttendance}</div>
+              <p className="text-xs text-muted-foreground">Check-ins today</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Quick Actions */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <h2 className="text-2xl font-bold mb-4">Administrative Tools</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {quickActions.map((action) => {
               const Icon = action.icon;
               return (
@@ -249,7 +271,7 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </AppLayout>
   );
 };
 

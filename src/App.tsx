@@ -1,12 +1,15 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
+
+// Import all pages
 import AdminDashboard from "@/pages/AdminDashboard";
+import StaffDashboard from "@/pages/StaffDashboard";
+import ParentDashboard from "@/pages/ParentDashboard";
 import UsersManagement from "@/pages/UsersManagement";
 import StaffManagement from "@/pages/StaffManagement";
 import ClassesManagement from "@/pages/ClassesManagement";
@@ -19,6 +22,7 @@ import FamilyConnectPage from "@/pages/FamilyConnectPage";
 import SettingsPage from "@/pages/SettingsPage";
 import OrganizationSetup from "@/pages/OrganizationSetup";
 import ChildrenManagement from "@/pages/ChildrenManagement";
+import DeviceManagement from "@/pages/DeviceManagement";
 import LoginPage from "@/pages/LoginPage";
 import ParentRegistrationPage from "@/pages/ParentRegistrationPage";
 import LandingPage from "@/pages/LandingPage";
@@ -31,6 +35,25 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Role-based dashboard redirect component
+const DashboardRedirect = () => {
+  const { userRole } = useAuth();
+  
+  switch (userRole) {
+    case 'admin':
+    case 'super_admin':
+      return <Navigate to="/admin-dashboard" replace />;
+    case 'staff':
+    case 'teacher':
+    case 'teacher_assistant':
+      return <Navigate to="/staff-dashboard" replace />;
+    case 'parent':
+      return <Navigate to="/parent-dashboard" replace />;
+    default:
+      return <Navigate to="/login" replace />;
+  }
+};
 
 function App() {
   return (
@@ -45,76 +68,134 @@ function App() {
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/parent-registration" element={<ParentRegistrationPage />} />
+              
+              {/* Kiosk routes (public for now) */}
               <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
               <Route path="/check-out-station" element={<CheckOutStation />} />
               
-              {/* Protected routes */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
+              {/* Root redirect to appropriate dashboard */}
+              <Route path="/" element={<DashboardRedirect />} />
               
-              <Route path="/users-management" element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                  <UsersManagement />
-                </ProtectedRoute>
-              } />
+              {/* Admin-only routes */}
+              <Route 
+                path="/admin-dashboard" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                    <AdminDashboard />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/users-management" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                    <UsersManagement />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/staff-management" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                    <StaffManagement />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/classes-management" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                    <ClassesManagement />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/device-management" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                    <DeviceManagement />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                    <SettingsPage />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/organization-setup" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                    <OrganizationSetup />
+                  </RoleBasedRoute>
+                } 
+              />
               
-              <Route path="/staff-management" element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                  <StaffManagement />
-                </ProtectedRoute>
-              } />
+              {/* Staff routes */}
+              <Route 
+                path="/staff-dashboard" 
+                element={
+                  <RoleBasedRoute allowedRoles={['staff', 'teacher', 'teacher_assistant']}>
+                    <StaffDashboard />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/check-in-out" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']}>
+                    <CheckInOutPage />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/reports" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}>
+                    <ReportsPage />
+                  </RoleBasedRoute>
+                } 
+              />
               
-              <Route path="/classes-management" element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin', 'teacher']}>
-                  <ClassesManagement />
-                </ProtectedRoute>
-              } />
+              {/* Parent routes */}
+              <Route 
+                path="/parent-dashboard" 
+                element={
+                  <RoleBasedRoute allowedRoles={['parent']}>
+                    <ParentDashboard />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/children-management" 
+                element={
+                  <RoleBasedRoute allowedRoles={['parent']}>
+                    <ChildrenManagement />
+                  </RoleBasedRoute>
+                } 
+              />
               
-              <Route path="/check-in-out" element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}>
-                  <CheckInOutPage />
-                </ProtectedRoute>
-              } />
+              {/* Common routes (role-restricted) */}
+              <Route 
+                path="/calendar" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'parent']}>
+                    <CalendarPage />
+                  </RoleBasedRoute>
+                } 
+              />
+              <Route 
+                path="/family-connect" 
+                element={
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'parent']}>
+                    <FamilyConnectPage />
+                  </RoleBasedRoute>
+                } 
+              />
               
-              <Route path="/reports" element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}>
-                  <ReportsPage />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/calendar" element={
-                <ProtectedRoute>
-                  <CalendarPage />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/family-connect" element={
-                <ProtectedRoute>
-                  <FamilyConnectPage />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/settings" element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                  <SettingsPage />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/organization-setup" element={
-                <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                  <OrganizationSetup />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/children-management" element={
-                <ProtectedRoute allowedRoles={['parent']}>
-                  <ChildrenManagement />
-                </ProtectedRoute>
-              } />
-
               {/* Legacy redirects */}
               <Route path="/users" element={<Navigate to="/users-management" replace />} />
               

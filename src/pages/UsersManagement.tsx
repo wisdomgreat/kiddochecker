@@ -1,29 +1,26 @@
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTable } from "@/components/ui/data-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 import {
   UserPlus,
   Search,
-  CheckCircle,
-  X,
-  RefreshCcw,
-  Filter,
-  Download,
+  Shield,
   User,
   Mail,
   Phone,
-  Shield,
-  Users,
+  CheckCircle,
+  X,
+  Edit,
+  Trash2,
+  RefreshCcw
 } from "lucide-react";
 
 interface UserWithRole {
@@ -34,132 +31,155 @@ interface UserWithRole {
   role: string;
   is_super_admin: boolean;
   is_active: boolean;
-  phone?: string;
 }
 
 const UsersManagement = () => {
-  const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  const { data: users = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["users-with-roles"],
-    queryFn: async (): Promise<UserWithRole[]> => {
-      console.log("Fetching users with roles...");
-      
+
+  // Fetch users with roles
+  const { data: users = [], isLoading, error } = useQuery({
+    queryKey: ['users-with-roles'],
+    queryFn: async () => {
+      console.log('Fetching users with roles...');
       const { data, error } = await supabase.rpc('get_users_with_roles');
       
       if (error) {
-        console.error("Error fetching users:", error);
+        console.error('Error fetching users:', error);
         throw error;
       }
       
-      console.log("Users data received:", data);
-      return (data || []) as UserWithRole[];
+      console.log('Users data received:', data);
+      return data as UserWithRole[];
     },
-    retry: 1,
-    refetchOnWindowFocus: false,
+    retry: 2,
+    staleTime: 30000,
   });
 
-  const filteredUsers = users.filter((user) => {
-    const searchMatch =
-      user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.role?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredUsers = users.filter(user =>
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    if (activeTab === "all") return searchMatch;
-    if (activeTab === "admin") return (user.role === "admin" || user.role === "super_admin") && searchMatch;
-    if (activeTab === "staff") return (user.role === "staff" || user.role === "teacher" || user.role === "teacher_assistant") && searchMatch;
-    if (activeTab === "parent") return user.role === "parent" && searchMatch;
-    return false;
-  });
+  const handleEdit = (user: UserWithRole) => {
+    toast({
+      title: "Edit User",
+      description: "Edit functionality will be implemented soon",
+    });
+  };
 
-  const userColumns = [
+  const handleDelete = (user: UserWithRole) => {
+    toast({
+      title: "Delete User",
+      description: "Delete functionality will be implemented soon",
+    });
+  };
+
+  const getRoleBadgeColor = (role: string, isSuperAdmin: boolean) => {
+    if (isSuperAdmin) return 'bg-purple-100 text-purple-800';
+    
+    switch (role) {
+      case 'admin':
+        return 'bg-red-100 text-red-800';
+      case 'staff':
+        return 'bg-blue-100 text-blue-800';
+      case 'teacher':
+        return 'bg-green-100 text-green-800';
+      case 'teacher_assistant':
+        return 'bg-teal-100 text-teal-800';
+      case 'parent':
+        return 'bg-amber-100 text-amber-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const columns = [
     {
-      key: "id" as keyof UserWithRole,
-      header: "User",
+      key: 'email' as keyof UserWithRole,
+      header: 'User',
       render: (value: string, item: UserWithRole) => (
         <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-blue-600 font-medium text-sm">
-              {item.first_name?.[0] || item.email[0].toUpperCase()}
-              {item.last_name?.[0] || ""}
-            </span>
+          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+            <User className="h-4 w-4 text-blue-600" />
           </div>
           <div>
-            <div className="font-medium text-gray-900">
-              {item.first_name && item.last_name 
-                ? `${item.first_name} ${item.last_name}` 
-                : item.email}
+            <div className="font-medium">
+              {item.first_name || item.last_name 
+                ? `${item.first_name || ''} ${item.last_name || ''}`.trim()
+                : 'No name set'
+              }
             </div>
-            <div className="text-sm text-gray-500">{item.email}</div>
-          </div>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      key: "role" as keyof UserWithRole,
-      header: "Role",
-      render: (value: string, item: UserWithRole) => (
-        <div className="flex items-center space-x-2">
-          <div className={`p-1 rounded-full ${
-            value === "admin" || value === "super_admin" ? "bg-red-100" : 
-            value === "teacher" || value === "staff" || value === "teacher_assistant" ? "bg-blue-100" : 
-            "bg-green-100"
-          }`}>
-            <User size={12} className={`${
-              value === "admin" || value === "super_admin" ? "text-red-600" : 
-              value === "teacher" || value === "staff" || value === "teacher_assistant" ? "text-blue-600" : 
-              "text-green-600"
-            }`} />
-          </div>
-          <span className="capitalize text-sm">{value.replace('_', ' ')}</span>
-          {item.is_super_admin && (
-            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-600 border-purple-200">
-              Super Admin
-            </Badge>
-          )}
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      key: "phone" as keyof UserWithRole,
-      header: "Contact",
-      render: (value: string, item: UserWithRole) => (
-        <div className="space-y-1">
-          <div className="flex items-center text-sm text-gray-600">
-            <Mail size={12} className="mr-1" />
-            <span className="truncate max-w-32">{item.email}</span>
-          </div>
-          {value && (
-            <div className="flex items-center text-sm text-gray-600">
-              <Phone size={12} className="mr-1" />
+            <div className="text-sm text-gray-500 flex items-center">
+              <Mail className="h-3 w-3 mr-1" />
               {value}
             </div>
+          </div>
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: 'role' as keyof UserWithRole,
+      header: 'Role',
+      render: (value: string, item: UserWithRole) => (
+        <div className="flex flex-col gap-1">
+          <Badge className={getRoleBadgeColor(value, item.is_super_admin)}>
+            {item.is_super_admin ? 'Super Admin' : value.replace('_', ' ')}
+          </Badge>
+          {item.is_super_admin && (
+            <div className="flex items-center text-xs text-purple-600">
+              <Shield className="h-3 w-3 mr-1" />
+              Super Admin
+            </div>
           )}
         </div>
       ),
+      sortable: true,
     },
     {
-      key: "is_active" as keyof UserWithRole,
-      header: "Status",
+      key: 'is_active' as keyof UserWithRole,
+      header: 'Status',
       render: (value: boolean) => (
         <div className="flex items-center">
           {value ? (
             <>
-              <CheckCircle size={16} className="text-green-500 mr-2" />
-              <span className="text-green-700 text-sm font-medium">Active</span>
+              <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+              <span className="text-green-700">Active</span>
             </>
           ) : (
             <>
-              <X size={16} className="text-gray-400 mr-2" />
-              <span className="text-gray-500 text-sm">Inactive</span>
+              <X className="h-4 w-4 text-red-500 mr-2" />
+              <span className="text-red-700">Inactive</span>
             </>
           )}
+        </div>
+      ),
+      sortable: true,
+    },
+    {
+      key: 'actions' as const,
+      header: 'Actions',
+      render: (value: any, item: UserWithRole) => (
+        <div className="flex justify-end space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleEdit(item)}
+          >
+            <Edit className="h-3 w-3" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleDelete(item)}
+            className="text-red-600 hover:text-red-700"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
         </div>
       ),
     },
@@ -167,105 +187,94 @@ const UsersManagement = () => {
 
   if (error) {
     return (
-      <DashboardLayout>
+      <AppLayout>
         <div className="flex justify-center items-center py-8">
-          <div className="text-center">
-            <h3 className="text-lg font-medium text-red-600">Error Loading Users</h3>
-            <p className="text-sm text-gray-500 mt-2">{error.message}</p>
-            <Button 
-              onClick={() => refetch()}
-              className="mt-4"
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Try Again
-            </Button>
-          </div>
+          <Card className="max-w-md">
+            <CardContent className="text-center py-8">
+              <X className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-red-600 mb-2">Error Loading Users</h3>
+              <p className="text-sm text-gray-500 mb-4">{(error as Error).message}</p>
+              <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['users-with-roles'] })}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
         </div>
-      </DashboardLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <AppLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
-            <p className="text-gray-600 mt-1">Manage all users and their roles in your organization</p>
+            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+            <p className="text-muted-foreground">
+              Manage user accounts, roles, and permissions.
+            </p>
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
-              <Filter className="mr-1 h-4 w-4" />
-              Filter
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download className="mr-1 h-4 w-4" />
-              Export
-            </Button>
-          </div>
+          <Button onClick={() => toast({ title: "Add User", description: "Add user functionality coming soon" })}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+              <User className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{users.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {users.filter(user => user.is_active).length}
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <Shield className="h-8 w-8 text-red-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Admins</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {users.filter(u => u.role === 'admin' || u.role === 'super_admin').length}
-                  </p>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Admins</CardTitle>
+              <Shield className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">
+                {users.filter(user => user.role === 'admin' || user.is_super_admin).length}
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <User className="h-8 w-8 text-blue-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Staff</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {users.filter(u => ['staff', 'teacher', 'teacher_assistant'].includes(u.role)).length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-green-600" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Parents</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {users.filter(u => u.role === 'parent').length}
-                  </p>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Parents</CardTitle>
+              <User className="h-4 w-4 text-amber-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-600">
+                {users.filter(user => user.role === 'parent').length}
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Users Table */}
         <Card>
-          <CardHeader className="pb-4">
+          <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="text-xl">All Users</CardTitle>
+              <CardTitle>All Users</CardTitle>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input 
@@ -276,36 +285,25 @@ const UsersManagement = () => {
                 />
               </div>
             </div>
-            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all">All Users</TabsTrigger>
-                <TabsTrigger value="admin">Admins</TabsTrigger>
-                <TabsTrigger value="staff">Staff</TabsTrigger>
-                <TabsTrigger value="parent">Parents</TabsTrigger>
-              </TabsList>
-            </Tabs>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="flex justify-center items-center py-8">
-                <div className="flex items-center space-x-2">
-                  <RefreshCcw className="animate-spin h-6 w-6 text-blue-600" />
-                  <span className="text-gray-600">Loading users...</span>
-                </div>
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               </div>
-            ) : filteredUsers.length === 0 ? (
+            ) : users.length === 0 ? (
               <div className="text-center py-12">
-                <Users className="mx-auto h-16 w-16 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-900">No users found</h3>
-                <p className="mt-2 text-gray-600">
-                  {searchTerm 
-                    ? "No users match your search criteria." 
-                    : "No users have been registered yet."}
-                </p>
+                <User className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg font-medium mb-2 text-gray-900">No users found</h3>
+                <p className="text-gray-600 mb-6">There are no users in the system yet.</p>
+                <Button onClick={() => toast({ title: "Add User", description: "Add user functionality coming soon" })}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add First User
+                </Button>
               </div>
             ) : (
               <DataTable
-                columns={userColumns}
+                columns={columns}
                 data={filteredUsers}
                 keyExtractor={(item) => item.id}
                 searchable={false}
@@ -315,7 +313,7 @@ const UsersManagement = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </AppLayout>
   );
 };
 

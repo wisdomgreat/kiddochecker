@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import MainLayout from "@/components/layout/MainLayout";
+import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,7 +160,7 @@ const StaffManagement = () => {
 
   if (error) {
     return (
-      <MainLayout>
+      <AppLayout>
         <div className="flex justify-center items-center py-8">
           <div className="text-center">
             <h3 className="text-lg font-medium text-red-600">Error Loading Staff</h3>
@@ -174,104 +174,109 @@ const StaffManagement = () => {
             </Button>
           </div>
         </div>
-      </MainLayout>
+      </AppLayout>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Staff Management</h1>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm">
-            <Filter className="mr-1 h-4 w-4" />
-            Filter
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="mr-1 h-4 w-4" />
-            Export
-          </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <UserPlus className="mr-1 h-4 w-4" />
-            Add Staff Member
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>Staff Members</CardTitle>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input 
-                placeholder="Search by name, email, or role..." 
-                className="pl-8" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
+            <p className="text-muted-foreground">Manage your organization's staff members.</p>
           </div>
-          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="all">All Staff</TabsTrigger>
-              <TabsTrigger value="admin">Admins</TabsTrigger>
-              <TabsTrigger value="teacher">Teachers</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </CardHeader>
-        <CardContent>
-          {isLoadingStaff ? (
-            <div className="flex justify-center items-center py-8">
-              <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
-              <span>Loading staff members...</span>
-            </div>
-          ) : staff.length === 0 ? (
-            <div className="text-center py-8">
-              <User className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No staff members found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm 
-                  ? "No results match your search criteria." 
-                  : "Get started by adding your first staff member."}
-              </p>
-              <div className="mt-6">
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                  <UserPlus className="mr-1 h-4 w-4" />
-                  Add Staff Member
-                </Button>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm">
+              <Filter className="mr-1 h-4 w-4" />
+              Filter
+            </Button>
+            <Button variant="outline" size="sm">
+              <Download className="mr-1 h-4 w-4" />
+              Export
+            </Button>
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <UserPlus className="mr-1 h-4 w-4" />
+              Add Staff Member
+            </Button>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle>Staff Members</CardTitle>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input 
+                  placeholder="Search by name, email, or role..." 
+                  className="pl-8" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
-          ) : (
-            <DataTable
-              columns={staffColumns}
-              data={filteredStaffMembers}
-              keyExtractor={(item) => item.user_id}
-              searchable={false}
-              loading={isLoadingStaff}
-            />
-          )}
-        </CardContent>
-      </Card>
+            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="all">All Staff</TabsTrigger>
+                <TabsTrigger value="admin">Admins</TabsTrigger>
+                <TabsTrigger value="teacher">Teachers</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </CardHeader>
+          <CardContent>
+            {isLoadingStaff ? (
+              <div className="flex justify-center items-center py-8">
+                <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
+                <span>Loading staff members...</span>
+              </div>
+            ) : staff.length === 0 ? (
+              <div className="text-center py-8">
+                <User className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No staff members found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {searchTerm 
+                    ? "No results match your search criteria." 
+                    : "Get started by adding your first staff member."}
+                </p>
+                <div className="mt-6">
+                  <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <UserPlus className="mr-1 h-4 w-4" />
+                    Add Staff Member
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <DataTable
+                columns={staffColumns}
+                data={filteredStaffMembers}
+                keyExtractor={(item) => item.user_id}
+                searchable={false}
+                loading={isLoadingStaff}
+              />
+            )}
+          </CardContent>
+        </Card>
 
-      <AddStaffForm 
-        open={isAddDialogOpen} 
-        onOpenChange={setIsAddDialogOpen}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["staff"] })}
-      />
-
-      {selectedStaffMember && (
-        <EditStaffForm
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          staffMember={selectedStaffMember}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["staff"] });
-            setSelectedStaffMember(null);
-          }}
+        <AddStaffForm 
+          open={isAddDialogOpen} 
+          onOpenChange={setIsAddDialogOpen}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["staff"] })}
         />
-      )}
-    </MainLayout>
+
+        {selectedStaffMember && (
+          <EditStaffForm
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            staffMember={selectedStaffMember}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["staff"] });
+              setSelectedStaffMember(null);
+            }}
+          />
+        )}
+      </div>
+    </AppLayout>
   );
 };
 

@@ -1,36 +1,51 @@
 
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { useCallback, useMemo } from 'react';
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export const useDashboardNavigation = () => {
-  const navigate = useNavigate();
   const { userRole } = useAuth();
+  const navigate = useNavigate();
 
-  const dashboardPath = useMemo(() => {
-    if (!userRole) return '/landing';
+  const navigateToDashboard = () => {
+    console.log('Navigating to dashboard for role:', userRole);
     
     switch (userRole) {
       case 'admin':
       case 'super_admin':
-        return '/admin-dashboard';
+        navigate('/admin-dashboard');
+        break;
+      case 'staff':
       case 'teacher':
       case 'teacher_assistant':
+        navigate('/staff-dashboard');
+        break;
+      case 'parent':
+        navigate('/parent-dashboard');
+        break;
+      default:
+        console.warn('Unknown role, redirecting to login:', userRole);
+        navigate('/login');
+    }
+  };
+
+  const getDashboardPath = () => {
+    switch (userRole) {
+      case 'admin':
+      case 'super_admin':
+        return '/admin-dashboard';
       case 'staff':
-        return '/teacher-dashboard';
+      case 'teacher':
+      case 'teacher_assistant':
+        return '/staff-dashboard';
       case 'parent':
         return '/parent-dashboard';
       default:
-        return '/';
+        return '/login';
     }
-  }, [userRole]);
+  };
 
-  const navigateToDashboard = useCallback(() => {
-    console.log('Navigating to dashboard for role:', userRole, 'Path:', dashboardPath);
-    navigate(dashboardPath, { replace: true });
-  }, [navigate, dashboardPath, userRole]);
-
-  return { navigateToDashboard, dashboardPath };
+  return {
+    navigateToDashboard,
+    getDashboardPath
+  };
 };
-
-export default useDashboardNavigation;
