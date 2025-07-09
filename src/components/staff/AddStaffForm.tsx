@@ -4,16 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UserPlus, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { UserPlus } from 'lucide-react';
 import { useStaffManagement } from '@/hooks/useStaffManagement';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddStaffFormProps {
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
 }
 
-const AddStaffForm = ({ onClose }: AddStaffFormProps) => {
+const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
   const { addStaff, isAddingStaff } = useStaffManagement();
   const { toast } = useToast();
   
@@ -69,7 +71,8 @@ const AddStaffForm = ({ onClose }: AddStaffFormProps) => {
         is_volunteer: false
       });
       
-      onClose();
+      onOpenChange(false);
+      onSuccess();
       
       toast({
         title: "Success",
@@ -93,19 +96,15 @@ const AddStaffForm = ({ onClose }: AddStaffFormProps) => {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center">
             <UserPlus className="h-5 w-5 mr-2" />
             Add Staff Member
-          </CardTitle>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
+          </DialogTitle>
+        </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -216,7 +215,7 @@ const AddStaffForm = ({ onClose }: AddStaffFormProps) => {
             <Button 
               type="button" 
               variant="outline" 
-              onClick={onClose}
+              onClick={() => onOpenChange(false)}
               disabled={isAddingStaff}
             >
               Cancel
@@ -230,8 +229,8 @@ const AddStaffForm = ({ onClose }: AddStaffFormProps) => {
             They should change their password upon first login.
           </p>
         </div>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };
 
