@@ -40,38 +40,59 @@ const FamilyConnectPage = () => {
     queryFn: async () => {
       if (!user) return [];
       
-      if (userRole === 'parent') {
-        // Parents can message admins and staff
-        const { data } = await supabase
-          .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            profiles!inner(first_name, last_name)
-          `)
-          .in('role', ['admin', 'super_admin', 'staff', 'teacher']);
-        
-        return data?.map(item => ({
-          id: item.user_id,
-          name: `${item.profiles.first_name} ${item.profiles.last_name}`,
-          role: item.role
-        })) || [];
-      } else {
-        // Staff/admins can message parents and other staff
-        const { data } = await supabase
-          .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            profiles!inner(first_name, last_name)
-          `)
-          .neq('user_id', user.id);
-        
-        return data?.map(item => ({
-          id: item.user_id,
-          name: `${item.profiles.first_name} ${item.profiles.last_name}`,
-          role: item.role
-        })) || [];
+      try {
+        if (userRole === 'parent') {
+          // Parents can message admins and staff
+          const { data, error } = await supabase
+            .from('user_roles')
+            .select(`
+              user_id,
+              role,
+              profiles!inner(
+                first_name,
+                last_name
+              )
+            `)
+            .in('role', ['admin', 'super_admin', 'staff', 'teacher']);
+          
+          if (error) {
+            console.error('Error fetching recipients for parent:', error);
+            return [];
+          }
+          
+          return data?.map(item => ({
+            id: item.user_id,
+            name: `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}`.trim() || 'Unnamed User',
+            role: item.role
+          })) || [];
+        } else {
+          // Staff/admins can message parents and other staff
+          const { data, error } = await supabase
+            .from('user_roles')
+            .select(`
+              user_id,
+              role,
+              profiles!inner(
+                first_name,
+                last_name
+              )
+            `)
+            .neq('user_id', user.id);
+          
+          if (error) {
+            console.error('Error fetching recipients for staff:', error);
+            return [];
+          }
+          
+          return data?.map(item => ({
+            id: item.user_id,
+            name: `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}`.trim() || 'Unnamed User',
+            role: item.role
+          })) || [];
+        }
+      } catch (error) {
+        console.error('Error in recipients query:', error);
+        return [];
       }
     },
     enabled: !!user
@@ -200,7 +221,7 @@ const FamilyConnectPage = () => {
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground mb-2">
-                          To: Recipient
+                          To: {availableRecipients.find(r => r.id === message.recipient_id)?.name || 'Unknown Recipient'}
                         </p>
                         <p className="text-sm">{message.content}</p>
                       </div>

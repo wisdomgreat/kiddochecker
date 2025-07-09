@@ -7,6 +7,7 @@ export interface UserProfile {
   lastName?: string;
   role: string;
   isActive: boolean;
+  isSuperAdmin?: boolean;
   createdAt?: string;
   phone?: string;
 }
