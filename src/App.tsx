@@ -17,6 +17,10 @@ import AdminDashboard from "./pages/AdminDashboard";
 import CheckInKiosk from "./pages/CheckInKiosk";
 import CheckOutStation from "./pages/CheckOutStation";
 import StaffRealtimeDashboard from "./pages/StaffRealtimeDashboard";
+import UsersManagement from "./pages/UsersManagement";
+import ClassesManagement from "./pages/ClassesManagement";
+import StaffManagement from "./pages/StaffManagement";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -62,6 +66,31 @@ function App() {
                 <Route path="/admin-dashboard" element={
                   <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
                     <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+
+                {/* Management routes */}
+                <Route path="/users-management" element={
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <UsersManagement />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/classes-management" element={
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}>
+                    <ClassesManagement />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/staff-management" element={
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <StaffManagement />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/settings" element={
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <Settings />
                   </ProtectedRoute>
                 } />
               </Routes>
