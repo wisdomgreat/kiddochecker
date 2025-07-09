@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,14 +51,20 @@ const ClassesManagement = () => {
           const teacher = teachersData?.find(t => t.class_id === cls.id);
           const teacherProfile = teacher?.profiles;
           
-          return {
-            ...cls,
-            teacher_name: (teacherProfile && 
+          // Safely extract teacher name with proper null checks
+          let teacher_name: string | undefined = undefined;
+          if (teacherProfile && 
               typeof teacherProfile === 'object' && 
               'first_name' in teacherProfile && 
-              'last_name' in teacherProfile) ? 
-              `${teacherProfile.first_name} ${teacherProfile.last_name}` : 
-              undefined
+              'last_name' in teacherProfile &&
+              teacherProfile.first_name &&
+              teacherProfile.last_name) {
+            teacher_name = `${teacherProfile.first_name} ${teacherProfile.last_name}`;
+          }
+          
+          return {
+            ...cls,
+            teacher_name
           } as ClassWithTeacher;
         });
       } catch (error) {
