@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { UserPlus, AlertCircle } from 'lucide-react';
 import { useStaffManagement } from '@/hooks/useStaffManagement';
 import { useToast } from '@/hooks/use-toast';
+import { AppRole } from '@/types/supabase';
 
 interface AddStaffFormProps {
   open: boolean;
@@ -24,7 +25,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
     first_name: '',
     last_name: '',
     phone: '',
-    role: 'staff',
+    role: 'staff' as AppRole,
     is_volunteer: false
   });
 
@@ -76,7 +77,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
         first_name: '',
         last_name: '',
         phone: '',
-        role: 'staff',
+        role: 'staff' as AppRole,
         is_volunteer: false
       });
       setErrors({});
@@ -203,7 +204,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
             </label>
             <Select 
               value={formData.role} 
-              onValueChange={(value) => handleInputChange('role', value)}
+              onValueChange={(value) => handleInputChange('role', value as AppRole)}
               disabled={isAddingStaff}
             >
               <SelectTrigger>

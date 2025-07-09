@@ -40,7 +40,11 @@ export const useStaffManagement = () => {
         throw error;
       }
       
-      return data || [];
+      // Type the data properly with AppRole
+      return (data || []).map(member => ({
+        ...member,
+        role: member.role as AppRole
+      }));
     },
   });
 

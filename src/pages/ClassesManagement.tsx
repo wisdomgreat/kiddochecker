@@ -29,29 +29,44 @@ const ClassesManagement = () => {
   const { data: classes = [], isLoading, refetch } = useQuery({
     queryKey: ['classes-with-teachers'],
     queryFn: async (): Promise<ClassWithTeacher[]> => {
-      const { data, error } = await supabase
+      // First get all classes
+      const { data: classesData, error: classesError } = await supabase
         .from('classes')
+        .select('*');
+      
+      if (classesError) {
+        console.error('Error fetching classes:', classesError);
+        throw classesError;
+      }
+
+      // Then get teacher assignments
+      const { data: teachersData, error: teachersError } = await supabase
+        .from('teachers')
         .select(`
-          *,
-          teachers (
-            profiles (
-              first_name,
-              last_name
-            )
+          class_id,
+          profiles!teachers_user_id_fkey (
+            first_name,
+            last_name
           )
         `);
-      
-      if (error) {
-        console.error('Error fetching classes:', error);
-        throw error;
+
+      if (teachersError) {
+        console.error('Error fetching teachers:', teachersError);
+        // Don't throw error, just continue without teacher data
       }
-      
-      return (data || []).map(cls => ({
-        ...cls,
-        teacher_name: cls.teachers?.[0]?.profiles ? 
-          `${cls.teachers[0].profiles.first_name} ${cls.teachers[0].profiles.last_name}` : 
-          undefined
-      }));
+
+      // Map classes with teacher names
+      return (classesData || []).map(cls => {
+        const teacher = teachersData?.find(t => t.class_id === cls.id);
+        const teacherProfile = teacher?.profiles;
+        
+        return {
+          ...cls,
+          teacher_name: teacherProfile ? 
+            `${teacherProfile.first_name} ${teacherProfile.last_name}` : 
+            undefined
+        };
+      });
     },
   });
 
@@ -71,6 +86,33 @@ const ClassesManagement = () => {
     setShowAddForm(false);
     setSelectedClass(null);
     refetch();
+  };
+
+  const handleSaveClass = async (classData: any) => {
+    if (selectedClass) {
+      // Update existing class
+      const { error } = await supabase
+        .from('classes')
+        .update(classData)
+        .eq('id', selectedClass.id);
+      
+      if (error) {
+        console.error('Error updating class:', error);
+        throw error;
+      }
+    } else {
+      // Create new class
+      const { error } = await supabase
+        .from('classes')
+        .insert([classData]);
+      
+      if (error) {
+        console.error('Error creating class:', error);
+        throw error;
+      }
+    }
+    
+    handleCloseForm();
   };
 
   if (isLoading) {
@@ -171,9 +213,11 @@ const ClassesManagement = () => {
         )}
 
         <AddEditClassDialog
-          open={showAddForm}
-          onOpenChange={handleCloseForm}
-          classData={selectedClass}
+          isOpen={showAddForm}
+          onClose={handleCloseForm}
+          onSave={handleSaveClass}
+          classItem={selectedClass}
+          isLoading={false}
         />
       </div>
     </SimpleLayout>
