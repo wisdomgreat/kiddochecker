@@ -43,52 +43,74 @@ const FamilyConnectPage = () => {
       try {
         if (userRole === 'parent') {
           // Parents can message admins and staff
-          const { data, error } = await supabase
+          const { data: userRoles, error: userRolesError } = await supabase
             .from('user_roles')
-            .select(`
-              user_id,
-              role,
-              profiles!inner(
-                first_name,
-                last_name
-              )
-            `)
+            .select('user_id, role')
             .in('role', ['admin', 'super_admin', 'staff', 'teacher']);
           
-          if (error) {
-            console.error('Error fetching recipients for parent:', error);
+          if (userRolesError) {
+            console.error('Error fetching user roles for parent:', userRolesError);
             return [];
           }
-          
-          return data?.map(item => ({
-            id: item.user_id,
-            name: `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}`.trim() || 'Unnamed User',
-            role: item.role
-          })) || [];
+
+          if (!userRoles || userRoles.length === 0) return [];
+
+          // Get profiles for these users
+          const userIds = userRoles.map(ur => ur.user_id);
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', userIds);
+
+          if (profilesError) {
+            console.error('Error fetching profiles for parent:', profilesError);
+            return [];
+          }
+
+          // Combine user roles with profiles
+          return userRoles.map(userRole => {
+            const profile = profiles?.find(p => p.id === userRole.user_id);
+            return {
+              id: userRole.user_id,
+              name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User' : 'Unnamed User',
+              role: userRole.role
+            };
+          });
         } else {
           // Staff/admins can message parents and other staff
-          const { data, error } = await supabase
+          const { data: userRoles, error: userRolesError } = await supabase
             .from('user_roles')
-            .select(`
-              user_id,
-              role,
-              profiles!inner(
-                first_name,
-                last_name
-              )
-            `)
+            .select('user_id, role')
             .neq('user_id', user.id);
           
-          if (error) {
-            console.error('Error fetching recipients for staff:', error);
+          if (userRolesError) {
+            console.error('Error fetching user roles for staff:', userRolesError);
             return [];
           }
-          
-          return data?.map(item => ({
-            id: item.user_id,
-            name: `${item.profiles?.first_name || ''} ${item.profiles?.last_name || ''}`.trim() || 'Unnamed User',
-            role: item.role
-          })) || [];
+
+          if (!userRoles || userRoles.length === 0) return [];
+
+          // Get profiles for these users
+          const userIds = userRoles.map(ur => ur.user_id);
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', userIds);
+
+          if (profilesError) {
+            console.error('Error fetching profiles for staff:', profilesError);
+            return [];
+          }
+
+          // Combine user roles with profiles
+          return userRoles.map(userRole => {
+            const profile = profiles?.find(p => p.id === userRole.user_id);
+            return {
+              id: userRole.user_id,
+              name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unnamed User' : 'Unnamed User',
+              role: userRole.role
+            };
+          });
         }
       } catch (error) {
         console.error('Error in recipients query:', error);
