@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,9 +37,11 @@ const queryClient = new QueryClient({
   },
 });
 
-// Role-based dashboard redirect component
+// Simplified role-based dashboard redirect
 const DashboardRedirect = () => {
   const { userRole } = useAuth();
+  
+  console.log('DashboardRedirect: Current user role:', userRole);
   
   switch (userRole) {
     case 'admin':
@@ -51,6 +54,7 @@ const DashboardRedirect = () => {
     case 'parent':
       return <Navigate to="/parent-dashboard" replace />;
     default:
+      console.log('DashboardRedirect: Unknown role, redirecting to login');
       return <Navigate to="/login" replace />;
   }
 };
@@ -69,11 +73,11 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/parent-registration" element={<ParentRegistrationPage />} />
               
-              {/* Kiosk routes (public for now) */}
+              {/* Kiosk routes (public) */}
               <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
               <Route path="/check-out-station" element={<CheckOutStation />} />
               
-              {/* Root redirect to appropriate dashboard */}
+              {/* Root redirect */}
               <Route path="/" element={<DashboardRedirect />} />
               
               {/* Admin-only routes */}
@@ -160,7 +164,7 @@ function App() {
                 } 
               />
               
-              {/* Parent routes */}
+              {/* Parent routes - STRICT ACCESS */}
               <Route 
                 path="/parent-dashboard" 
                 element={
@@ -178,7 +182,7 @@ function App() {
                 } 
               />
               
-              {/* Common routes (role-restricted) */}
+              {/* Common routes */}
               <Route 
                 path="/calendar" 
                 element={
@@ -195,9 +199,6 @@ function App() {
                   </RoleBasedRoute>
                 } 
               />
-              
-              {/* Legacy redirects */}
-              <Route path="/users" element={<Navigate to="/users-management" replace />} />
               
               {/* Catch all route */}
               <Route path="*" element={<Navigate to="/" replace />} />
