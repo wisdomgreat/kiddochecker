@@ -29,17 +29,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     roleLoading.current = true;
     try {
-      console.log("Refreshing role for user:", user.id);
       const role = await UserRoleService.getCurrentUserRole();
       
       if (mounted.current) {
-        console.log("User role refreshed:", role);
-        setUserRole(role || 'parent'); // Default to parent if no role found
+        setUserRole(role || 'parent');
       }
     } catch (error) {
       console.error("Error refreshing user role:", error);
       if (mounted.current) {
-        setUserRole('parent'); // Default to parent on error
+        setUserRole('parent');
       }
     } finally {
       roleLoading.current = false;
@@ -48,7 +46,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = useCallback(async () => {
     try {
-      // Clear state immediately for security
       setUser(null);
       setSession(null);
       setUserRole(null);
@@ -65,14 +62,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     mounted.current = true;
 
-    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted.current) return;
         
-        console.log("Auth state changed:", event, session?.user?.id);
-        
-        // Handle sign out immediately for security
         if (event === 'SIGNED_OUT' || !session) {
           setSession(null);
           setUser(null);
@@ -84,14 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Fetch role for new sessions (but not for token refresh)
         if (session?.user && event !== 'TOKEN_REFRESHED') {
-          // Use setTimeout to avoid blocking the auth state change
           setTimeout(() => {
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 0);
+          }, 100);
         }
         
         if (event === 'SIGNED_IN') {
@@ -100,7 +91,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Then check for existing session
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -114,16 +104,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (session?.user) {
-          console.log("Initial session found for user:", session.user.id);
           setSession(session);
           setUser(session.user);
           
-          // Fetch role but don't block loading state
           setTimeout(() => {
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 0);
+          }, 100);
         }
         
         setLoading(false);

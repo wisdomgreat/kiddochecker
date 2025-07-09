@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { QrCode, Phone, Lock, Users, Clock, CheckCircle, ArrowLeft, Monitor } from "lucide-react";
+import QRCodeGenerator from "@/components/qr/QRCodeGenerator";
 
 interface Child {
   id: string;
@@ -32,15 +33,14 @@ const CheckInKiosk = () => {
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [authenticatedParentId, setAuthenticatedParentId] = useState<string | null>(null);
+  const [attendanceId, setAttendanceId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Load classes
   useEffect(() => {
     loadClasses();
   }, []);
@@ -71,11 +71,8 @@ const CheckInKiosk = () => {
 
     setLoading(true);
     try {
-      // Clean phone number
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      
-      // Try to authenticate parent using email/password simulation
-      const fakeEmail = `${cleanedPhone}@example.com`;
+      const fakeEmail = `${cleanedPhone}@phone.local`;
       
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: fakeEmail,
@@ -145,8 +142,9 @@ const CheckInKiosk = () => {
 
     setLoading(true);
     try {
-      // Check if child is already checked in today
       const today = new Date().toISOString().split('T')[0];
+      
+      // Check if child is already checked in today
       const { data: existingAttendance, error: checkError } = await supabase
         .from('attendance')
         .select('*')
@@ -169,13 +167,17 @@ const CheckInKiosk = () => {
         attendance_date: today
       };
 
-      const { error: insertError } = await supabase
+      const { data: newAttendance, error: insertError } = await supabase
         .from('attendance')
-        .insert(attendanceData);
+        .insert(attendanceData)
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
+      setAttendanceId(newAttendance.id);
       setStep('success');
+      
       toast({
         title: "Check-In Successful!",
         description: "Your child has been checked in successfully.",
@@ -201,6 +203,7 @@ const CheckInKiosk = () => {
     setSelectedChild("");
     setSelectedClass("");
     setAuthenticatedParentId(null);
+    setAttendanceId(null);
   };
 
   const selectedChildData = children.find(child => child.id === selectedChild);
@@ -394,14 +397,24 @@ const CheckInKiosk = () => {
               <CheckCircle className="h-24 w-24 text-green-600 mx-auto mb-6" />
               <h2 className="text-3xl font-bold text-green-800 mb-4">Check-In Successful!</h2>
               
-              {selectedChildData && (
+              {selectedChildData && attendanceId && (
                 <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
                   <h3 className="text-xl font-semibold mb-4">Check-In Details</h3>
-                  <div className="space-y-2 text-lg">
+                  <div className="space-y-2 text-lg mb-4">
                     <p><strong>Child:</strong> {selectedChildData.first_name} {selectedChildData.last_name}</p>
                     <p><strong>Class:</strong> {selectedClassData?.name || 'No class assigned'}</p>
                     <p><strong>Check-In Time:</strong> {currentTime.toLocaleTimeString()}</p>
                     <Badge className="mt-2 bg-green-100 text-green-800">Successfully Checked In</Badge>
+                  </div>
+                  
+                  <div className="mt-6">
+                    <h4 className="text-lg font-semibold mb-2">Check-Out QR Code</h4>
+                    <QRCodeGenerator
+                      attendanceId={attendanceId}
+                      childName={`${selectedChildData.first_name} ${selectedChildData.last_name}`}
+                      className={selectedClassData?.name}
+                      size={150}
+                    />
                   </div>
                 </div>
               )}

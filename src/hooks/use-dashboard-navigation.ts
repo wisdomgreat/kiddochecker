@@ -1,14 +1,18 @@
 
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { AppRole } from "@/types/supabase";
 
 export const useDashboardNavigation = () => {
   const navigate = useNavigate();
   const { userRole } = useAuth();
 
   const navigateToDashboard = () => {
-    console.log('Navigating to dashboard for role:', userRole);
-    
+    if (!userRole) {
+      navigate('/login');
+      return;
+    }
+
     switch (userRole) {
       case 'admin':
       case 'super_admin':
@@ -20,16 +24,16 @@ export const useDashboardNavigation = () => {
         navigate('/staff-dashboard');
         break;
       case 'parent':
+      default:
         navigate('/parent-dashboard');
         break;
-      default:
-        console.log('Unknown role, redirecting to login');
-        navigate('/login');
     }
   };
 
-  const getDefaultRoute = () => {
-    switch (userRole) {
+  const getDashboardPath = (role?: AppRole | null): string => {
+    const currentRole = role || userRole;
+    
+    switch (currentRole) {
       case 'admin':
       case 'super_admin':
         return '/admin-dashboard';
@@ -38,14 +42,13 @@ export const useDashboardNavigation = () => {
       case 'teacher_assistant':
         return '/staff-dashboard';
       case 'parent':
-        return '/parent-dashboard';
       default:
-        return '/login';
+        return '/parent-dashboard';
     }
   };
 
   return {
     navigateToDashboard,
-    getDefaultRoute,
+    getDashboardPath,
   };
 };

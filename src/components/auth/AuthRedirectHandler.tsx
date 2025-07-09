@@ -14,15 +14,19 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
   const location = useLocation();
 
   useEffect(() => {
-    // Only redirect if user is authenticated and we have their role
     if (!loading && user && userRole) {
-      // Don't redirect if already on the correct dashboard
       const isOnLoginPage = location.pathname === '/login';
       const isOnLandingPage = location.pathname === '/landing';
       const isOnRegisterPage = location.pathname === '/parent-registration';
+      const isOnCheckInKiosk = location.pathname === '/check-in-kiosk';
+      const isOnCheckOutStation = location.pathname === '/check-out-station';
+      
+      // Don't redirect if on kiosk/station pages or already on correct dashboard
+      if (isOnCheckInKiosk || isOnCheckOutStation) {
+        return;
+      }
       
       if (isOnLoginPage || isOnLandingPage || isOnRegisterPage) {
-        console.log('Redirecting authenticated user from:', location.pathname, 'Role:', userRole);
         navigateToDashboard();
       }
     }

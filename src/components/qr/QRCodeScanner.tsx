@@ -2,7 +2,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, Square } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Camera, Square, Scan } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface QRCodeScannerProps {
   onScanComplete: (data: string) => void;
@@ -15,8 +17,10 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
 }) => {
   const [isActive, setIsActive] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [manualInput, setManualInput] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const { toast } = useToast();
 
   const startScanning = async () => {
     try {
@@ -33,6 +37,11 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     } catch (error) {
       console.error('Camera access denied:', error);
       setHasPermission(false);
+      toast({
+        title: "Camera Access Denied",
+        description: "Please allow camera access or use manual entry",
+        variant: "destructive",
+      });
     }
   };
 
@@ -44,10 +53,16 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     setIsActive(false);
   };
 
-  const handleManualInput = () => {
-    const input = prompt('Enter attendance ID manually:');
-    if (input) {
-      onScanComplete(input.trim());
+  const handleManualSubmit = () => {
+    if (manualInput.trim()) {
+      onScanComplete(manualInput.trim());
+      setManualInput('');
+    } else {
+      toast({
+        title: "Invalid Input",
+        description: "Please enter a valid attendance ID",
+        variant: "destructive",
+      });
     }
   };
 
@@ -66,12 +81,27 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Manual Input Section */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Manual Entry</label>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Enter attendance ID manually"
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleManualSubmit()}
+            />
+            <Button onClick={handleManualSubmit} variant="outline">
+              <Scan className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Camera Section */}
         {hasPermission === false && (
           <div className="text-center py-8">
             <p className="text-red-600 mb-4">Camera access denied</p>
-            <Button onClick={handleManualInput} variant="outline">
-              Enter Code Manually
-            </Button>
+            <p className="text-sm text-gray-600">Please use manual entry above</p>
           </div>
         )}
 
@@ -102,9 +132,6 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
             <div className="flex gap-2">
               <Button onClick={stopScanning} variant="outline" className="flex-1">
                 Stop Scanning
-              </Button>
-              <Button onClick={handleManualInput} variant="outline" className="flex-1">
-                Manual Entry
               </Button>
             </div>
             

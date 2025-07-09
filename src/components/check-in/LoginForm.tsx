@@ -25,60 +25,66 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
   const { user, userRole, loading: authLoading } = useAuth();
   const { navigateToDashboard } = useDashboardNavigation();
 
-  // Enhanced role-based navigation using consolidated navigation system
   useEffect(() => {
     if (user && userRole && !authLoading && !loading) {
-      console.log("LoginForm: User already logged in with role:", userRole);
-      
-      // Check if we're not already on a dashboard
       const currentPath = location.pathname;
       const isDashboardPath = currentPath.includes('dashboard') || currentPath === '/';
       
-      // Only redirect if not already on the correct dashboard
       if (!isDashboardPath || currentPath === '/login') {
-        console.log("LoginForm: Redirecting to appropriate dashboard");
         navigateToDashboard();
       }
     }
   }, [user, userRole, authLoading, loading, location.pathname, navigateToDashboard]);
 
   const handleContinue = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!pin || pin.length < 6) {
+      toast({
+        title: "Invalid PIN",
+        description: "Please enter a PIN of at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
-      // Validate inputs
-      if (!phoneNumber || phoneNumber.length < 10) {
-        throw new Error("Please enter a valid phone number");
-      }
-      if (!pin || pin.length < 6) {
-        throw new Error("Please enter a PIN or password of at least 6 characters");
-      }
       
-      // In a real app with phone auth, this would use phone authentication
-      // For demo, we're using email+password with a fake email derived from phone
+      // Convert phone to email format for authentication
       const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const fakeEmail = `${cleanedPhone}@example.com`;
-      
-      console.log("LoginForm: Attempting login with:", fakeEmail);
+      const fakeEmail = `${cleanedPhone}@phone.local`;
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: fakeEmail,
         password: pin,
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
+
+      if (!data.user) {
+        throw new Error("Authentication failed");
+      }
 
       toast({
         title: "Login Successful",
-        description: "You have been logged in successfully",
+        description: "Welcome back!",
       });
-      
-      // The useEffect will handle the role-based redirect using the consolidated navigation
       
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
         title: "Login Failed",
-        description: error.message,
+        description: "Invalid phone number or PIN. Please try again.",
         variant: "destructive",
       });
     } finally {
