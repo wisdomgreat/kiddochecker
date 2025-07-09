@@ -54,7 +54,10 @@ const ClassesManagement = () => {
           
           return {
             ...cls,
-            teacher_name: teacherProfile && typeof teacherProfile === 'object' && 'first_name' in teacherProfile ? 
+            teacher_name: (teacherProfile && 
+              typeof teacherProfile === 'object' && 
+              'first_name' in teacherProfile && 
+              'last_name' in teacherProfile) ? 
               `${teacherProfile.first_name} ${teacherProfile.last_name}` : 
               undefined
           } as ClassWithTeacher;
