@@ -82,8 +82,19 @@ const EnhancedParentDashboard = () => {
           table: 'attendance'
         },
         (payload) => {
+          console.log('Real-time attendance update:', payload);
+          
           // Check if this update affects user's children
-          const affectsUserChild = children.some(child => child.id === payload.new?.child_id);
+          const affectsUserChild = children.some(child => {
+            // Handle different payload structures safely
+            if (payload.new && typeof payload.new === 'object' && 'child_id' in payload.new) {
+              return child.id === payload.new.child_id;
+            }
+            if (payload.old && typeof payload.old === 'object' && 'child_id' in payload.old) {
+              return child.id === payload.old.child_id;
+            }
+            return false;
+          });
           
           if (affectsUserChild) {
             refetch();
@@ -93,7 +104,7 @@ const EnhancedParentDashboard = () => {
                 title: "Check-in Confirmed",
                 description: "Your child has been checked in successfully",
               });
-            } else if (payload.eventType === 'UPDATE' && payload.new.checked_out_at) {
+            } else if (payload.eventType === 'UPDATE' && payload.new && typeof payload.new === 'object' && 'checked_out_at' in payload.new && payload.new.checked_out_at) {
               toast({
                 title: "Check-out Confirmed",
                 description: "Your child has been checked out successfully",

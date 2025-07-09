@@ -59,17 +59,39 @@ const MessageSystem: React.FC<MessageSystemProps> = ({ isStaffView = false }) =>
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      // First, get messages without the join
+      const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
-        .select(`
-          *,
-          sender:profiles!messages_sender_id_fkey(first_name, last_name)
-        `)
+        .select('*')
         .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setMessages(data || []);
+      if (messagesError) {
+        console.error('Error loading messages:', messagesError);
+        return;
+      }
+
+      if (!messagesData) {
+        setMessages([]);
+        return;
+      }
+
+      // Get unique sender IDs
+      const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
+      
+      // Get sender profiles separately
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', senderIds);
+
+      // Combine the data
+      const messagesWithSenders = messagesData.map(message => ({
+        ...message,
+        sender: profiles?.find(profile => profile.id === message.sender_id)
+      }));
+
+      setMessages(messagesWithSenders);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
