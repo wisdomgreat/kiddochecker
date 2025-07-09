@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, AlertCircle } from 'lucide-react';
 import { useStaffManagement } from '@/hooks/useStaffManagement';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,30 +28,39 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
     is_volunteer: false
   });
 
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    if (!formData.first_name.trim()) {
+      newErrors.first_name = 'First name is required';
+    }
+    
+    if (!formData.last_name.trim()) {
+      newErrors.last_name = 'Last name is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email.trim() || !formData.first_name.trim() || !formData.last_name.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address",
-        variant: "destructive",
-      });
+    if (!validateForm()) {
       return;
     }
 
     try {
+      console.log('Submitting staff data:', formData);
+      
       await addStaff({
         email: formData.email.trim(),
         first_name: formData.first_name.trim(),
@@ -61,7 +70,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
         is_volunteer: formData.is_volunteer
       });
       
-      // Reset form and close
+      // Reset form and close dialog
       setFormData({
         email: '',
         first_name: '',
@@ -70,6 +79,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
         role: 'staff',
         is_volunteer: false
       });
+      setErrors({});
       
       onOpenChange(false);
       onSuccess();
@@ -93,6 +103,14 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
       ...prev,
       [field]: value
     }));
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
   };
 
   return (
@@ -115,9 +133,15 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                 value={formData.first_name}
                 onChange={(e) => handleInputChange('first_name', e.target.value)}
                 placeholder="Enter first name"
-                required
+                className={errors.first_name ? 'border-red-300' : ''}
                 disabled={isAddingStaff}
               />
+              {errors.first_name && (
+                <p className="text-red-500 text-xs mt-1 flex items-center">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {errors.first_name}
+                </p>
+              )}
             </div>
             
             <div>
@@ -128,9 +152,15 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                 value={formData.last_name}
                 onChange={(e) => handleInputChange('last_name', e.target.value)}
                 placeholder="Enter last name"
-                required
+                className={errors.last_name ? 'border-red-300' : ''}
                 disabled={isAddingStaff}
               />
+              {errors.last_name && (
+                <p className="text-red-500 text-xs mt-1 flex items-center">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  {errors.last_name}
+                </p>
+              )}
             </div>
           </div>
 
@@ -143,9 +173,15 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="Enter email address"
-              required
+              className={errors.email ? 'border-red-300' : ''}
               disabled={isAddingStaff}
             />
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1 flex items-center">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                {errors.email}
+              </p>
+            )}
           </div>
 
           <div>
@@ -163,7 +199,7 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
 
           <div>
             <label className="text-sm font-medium mb-2 block">
-              Role *
+              Role
             </label>
             <Select 
               value={formData.role} 
@@ -174,31 +210,39 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Administrator</SelectItem>
-                <SelectItem value="staff">Staff Member</SelectItem>
+                <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="teacher">Teacher</SelectItem>
                 <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex items-center space-x-2">
             <Checkbox
-              id="is_volunteer"
+              id="volunteer"
               checked={formData.is_volunteer}
               onCheckedChange={(checked) => handleInputChange('is_volunteer', checked as boolean)}
               disabled={isAddingStaff}
             />
-            <label htmlFor="is_volunteer" className="text-sm font-medium">
+            <label htmlFor="volunteer" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
               This person is a volunteer
             </label>
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex justify-end space-x-3 pt-4 border-t">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isAddingStaff}
+            >
+              Cancel
+            </Button>
             <Button 
               type="submit" 
               disabled={isAddingStaff}
-              className="flex-1"
+              className="bg-blue-600 hover:bg-blue-700"
             >
               {isAddingStaff ? (
                 <>
@@ -212,20 +256,12 @@ const AddStaffForm = ({ open, onOpenChange, onSuccess }: AddStaffFormProps) => {
                 </>
               )}
             </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)}
-              disabled={isAddingStaff}
-            >
-              Cancel
-            </Button>
           </div>
         </form>
 
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>Note:</strong> The new staff member will receive an email with temporary login credentials. 
+        <div className="bg-blue-50 p-3 rounded-lg mt-4">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> The new staff member will receive an email with temporary login credentials.
             They should change their password upon first login.
           </p>
         </div>
