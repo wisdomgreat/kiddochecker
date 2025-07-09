@@ -1,12 +1,14 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Edit2, Shield } from "lucide-react";
+import { Edit2, Shield, Users } from "lucide-react";
 import SimpleLayout from "@/components/layout/SimpleLayout";
 import RoleForm from "@/components/roles/RoleForm";
+import ManagementHeader from "@/components/management/ManagementHeader";
+import SearchAndFilter from "@/components/management/SearchAndFilter";
+import EmptyState from "@/components/management/EmptyState";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +29,15 @@ const UsersManagement = () => {
   const [roleFilter, setRoleFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showRoleForm, setShowRoleForm] = useState(false);
+
+  const roleFilterOptions = [
+    { value: "all", label: "All Roles" },
+    { value: "admin", label: "Admin" },
+    { value: "teacher", label: "Teacher" },
+    { value: "teacher_assistant", label: "Teacher Assistant" },
+    { value: "staff", label: "Staff" },
+    { value: "parent", label: "Parent" },
+  ];
 
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ['users-with-roles'],
@@ -112,93 +123,71 @@ const UsersManagement = () => {
   return (
     <SimpleLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-2">Manage user accounts and roles</p>
-        </div>
+        <ManagementHeader 
+          title="User Management"
+          description="Manage user accounts and roles"
+        />
 
-        {/* Search and Filters */}
         <Card>
           <CardContent className="p-4">
-            <div className="flex gap-4 items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                >
-                  <option value="all">All Roles</option>
-                  <option value="admin">Admin</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="teacher_assistant">Teacher Assistant</option>
-                  <option value="staff">Staff</option>
-                  <option value="parent">Parent</option>
-                </select>
-              </div>
-            </div>
+            <SearchAndFilter
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search users..."
+              filterOptions={roleFilterOptions}
+              selectedFilter={roleFilter}
+              onFilterChange={setRoleFilter}
+            />
           </CardContent>
         </Card>
 
-        {/* Users Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredUsers.map((user) => (
-            <Card key={user.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">
-                      {user.first_name} {user.last_name}
-                    </CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">{user.email}</p>
+        {filteredUsers.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No users found"
+            description="No users found matching your criteria."
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredUsers.map((user) => (
+              <Card key={user.id} className="hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        {user.first_name} {user.last_name}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">{user.email}</p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleEditRole(user)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleEditRole(user)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex flex-wrap gap-2">
-                  <Badge className={getRoleBadgeColor(user.role)}>
-                    {user.role.replace('_', ' ')}
-                  </Badge>
-                  {user.is_super_admin && (
-                    <Badge variant="outline" className="text-purple-600 border-purple-300">
-                      <Shield className="h-3 w-3 mr-1" />
-                      Super Admin
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className={getRoleBadgeColor(user.role)}>
+                      {user.role.replace('_', ' ')}
                     </Badge>
-                  )}
-                  <Badge 
-                    variant="outline" 
-                    className={user.is_active ? 'text-green-600 border-green-300' : 'text-red-600 border-red-300'}
-                  >
-                    {user.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
+                    {user.is_super_admin && (
+                      <Badge variant="outline" className="text-purple-600 border-purple-300">
+                        <Shield className="h-3 w-3 mr-1" />
+                        Super Admin
+                      </Badge>
+                    )}
+                    <Badge 
+                      variant="outline" 
+                      className={user.is_active ? 'text-green-600 border-green-300' : 'text-red-600 border-red-300'}
+                    >
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredUsers.length === 0 && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-gray-500">No users found matching your criteria.</p>
-            </CardContent>
-          </Card>
+              </Card>
+            ))}
+          </div>
         )}
 
         <RoleForm
