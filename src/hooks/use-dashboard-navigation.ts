@@ -1,10 +1,10 @@
 
-import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 export const useDashboardNavigation = () => {
-  const { userRole } = useAuth();
   const navigate = useNavigate();
+  const { userRole } = useAuth();
 
   const navigateToDashboard = () => {
     console.log('Navigating to dashboard for role:', userRole);
@@ -23,12 +23,12 @@ export const useDashboardNavigation = () => {
         navigate('/parent-dashboard');
         break;
       default:
-        console.warn('Unknown role, redirecting to login:', userRole);
+        console.log('Unknown role, redirecting to login');
         navigate('/login');
     }
   };
 
-  const getDashboardPath = () => {
+  const getDefaultRoute = () => {
     switch (userRole) {
       case 'admin':
       case 'super_admin':
@@ -46,6 +46,6 @@ export const useDashboardNavigation = () => {
 
   return {
     navigateToDashboard,
-    getDashboardPath
+    getDefaultRoute,
   };
 };

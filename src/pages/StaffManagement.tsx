@@ -1,282 +1,175 @@
 
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import AppLayout from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "@/components/ui/data-table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { useStaffManagement } from "@/hooks/useStaffManagement";
 import AddStaffForm from "@/components/staff/AddStaffForm";
-import EditStaffForm from "@/components/staff/EditStaffForm";
-import { useStaff, StaffMember } from "@/hooks/useStaff";
-import {
-  UserPlus,
-  Search,
-  CheckCircle,
-  X,
-  RefreshCcw,
-  Filter,
-  Download,
-  User,
-  Mail,
-  Phone,
-  Shield,
-} from "lucide-react";
+import { Pencil, Trash2, UserPlus, Search, Filter } from "lucide-react";
+import SimpleLayout from "@/components/layout/SimpleLayout";
 
 const StaffManagement = () => {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMember | null>(null);
-  const [activeTab, setActiveTab] = useState("all");
+  const { staffMembers, isLoading, deleteStaff, isDeletingStaff } = useStaffManagement();
+  const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
-  const { staff, isLoading: isLoadingStaff, error } = useStaff();
+  const [roleFilter, setRoleFilter] = useState("all");
 
-  const filteredStaffMembers = staff.filter((member) => {
-    const searchMatch =
-      member.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.role?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (activeTab === "all") return searchMatch;
-    if (activeTab === "admin") return member.role === "admin" && searchMatch;
-    if (activeTab === "teacher") return member.role === "teacher" && searchMatch;
-    return false;
+  const filteredStaff = staffMembers.filter(staff => {
+    const matchesSearch = 
+      staff.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staff.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      staff.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRole = roleFilter === "all" || staff.role === roleFilter;
+    
+    return matchesSearch && matchesRole;
   });
 
-  const handleEditStaffMember = (member: StaffMember) => {
-    setSelectedStaffMember(member);
-    setIsEditDialogOpen(true);
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'super_admin': return 'bg-purple-100 text-purple-800';
+      case 'teacher': return 'bg-green-100 text-green-800';
+      case 'teacher_assistant': return 'bg-blue-100 text-blue-800';
+      case 'staff': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const staffColumns = [
-    {
-      key: "user_id" as keyof StaffMember,
-      header: "Name",
-      render: (value: string, item: StaffMember) => (
-        <div className="flex items-center space-x-2">
-          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-            <span className="text-purple-600 font-medium">
-              {item.first_name?.[0] || ""}{item.last_name?.[0] || ""}
-            </span>
-          </div>
-          <div>
-            <div className="font-medium">{item.first_name} {item.last_name}</div>
-            <div className="text-sm text-gray-500">{item.email}</div>
-          </div>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      key: "role" as keyof StaffMember,
-      header: "Role",
-      render: (value: string) => (
-        <div className="flex items-center">
-          <div className={`p-1 rounded-full mr-2 ${
-            value === "admin" ? "bg-purple-100" : 
-            value === "teacher" ? "bg-blue-100" : "bg-green-100"
-          }`}>
-            <User size={16} className={`${
-              value === "admin" ? "text-purple-600" : 
-              value === "teacher" ? "text-blue-600" : "text-green-600"
-            }`} />
-          </div>
-          <span className="capitalize">{value}</span>
-        </div>
-      ),
-      sortable: true,
-    },
-    {
-      key: "is_super_admin" as keyof StaffMember,
-      header: "Super Admin",
-      render: (value: boolean) => (
-        value ? (
-          <div className="flex items-center">
-            <Shield size={16} className="text-purple-600 mr-1" />
-            <span className="text-xs font-medium">Yes</span>
-          </div>
-        ) : null
-      ),
-    },
-    {
-      key: "phone" as keyof StaffMember,
-      header: "Contact",
-      render: (value: string, item: StaffMember) => (
-        <div className="space-y-1">
-          <div className="flex items-center text-xs text-gray-600">
-            <Mail size={14} className="mr-1" />
-            {item.email}
-          </div>
-          {value && (
-            <div className="flex items-center text-xs text-gray-600">
-              <Phone size={14} className="mr-1" />
-              {value}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "is_active" as keyof StaffMember,
-      header: "Status",
-      render: (value: boolean) => (
-        <div className="flex items-center">
-          {value ? (
-            <>
-              <CheckCircle size={16} className="text-green-500 mr-1" />
-              <span>Active</span>
-            </>
-          ) : (
-            <>
-              <X size={16} className="text-gray-400 mr-1" />
-              <span>Inactive</span>
-            </>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "actions" as const,
-      header: "Actions",
-      render: (value: any, item: StaffMember) => (
-        <div className="flex justify-end space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => handleEditStaffMember(item)}
-          >
-            Edit
-          </Button>
-        </div>
-      ),
-    },
-  ];
+  const handleDeleteStaff = async (userId: string, name: string) => {
+    if (window.confirm(`Are you sure you want to remove ${name}? This action cannot be undone.`)) {
+      deleteStaff(userId);
+    }
+  };
 
-  if (error) {
+  if (isLoading) {
     return (
-      <AppLayout>
-        <div className="flex justify-center items-center py-8">
-          <div className="text-center">
-            <h3 className="text-lg font-medium text-red-600">Error Loading Staff</h3>
-            <p className="text-sm text-gray-500 mt-2">{error.message}</p>
-            <Button 
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["staff"] })}
-              className="mt-4"
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Try Again
-            </Button>
-          </div>
+      <SimpleLayout>
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
-      </AppLayout>
+      </SimpleLayout>
     );
   }
 
   return (
-    <AppLayout>
+    <SimpleLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Staff Management</h1>
-            <p className="text-muted-foreground">Manage your organization's staff members.</p>
+            <h1 className="text-3xl font-bold text-gray-900">Staff Management</h1>
+            <p className="text-gray-600 mt-2">Manage your organization's staff members</p>
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
-              <Filter className="mr-1 h-4 w-4" />
-              Filter
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download className="mr-1 h-4 w-4" />
-              Export
-            </Button>
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <UserPlus className="mr-1 h-4 w-4" />
-              Add Staff Member
-            </Button>
-          </div>
+          <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add Staff Member
+          </Button>
         </div>
 
+        {/* Search and Filters */}
         <Card>
-          <CardHeader className="pb-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle>Staff Members</CardTitle>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input 
-                  placeholder="Search by name, email, or role..." 
-                  className="pl-8" 
+          <CardContent className="p-4">
+            <div className="flex gap-4 items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search staff members..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
               </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  <option value="all">All Roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="teacher_assistant">Teacher Assistant</option>
+                  <option value="staff">Staff</option>
+                </select>
+              </div>
             </div>
-            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="all">All Staff</TabsTrigger>
-                <TabsTrigger value="admin">Admins</TabsTrigger>
-                <TabsTrigger value="teacher">Teachers</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </CardHeader>
-          <CardContent>
-            {isLoadingStaff ? (
-              <div className="flex justify-center items-center py-8">
-                <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
-                <span>Loading staff members...</span>
-              </div>
-            ) : staff.length === 0 ? (
-              <div className="text-center py-8">
-                <User className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No staff members found</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm 
-                    ? "No results match your search criteria." 
-                    : "Get started by adding your first staff member."}
-                </p>
-                <div className="mt-6">
-                  <Button onClick={() => setIsAddDialogOpen(true)}>
-                    <UserPlus className="mr-1 h-4 w-4" />
-                    Add Staff Member
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <DataTable
-                columns={staffColumns}
-                data={filteredStaffMembers}
-                keyExtractor={(item) => item.user_id}
-                searchable={false}
-                loading={isLoadingStaff}
-              />
-            )}
           </CardContent>
         </Card>
 
-        <AddStaffForm 
-          open={isAddDialogOpen} 
-          onOpenChange={setIsAddDialogOpen}
-          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["staff"] })}
-        />
+        {/* Staff Members Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredStaff.map((staff) => (
+            <Card key={staff.user_id} className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <CardTitle className="text-lg">
+                      {staff.first_name} {staff.last_name}
+                    </CardTitle>
+                    <p className="text-sm text-gray-600 mt-1">{staff.email}</p>
+                    {staff.phone && (
+                      <p className="text-sm text-gray-500 mt-1">{staff.phone}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm">
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleDeleteStaff(staff.user_id, `${staff.first_name} ${staff.last_name}`)}
+                      disabled={isDeletingStaff}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex flex-wrap gap-2">
+                  <Badge className={getRoleBadgeColor(staff.role)}>
+                    {staff.role.replace('_', ' ')}
+                  </Badge>
+                  {staff.is_volunteer && (
+                    <Badge variant="outline" className="text-green-600 border-green-300">
+                      Volunteer
+                    </Badge>
+                  )}
+                  {staff.is_super_admin && (
+                    <Badge variant="outline" className="text-purple-600 border-purple-300">
+                      Super Admin
+                    </Badge>
+                  )}
+                  <Badge 
+                    variant="outline" 
+                    className={staff.is_active ? 'text-green-600 border-green-300' : 'text-red-600 border-red-300'}
+                  >
+                    {staff.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-        {selectedStaffMember && (
-          <EditStaffForm
-            open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
-            staffMember={selectedStaffMember}
-            onSuccess={() => {
-              queryClient.invalidateQueries({ queryKey: ["staff"] });
-              setSelectedStaffMember(null);
-            }}
-          />
+        {filteredStaff.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-500">No staff members found matching your criteria.</p>
+            </CardContent>
+          </Card>
         )}
+
+        <AddStaffForm 
+          open={showAddForm} 
+          onOpenChange={setShowAddForm}
+          onSuccess={() => setShowAddForm(false)}
+        />
       </div>
-    </AppLayout>
+    </SimpleLayout>
   );
 };
 

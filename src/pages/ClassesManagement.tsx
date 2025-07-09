@@ -1,76 +1,112 @@
 
-import { useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Plus, Search } from 'lucide-react';
-import { useClasses } from '@/hooks/useClasses';
-import { useAttendance } from '@/hooks/useAttendance';
-import ClassCard from '@/components/classes/ClassCard';
-import AddEditClassDialog from '@/components/classes/AddEditClassDialog';
-import { Class } from '@/types/classes';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { BookOpen, Plus, Search, Users, MapPin } from "lucide-react";
+import SimpleLayout from "@/components/layout/SimpleLayout";
+import AddEditClassDialog from "@/components/classes/AddEditClassDialog";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ClassWithTeacher {
+  id: string;
+  name: string;
+  description: string;
+  age_range: string;
+  capacity: number;
+  room: string;
+  created_at: string;
+  teacher_name?: string;
+}
 
 const ClassesManagement = () => {
-  const { classes, addClass, updateClass, deleteClass, isLoading, isAddingClass, isUpdatingClass } = useClasses();
-  const { attendance } = useAttendance();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingClass, setEditingClass] = useState<Class | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<ClassWithTeacher | null>(null);
 
-  const filteredClasses = classes.filter(classItem =>
-    classItem.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const { data: classes = [], isLoading, refetch } = useQuery({
+    queryKey: ['classes-with-teachers'],
+    queryFn: async (): Promise<ClassWithTeacher[]> => {
+      const { data, error } = await supabase
+        .from('classes')
+        .select(`
+          *,
+          teachers (
+            profiles (
+              first_name,
+              last_name
+            )
+          )
+        `);
+      
+      if (error) {
+        console.error('Error fetching classes:', error);
+        throw error;
+      }
+      
+      return (data || []).map(cls => ({
+        ...cls,
+        teacher_name: cls.teachers?.[0]?.profiles ? 
+          `${cls.teachers[0].profiles.first_name} ${cls.teachers[0].profiles.last_name}` : 
+          undefined
+      }));
+    },
+  });
+
+  const filteredClasses = classes.filter(cls =>
+    cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cls.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cls.age_range?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cls.room?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getClassAttendanceCount = (classId: string) => {
-    return attendance.filter(record => 
-      record.class_id === classId && !record.checked_out_at
-    ).length;
+  const handleEditClass = (cls: ClassWithTeacher) => {
+    setSelectedClass(cls);
+    setShowAddForm(true);
   };
 
-  const handleAddClass = (classData: any) => {
-    addClass(classData);
-    setShowAddDialog(false);
+  const handleCloseForm = () => {
+    setShowAddForm(false);
+    setSelectedClass(null);
+    refetch();
   };
 
-  const handleEditClass = (classData: any) => {
-    updateClass(classData);
-    setEditingClass(null);
-  };
-
-  const handleDeleteClass = (classId: string) => {
-    if (confirm('Are you sure you want to delete this class?')) {
-      deleteClass(classId);
-    }
-  };
+  if (isLoading) {
+    return (
+      <SimpleLayout>
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </SimpleLayout>
+    );
+  }
 
   return (
-    <DashboardLayout>
+    <SimpleLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Classes Management</h1>
-            <p className="text-muted-foreground">
-              Create and manage classes for your organization.
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900">Classes Management</h1>
+            <p className="text-gray-600 mt-2">Manage classes and teacher assignments</p>
           </div>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => setShowAddForm(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="mr-2 h-4 w-4" />
             Add Class
           </Button>
         </div>
 
         {/* Search */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-500" />
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
                 placeholder="Search classes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+                className="pl-10"
               />
             </div>
           </CardContent>
@@ -78,58 +114,69 @@ const ClassesManagement = () => {
 
         {/* Classes Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+          {filteredClasses.map((cls) => (
+            <Card 
+              key={cls.id} 
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => handleEditClass(cls)}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-blue-600" />
+                    <CardTitle className="text-lg">{cls.name}</CardTitle>
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : filteredClasses.length > 0 ? (
-            filteredClasses.map((classItem) => (
-              <ClassCard
-                key={classItem.id}
-                classItem={classItem}
-                onEdit={setEditingClass}
-                onDelete={handleDeleteClass}
-                attendanceCount={getClassAttendanceCount(classItem.id)}
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-muted-foreground mb-4">
-                {searchTerm ? 'No classes found matching your search.' : 'No classes created yet.'}
-              </p>
-              {!searchTerm && (
-                <Button onClick={() => setShowAddDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Class
-                </Button>
-              )}
-            </div>
-          )}
+                  <Badge variant="outline" className="text-blue-600 border-blue-300">
+                    {cls.capacity} max
+                  </Badge>
+                </div>
+                {cls.description && (
+                  <p className="text-sm text-gray-600">{cls.description}</p>
+                )}
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  {cls.age_range && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Age: {cls.age_range}</span>
+                    </div>
+                  )}
+                  {cls.room && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Room: {cls.room}</span>
+                    </div>
+                  )}
+                  {cls.teacher_name && (
+                    <div className="mt-2">
+                      <Badge className="bg-green-100 text-green-800">
+                        Teacher: {cls.teacher_name}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Add/Edit Dialog */}
+        {filteredClasses.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No classes found matching your criteria.</p>
+            </CardContent>
+          </Card>
+        )}
+
         <AddEditClassDialog
-          isOpen={showAddDialog || !!editingClass}
-          onClose={() => {
-            setShowAddDialog(false);
-            setEditingClass(null);
-          }}
-          onSave={editingClass ? handleEditClass : handleAddClass}
-          classItem={editingClass}
-          isLoading={isAddingClass || isUpdatingClass}
+          open={showAddForm}
+          onOpenChange={handleCloseForm}
+          classData={selectedClass}
         />
       </div>
-    </DashboardLayout>
+    </SimpleLayout>
   );
 };
 
