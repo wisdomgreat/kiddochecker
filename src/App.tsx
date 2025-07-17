@@ -9,6 +9,12 @@ import Login from "@/pages/LoginPage";
 import Register from "@/pages/ParentRegistration";
 import Dashboard from "@/pages/Dashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import ParentDashboard from "@/pages/ParentDashboard";
+import StaffDashboard from "@/pages/StaffDashboard";
+import TeacherDashboard from "@/pages/TeacherDashboard";
+import CheckInKiosk from "@/pages/CheckInKiosk";
+import CheckOutStation from "@/pages/CheckOutStation";
+import SettingsPage from "@/pages/SettingsPage";
 import UsersManagement from "@/pages/UsersManagement";
 import StaffManagement from "@/pages/StaffManagement";
 import RolesManagement from "@/pages/RolesManagement";
@@ -50,7 +56,7 @@ function App() {
               {/* Protected routes */}
               <Route path="/" element={
                 <ProtectedRoute>
-                  <Navigate to="/admin-dashboard" replace />
+                  <Dashboard />
                 </ProtectedRoute>
               } />
               
@@ -66,6 +72,44 @@ function App() {
                   <RoleGuard requiredPermission="view_system_health">
                     <AdminDashboard />
                   </RoleGuard>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/parent-dashboard" element={
+                <ProtectedRoute>
+                  <ParentDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/staff-dashboard" element={
+                <ProtectedRoute>
+                  <StaffDashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/teacher-dashboard" element={
+                <ProtectedRoute>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              } />
+              
+              {/* Check-in/Check-out routes */}
+              <Route path="/check-in-kiosk" element={
+                <ProtectedRoute>
+                  <CheckInKiosk />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/check-out-station" element={
+                <ProtectedRoute>
+                  <CheckOutStation />
+                </ProtectedRoute>
+              } />
+              
+              {/* Settings route */}
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <SettingsPage />
                 </ProtectedRoute>
               } />
               
