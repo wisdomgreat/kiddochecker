@@ -28,34 +28,53 @@ const EventsManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const eventData = {
-        ...formData,
-        start_date: new Date(formData.start_date).toISOString(),
-        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null
-      };
+    const eventData = {
+      title: formData.title,
+      description: formData.description,
+      start_date: new Date(formData.start_date).toISOString(),
+      end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+      location: formData.location,
+      organizer: formData.organizer,
+      is_public: formData.is_public
+    };
 
-      if (editingEvent) {
-        await updateEvent(editingEvent.id, eventData);
-        toast({
-          title: "Event Updated",
-          description: "Event has been updated successfully.",
-        });
-      } else {
-        await addEvent(eventData);
-        toast({
-          title: "Event Created",
-          description: "New event has been created successfully.",
-        });
-      }
-      setIsDialogOpen(false);
-      setEditingEvent(null);
-      setFormData({ title: '', description: '', start_date: '', end_date: '', location: '', organizer: '', is_public: true });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save event. Please try again.",
-        variant: "destructive",
+    if (editingEvent) {
+      updateEvent({ id: editingEvent.id, ...eventData }, {
+        onSuccess: () => {
+          toast({
+            title: "Event Updated",
+            description: "Event has been updated successfully.",
+          });
+          setIsDialogOpen(false);
+          setEditingEvent(null);
+          setFormData({ title: '', description: '', start_date: '', end_date: '', location: '', organizer: '', is_public: true });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to update event. Please try again.",
+            variant: "destructive",
+          });
+        }
+      });
+    } else {
+      addEvent(eventData, {
+        onSuccess: () => {
+          toast({
+            title: "Event Created",
+            description: "New event has been created successfully.",
+          });
+          setIsDialogOpen(false);
+          setEditingEvent(null);
+          setFormData({ title: '', description: '', start_date: '', end_date: '', location: '', organizer: '', is_public: true });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to create event. Please try again.",
+            variant: "destructive",
+          });
+        }
       });
     }
   };

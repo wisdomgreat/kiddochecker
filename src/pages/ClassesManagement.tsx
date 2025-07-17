@@ -26,31 +26,52 @@ const ClassesManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (editingClass) {
-        await updateClass(editingClass.id, {
-          ...formData,
-          capacity: parseInt(formData.capacity) || null
-        });
-        toast({
-          title: "Class Updated",
-          description: "Class has been updated successfully.",
-        });
-      } else {
-        await addClass(formData);
-        toast({
-          title: "Class Created",
-          description: "New class has been created successfully.",
-        });
-      }
-      setIsDialogOpen(false);
-      setEditingClass(null);
-      setFormData({ name: '', description: '', age_range: '', capacity: '', room: '' });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save class. Please try again.",
-        variant: "destructive",
+    
+    const classData = {
+      name: formData.name,
+      description: formData.description,
+      age_range: formData.age_range,
+      capacity: formData.capacity ? parseInt(formData.capacity) : null,
+      room: formData.room
+    };
+
+    if (editingClass) {
+      updateClass({ id: editingClass.id, ...classData }, {
+        onSuccess: () => {
+          toast({
+            title: "Class Updated",
+            description: "Class has been updated successfully.",
+          });
+          setIsDialogOpen(false);
+          setEditingClass(null);
+          setFormData({ name: '', description: '', age_range: '', capacity: '', room: '' });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to update class. Please try again.",
+            variant: "destructive",
+          });
+        }
+      });
+    } else {
+      addClass(classData, {
+        onSuccess: () => {
+          toast({
+            title: "Class Created",
+            description: "New class has been created successfully.",
+          });
+          setIsDialogOpen(false);
+          setEditingClass(null);
+          setFormData({ name: '', description: '', age_range: '', capacity: '', room: '' });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to create class. Please try again.",
+            variant: "destructive",
+          });
+        }
       });
     }
   };
@@ -67,21 +88,23 @@ const ClassesManagement = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (classId: string) => {
+  const handleDelete = (classId: string) => {
     if (window.confirm('Are you sure you want to delete this class?')) {
-      try {
-        await deleteClass(classId);
-        toast({
-          title: "Class Deleted",
-          description: "Class has been deleted successfully.",
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to delete class. Please try again.",
-          variant: "destructive",
-        });
-      }
+      deleteClass(classId, {
+        onSuccess: () => {
+          toast({
+            title: "Class Deleted",
+            description: "Class has been deleted successfully.",
+          });
+        },
+        onError: () => {
+          toast({
+            title: "Error",
+            description: "Failed to delete class. Please try again.",
+            variant: "destructive",
+          });
+        }
+      });
     }
   };
 
