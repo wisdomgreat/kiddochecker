@@ -9,7 +9,7 @@ interface ModernLayoutProps {
 
 const ModernLayout = ({ children }: ModernLayoutProps) => {
   return (
-    <SidebarProvider collapsedWidth={64}>
+    <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <main className="flex-1 overflow-auto">

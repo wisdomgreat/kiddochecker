@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit2, Shield, Users, UserPlus, Trash2, UserX, RefreshCw } from "lucide-react";
-import SimpleLayout from "@/components/layout/SimpleLayout";
+import ModernLayout from "@/components/layout/ModernLayout";
 import RoleForm from "@/components/roles/RoleForm";
 import ManagementHeader from "@/components/management/ManagementHeader";
 import SearchAndFilter from "@/components/management/SearchAndFilter";
@@ -88,9 +88,9 @@ const UsersManagement = () => {
     { value: "parent", label: "Parent" },
   ];
 
-  const { data: users = [], isLoading, refetch } = useQuery({
+  const { data: rawUsers = [], isLoading, refetch } = useQuery({
     queryKey: ['users-with-roles'],
-    queryFn: async (): Promise<User[]> => {
+    queryFn: async () => {
       const { data, error } = await supabase.rpc('get_users_with_roles');
       
       if (error) {
@@ -101,6 +101,20 @@ const UsersManagement = () => {
       return data || [];
     },
   });
+
+  // Transform the raw data to match our User interface
+  const users: User[] = rawUsers.map((user: any) => ({
+    id: user.id,
+    email: user.email || '',
+    first_name: user.first_name || '',
+    last_name: user.last_name || '',
+    role: user.role || 'parent',
+    is_super_admin: user.is_super_admin || false,
+    is_active: user.is_active || false,
+    is_volunteer: user.is_volunteer || false,
+    phone: user.phone || '',
+    created_at: user.created_at || new Date().toISOString()
+  }));
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
@@ -276,17 +290,17 @@ const UsersManagement = () => {
 
   if (isLoading) {
     return (
-      <SimpleLayout>
+      <ModernLayout>
         <div className="flex items-center justify-center p-8">
           <RefreshCw className="animate-spin h-8 w-8 border-b-2 border-gray-900" />
           <span className="ml-2">Loading users...</span>
         </div>
-      </SimpleLayout>
+      </ModernLayout>
     );
   }
 
   return (
-    <SimpleLayout>
+    <ModernLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <ManagementHeader 
@@ -421,7 +435,7 @@ const UsersManagement = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </SimpleLayout>
+    </ModernLayout>
   );
 };
 

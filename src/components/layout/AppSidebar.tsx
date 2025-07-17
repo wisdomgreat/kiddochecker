@@ -132,13 +132,14 @@ const navigationItems = [
 ];
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { checkPermission } = usePermissions();
   const [openGroups, setOpenGroups] = useState<string[]>([]);
 
   const currentPath = location.pathname;
+  const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => currentPath === path;
   const isGroupActive = (items: any[]) => items.some(item => isActive(item.url));
@@ -157,10 +158,10 @@ export function AppSidebar() {
       : "hover:bg-accent hover:text-accent-foreground";
 
   return (
-    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible>
+    <Sidebar className={isCollapsed ? "w-16" : "w-64"}>
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
-        {!collapsed && (
+        {!isCollapsed && (
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <GraduationCap className="h-5 w-5 text-primary-foreground" />
@@ -176,7 +177,7 @@ export function AppSidebar() {
 
       <SidebarContent className="flex-1 overflow-y-auto">
         {/* Quick Actions */}
-        {!collapsed && (
+        {!isCollapsed && (
           <div className="p-4 border-b">
             <Button size="sm" className="w-full">
               <Plus className="mr-2 h-4 w-4" />
@@ -204,7 +205,7 @@ export function AppSidebar() {
                         <CollapsibleTrigger asChild>
                           <SidebarMenuButton className={getNavClass(groupActive)}>
                             <item.icon className="mr-2 h-4 w-4" />
-                            {!collapsed && (
+                            {!isCollapsed && (
                               <>
                                 <span className="flex-1">{item.title}</span>
                                 <ChevronDown className={`h-4 w-4 transition-transform ${isGroupOpen ? 'rotate-180' : ''}`} />
@@ -212,7 +213,7 @@ export function AppSidebar() {
                             )}
                           </SidebarMenuButton>
                         </CollapsibleTrigger>
-                        {!collapsed && (
+                        {!isCollapsed && (
                           <CollapsibleContent>
                             <SidebarMenuSub>
                               {item.items.map((subItem) => (
@@ -242,7 +243,7 @@ export function AppSidebar() {
                           className={({ isActive }) => getNavClass(isActive)}
                         >
                           <item.icon className="mr-2 h-4 w-4" />
-                          {!collapsed && (
+                          {!isCollapsed && (
                             <>
                               <span className="flex-1">{item.title}</span>
                               {item.badge && (
@@ -263,7 +264,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Support Section */}
-        {!collapsed && (
+        {!isCollapsed && (
           <SidebarGroup>
             <SidebarGroupLabel>Support</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -282,7 +283,7 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="border-t p-4">
-        {!collapsed ? (
+        {!isCollapsed ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">

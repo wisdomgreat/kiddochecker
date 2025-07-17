@@ -4,9 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "@/components/ui/toaster";
 
-// Import pages
-import Login from "@/pages/Login";
-import Register from "@/pages/Register";
+// Import pages with correct paths
+import Login from "@/pages/LoginPage";
+import Register from "@/pages/ParentRegistration";
 import Dashboard from "@/pages/Dashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import UsersManagement from "@/pages/UsersManagement";
@@ -23,8 +23,8 @@ import ReportsManagement from "@/pages/ReportsManagement";
 import OrganizationSettings from "@/pages/OrganizationSettings";
 import SystemHealth from "@/pages/SystemHealth";
 
-// Protected Route wrapper
-import ProtectedRoute from "@/components/security/ProtectedRoute";
+// Protected Route wrapper with correct path
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
 import RoleGuard from "@/components/security/RoleGuard";
 
 const queryClient = new QueryClient({

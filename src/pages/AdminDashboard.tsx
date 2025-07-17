@@ -23,12 +23,28 @@ import {
   Wifi,
   HardDrive
 } from "lucide-react";
-import SimpleLayout from "@/components/layout/SimpleLayout";
+import ModernLayout from "@/components/layout/ModernLayout";
 import { useQuery } from "@tanstack/react-query";
 import { getAdminDashboardStats } from "@/utils/permissionUtils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Cell } from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart as RechartsPieChart, Cell, Pie } from "recharts";
+
+// Define proper interface for dashboard stats
+interface DashboardStats {
+  total_users?: number;
+  active_users?: number;
+  total_children?: number;
+  total_classes?: number;
+  todays_attendance?: number;
+  pending_checkouts?: number;
+  user_roles_breakdown?: Record<string, number>;
+  recent_activity?: Array<{
+    date: string;
+    checkins: number;
+    checkouts: number;
+  }>;
+}
 
 const AdminDashboard = () => {
   const { toast } = useToast();
@@ -50,16 +66,19 @@ const AdminDashboard = () => {
     checkAccess();
   }, [canViewSystemHealth, toast]);
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: rawStats, isLoading } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: getAdminDashboardStats,
     enabled: hasAccess,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  // Transform the data to ensure proper typing
+  const stats: DashboardStats = rawStats && typeof rawStats === 'object' ? rawStats as DashboardStats : {};
+
   if (!hasAccess) {
     return (
-      <SimpleLayout>
+      <ModernLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Shield className="mx-auto h-12 w-12 text-gray-400" />
@@ -69,7 +88,7 @@ const AdminDashboard = () => {
             </p>
           </div>
         </div>
-      </SimpleLayout>
+      </ModernLayout>
     );
   }
 
@@ -97,7 +116,7 @@ const AdminDashboard = () => {
   };
 
   return (
-    <SimpleLayout>
+    <ModernLayout>
       <div className="space-y-8">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -424,7 +443,7 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </SimpleLayout>
+    </ModernLayout>
   );
 };
 

@@ -32,6 +32,7 @@ export const hasPermission = async (permissionName: string): Promise<boolean> =>
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     
+    // Call the database function we created
     const { data, error } = await supabase.rpc('check_user_permission', {
       p_user_id: user.id,
       p_permission_name: permissionName
