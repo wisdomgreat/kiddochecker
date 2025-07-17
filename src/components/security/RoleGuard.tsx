@@ -1,13 +1,15 @@
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { AppRole } from '@/types/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ShieldX, AlertTriangle } from 'lucide-react';
+import { ShieldX, AlertTriangle, RefreshCw } from 'lucide-react';
+import { hasPermission } from '@/utils/permissionUtils';
 
 interface RoleGuardProps {
   children: ReactNode;
   allowedRoles?: AppRole[];
+  requiredPermission?: string;
   requireParentAccess?: boolean;
   requireAdminAccess?: boolean;
   fallback?: ReactNode;
@@ -16,18 +18,49 @@ interface RoleGuardProps {
 const RoleGuard = ({ 
   children, 
   allowedRoles,
+  requiredPermission,
   requireParentAccess,
   requireAdminAccess,
   fallback 
 }: RoleGuardProps) => {
   const { userRole, loading } = useAuth();
+  const [hasRequiredPermission, setHasRequiredPermission] = useState<boolean | null>(null);
+  const [permissionLoading, setPermissionLoading] = useState(false);
 
-  if (loading) {
+  useEffect(() => {
+    const checkPermission = async () => {
+      if (!requiredPermission) {
+        setHasRequiredPermission(true);
+        return;
+      }
+
+      setPermissionLoading(true);
+      try {
+        const result = await hasPermission(requiredPermission);
+        setHasRequiredPermission(result);
+      } catch (error) {
+        console.error('Error checking permission:', error);
+        setHasRequiredPermission(false);
+      } finally {
+        setPermissionLoading(false);
+      }
+    };
+
+    checkPermission();
+  }, [requiredPermission]);
+
+  if (loading || permissionLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <RefreshCw className="animate-spin h-8 w-8 text-primary mr-2" />
+        <span>Verifying permissions...</span>
       </div>
     );
+  }
+
+  // Check permission-based access first (most granular)
+  if (requiredPermission && hasRequiredPermission === false) {
+    return fallback || <AccessDenied reason="insufficient_permission" permission={requiredPermission} />;
   }
 
   // Check role-based access
@@ -54,9 +87,11 @@ const RoleGuard = ({
   return <>{children}</>;
 };
 
-const AccessDenied = ({ reason }: { reason: string }) => {
+const AccessDenied = ({ reason, permission }: { reason: string; permission?: string }) => {
   const getMessage = () => {
     switch (reason) {
+      case 'insufficient_permission':
+        return `You don't have the required permission: ${permission}. Contact your administrator to request access.`;
       case 'insufficient_role':
         return 'Your account role does not have access to this feature.';
       case 'admin_blocked_from_parent':

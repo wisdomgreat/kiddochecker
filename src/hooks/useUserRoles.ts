@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { UserProfile, formatUserData } from "@/types/users";
+import { UserProfile } from "@/types/users";
 
 const useUserRoles = () => {
   return useQuery({
@@ -24,17 +24,18 @@ const useUserRoles = () => {
           return [];
         }
 
-        const formattedUsers = data.map((user: any) => formatUserData({
+        const formattedUsers = data.map((user: any) => ({
           id: user.id,
-          email: user.email,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          role: user.role,
-          is_super_admin: user.is_super_admin,
-          is_active: user.is_active,
-          created_at: new Date().toISOString(),
-          phone: '',
-          children: 0
+          email: user.email || '',
+          firstName: user.first_name || '',
+          lastName: user.last_name || '',
+          role: user.role || 'parent',
+          isSuperAdmin: user.is_super_admin || false,
+          isActive: user.is_active || false,
+          isVolunteer: user.is_volunteer || false,
+          phone: user.phone || '',
+          createdAt: user.created_at || new Date().toISOString(),
+          children: 0 // This can be enhanced later to include actual child count
         }));
 
         console.log("Formatted users:", formattedUsers);
