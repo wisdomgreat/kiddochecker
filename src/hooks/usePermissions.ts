@@ -26,67 +26,133 @@ export const usePermissions = () => {
     return hasPermission(permissionName);
   };
   
+  // Helper function for synchronous permission checks based on role
+  const hasRolePermission = (permissionName: string): boolean => {
+    if (!user || !userRole) return false;
+    
+    // Super admin has all permissions
+    if (userRole === 'super_admin') return true;
+    
+    // Define role-based permissions
+    const rolePermissions: Record<string, string[]> = {
+      'admin': [
+        PERMISSIONS.VIEW_USERS,
+        PERMISSIONS.CREATE_USERS,
+        PERMISSIONS.EDIT_USERS,
+        PERMISSIONS.DELETE_USERS,
+        PERMISSIONS.MANAGE_USER_ROLES,
+        PERMISSIONS.VIEW_ALL_CHILDREN,
+        PERMISSIONS.CREATE_CHILDREN,
+        PERMISSIONS.EDIT_CHILDREN,
+        PERMISSIONS.DELETE_CHILDREN,
+        PERMISSIONS.VIEW_CLASSES,
+        PERMISSIONS.CREATE_CLASSES,
+        PERMISSIONS.EDIT_CLASSES,
+        PERMISSIONS.DELETE_CLASSES,
+        PERMISSIONS.VIEW_ATTENDANCE,
+        PERMISSIONS.MANAGE_ATTENDANCE,
+        PERMISSIONS.VIEW_ORGANIZATION_SETTINGS,
+        PERMISSIONS.EDIT_ORGANIZATION_SETTINGS,
+        PERMISSIONS.VIEW_AUDIT_LOGS,
+        PERMISSIONS.VIEW_SYSTEM_HEALTH,
+        PERMISSIONS.MANAGE_SYSTEM_SETTINGS,
+      ],
+      'staff': [
+        PERMISSIONS.VIEW_ALL_CHILDREN,
+        PERMISSIONS.CREATE_CHILDREN,
+        PERMISSIONS.EDIT_CHILDREN,
+        PERMISSIONS.VIEW_CLASSES,
+        PERMISSIONS.VIEW_ATTENDANCE,
+        PERMISSIONS.CHECKIN_CHILDREN,
+        PERMISSIONS.CHECKOUT_CHILDREN,
+        PERMISSIONS.MANAGE_ATTENDANCE,
+      ],
+      'teacher': [
+        PERMISSIONS.VIEW_ALL_CHILDREN,
+        PERMISSIONS.VIEW_CLASSES,
+        PERMISSIONS.VIEW_ATTENDANCE,
+        PERMISSIONS.CHECKIN_CHILDREN,
+        PERMISSIONS.CHECKOUT_CHILDREN,
+      ],
+      'teacher_assistant': [
+        PERMISSIONS.VIEW_ALL_CHILDREN,
+        PERMISSIONS.VIEW_CLASSES,
+        PERMISSIONS.VIEW_ATTENDANCE,
+        PERMISSIONS.CHECKIN_CHILDREN,
+        PERMISSIONS.CHECKOUT_CHILDREN,
+      ],
+      'parent': [
+        PERMISSIONS.VIEW_OWN_CHILDREN,
+        PERMISSIONS.CREATE_CHILDREN,
+        PERMISSIONS.EDIT_CHILDREN,
+      ],
+    };
+    
+    const userPermissions = rolePermissions[userRole] || [];
+    return userPermissions.includes(permissionName);
+  };
+  
   return {
     permissions,
     isLoading,
     checkPermission,
-    // Enhanced convenience methods for granular permissions
+    hasRolePermission,
     
     // User Management
-    canViewUsers: () => hasPermission(PERMISSIONS.VIEW_USERS),
-    canCreateUsers: () => hasPermission(PERMISSIONS.CREATE_USERS),
-    canEditUsers: () => hasPermission(PERMISSIONS.EDIT_USERS),
-    canDeleteUsers: () => hasPermission(PERMISSIONS.DELETE_USERS),
-    canManageUserRoles: () => hasPermission(PERMISSIONS.MANAGE_USER_ROLES),
-    canSuspendUsers: () => hasPermission(PERMISSIONS.SUSPEND_USERS),
-    canResetPasswords: () => hasPermission(PERMISSIONS.RESET_USER_PASSWORDS),
+    canViewUsers: () => hasRolePermission(PERMISSIONS.VIEW_USERS),
+    canCreateUsers: () => hasRolePermission(PERMISSIONS.CREATE_USERS),
+    canEditUsers: () => hasRolePermission(PERMISSIONS.EDIT_USERS),
+    canDeleteUsers: () => hasRolePermission(PERMISSIONS.DELETE_USERS),
+    canManageUserRoles: () => hasRolePermission(PERMISSIONS.MANAGE_USER_ROLES),
+    canSuspendUsers: () => hasRolePermission(PERMISSIONS.SUSPEND_USERS),
+    canResetPasswords: () => hasRolePermission(PERMISSIONS.RESET_USER_PASSWORDS),
     
     // Role & Permission Management
-    canViewRoles: () => hasPermission(PERMISSIONS.VIEW_ROLES),
-    canCreateRoles: () => hasPermission(PERMISSIONS.CREATE_ROLES),
-    canEditRoles: () => hasPermission(PERMISSIONS.EDIT_ROLES),
-    canDeleteRoles: () => hasPermission(PERMISSIONS.DELETE_ROLES),
-    canViewPermissions: () => hasPermission(PERMISSIONS.VIEW_PERMISSIONS),
-    canManagePermissions: () => hasPermission(PERMISSIONS.ASSIGN_ROLE_PERMISSIONS),
+    canViewRoles: () => hasRolePermission(PERMISSIONS.VIEW_ROLES),
+    canCreateRoles: () => hasRolePermission(PERMISSIONS.CREATE_ROLES),
+    canEditRoles: () => hasRolePermission(PERMISSIONS.EDIT_ROLES),
+    canDeleteRoles: () => hasRolePermission(PERMISSIONS.DELETE_ROLES),
+    canViewPermissions: () => hasRolePermission(PERMISSIONS.VIEW_PERMISSIONS),
+    canManagePermissions: () => hasRolePermission(PERMISSIONS.ASSIGN_ROLE_PERMISSIONS),
     
     // Children Management
-    canViewAllChildren: () => hasPermission(PERMISSIONS.VIEW_ALL_CHILDREN),
-    canViewOwnChildren: () => hasPermission(PERMISSIONS.VIEW_OWN_CHILDREN),
-    canCreateChildren: () => hasPermission(PERMISSIONS.CREATE_CHILDREN),
-    canEditChildren: () => hasPermission(PERMISSIONS.EDIT_CHILDREN),
-    canDeleteChildren: () => hasPermission(PERMISSIONS.DELETE_CHILDREN),
+    canViewAllChildren: () => hasRolePermission(PERMISSIONS.VIEW_ALL_CHILDREN),
+    canViewOwnChildren: () => hasRolePermission(PERMISSIONS.VIEW_OWN_CHILDREN),
+    canCreateChildren: () => hasRolePermission(PERMISSIONS.CREATE_CHILDREN),
+    canEditChildren: () => hasRolePermission(PERMISSIONS.EDIT_CHILDREN),
+    canDeleteChildren: () => hasRolePermission(PERMISSIONS.DELETE_CHILDREN),
     
     // Class Management
-    canViewClasses: () => hasPermission(PERMISSIONS.VIEW_CLASSES),
-    canCreateClasses: () => hasPermission(PERMISSIONS.CREATE_CLASSES),
-    canEditClasses: () => hasPermission(PERMISSIONS.EDIT_CLASSES),
-    canDeleteClasses: () => hasPermission(PERMISSIONS.DELETE_CLASSES),
-    canAssignTeachers: () => hasPermission(PERMISSIONS.ASSIGN_TEACHERS),
+    canViewClasses: () => hasRolePermission(PERMISSIONS.VIEW_CLASSES),
+    canCreateClasses: () => hasRolePermission(PERMISSIONS.CREATE_CLASSES),
+    canEditClasses: () => hasRolePermission(PERMISSIONS.EDIT_CLASSES),
+    canDeleteClasses: () => hasRolePermission(PERMISSIONS.DELETE_CLASSES),
+    canAssignTeachers: () => hasRolePermission(PERMISSIONS.ASSIGN_TEACHERS),
     
     // Attendance Management
-    canViewAttendance: () => hasPermission(PERMISSIONS.VIEW_ATTENDANCE),
-    canCheckinChildren: () => hasPermission(PERMISSIONS.CHECKIN_CHILDREN),
-    canCheckoutChildren: () => hasPermission(PERMISSIONS.CHECKOUT_CHILDREN),
-    canManageAttendance: () => hasPermission(PERMISSIONS.MANAGE_ATTENDANCE),
-    canViewAttendanceReports: () => hasPermission(PERMISSIONS.VIEW_ATTENDANCE_REPORTS),
+    canViewAttendance: () => hasRolePermission(PERMISSIONS.VIEW_ATTENDANCE),
+    canCheckinChildren: () => hasRolePermission(PERMISSIONS.CHECKIN_CHILDREN),
+    canCheckoutChildren: () => hasRolePermission(PERMISSIONS.CHECKOUT_CHILDREN),
+    canManageAttendance: () => hasRolePermission(PERMISSIONS.MANAGE_ATTENDANCE),
+    canViewAttendanceReports: () => hasRolePermission(PERMISSIONS.VIEW_ATTENDANCE_REPORTS),
     
     // Organization Management
-    canViewOrgSettings: () => hasPermission(PERMISSIONS.VIEW_ORGANIZATION_SETTINGS),
-    canEditOrgSettings: () => hasPermission(PERMISSIONS.EDIT_ORGANIZATION_SETTINGS),
-    canManageOrgBranding: () => hasPermission(PERMISSIONS.MANAGE_ORGANIZATION_BRANDING),
-    canViewAuditLogs: () => hasPermission(PERMISSIONS.VIEW_AUDIT_LOGS),
+    canViewOrgSettings: () => hasRolePermission(PERMISSIONS.VIEW_ORGANIZATION_SETTINGS),
+    canEditOrgSettings: () => hasRolePermission(PERMISSIONS.EDIT_ORGANIZATION_SETTINGS),
+    canManageOrgBranding: () => hasRolePermission(PERMISSIONS.MANAGE_ORGANIZATION_BRANDING),
+    canViewAuditLogs: () => hasRolePermission(PERMISSIONS.VIEW_AUDIT_LOGS),
     
     // Device Management
-    canViewDevices: () => hasPermission(PERMISSIONS.VIEW_DEVICES),
-    canRegisterDevices: () => hasPermission(PERMISSIONS.REGISTER_DEVICES),
-    canEditDevices: () => hasPermission(PERMISSIONS.EDIT_DEVICES),
-    canDeleteDevices: () => hasPermission(PERMISSIONS.DELETE_DEVICES),
+    canViewDevices: () => hasRolePermission(PERMISSIONS.VIEW_DEVICES),
+    canRegisterDevices: () => hasRolePermission(PERMISSIONS.REGISTER_DEVICES),
+    canEditDevices: () => hasRolePermission(PERMISSIONS.EDIT_DEVICES),
+    canDeleteDevices: () => hasRolePermission(PERMISSIONS.DELETE_DEVICES),
     
     // System Administration
-    canManageSystemSettings: () => hasPermission(PERMISSIONS.MANAGE_SYSTEM_SETTINGS),
-    canViewSystemHealth: () => hasPermission(PERMISSIONS.VIEW_SYSTEM_HEALTH),
-    canManageBackups: () => hasPermission(PERMISSIONS.MANAGE_BACKUPS),
-    canManageIntegrations: () => hasPermission(PERMISSIONS.MANAGE_INTEGRATIONS),
+    canManageSystemSettings: () => hasRolePermission(PERMISSIONS.MANAGE_SYSTEM_SETTINGS),
+    canViewSystemHealth: () => hasRolePermission(PERMISSIONS.VIEW_SYSTEM_HEALTH),
+    canManageBackups: () => hasRolePermission(PERMISSIONS.MANAGE_BACKUPS),
+    canManageIntegrations: () => hasRolePermission(PERMISSIONS.MANAGE_INTEGRATIONS),
   };
 };
 

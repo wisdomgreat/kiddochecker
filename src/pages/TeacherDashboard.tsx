@@ -1,238 +1,344 @@
 
-import React from 'react';
-import { useAuth } from '@/context/AuthContext';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import StatCard from '@/components/dashboard/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  UserCheck, 
+import { useState } from "react";
+import ModernLayout from "@/components/layout/ModernLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
   GraduationCap,
+  Users,
+  UserCheck,
+  Clock,
   MessageSquare,
   Calendar,
-  Clock,
-  Plus,
-  Edit,
-  Eye
-} from 'lucide-react';
-import { useChildren } from '@/hooks/useChildren';
-import { useClasses } from '@/hooks/useClasses';
-import { useAttendance } from '@/hooks/useAttendance';
-import { useNavigate } from 'react-router-dom';
+  BookOpen,
+  Activity,
+  AlertTriangle
+} from "lucide-react";
+import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 const TeacherDashboard = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const { children } = useChildren();
-  const { classes } = useClasses();
-  const { attendance } = useAttendance();
+  const { user } = useAuth();
+  const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const currentlyPresent = attendance.filter(record => !record.checked_out_at);
+  // Fetch teacher's assigned classes
+  const { data: myClasses = [] } = useQuery({
+    queryKey: ["teacher-classes", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('teachers')
+        .select(`
+          class_id,
+          classes (
+            id,
+            name,
+            description,
+            capacity,
+            room
+          )
+        `)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      return data?.map(t => t.classes).filter(Boolean) || [];
+    },
+    enabled: !!user?.id,
+  });
 
-  const myClasses = [
-    { id: '1', name: 'Sunday School - Ages 5-7', time: 'Sundays 10:00 AM - 11:30 AM', room: 'Room 103', students: 12, present: 8 },
-    { id: '2', name: 'Wednesday Bible Study - Ages 6-8', time: 'Wednesdays 6:30 PM - 7:45 PM', room: 'Room 105', students: 15, present: 12 },
-  ];
+  // Fetch today's attendance for teacher's classes
+  const { data: todayAttendance = [] } = useQuery({
+    queryKey: ["teacher-attendance", user?.id, selectedDate],
+    queryFn: async () => {
+      if (!user?.id || myClasses.length === 0) return [];
+      
+      const classIds = myClasses.map((c: any) => c.id);
+      const { data, error } = await supabase
+        .from('attendance')
+        .select(`
+          id,
+          checked_in_at,
+          checked_out_at,
+          children (first_name, last_name, allergies),
+          classes (name)
+        `)
+        .in('class_id', classIds)
+        .eq('attendance_date', selectedDate);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id && myClasses.length > 0,
+  });
 
-  const recentNotes = [
-    { student: 'Emma Wilson', note: 'Children enjoyed the Noah\'s Ark craft activity', date: 'May 12, 2024', class: 'Sunday School - Ages 5-7' },
-    { student: 'Noah Thompson', note: 'Focused on memorizing John 3:16, most students participated well', date: 'May 8, 2024', class: 'Wednesday Bible Study' },
-    { student: 'Olivia Martinez', note: 'Discussed the Good Samaritan, had great discussions', date: 'May 5, 2024', class: 'Sunday School - Ages 5-7' },
-  ];
+  // Calculate stats
+  const totalStudents = todayAttendance.length;
+  const presentStudents = todayAttendance.filter(a => a.checked_in_at && !a.checked_out_at).length;
+  const studentsWithAllergies = todayAttendance.filter(a => a.children?.allergies).length;
+
+  // Fetch upcoming events
+  const { data: upcomingEvents = [] } = useQuery({
+    queryKey: ["upcoming-events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .gte('start_date', new Date().toISOString())
+        .order('start_date')
+        .limit(5);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
+    <ModernLayout>
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
-            <p className="text-gray-600 mt-1">Manage your classes and track student progress.</p>
+            <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
+            <p className="text-muted-foreground">Manage your classes and track student progress.</p>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => navigate('/classes-management')}>
-              <GraduationCap className="h-4 w-4 mr-2" />
-              Manage Classes
-            </Button>
-            <Button onClick={() => navigate('/check-in-out')}>
-              <UserCheck className="h-4 w-4 mr-2" />
-              Attendance
-            </Button>
-          </div>
+          <Button onClick={() => navigate('/classes')}>
+            <GraduationCap className="mr-2 h-4 w-4" />
+            View All Classes
+          </Button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            title="My Classes"
-            value={myClasses.length}
-            subtitle="Classes assigned to you"
-            icon={GraduationCap}
-            iconColor="text-green-600"
-            actionLabel="View All"
-            onAction={() => navigate('/classes-management')}
-          />
-          <StatCard
-            title="Students"
-            value={children.length}
-            subtitle="Total students"
-            icon={Users}
-            iconColor="text-blue-600"
-            actionLabel="Manage"
-            onAction={() => navigate('/children-management')}
-          />
-          <StatCard
-            title="Present Today"
-            value={currentlyPresent.length}
-            subtitle="Currently checked in"
-            icon={UserCheck}
-            iconColor="text-purple-600"
-            actionLabel="View Live"
-            onAction={() => navigate('/check-in-out')}
-          />
-          <StatCard
-            title="Experience"
-            value="3 Years"
-            subtitle="Teaching at our church"
-            icon={Calendar}
-            iconColor="text-orange-600"
-          />
-        </div>
-
-        {/* Current Class Assignments */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-semibold">Current Class Assignments</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/classes-management')}>
-              <Eye className="h-4 w-4 mr-2" />
-              View All Classes
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {myClasses.map((cls) => (
-              <div key={cls.id} className="p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900">{cls.name}</h4>
-                    <p className="text-sm text-gray-600">{cls.time} • {cls.room}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className="text-sm">
-                      <Users className="h-4 w-4 mr-1" />
-                      {cls.present}/{cls.students} present
-                    </Badge>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(cls.present / cls.students) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Teaching Statistics */}
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Teaching Statistics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <Calendar className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-blue-600">3 Years</p>
-                  <p className="text-sm text-gray-600">Experience</p>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <Users className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-green-600">156 Children</p>
-                  <p className="text-sm text-gray-600">Taught since joining</p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <GraduationCap className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-purple-600">98% Rate</p>
-                  <p className="text-sm text-gray-600">Class attendance record</p>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">My Classes</p>
+                  <p className="text-2xl font-bold">{myClasses.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Recent Class Notes */}
+          
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Recent Class Notes</CardTitle>
-              <Button variant="ghost" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Note
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentNotes.map((note, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-sm font-semibold text-gray-900">{note.class}</h4>
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-3">{note.note}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{note.date}</span>
-                    <Badge variant="outline" className="text-xs">Class Note</Badge>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Contact Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Email</p>
-                  <p className="text-sm text-gray-600">sarah.johnson@example.com</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-purple-600" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Phone</p>
-                  <p className="text-sm text-gray-600">(555) 123-4567</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-green-600" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Emergency Contact</p>
-                  <p className="text-sm text-gray-600">Michael Johnson (Husband) - (555) 987-6543</p>
+                  <p className="text-sm text-muted-foreground">Total Students Today</p>
+                  <p className="text-2xl font-bold">{totalStudents}</p>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Present Now</p>
+                  <p className="text-2xl font-bold">{presentStudents}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Students with Allergies</p>
+                  <p className="text-2xl font-bold">{studentsWithAllergies}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* My Classes */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                My Classes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {myClasses.length === 0 ? (
+                <div className="py-8 text-center">
+                  <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No classes assigned</h3>
+                  <p className="text-muted-foreground">
+                    Contact an administrator to get assigned to classes.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {myClasses.map((classInfo: any) => {
+                    const classAttendance = todayAttendance.filter(a => a.classes?.name === classInfo.name);
+                    const presentCount = classAttendance.filter(a => a.checked_in_at && !a.checked_out_at).length;
+                    
+                    return (
+                      <div key={classInfo.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">{classInfo.name}</h3>
+                          <Badge variant="secondary">
+                            {presentCount}/{classAttendance.length} present
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {classInfo.description || 'No description'}
+                        </p>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          {classInfo.room && (
+                            <span>Room: {classInfo.room}</span>
+                          )}
+                          {classInfo.capacity && (
+                            <span>Capacity: {classInfo.capacity}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Today's Attendance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Today's Attendance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {todayAttendance.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No attendance today</h3>
+                  <p className="text-muted-foreground">
+                    Student attendance will appear here once check-ins begin.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {todayAttendance.slice(0, 6).map((record: any) => (
+                    <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          record.checked_out_at ? 'bg-gray-100' : 'bg-green-100'
+                        }`}>
+                          <UserCheck className={`h-4 w-4 ${
+                            record.checked_out_at ? 'text-gray-600' : 'text-green-600'
+                          }`} />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {record.children?.first_name} {record.children?.last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {record.classes?.name}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {record.children?.allergies && (
+                          <Badge variant="destructive" className="text-xs">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Allergies
+                          </Badge>
+                        )}
+                        <Badge variant={record.checked_out_at ? "secondary" : "default"}>
+                          {record.checked_out_at ? "Checked Out" : "Present"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Upcoming Events */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Upcoming Events
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {upcomingEvents.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No upcoming events</h3>
+                  <p className="text-muted-foreground">
+                    School events and activities will be displayed here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingEvents.slice(0, 5).map((event: any) => (
+                    <div key={event.id} className="p-3 border rounded-lg">
+                      <h4 className="font-medium">{event.title}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(event.start_date), 'MMM dd, yyyy')} at {format(new Date(event.start_date), 'HH:mm')}
+                      </p>
+                      {event.location && (
+                        <p className="text-sm text-muted-foreground">
+                          📍 {event.location}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3">
+                <Button variant="outline" onClick={() => navigate('/attendance')} className="justify-start">
+                  <Clock className="mr-2 h-4 w-4" />
+                  Take Attendance
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/children')} className="justify-start">
+                  <Users className="mr-2 h-4 w-4" />
+                  View All Students
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/check-in-kiosk')} className="justify-start">
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Check-in Station
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/messages')} className="justify-start">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Send Messages
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </DashboardLayout>
+    </ModernLayout>
   );
 };
 

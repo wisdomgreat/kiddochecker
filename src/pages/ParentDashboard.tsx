@@ -1,269 +1,371 @@
 
-import React from 'react';
-import { useAuth } from '@/context/AuthContext';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import StatCard from '@/components/dashboard/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  CheckCircle,
-  MessageSquare,
-  Calendar,
-  QrCode,
-  Plus,
+import { useState } from "react";
+import ModernLayout from "@/components/layout/ModernLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Baby,
   Clock,
+  Calendar,
+  MessageSquare,
+  Heart,
+  AlertTriangle,
   MapPin,
-  Bell
-} from 'lucide-react';
-import { useChildren } from '@/hooks/useChildren';
-import { useAttendance } from '@/hooks/useAttendance';
-import { useNavigate } from 'react-router-dom';
+  Phone,
+  Plus,
+  Eye
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
+
+interface ParentChild {
+  child_id: string;
+  first_name: string;
+  last_name: string;
+  age: number;
+  allergies: string;
+  current_class_name: string;
+  current_class_id: string;
+}
 
 const ParentDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { children } = useChildren();
-  const { attendance } = useAttendance();
+  const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Get today's attendance for user's children
-  const todayAttendance = attendance.filter(record => {
-    const isToday = record.attendance_date === new Date().toISOString().split('T')[0];
-    const isUserChild = children.some(child => child.id === record.child_id);
-    return isToday && isUserChild;
+  // Fetch parent's children with current class info
+  const { data: children = [], isLoading: isLoadingChildren } = useQuery({
+    queryKey: ["parent-children", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase.rpc('get_parent_children_with_classes', {
+        parent_user_id: user.id
+      });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
   });
 
-  const checkedInChildren = todayAttendance.filter(record => !record.checked_out_at);
-  const checkedOutChildren = todayAttendance.filter(record => record.checked_out_at);
+  // Fetch recent attendance for children
+  const { data: recentAttendance = [] } = useQuery({
+    queryKey: ["recent-attendance", user?.id],
+    queryFn: async () => {
+      if (!user?.id || children.length === 0) return [];
+      
+      const childIds = children.map((child: ParentChild) => child.child_id);
+      const { data, error } = await supabase
+        .from('attendance')
+        .select(`
+          id,
+          child_id,
+          attendance_date,
+          checked_in_at,
+          checked_out_at,
+          children (first_name, last_name)
+        `)
+        .in('child_id', childIds)
+        .gte('attendance_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .order('attendance_date', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id && children.length > 0,
+  });
 
-  const upcomingEvents = [
-    { name: 'Sunday School', date: 'This Sunday', time: '9:00 AM - 12:00 PM', location: 'Room 103' },
-    { name: "Children's Choir", date: 'Wednesday', time: '6:00 PM - 7:30 PM', location: 'Main Hall' },
-    { name: 'Family Day', date: 'Next Sunday', time: '10:00 AM - 2:00 PM', location: 'Church Grounds' },
-  ];
+  // Fetch upcoming events
+  const { data: upcomingEvents = [] } = useQuery({
+    queryKey: ["upcoming-events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .gte('start_date', new Date().toISOString())
+        .order('start_date')
+        .limit(5);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-  const recentNotes = [
-    { teacher: 'Ms. Wilson', message: 'Emma had a great day in class!', time: 'Today, 11:15 AM', child: 'Emma' },
-    { teacher: 'Mr. Thomas', message: 'Noah participated well in group activities', time: 'Today, 10:45 AM', child: 'Noah' },
-    { teacher: 'Ms. Wilson', message: 'Emma needs to bring her Bible next Sunday', time: 'Yesterday, 12:30 PM', child: 'Emma' },
-  ];
+  // Fetch recent messages
+  const { data: recentMessages = [] } = useQuery({
+    queryKey: ["recent-messages", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('recipient_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  const currentlyPresentChildren = children.filter((child: ParentChild) => child.current_class_name);
+  const childrenWithAllergies = children.filter((child: ParentChild) => child.allergies);
 
   return (
-    <DashboardLayout>
-      <div className="space-y-8">
+    <ModernLayout>
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Welcome, Sarah!</h1>
-            <p className="text-gray-600 mt-1">Stay connected with your children's activities and updates.</p>
+            <h1 className="text-3xl font-bold">Parent Dashboard</h1>
+            <p className="text-muted-foreground">Welcome back! Here's what's happening with your children.</p>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifications
-            </Button>
-            <Button onClick={() => navigate('/children')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Child
-            </Button>
-          </div>
+          <Button onClick={() => navigate('/children')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Child
+          </Button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
-            title="Checked In"
-            value={checkedInChildren.length}
-            subtitle="Children present today"
-            icon={CheckCircle}
-            iconColor="text-green-600"
-            actionLabel="View Details"
-            onAction={() => {}}
-          />
-          <StatCard
-            title="My Children"
-            value={children.length}
-            subtitle="Registered children"
-            icon={Users}
-            iconColor="text-blue-600"
-            actionLabel="Manage"
-            onAction={() => navigate('/children')}
-          />
-          <StatCard
-            title="New Messages"
-            value={3}
-            subtitle="From teachers"
-            icon={MessageSquare}
-            iconColor="text-purple-600"
-            actionLabel="Read All"
-            onAction={() => {}}
-          />
-          <StatCard
-            title="Upcoming"
-            value={upcomingEvents.length}
-            subtitle="Events this week"
-            icon={Calendar}
-            iconColor="text-orange-600"
-            actionLabel="View Calendar"
-            onAction={() => {}}
-          />
-        </div>
-
-        {/* Children Status */}
-        {checkedInChildren.length > 0 && (
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                Currently Checked In
-                <Badge variant="outline" className="bg-green-50 text-green-700 ml-auto">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                  Live
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {checkedInChildren.map((record) => {
-                const child = children.find(c => c.id === record.child_id);
-                if (!child) return null;
-                
-                return (
-                  <div key={record.id} className="p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                          <Users className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{child.first_name} {child.last_name}</h3>
-                          <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              <span>Checked in: {record.checked_in_at ? 
-                                new Date(record.checked_in_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
-                                : 'Unknown'}</span>
-                            </div>
-                            {record.class?.name && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                <span>{record.class.name}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Button variant="outline" size="sm">
-                          <QrCode className="h-4 w-4 mr-2" />
-                          Pickup QR
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
-                          Emergency Pickup
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Baby className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Children</p>
+                  <p className="text-2xl font-bold">{children.length}</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Teacher Notes */}
+          
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Recent Teacher Notes</CardTitle>
-              <Button variant="ghost" size="sm">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                View All Messages
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recentNotes.map((note, index) => (
-                <div key={index} className="p-4 bg-blue-50 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <MessageSquare className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-sm font-semibold text-gray-900">{note.child}</h4>
-                        <Badge variant="outline" className="text-xs">New</Badge>
-                      </div>
-                      <p className="text-sm text-gray-700 mb-2">{note.message}</p>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>From: {note.teacher}</span>
-                        <span>{note.time}</span>
-                      </div>
-                    </div>
-                  </div>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Currently Present</p>
+                  <p className="text-2xl font-bold">{currentlyPresentChildren.length}</p>
                 </div>
-              ))}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">With Allergies</p>
+                  <p className="text-2xl font-bold">{childrenWithAllergies.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Unread Messages</p>
+                  <p className="text-2xl font-bold">{recentMessages.filter(m => !m.is_read).length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* My Children */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Baby className="h-5 w-5" />
+                My Children
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingChildren ? (
+                <div className="py-4 text-center">Loading children...</div>
+              ) : children.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Baby className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No children registered</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start by adding your first child to the system.
+                  </p>
+                  <Button onClick={() => navigate('/children')}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Child
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {children.map((child: ParentChild) => (
+                    <div key={child.child_id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Baby className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{child.first_name} {child.last_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {child.age ? `${child.age} years old` : 'Age not set'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {child.current_class_name ? (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {child.current_class_name}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Not Present</Badge>
+                        )}
+                        {child.allergies && (
+                          <Badge variant="destructive" className="flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Allergies
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Attendance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Recent Attendance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentAttendance.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Clock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No recent attendance</h3>
+                  <p className="text-muted-foreground">
+                    Attendance records will appear here once your children start attending.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentAttendance.slice(0, 5).map((record: any) => (
+                    <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{record.children?.first_name} {record.children?.last_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(record.attendance_date), 'MMM dd, yyyy')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm">
+                          In: {record.checked_in_at ? format(new Date(record.checked_in_at), 'HH:mm') : '-'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Out: {record.checked_out_at ? format(new Date(record.checked_out_at), 'HH:mm') : 'Still present'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Upcoming Events */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Upcoming Events</CardTitle>
-              <Button variant="ghost" size="sm">
-                <Calendar className="h-4 w-4 mr-2" />
-                View Calendar
-              </Button>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Upcoming Events
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {upcomingEvents.map((event, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-gray-900 mb-1">{event.name}</h4>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                          <Calendar className="h-3 w-3" />
-                          <span>{event.date} • {event.time}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                          <MapPin className="h-3 w-3" />
-                          <span>{event.location}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+            <CardContent>
+              {upcomingEvents.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No upcoming events</h3>
+                  <p className="text-muted-foreground">
+                    Events and activities will be displayed here.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  {upcomingEvents.slice(0, 5).map((event: any) => (
+                    <div key={event.id} className="p-3 border rounded-lg">
+                      <h4 className="font-medium">{event.title}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(event.start_date), 'MMM dd, yyyy')} at {format(new Date(event.start_date), 'HH:mm')}
+                      </p>
+                      {event.location && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          {event.location}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Messages */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Recent Messages
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentMessages.length === 0 ? (
+                <div className="py-8 text-center">
+                  <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No messages</h3>
+                  <p className="text-muted-foreground">
+                    Messages from teachers and staff will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentMessages.slice(0, 5).map((message: any) => (
+                    <div key={message.id} className="p-3 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">{message.subject || 'No Subject'}</h4>
+                        {!message.is_read && (
+                          <Badge variant="default" className="text-xs">New</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {message.content}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(message.created_at), 'MMM dd, HH:mm')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Button variant="outline" className="h-20 flex-col gap-2">
-                <Users className="h-6 w-6" />
-                <span>Register Child</span>
-              </Button>
-              <Button variant="outline" className="h-20 flex-col gap-2">
-                <QrCode className="h-6 w-6" />
-                <span>Generate Pickup QR</span>
-              </Button>
-              <Button variant="outline" className="h-20 flex-col gap-2">
-                <MessageSquare className="h-6 w-6" />
-                <span>Contact Teacher</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </DashboardLayout>
+    </ModernLayout>
   );
 };
 

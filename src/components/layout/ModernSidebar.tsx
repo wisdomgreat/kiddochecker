@@ -15,7 +15,11 @@ import {
   LogOut,
   Plus,
   Monitor,
-  QrCode
+  QrCode,
+  Baby,
+  ClipboardCheck,
+  MessageSquare,
+  Calendar
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 
@@ -31,28 +35,48 @@ const ModernSidebar = () => {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin-dashboard' },
     { icon: Users, label: 'Users', path: '/users-management' },
     { icon: Users, label: 'Staff', path: '/staff-management' },
+    { icon: Baby, label: 'Children', path: '/children' },
     { icon: GraduationCap, label: 'Classes', path: '/classes-management' },
+    { icon: ClipboardCheck, label: 'Attendance', path: '/attendance' },
+    { icon: Calendar, label: 'Events', path: '/events-management' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
+    { icon: Monitor, label: 'System Health', path: '/system-health' },
     { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: Settings, label: 'Role Permissions', path: '/role-permissions-management' },
   ];
 
   const staffNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/staff-dashboard' },
     { icon: Monitor, label: 'Live View', path: '/staff-realtime' },
     { icon: QrCode, label: 'Check-out Station', path: '/check-out-station' },
-    { icon: UserCheck, label: 'Attendance', path: '/check-in-out' },
+    { icon: UserCheck, label: 'Attendance', path: '/attendance' },
+    { icon: Baby, label: 'Children', path: '/children' },
     { icon: GraduationCap, label: 'Classes', path: '/classes-management' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
+  ];
+
+  const teacherNavItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/teacher-dashboard' },
+    { icon: GraduationCap, label: 'My Classes', path: '/classes-management' },
+    { icon: UserCheck, label: 'Attendance', path: '/attendance' },
+    { icon: Baby, label: 'Students', path: '/children' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
+    { icon: Calendar, label: 'Events', path: '/events-management' },
   ];
 
   const parentNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/parent-dashboard' },
-    { icon: Users, label: 'My Children', path: '/children' },
+    { icon: Baby, label: 'My Children', path: '/children' },
+    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
+    { icon: Calendar, label: 'Events', path: '/events-management' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
   const getNavItems = () => {
     if (userRole === 'admin' || userRole === 'super_admin') return adminNavItems;
-    if (userRole === 'staff' || userRole === 'teacher' || userRole === 'teacher_assistant') return staffNavItems;
+    if (userRole === 'teacher' || userRole === 'teacher_assistant') return teacherNavItems;
+    if (userRole === 'staff') return staffNavItems;
     return parentNavItems;
   };
 
@@ -67,7 +91,7 @@ const ModernSidebar = () => {
         </div>
         <div>
           <h1 className="text-lg font-semibold text-gray-900">ChurchCheck</h1>
-          <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+          <p className="text-xs text-gray-500 capitalize">{userRole?.replace('_', ' ')}</p>
         </div>
       </div>
 
@@ -103,7 +127,7 @@ const ModernSidebar = () => {
             <UserCheck className="h-4 w-4" />
             Check-in Kiosk
           </NavLink>
-          {(userRole === 'admin' || userRole === 'staff') && (
+          {(userRole === 'admin' || userRole === 'staff' || userRole === 'super_admin') && (
             <NavLink
               to="/check-out-station"
               className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -125,7 +149,7 @@ const ModernSidebar = () => {
             <p className="text-sm font-medium text-gray-900 truncate">
               {user?.email?.split('@')[0] || 'User'}
             </p>
-            <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+            <p className="text-xs text-gray-500 capitalize">{userRole?.replace('_', ' ')}</p>
           </div>
         </div>
         <Button
