@@ -23,14 +23,14 @@ import { DataTable } from "@/components/ui/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 
-interface AttendanceRecord {
-  id: string;
+// Updated interface to match the database function return type
+interface DetailedAttendanceRecord {
+  attendance_date: string;
   child_name: string;
   class_name: string;
-  attendance_date: string;
-  checked_in_at: string;
-  checked_out_at: string | null;
-  duration_hours: number | null;
+  check_in_time: string;
+  check_out_time: string;
+  duration_hours: number;
 }
 
 const AttendanceManagement = () => {
@@ -40,9 +40,9 @@ const AttendanceManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Fetch attendance data
+  // Fetch attendance data using the detailed report function
   const { data: attendanceData = [], isLoading, refetch } = useQuery({
-    queryKey: ["attendance", selectedDate],
+    queryKey: ["attendance-detailed", selectedDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_detailed_attendance_report', {
         start_date: selectedDate,
@@ -76,15 +76,50 @@ const AttendanceManagement = () => {
     },
   });
 
-  const handleCheckOut = async (childId: string, attendanceId: string) => {
+  // Fetch attendance records for check-out functionality
+  const { data: attendanceRecords = [] } = useQuery({
+    queryKey: ["attendance-records", selectedDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select(`
+          id,
+          child_id,
+          checked_in_at,
+          checked_out_at,
+          children (first_name, last_name)
+        `)
+        .eq('attendance_date', selectedDate)
+        .is('checked_out_at', null);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const handleCheckOut = async (childName: string) => {
     try {
+      // Find the attendance record for this child
+      const attendanceRecord = attendanceRecords.find(
+        record => `${record.children?.first_name} ${record.children?.last_name}` === childName
+      );
+
+      if (!attendanceRecord) {
+        toast({
+          title: "Error",
+          description: "Could not find attendance record for this child",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('attendance')
         .update({ 
           checked_out_at: new Date().toISOString(),
           checked_out_by: (await supabase.auth.getUser()).data.user?.id
         })
-        .eq('id', attendanceId);
+        .eq('id', attendanceRecord.id);
 
       if (error) throw error;
 
@@ -95,6 +130,7 @@ const AttendanceManagement = () => {
 
       refetch();
       queryClient.invalidateQueries({ queryKey: ["daily-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -104,12 +140,12 @@ const AttendanceManagement = () => {
     }
   };
 
-  const filteredData = attendanceData.filter((record: AttendanceRecord) => {
+  const filteredData = attendanceData.filter((record: DetailedAttendanceRecord) => {
     const matchesSearch = record.child_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          record.class_name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    if (statusFilter === "present") return matchesSearch && !record.checked_out_at;
-    if (statusFilter === "checked_out") return matchesSearch && record.checked_out_at;
+    if (statusFilter === "present") return matchesSearch && !record.check_out_time;
+    if (statusFilter === "checked_out") return matchesSearch && record.check_out_time;
     return matchesSearch;
   });
 
@@ -132,7 +168,7 @@ const AttendanceManagement = () => {
     {
       key: "check_out_time" as const,
       header: "Check Out",
-      render: (value: string | null, record: AttendanceRecord) => (
+      render: (value: string | null, record: DetailedAttendanceRecord) => (
         <div className="flex items-center gap-2">
           {value ? (
             <span>{format(new Date(value), 'HH:mm')}</span>
@@ -155,12 +191,12 @@ const AttendanceManagement = () => {
     {
       key: "actions" as const,
       header: "Actions",
-      render: (value: any, record: AttendanceRecord) => (
-        !record.checked_out_at ? (
+      render: (value: any, record: DetailedAttendanceRecord) => (
+        !record.check_out_time ? (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleCheckOut('', record.id)}
+            onClick={() => handleCheckOut(record.child_name)}
           >
             <UserX className="h-4 w-4 mr-1" />
             Check Out
@@ -320,7 +356,7 @@ const AttendanceManagement = () => {
               <DataTable
                 columns={attendanceColumns}
                 data={filteredData}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => `${item.child_name}-${item.attendance_date}`}
               />
             )}
           </CardContent>

@@ -16,7 +16,8 @@ import {
   Activity,
   BarChart3,
   QrCode,
-  Monitor
+  Monitor,
+  ClipboardCheck
 } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
