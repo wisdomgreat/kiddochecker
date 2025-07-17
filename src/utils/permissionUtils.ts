@@ -214,7 +214,7 @@ export const getAdminDashboardStats = async () => {
       supabase.from('user_roles').select('user_id, role').limit(1000),
       supabase.from('children').select('id').limit(1000),
       supabase.from('classes').select('id').limit(1000),
-      supabase.from('attendance').select('id').eq('attendance_date', new Date().toISOString().split('T')[0])
+      supabase.from('attendance').select('id, checked_out_at').eq('attendance_date', new Date().toISOString().split('T')[0])
     ]);
 
     const stats = {
