@@ -1,126 +1,213 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  QrCode, 
-  Users, 
-  Clock, 
-  User,
-  Phone,
-  Lock,
-  AlertCircle,
-  CheckCircle,
-  ArrowRight,
-  HelpCircle
-} from 'lucide-react';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Search, Users, Clock, AlertTriangle, CheckCircle, Printer } from "lucide-react";
+import QRCodeGenerator from "@/components/check-in/QRCodeGenerator";
+import { format } from "date-fns";
+
+interface Child {
+  id: string;
+  first_name: string;
+  last_name: string;
+  age: number;
+  allergies: string;
+  medical_info: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+}
 
 const CheckInKiosk = () => {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [pin, setPin] = useState('');
-  const [step, setStep] = useState<'phone' | 'pin' | 'children'>('phone');
-  const [children, setChildren] = useState([
-    { id: '1', name: 'Emma Johnson', age: 7, class: 'Room 103', checkedIn: false },
-    { id: '2', name: 'Noah Johnson', age: 5, class: 'Room 101', checkedIn: false },
-  ]);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedChild, setSelectedChild] = useState<Child | null>(null);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [generatedAttendance, setGeneratedAttendance] = useState<any>(null);
 
-  const formatPhoneNumber = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
-    if (match) {
-      return `(${match[1]}) ${match[2]}-${match[3]}`;
+  // Fetch all children
+  const { data: children = [], isLoading: isLoadingChildren } = useQuery({
+    queryKey: ["all-children-checkin"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('children')
+        .select('*')
+        .order('first_name');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch classes
+  const { data: classes = [] } = useQuery({
+    queryKey: ["classes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Check today's attendance
+  const { data: todayAttendance = [] } = useQuery({
+    queryKey: ["today-attendance-checkin"],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('attendance_date', today);
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Check-in mutation
+  const checkInMutation = useMutation({
+    mutationFn: async ({ childId, classId }: { childId: string; classId?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const attendanceData = {
+        child_id: childId,
+        class_id: classId || null,
+        attendance_date: new Date().toISOString().split('T')[0],
+        checked_in_at: new Date().toISOString(),
+        checked_in_by: user?.id,
+      };
+
+      const { data, error } = await supabase
+        .from('attendance')
+        .insert(attendanceData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setGeneratedAttendance(data);
+      setShowQRCode(true);
+      toast({
+        title: "Check-in Successful",
+        description: `${selectedChild?.first_name} has been checked in successfully.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["today-attendance-checkin"] });
+      
+      // Reset form
+      setSelectedChild(null);
+      setSearchTerm("");
+      setSelectedClass("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Check-in Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredChildren = children.filter((child: Child) => {
+    const searchMatch = child.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       child.last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Check if already checked in today
+    const alreadyCheckedIn = todayAttendance.some(
+      (attendance: any) => attendance.child_id === child.id && !attendance.checked_out_at
+    );
+    
+    return searchMatch && !alreadyCheckedIn;
+  });
+
+  const handleCheckIn = () => {
+    if (!selectedChild) {
+      toast({
+        title: "No Child Selected",
+        description: "Please select a child to check in.",
+        variant: "destructive",
+      });
+      return;
     }
-    return value;
-  };
 
-  const handlePhoneSubmit = () => {
-    if (phoneNumber.length >= 10) {
-      setStep('pin');
-    }
-  };
-
-  const handlePinSubmit = () => {
-    if (pin.length === 4) {
-      setStep('children');
-    }
-  };
-
-  const handleCheckIn = (childId: string) => {
-    setChildren(prev => prev.map(child => 
-      child.id === childId ? { ...child, checkedIn: true } : child
-    ));
-    toast({
-      title: "Check-in Successful",
-      description: "Child has been checked in safely",
+    checkInMutation.mutate({
+      childId: selectedChild.id,
+      classId: selectedClass || undefined
     });
   };
 
-  const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const handleChildSelect = (child: Child) => {
+    setSelectedChild(child);
+  };
 
-  if (step === 'phone') {
+  const handlePrintQR = () => {
+    toast({
+      title: "Printing QR Code",
+      description: "QR code sent to printer.",
+    });
+  };
+
+  if (showQRCode && generatedAttendance && selectedChild) {
+    const selectedClassName = classes.find(c => c.id === selectedClass)?.name || "";
+    
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <QrCode className="h-8 w-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-blue-600 mb-2">Welcome to ChurchCheck</h1>
-            <p className="text-gray-600">Please enter your phone number to check in your children</p>
-          </div>
-
-          {/* Login Card */}
-          <Card className="shadow-xl border-0">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                <User className="h-6 w-6 text-blue-600" />
-              </div>
-              <CardTitle className="text-xl font-semibold text-gray-900">Parent Login</CardTitle>
-              <p className="text-sm text-gray-600">Enter your credentials to continue</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="space-y-6 w-full max-w-2xl">
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl text-green-600 flex items-center justify-center gap-2">
+                <CheckCircle className="h-6 w-6" />
+                Check-in Complete!
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <Input
-                    type="tel"
-                    placeholder="(555) 123-4567"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
-                    className="pl-10 h-12 text-lg"
-                    maxLength={14}
-                  />
-                </div>
-              </div>
-
-              <Button 
-                onClick={handlePhoneSubmit}
-                disabled={phoneNumber.length < 10}
-                className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700"
-              >
-                Continue
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
-
-              <div className="text-center space-y-3">
-                <p className="text-sm text-gray-500">Need help? Ask a staff member for assistance</p>
-                <Button variant="link" className="text-blue-600 text-sm">
-                  New Parent? Register Here
-                </Button>
-              </div>
+            <CardContent className="text-center">
+              <p className="text-lg mb-4">
+                <strong>{selectedChild.first_name} {selectedChild.last_name}</strong> has been successfully checked in.
+              </p>
+              {selectedClassName && (
+                <Badge className="mb-4">{selectedClassName}</Badge>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Time: {format(new Date(generatedAttendance.checked_in_at), 'MMMM dd, yyyy at HH:mm')}
+              </p>
             </CardContent>
           </Card>
 
-          {/* Footer */}
-          <div className="text-center mt-6">
-            <Button variant="ghost" className="text-gray-500 text-sm">
-              Admin Access
+          <QRCodeGenerator
+            attendanceId={generatedAttendance.id}
+            childName={`${selectedChild.first_name} ${selectedChild.last_name}`}
+            className={selectedClassName}
+            checkInTime={format(new Date(generatedAttendance.checked_in_at), 'HH:mm')}
+            onPrint={handlePrintQR}
+          />
+
+          <div className="text-center">
+            <Button 
+              onClick={() => {
+                setShowQRCode(false);
+                setGeneratedAttendance(null);
+              }}
+              variant="outline"
+              className="mr-4"
+            >
+              Back to Check-in
+            </Button>
+            <Button 
+              onClick={() => window.location.reload()}
+            >
+              New Check-in
             </Button>
           </div>
         </div>
@@ -128,145 +215,163 @@ const CheckInKiosk = () => {
     );
   }
 
-  if (step === 'pin') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card className="shadow-xl border-0">
-            <CardHeader className="text-center pb-4">
-              <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Lock className="h-6 w-6 text-green-600" />
-              </div>
-              <CardTitle className="text-xl font-semibold text-gray-900">Enter PIN</CardTitle>
-              <p className="text-sm text-gray-600">Enter your 4-digit PIN to continue</p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">PIN</label>
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl flex items-center justify-center gap-2">
+              <Users className="h-8 w-8 text-blue-600" />
+              Check-In Kiosk
+            </CardTitle>
+            <p className="text-muted-foreground">Search and check in children</p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Search */}
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="password"
-                  placeholder="Enter your 4-digit PIN"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.slice(0, 4))}
-                  className="h-12 text-lg text-center tracking-widest"
-                  maxLength={4}
+                  placeholder="Search by child's name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 text-lg h-12"
                 />
               </div>
 
-              <Button 
-                onClick={handlePinSubmit}
-                disabled={pin.length !== 4}
-                className="w-full h-12 text-lg bg-green-600 hover:bg-green-700"
-              >
-                Verify PIN
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger className="h-12">
+                  <SelectValue placeholder="Select class (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No specific class</SelectItem>
+                  {classes.map((cls: any) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <Button 
-                variant="outline" 
-                onClick={() => setStep('phone')}
-                className="w-full h-12"
-              >
-                Back to Phone Number
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Check In Your Children</h1>
-          <p className="text-gray-600">Select the children you'd like to check in today</p>
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <Clock className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-500">Current time: {currentTime}</span>
-          </div>
-        </div>
-
-        {/* Children Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {children.map((child) => (
-            <Card key={child.id} className="shadow-lg border-0 overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="h-6 w-6 text-blue-600" />
-                    </div>
+            {/* Selected Child */}
+            {selectedChild && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="p-4">
+                  <h3 className="font-medium text-lg mb-2">Selected Child</h3>
+                  <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{child.name}</h3>
-                      <p className="text-sm text-gray-600">Age {child.age} • {child.class}</p>
+                      <p className="font-medium">
+                        {selectedChild.first_name} {selectedChild.last_name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Age: {selectedChild.age || 'Not specified'}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {selectedChild.allergies && (
+                        <Badge variant="destructive">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Allergies
+                        </Badge>
+                      )}
+                      {selectedChild.medical_info && (
+                        <Badge variant="secondary">Medical Info</Badge>
+                      )}
                     </div>
                   </div>
-                  {child.checkedIn && (
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  )}
-                </div>
-
-                {child.checkedIn ? (
-                  <div className="space-y-3">
-                    <Badge className="w-full justify-center py-2 bg-green-100 text-green-800 hover:bg-green-100">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Checked In Successfully
-                    </Badge>
-                    <p className="text-sm text-gray-600 text-center">
-                      Checked in at {currentTime}
-                    </p>
+                  
+                  <div className="mt-4 flex gap-2">
+                    <Button 
+                      onClick={handleCheckIn} 
+                      disabled={checkInMutation.isPending}
+                      className="flex-1"
+                    >
+                      {checkInMutation.isPending ? (
+                        <>
+                          <Clock className="animate-spin h-4 w-4 mr-2" />
+                          Checking In...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Check In
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      onClick={() => setSelectedChild(null)} 
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
                   </div>
-                ) : (
-                  <Button 
-                    onClick={() => handleCheckIn(child.id)}
-                    className="w-full h-12 bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Users className="h-5 w-5 mr-2" />
-                    Check In {child.name}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button 
-            variant="outline" 
-            size="lg"
-            onClick={() => setStep('phone')}
-            className="px-8"
-          >
-            Check In Different Family
-          </Button>
-          <Button 
-            size="lg"
-            className="px-8 bg-green-600 hover:bg-green-700"
-            disabled={!children.some(child => child.checkedIn)}
-          >
-            <CheckCircle className="h-5 w-5 mr-2" />
-            Complete Check-In
-          </Button>
-        </div>
-
-        {/* Help Section */}
-        <div className="mt-8 text-center">
-          <Card className="bg-orange-50 border-orange-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-center gap-2 text-orange-700">
-                <HelpCircle className="h-5 w-5" />
-                <span className="font-medium">Need Help?</span>
-              </div>
-              <p className="text-sm text-orange-600 mt-1">
-                Ask any staff member for assistance with check-in
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Search Results */}
+            {searchTerm && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">
+                    Search Results ({filteredChildren.length} found)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingChildren ? (
+                    <div className="text-center py-8">
+                      <Clock className="animate-spin h-8 w-8 mx-auto text-gray-400 mb-2" />
+                      <p>Loading children...</p>
+                    </div>
+                  ) : filteredChildren.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No available children found for "{searchTerm}"
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {filteredChildren.map((child: Child) => (
+                        <div
+                          key={child.id}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedChild?.id === child.id 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'hover:bg-gray-50'
+                          }`}
+                          onClick={() => handleChildSelect(child)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">
+                                {child.first_name} {child.last_name}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {child.age ? `${child.age} years old` : 'Age not specified'}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              {child.allergies && (
+                                <Badge variant="destructive" className="text-xs">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Allergies
+                                </Badge>
+                              )}
+                              {child.emergency_contact_name && (
+                                <Badge variant="outline" className="text-xs">
+                                  Emergency Contact
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

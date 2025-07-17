@@ -1,239 +1,66 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/context/AuthContext";
+import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import ParentDashboard from "./pages/ParentDashboard";
+import StaffDashboard from "./pages/StaffDashboard";
+import TeacherDashboard from "./pages/TeacherDashboard";
+import VolunteerDashboard from "./pages/VolunteerDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import StaffRealtimeDashboard from "./pages/StaffRealtimeDashboard";
+import CheckInKiosk from "./pages/CheckInKiosk";
+import CheckOutStation from "./pages/CheckOutStation";
+import ChildrenManagement from "./pages/ChildrenManagement";
+import ClassesManagement from "./pages/ClassesManagement";
+import AttendanceManagement from "./pages/AttendanceManagement";
+import UsersManagement from "./pages/UsersManagement";
+import EventsManagement from "./pages/EventsManagement";
+import MessagesManagement from "./pages/MessagesManagement";
+import OrganizationSettings from "./pages/OrganizationSettings";
+import RolePermissionsManagement from "./pages/RolePermissionsManagement";
+import HelpDocumentation from "./pages/HelpDocumentation";
 
-// Import pages with correct paths
-import Login from "@/pages/LoginPage";
-import Register from "@/pages/ParentRegistration";
-import Dashboard from "@/pages/Dashboard";
-import AdminDashboard from "@/pages/AdminDashboard";
-import ParentDashboard from "@/pages/ParentDashboard";
-import StaffDashboard from "@/pages/StaffDashboard";
-import TeacherDashboard from "@/pages/TeacherDashboard";
-import CheckInKiosk from "@/pages/CheckInKiosk";
-import CheckOutStation from "@/pages/CheckOutStation";
-import SettingsPage from "@/pages/SettingsPage";
-import UsersManagement from "@/pages/UsersManagement";
-import StaffManagement from "@/pages/StaffManagement";
-import RolesManagement from "@/pages/RolesManagement";
-import RolePermissionsManagement from "@/pages/RolePermissionsManagement";
-import DeviceManagement from "@/pages/DeviceManagement";
-import ChildrenManagement from "@/pages/ChildrenManagement";
-import ClassesManagement from "@/pages/ClassesManagement";
-import AttendanceManagement from "@/pages/AttendanceManagement";
-import EventsManagement from "@/pages/EventsManagement";
-import MessagesManagement from "@/pages/MessagesManagement";
-import ReportsManagement from "@/pages/ReportsManagement";
-import OrganizationSettings from "@/pages/OrganizationSettings";
-import SystemHealth from "@/pages/SystemHealth";
+const queryClient = new QueryClient();
 
-// Protected Route wrapper with correct path
-import ProtectedRoute from "@/components/layout/ProtectedRoute";
-import RoleGuard from "@/components/security/RoleGuard";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes
-    },
-  },
-});
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <div className="min-h-screen bg-background">
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              
-              {/* Protected routes */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              
-              {/* Dashboard routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/admin-dashboard" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_system_health">
-                    <AdminDashboard />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/parent-dashboard" element={
-                <ProtectedRoute>
-                  <ParentDashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/staff-dashboard" element={
-                <ProtectedRoute>
-                  <StaffDashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/teacher-dashboard" element={
-                <ProtectedRoute>
-                  <TeacherDashboard />
-                </ProtectedRoute>
-              } />
-              
-              {/* Check-in/Check-out routes */}
-              <Route path="/check-in-kiosk" element={
-                <ProtectedRoute>
-                  <CheckInKiosk />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/check-out-station" element={
-                <ProtectedRoute>
-                  <CheckOutStation />
-                </ProtectedRoute>
-              } />
-              
-              {/* Settings route */}
-              <Route path="/settings" element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              } />
-              
-              {/* User Management routes */}
-              <Route path="/users-management" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_users">
-                    <UsersManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/staff-management" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_users">
-                    <StaffManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/roles-management" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_roles">
-                    <RolesManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/role-permissions-management" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_permissions">
-                    <RolePermissionsManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Device Management */}
-              <Route path="/devices" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_devices">
-                    <DeviceManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Children & Classes routes */}
-              <Route path="/children" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_all_children">
-                    <ChildrenManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/classes" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_classes">
-                    <ClassesManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Attendance routes */}
-              <Route path="/attendance" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_attendance">
-                    <AttendanceManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Events routes */}
-              <Route path="/events" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_events">
-                    <EventsManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Communication routes */}
-              <Route path="/messages" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_messages">
-                    <MessagesManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Reports routes */}
-              <Route path="/reports" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_basic_reports">
-                    <ReportsManagement />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Settings routes */}
-              <Route path="/organization-settings" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_organization_settings">
-                    <OrganizationSettings />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/system-health" element={
-                <ProtectedRoute>
-                  <RoleGuard requiredPermission="view_system_health">
-                    <SystemHealth />
-                  </RoleGuard>
-                </ProtectedRoute>
-              } />
-              
-              {/* Fallback route */}
-              <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
-            </Routes>
-          </div>
-          <Toaster />
-        </Router>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/parent-dashboard" element={<ParentDashboard />} />
+            <Route path="/staff-dashboard" element={<StaffDashboard />} />
+            <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+            <Route path="/volunteer-dashboard" element={<VolunteerDashboard />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/staff-realtime-dashboard" element={<StaffRealtimeDashboard />} />
+            <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+            <Route path="/check-out-station" element={<CheckOutStation />} />
+            <Route path="/children" element={<ChildrenManagement />} />
+            <Route path="/classes" element={<ClassesManagement />} />
+            <Route path="/attendance" element={<AttendanceManagement />} />
+            <Route path="/users" element={<UsersManagement />} />
+            <Route path="/events" element={<EventsManagement />} />
+            <Route path="/messages" element={<MessagesManagement />} />
+            <Route path="/organization" element={<OrganizationSettings />} />
+            <Route path="/roles" element={<RolePermissionsManagement />} />
+            <Route path="/help" element={<HelpDocumentation />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;

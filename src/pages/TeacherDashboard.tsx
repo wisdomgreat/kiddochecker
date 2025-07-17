@@ -7,63 +7,57 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  GraduationCap,
   Users,
-  UserCheck,
   Clock,
-  MessageSquare,
-  Calendar,
   BookOpen,
-  Activity,
-  AlertTriangle
+  MessageSquare,
+  AlertTriangle,
+  CheckCircle,
+  Calendar
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import RoleGuard from "@/components/security/RoleGuard";
 
 const TeacherDashboard = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Fetch teacher's assigned classes
-  const { data: myClasses = [] } = useQuery({
+  const { data: teacherClasses = [] } = useQuery({
     queryKey: ["teacher-classes", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+      
       const { data, error } = await supabase
         .from('teachers')
         .select(`
-          class_id,
-          classes (
-            id,
-            name,
-            description,
-            capacity,
-            room
-          )
+          *,
+          classes (id, name, description, capacity, room)
         `)
         .eq('user_id', user.id);
       
       if (error) throw error;
-      return data?.map(t => t.classes).filter(Boolean) || [];
+      return data || [];
     },
     enabled: !!user?.id,
   });
 
-  // Fetch today's attendance for teacher's classes
-  const { data: todayAttendance = [] } = useQuery({
-    queryKey: ["teacher-attendance", user?.id, selectedDate],
+  // Fetch attendance for teacher's classes today
+  const { data: classAttendance = [] } = useQuery({
+    queryKey: ["class-attendance", selectedDate, teacherClasses],
     queryFn: async () => {
-      if (!user?.id || myClasses.length === 0) return [];
+      if (teacherClasses.length === 0) return [];
       
-      const classIds = myClasses.map((c: any) => c.id);
+      const classIds = teacherClasses.map(tc => tc.class_id).filter(Boolean);
+      if (classIds.length === 0) return [];
+      
       const { data, error } = await supabase
         .from('attendance')
         .select(`
-          id,
-          checked_in_at,
-          checked_out_at,
+          *,
           children (first_name, last_name, allergies),
           classes (name)
         `)
@@ -73,97 +67,129 @@ const TeacherDashboard = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.id && myClasses.length > 0,
+    enabled: teacherClasses.length > 0,
   });
 
-  // Calculate stats
-  const totalStudents = todayAttendance.length;
-  const presentStudents = todayAttendance.filter(a => a.checked_in_at && !a.checked_out_at).length;
-  const studentsWithAllergies = todayAttendance.filter(a => a.children?.allergies).length;
+  const presentCount = classAttendance.filter(record => !record.checked_out_at).length;
+  const totalCheckedIn = classAttendance.length;
+  const childrenWithAllergies = classAttendance.filter(record => record.children?.allergies).length;
 
-  // Fetch upcoming events
-  const { data: upcomingEvents = [] } = useQuery({
-    queryKey: ["upcoming-events"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .gte('start_date', new Date().toISOString())
-        .order('start_date')
-        .limit(5);
-      
-      if (error) throw error;
-      return data || [];
+  const quickActions = [
+    {
+      title: "Take Attendance",
+      description: "Record class attendance",
+      icon: CheckCircle,
+      color: "bg-green-100 text-green-600",
+      action: () => navigate('/attendance')
     },
-  });
+    {
+      title: "View My Classes",
+      description: "Manage class information",
+      icon: BookOpen,
+      color: "bg-blue-100 text-blue-600",
+      action: () => navigate('/classes')
+    },
+    {
+      title: "Send Message",
+      description: "Communicate with parents",
+      icon: MessageSquare,
+      color: "bg-purple-100 text-purple-600",
+      action: () => navigate('/messages')
+    },
+    {
+      title: "Check-In Assistance",
+      description: "Help with morning check-ins",
+      icon: Users,
+      color: "bg-orange-100 text-orange-600",
+      action: () => navigate('/check-in-kiosk')
+    }
+  ];
 
   return (
-    <ModernLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
+    <RoleGuard allowedRoles={['teacher', 'teacher_assistant', 'admin', 'super_admin']}>
+      <ModernLayout>
+        <div className="space-y-6">
+          {/* Header */}
           <div>
             <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
-            <p className="text-muted-foreground">Manage your classes and track student progress.</p>
+            <p className="text-muted-foreground">Manage your classes and students</p>
           </div>
-          <Button onClick={() => navigate('/classes')}>
-            <GraduationCap className="mr-2 h-4 w-4" />
-            View All Classes
-          </Button>
-        </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">My Classes</p>
-                  <p className="text-2xl font-bold">{myClasses.length}</p>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">My Classes</p>
+                    <p className="text-2xl font-bold">{teacherClasses.length}</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Students Today</p>
-                  <p className="text-2xl font-bold">{totalStudents}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Present Today</p>
+                    <p className="text-2xl font-bold">{presentCount}</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-purple-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Present Now</p>
-                  <p className="text-2xl font-bold">{presentStudents}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Check-ins</p>
+                    <p className="text-2xl font-bold">{totalCheckedIn}</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Students with Allergies</p>
-                  <p className="text-2xl font-bold">{studentsWithAllergies}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">With Allergies</p>
+                    <p className="text-2xl font-bold">{childrenWithAllergies}</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {quickActions.map((action, index) => (
+                  <div
+                    key={index}
+                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={action.action}
+                  >
+                    <div className={`w-12 h-12 rounded-lg ${action.color} flex items-center justify-center mb-3`}>
+                      <action.icon className="h-6 w-6" />
+                    </div>
+                    <h3 className="font-medium mb-1">{action.title}</h3>
+                    <p className="text-sm text-muted-foreground">{action.description}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* My Classes */}
           <Card>
             <CardHeader>
@@ -173,94 +199,29 @@ const TeacherDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {myClasses.length === 0 ? (
+              {teacherClasses.length === 0 ? (
                 <div className="py-8 text-center">
                   <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium">No classes assigned</h3>
                   <p className="text-muted-foreground">
-                    Contact an administrator to get assigned to classes.
+                    Contact your administrator to get assigned to classes.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {myClasses.map((classInfo: any) => {
-                    const classAttendance = todayAttendance.filter(a => a.classes?.name === classInfo.name);
-                    const presentCount = classAttendance.filter(a => a.checked_in_at && !a.checked_out_at).length;
-                    
-                    return (
-                      <div key={classInfo.id} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-medium">{classInfo.name}</h3>
-                          <Badge variant="secondary">
-                            {presentCount}/{classAttendance.length} present
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {classInfo.description || 'No description'}
-                        </p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          {classInfo.room && (
-                            <span>Room: {classInfo.room}</span>
-                          )}
-                          {classInfo.capacity && (
-                            <span>Capacity: {classInfo.capacity}</span>
-                          )}
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {teacherClasses.map((teacherClass: any) => (
+                    <div key={teacherClass.id} className="p-4 border rounded-lg">
+                      <h3 className="font-medium mb-2">{teacherClass.classes?.name || 'Unnamed Class'}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {teacherClass.classes?.description || 'No description'}
+                      </p>
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Room: {teacherClass.classes?.room || 'TBD'}</span>
+                        <span>Capacity: {teacherClass.classes?.capacity || 'N/A'}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Today's Attendance */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Today's Attendance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {todayAttendance.length === 0 ? (
-                <div className="py-8 text-center">
-                  <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium">No attendance today</h3>
-                  <p className="text-muted-foreground">
-                    Student attendance will appear here once check-ins begin.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {todayAttendance.slice(0, 6).map((record: any) => (
-                    <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          record.checked_out_at ? 'bg-gray-100' : 'bg-green-100'
-                        }`}>
-                          <UserCheck className={`h-4 w-4 ${
-                            record.checked_out_at ? 'text-gray-600' : 'text-green-600'
-                          }`} />
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {record.children?.first_name} {record.children?.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {record.classes?.name}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {record.children?.allergies && (
-                          <Badge variant="destructive" className="text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Allergies
-                          </Badge>
-                        )}
-                        <Badge variant={record.checked_out_at ? "secondary" : "default"}>
-                          {record.checked_out_at ? "Checked Out" : "Present"}
+                      <div className="mt-3">
+                        <Badge variant="outline">
+                          {classAttendance.filter(a => a.class_id === teacherClass.class_id && !a.checked_out_at).length} present today
                         </Badge>
                       </div>
                     </div>
@@ -270,75 +231,59 @@ const TeacherDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Upcoming Events */}
+          {/* Today's Attendance */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Upcoming Events
+                <Users className="h-5 w-5" />
+                Today's Attendance ({format(new Date(selectedDate), 'MMM dd, yyyy')})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {upcomingEvents.length === 0 ? (
+              {classAttendance.length === 0 ? (
                 <div className="py-8 text-center">
-                  <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium">No upcoming events</h3>
+                  <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium">No attendance records</h3>
                   <p className="text-muted-foreground">
-                    School events and activities will be displayed here.
+                    Attendance records for your classes will appear here.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {upcomingEvents.slice(0, 5).map((event: any) => (
-                    <div key={event.id} className="p-3 border rounded-lg">
-                      <h4 className="font-medium">{event.title}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(event.start_date), 'MMM dd, yyyy')} at {format(new Date(event.start_date), 'HH:mm')}
-                      </p>
-                      {event.location && (
-                        <p className="text-sm text-muted-foreground">
-                          📍 {event.location}
-                        </p>
-                      )}
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {classAttendance.map((record: any) => (
+                    <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${record.checked_out_at ? 'bg-blue-500' : 'bg-green-500'}`} />
+                        <div>
+                          <p className="font-medium">
+                            {record.children?.first_name} {record.children?.last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {record.classes?.name}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {record.children?.allergies && (
+                          <Badge variant="destructive" className="text-xs">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Allergies
+                          </Badge>
+                        )}
+                        <div className="text-right text-sm">
+                          <p>In: {record.checked_in_at ? format(new Date(record.checked_in_at), 'HH:mm') : '-'}</p>
+                          <p>Out: {record.checked_out_at ? format(new Date(record.checked_out_at), 'HH:mm') : 'Present'}</p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-3">
-                <Button variant="outline" onClick={() => navigate('/attendance')} className="justify-start">
-                  <Clock className="mr-2 h-4 w-4" />
-                  Take Attendance
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/children')} className="justify-start">
-                  <Users className="mr-2 h-4 w-4" />
-                  View All Students
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/check-in-kiosk')} className="justify-start">
-                  <UserCheck className="mr-2 h-4 w-4" />
-                  Check-in Station
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/messages')} className="justify-start">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Send Messages
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </div>
-      </div>
-    </ModernLayout>
+      </ModernLayout>
+    </RoleGuard>
   );
 };
 

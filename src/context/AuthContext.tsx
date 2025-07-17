@@ -3,7 +3,6 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole } from '@/types/supabase';
-import { UserRoleService } from '@/services/userRoleService';
 
 interface AuthContextType {
   user: User | null;
@@ -22,25 +21,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
-  const roleLoading = useRef(false);
 
   const refreshUserRole = useCallback(async () => {
-    if (!user || roleLoading.current || !mounted.current) return;
+    if (!user || !mounted.current) return;
     
-    roleLoading.current = true;
     try {
-      const role = await UserRoleService.getCurrentUserRole();
+      console.log('Fetching user role for user:', user.id);
       
-      if (mounted.current) {
-        setUserRole(role || 'parent');
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, is_super_admin')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user role:", error);
+        // If no role found, assign default parent role
+        if (error.code === 'PGRST116') {
+          console.log('No role found, creating default parent role');
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: user.id,
+              role: 'parent' as AppRole
+            });
+          
+          if (!insertError && mounted.current) {
+            setUserRole('parent');
+          }
+        } else if (mounted.current) {
+          setUserRole('parent'); // fallback
+        }
+        return;
+      }
+
+      if (mounted.current && data) {
+        const role = data.is_super_admin ? 'super_admin' : data.role;
+        console.log('User role set to:', role);
+        setUserRole(role);
       }
     } catch (error) {
-      console.error("Error refreshing user role:", error);
+      console.error("Exception refreshing user role:", error);
       if (mounted.current) {
         setUserRole('parent');
       }
-    } finally {
-      roleLoading.current = false;
     }
   }, [user]);
 
@@ -66,6 +90,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         if (!mounted.current) return;
         
+        console.log('Auth state change:', event, session?.user?.id);
+        
         if (event === 'SIGNED_OUT' || !session) {
           setSession(null);
           setUser(null);
@@ -77,7 +103,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user && event !== 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          // Slight delay to ensure user is properly set
           setTimeout(() => {
             if (mounted.current) {
               refreshUserRole();
@@ -85,9 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }, 100);
         }
         
-        if (event === 'SIGNED_IN') {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     );
 

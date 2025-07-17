@@ -1,66 +1,36 @@
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { AppRole } from '@/types/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldX, AlertTriangle, RefreshCw } from 'lucide-react';
-import { hasPermission } from '@/utils/permissionUtils';
 
 interface RoleGuardProps {
   children: ReactNode;
   allowedRoles?: AppRole[];
-  requiredPermission?: string;
   requireParentAccess?: boolean;
   requireAdminAccess?: boolean;
+  requireStaffAccess?: boolean;
   fallback?: ReactNode;
 }
 
 const RoleGuard = ({ 
   children, 
   allowedRoles,
-  requiredPermission,
   requireParentAccess,
   requireAdminAccess,
+  requireStaffAccess,
   fallback 
 }: RoleGuardProps) => {
   const { userRole, loading } = useAuth();
-  const [hasRequiredPermission, setHasRequiredPermission] = useState<boolean | null>(null);
-  const [permissionLoading, setPermissionLoading] = useState(false);
 
-  useEffect(() => {
-    const checkPermission = async () => {
-      if (!requiredPermission) {
-        setHasRequiredPermission(true);
-        return;
-      }
-
-      setPermissionLoading(true);
-      try {
-        const result = await hasPermission(requiredPermission);
-        setHasRequiredPermission(result);
-      } catch (error) {
-        console.error('Error checking permission:', error);
-        setHasRequiredPermission(false);
-      } finally {
-        setPermissionLoading(false);
-      }
-    };
-
-    checkPermission();
-  }, [requiredPermission]);
-
-  if (loading || permissionLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
         <RefreshCw className="animate-spin h-8 w-8 text-primary mr-2" />
         <span>Verifying permissions...</span>
       </div>
     );
-  }
-
-  // Check permission-based access first (most granular)
-  if (requiredPermission && hasRequiredPermission === false) {
-    return fallback || <AccessDenied reason="insufficient_permission" permission={requiredPermission} />;
   }
 
   // Check role-based access
@@ -84,14 +54,17 @@ const RoleGuard = ({
     return fallback || <AccessDenied reason="admin_access_denied" />;
   }
 
+  // Check staff feature access
+  if (requireStaffAccess && !['staff', 'teacher', 'teacher_assistant', 'admin', 'super_admin'].includes(userRole || '')) {
+    return fallback || <AccessDenied reason="staff_access_denied" />;
+  }
+
   return <>{children}</>;
 };
 
-const AccessDenied = ({ reason, permission }: { reason: string; permission?: string }) => {
+const AccessDenied = ({ reason }: { reason: string }) => {
   const getMessage = () => {
     switch (reason) {
-      case 'insufficient_permission':
-        return `You don't have the required permission: ${permission}. Contact your administrator to request access.`;
       case 'insufficient_role':
         return 'Your account role does not have access to this feature.';
       case 'admin_blocked_from_parent':
@@ -100,6 +73,8 @@ const AccessDenied = ({ reason, permission }: { reason: string; permission?: str
         return 'This feature is only available to parent accounts.';
       case 'admin_access_denied':
         return 'This feature requires administrative privileges.';
+      case 'staff_access_denied':
+        return 'This feature requires staff privileges.';
       default:
         return 'Access denied.';
     }

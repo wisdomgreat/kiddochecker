@@ -1,166 +1,149 @@
 
-import React from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/context/AuthContext';
-import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
-import { useManagementNavigation } from '@/hooks/useManagementNavigation';
+import { useSidebar } from "@/components/ui/sidebar";
+import { useAuth } from "@/context/AuthContext";
+import { NavLink, useLocation } from "react-router-dom";
 import { 
-  LayoutDashboard, 
   Users, 
-  GraduationCap, 
+  Calendar, 
+  ClipboardList, 
+  UserCog, 
+  MessageSquare, 
   Settings, 
-  BarChart3,
-  UserCheck,
-  LogOut,
-  Plus,
-  Monitor,
+  HelpCircle,
+  Home,
   QrCode,
-  Baby,
-  ClipboardCheck,
-  MessageSquare,
-  Calendar
-} from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+  LogOut as LogOutIcon,
+  BookOpen,
+  Shield,
+  Clock,
+  Heart
+} from "lucide-react";
 
 const ModernSidebar = () => {
-  const { user, userRole, signOut } = useAuth();
-  const { navigateToDashboard } = useDashboardNavigation();
-  const { navigateToManagement } = useManagementNavigation();
+  const { collapsed } = useSidebar();
   const location = useLocation();
+  const { userRole, signOut } = useAuth();
+  const currentPath = location.pathname;
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => currentPath === path;
 
-  const adminNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/admin-dashboard' },
-    { icon: Users, label: 'Users', path: '/users-management' },
-    { icon: Users, label: 'Staff', path: '/staff-management' },
-    { icon: Baby, label: 'Children', path: '/children' },
-    { icon: GraduationCap, label: 'Classes', path: '/classes-management' },
-    { icon: ClipboardCheck, label: 'Attendance', path: '/attendance' },
-    { icon: Calendar, label: 'Events', path: '/events-management' },
-    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
-    { icon: BarChart3, label: 'Reports', path: '/reports' },
-    { icon: Monitor, label: 'System Health', path: '/system-health' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-    { icon: Settings, label: 'Role Permissions', path: '/role-permissions-management' },
-  ];
-
-  const staffNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/staff-dashboard' },
-    { icon: Monitor, label: 'Live View', path: '/staff-realtime' },
-    { icon: QrCode, label: 'Check-out Station', path: '/check-out-station' },
-    { icon: UserCheck, label: 'Attendance', path: '/attendance' },
-    { icon: Baby, label: 'Children', path: '/children' },
-    { icon: GraduationCap, label: 'Classes', path: '/classes-management' },
-    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
-  ];
-
-  const teacherNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/teacher-dashboard' },
-    { icon: GraduationCap, label: 'My Classes', path: '/classes-management' },
-    { icon: UserCheck, label: 'Attendance', path: '/attendance' },
-    { icon: Baby, label: 'Students', path: '/children' },
-    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
-    { icon: Calendar, label: 'Events', path: '/events-management' },
-  ];
-
-  const parentNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/parent-dashboard' },
-    { icon: Baby, label: 'My Children', path: '/children' },
-    { icon: MessageSquare, label: 'Messages', path: '/messages-management' },
-    { icon: Calendar, label: 'Events', path: '/events-management' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-  ];
-
-  const getNavItems = () => {
-    if (userRole === 'admin' || userRole === 'super_admin') return adminNavItems;
-    if (userRole === 'teacher' || userRole === 'teacher_assistant') return teacherNavItems;
-    if (userRole === 'staff') return staffNavItems;
-    return parentNavItems;
+  const getNavCls = (path: string) => {
+    const baseClasses = "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors";
+    if (isActive(path)) {
+      return `${baseClasses} bg-primary text-primary-foreground`;
+    }
+    return `${baseClasses} hover:bg-accent hover:text-accent-foreground`;
   };
 
-  const navItems = getNavItems();
+  // Define navigation items based on role
+  const getNavigationItems = () => {
+    const commonItems = [
+      { to: "/help", icon: HelpCircle, label: "Help & Support" },
+    ];
+
+    switch (userRole) {
+      case 'parent':
+        return [
+          { to: "/parent-dashboard", icon: Home, label: "Dashboard" },
+          { to: "/children", icon: Users, label: "My Children" },
+          { to: "/messages", icon: MessageSquare, label: "Messages" },
+          { to: "/events", icon: Calendar, label: "Events" },
+          ...commonItems,
+        ];
+
+      case 'staff':
+        return [
+          { to: "/staff-dashboard", icon: Home, label: "Dashboard" },
+          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Kiosk" },
+          { to: "/check-out-station", icon: LogOutIcon, label: "Check-Out Station" },
+          { to: "/attendance", icon: ClipboardList, label: "Attendance" },
+          { to: "/children", icon: Users, label: "All Children" },
+          { to: "/classes", icon: BookOpen, label: "Classes" },
+          { to: "/messages", icon: MessageSquare, label: "Messages" },
+          { to: "/staff-realtime-dashboard", icon: Clock, label: "Real-time Dashboard" },
+          ...commonItems,
+        ];
+
+      case 'teacher':
+      case 'teacher_assistant':
+        return [
+          { to: "/teacher-dashboard", icon: Home, label: "Dashboard" },
+          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Assistance" },
+          { to: "/attendance", icon: ClipboardList, label: "Attendance" },
+          { to: "/classes", icon: BookOpen, label: "My Classes" },
+          { to: "/children", icon: Users, label: "Students" },
+          { to: "/messages", icon: MessageSquare, label: "Messages" },
+          ...commonItems,
+        ];
+
+      case 'volunteer':
+        return [
+          { to: "/volunteer-dashboard", icon: Heart, label: "Dashboard" },
+          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Help" },
+          ...commonItems,
+        ];
+
+      case 'admin':
+      case 'super_admin':
+        return [
+          { to: "/admin-dashboard", icon: Home, label: "Admin Dashboard" },
+          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Kiosk" },
+          { to: "/check-out-station", icon: LogOutIcon, label: "Check-Out Station" },
+          { to: "/attendance", icon: ClipboardList, label: "Attendance" },
+          { to: "/children", icon: Users, label: "Children" },
+          { to: "/classes", icon: BookOpen, label: "Classes" },
+          { to: "/users", icon: UserCog, label: "Users" },
+          { to: "/roles", icon: Shield, label: "Roles & Permissions" },
+          { to: "/messages", icon: MessageSquare, label: "Messages" },
+          { to: "/events", icon: Calendar, label: "Events" },
+          { to: "/organization", icon: Settings, label: "Organization" },
+          { to: "/staff-realtime-dashboard", icon: Clock, label: "Real-time Dashboard" },
+          ...commonItems,
+        ];
+
+      default:
+        return commonItems;
+    }
+  };
+
+  const navigationItems = getNavigationItems();
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-white border-r border-gray-200">
+    <div className={`${collapsed ? "w-16" : "w-64"} bg-background border-r border-border h-full flex flex-col`}>
       {/* Logo/Brand */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <Plus className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">ChurchCheck</h1>
-          <p className="text-xs text-gray-500 capitalize">{userRole?.replace('_', ' ')}</p>
-        </div>
+      <div className="p-4 border-b border-border">
+        {!collapsed ? (
+          <h2 className="text-lg font-semibold">Childcare System</h2>
+        ) : (
+          <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
+            <span className="text-primary-foreground font-bold">C</span>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        {navItems.map((item) => (
+      <nav className="flex-1 p-4 space-y-2">
+        {navigationItems.map((item) => (
           <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors',
-                isActive
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              )
-            }
+            key={item.to}
+            to={item.to}
+            className={getNavCls(item.to)}
           >
-            <item.icon className="h-5 w-5" />
-            {item.label}
+            <item.icon className="h-5 w-5 flex-shrink-0" />
+            {!collapsed && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* Quick Access Section */}
-      <div className="px-4 py-4 border-t border-gray-200">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Quick Access</p>
-        <div className="space-y-2">
-          <NavLink
-            to="/check-in-kiosk"
-            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <UserCheck className="h-4 w-4" />
-            Check-in Kiosk
-          </NavLink>
-          {(userRole === 'admin' || userRole === 'staff' || userRole === 'super_admin') && (
-            <NavLink
-              to="/check-out-station"
-              className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <QrCode className="h-4 w-4" />
-              Check-out Station
-            </NavLink>
-          )}
-        </div>
-      </div>
-
-      {/* User Profile & Logout */}
-      <div className="px-4 py-4 border-t border-gray-200">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-            <Users className="h-4 w-4 text-gray-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {user?.email?.split('@')[0] || 'User'}
-            </p>
-            <p className="text-xs text-gray-500 capitalize">{userRole?.replace('_', ' ')}</p>
-          </div>
-        </div>
-        <Button
+      {/* Sign Out */}
+      <div className="p-4 border-t border-border">
+        <button
           onClick={signOut}
-          variant="outline"
-          size="sm"
-          className="w-full justify-start text-gray-700 hover:text-gray-900"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground w-full text-left"
         >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
-        </Button>
+          <LogOutIcon className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && <span>Sign Out</span>}
+        </button>
       </div>
     </div>
   );
