@@ -92,7 +92,7 @@ const VolunteerDashboard = () => {
   ];
 
   return (
-    <RoleGuard allowedRoles={['volunteer', 'admin', 'super_admin']}>
+    <RoleGuard allowedRoles={['staff', 'admin', 'super_admin']}>
       <ModernLayout>
         <div className="space-y-6">
           {/* Header */}

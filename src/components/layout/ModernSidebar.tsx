@@ -1,5 +1,4 @@
 
-import { useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { NavLink, useLocation } from "react-router-dom";
 import { 
@@ -20,7 +19,6 @@ import {
 } from "lucide-react";
 
 const ModernSidebar = () => {
-  const { collapsed } = useSidebar();
   const location = useLocation();
   const { userRole, signOut } = useAuth();
   const currentPath = location.pathname;
@@ -76,13 +74,6 @@ const ModernSidebar = () => {
           ...commonItems,
         ];
 
-      case 'volunteer':
-        return [
-          { to: "/volunteer-dashboard", icon: Heart, label: "Dashboard" },
-          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Help" },
-          ...commonItems,
-        ];
-
       case 'admin':
       case 'super_admin':
         return [
@@ -102,23 +93,21 @@ const ModernSidebar = () => {
         ];
 
       default:
-        return commonItems;
+        return [
+          { to: "/volunteer-dashboard", icon: Heart, label: "Dashboard" },
+          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Help" },
+          ...commonItems,
+        ];
     }
   };
 
   const navigationItems = getNavigationItems();
 
   return (
-    <div className={`${collapsed ? "w-16" : "w-64"} bg-background border-r border-border h-full flex flex-col`}>
+    <div className="w-64 bg-background border-r border-border h-full flex flex-col">
       {/* Logo/Brand */}
       <div className="p-4 border-b border-border">
-        {!collapsed ? (
-          <h2 className="text-lg font-semibold">Childcare System</h2>
-        ) : (
-          <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-            <span className="text-primary-foreground font-bold">C</span>
-          </div>
-        )}
+        <h2 className="text-lg font-semibold">Childcare System</h2>
       </div>
 
       {/* Navigation */}
@@ -130,7 +119,7 @@ const ModernSidebar = () => {
             className={getNavCls(item.to)}
           >
             <item.icon className="h-5 w-5 flex-shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            <span>{item.label}</span>
           </NavLink>
         ))}
       </nav>
@@ -142,7 +131,7 @@ const ModernSidebar = () => {
           className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground w-full text-left"
         >
           <LogOutIcon className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span>Sign Out</span>}
+          <span>Sign Out</span>
         </button>
       </div>
     </div>

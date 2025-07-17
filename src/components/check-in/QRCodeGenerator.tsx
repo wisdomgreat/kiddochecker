@@ -79,9 +79,9 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
               <div class="child-name">${childName}</div>
               ${className ? `<div class="class-name">${className}</div>` : ''}
               <div style="background: white; padding: 20px; display: inline-block;">
-                <svg width="200" height="200">
-                  <!-- QR Code will be inserted here -->
-                </svg>
+                <div id="qr-placeholder" style="width: 200px; height: 200px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center;">
+                  QR Code
+                </div>
               </div>
               <div class="instructions">
                 <strong>Check-out Instructions:</strong><br>
@@ -96,14 +96,24 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         </html>
       `);
       
-      // Insert the QR code SVG
-      const svg = document.querySelector('.qr-code-svg')?.outerHTML;
-      if (svg) {
-        printWindow.document.body.querySelector('svg')?.outerHTML = svg;
+      // Get the QR code SVG and insert it
+      const qrCodeElement = document.querySelector('.qr-code-svg');
+      if (qrCodeElement) {
+        const svgContent = qrCodeElement.outerHTML;
+        printWindow.document.close();
+        
+        // Wait a moment for the document to load, then replace placeholder
+        setTimeout(() => {
+          const placeholder = printWindow.document.getElementById('qr-placeholder');
+          if (placeholder) {
+            placeholder.innerHTML = svgContent;
+          }
+          printWindow.print();
+        }, 100);
+      } else {
+        printWindow.document.close();
+        printWindow.print();
       }
-      
-      printWindow.document.close();
-      printWindow.print();
     }
     
     if (onPrint) {
