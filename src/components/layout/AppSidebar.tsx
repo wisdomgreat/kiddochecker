@@ -1,10 +1,24 @@
 
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { 
+  Home, 
+  Users, 
+  UserCog, 
+  Shield, 
+  Calendar, 
+  BarChart3, 
+  Settings, 
+  Baby, 
+  GraduationCap,
+  ClipboardCheck,
+  MessageSquare,
+  Monitor,
+  HelpCircle,
+  LogOut,
+  ChevronDown,
+  Plus
+} from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -14,269 +28,250 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { 
-  Home, 
-  Users, 
-  Calendar, 
-  MessageSquare, 
-  Settings, 
-  LogOut, 
-  BookOpen,
-  ClipboardCheck,
-  BarChart3,
-  Baby,
-  Monitor,
-  UserCheck,
-  Building,
-  AlertTriangle
-} from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAuth } from "@/context/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-interface NavigationItem {
-  name: string;
-  href: string;
-  icon: React.ComponentType<any>;
-  roles: string[];
-  description?: string;
-}
+const navigationItems = [
+  {
+    title: "Dashboard",
+    icon: Home,
+    url: "/admin-dashboard",
+    permission: "view_system_health",
+    badge: null
+  },
+  {
+    title: "User Management",
+    icon: Users,
+    permission: "view_users",
+    items: [
+      { title: "All Users", url: "/users-management", permission: "view_users" },
+      { title: "Staff Management", url: "/staff-management", permission: "view_users" },
+      { title: "Roles & Permissions", url: "/roles-management", permission: "view_roles" },
+      { title: "Role Permissions", url: "/role-permissions-management", permission: "view_permissions" }
+    ]
+  },
+  {
+    title: "Children & Classes",
+    icon: Baby,
+    permission: "view_all_children",
+    items: [
+      { title: "Children", url: "/children", permission: "view_all_children" },
+      { title: "Classes", url: "/classes", permission: "view_classes" },
+      { title: "Teachers", url: "/teachers", permission: "view_classes" }
+    ]
+  },
+  {
+    title: "Attendance",
+    icon: ClipboardCheck,
+    permission: "view_attendance",
+    items: [
+      { title: "Daily Attendance", url: "/attendance", permission: "view_attendance" },
+      { title: "Check-in Kiosk", url: "/kiosk", permission: "checkin_children" },
+      { title: "Reports", url: "/attendance-reports", permission: "view_attendance_reports" }
+    ]
+  },
+  {
+    title: "Events & Calendar",
+    icon: Calendar,
+    permission: "view_events",
+    items: [
+      { title: "All Events", url: "/events", permission: "view_events" },
+      { title: "Calendar View", url: "/calendar", permission: "view_events" },
+      { title: "Event Registration", url: "/event-registration", permission: "manage_event_registration" }
+    ]
+  },
+  {
+    title: "Communication",
+    icon: MessageSquare,
+    permission: "view_messages",
+    items: [
+      { title: "Messages", url: "/messages", permission: "view_messages" },
+      { title: "Announcements", url: "/announcements", permission: "broadcast_messages" },
+      { title: "Notifications", url: "/notifications", permission: "send_messages" }
+    ]
+  },
+  {
+    title: "Reports & Analytics",
+    icon: BarChart3,
+    permission: "view_basic_reports",
+    items: [
+      { title: "Overview", url: "/reports", permission: "view_basic_reports" },
+      { title: "Detailed Analytics", url: "/analytics", permission: "view_detailed_reports" },
+      { title: "Export Data", url: "/export", permission: "export_reports" }
+    ]
+  },
+  {
+    title: "System & Devices",
+    icon: Monitor,
+    permission: "view_devices",
+    items: [
+      { title: "Devices", url: "/devices", permission: "view_devices" },
+      { title: "System Health", url: "/system-health", permission: "view_system_health" },
+      { title: "Integrations", url: "/integrations", permission: "manage_integrations" }
+    ]
+  },
+  {
+    title: "Settings",
+    icon: Settings,
+    permission: "view_organization_settings",
+    items: [
+      { title: "Organization", url: "/organization-settings", permission: "view_organization_settings" },
+      { title: "Security", url: "/security-settings", permission: "manage_system_settings" },
+      { title: "Backup & Recovery", url: "/backup", permission: "manage_backups" }
+    ]
+  }
+];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
-  const { signOut, userRole } = useAuth();
-  const navigate = useNavigate();
+  const { collapsed } = useSidebar();
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const { checkPermission } = usePermissions();
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
 
-  // Define navigation items with strict role access
-  const navigationItems: NavigationItem[] = [
-    // Admin-only items
-    { 
-      name: "Admin Dashboard", 
-      href: "/admin-dashboard", 
-      icon: Home, 
-      roles: ['admin', 'super_admin'],
-      description: "Administrative overview"
-    },
-    { 
-      name: "User Management", 
-      href: "/users-management", 
-      icon: Users, 
-      roles: ['admin', 'super_admin'],
-      description: "Manage all users"
-    },
-    { 
-      name: "Staff Management", 
-      href: "/staff-management", 
-      icon: UserCheck, 
-      roles: ['admin', 'super_admin'],
-      description: "Manage staff members"
-    },
-    { 
-      name: "Classes Management", 
-      href: "/classes-management", 
-      icon: BookOpen, 
-      roles: ['admin', 'super_admin'],
-      description: "Manage classes"
-    },
-    { 
-      name: "Device Management", 
-      href: "/device-management", 
-      icon: Monitor, 
-      roles: ['admin', 'super_admin'],
-      description: "Manage devices"
-    },
-    { 
-      name: "Organization Setup", 
-      href: "/organization-setup", 
-      icon: Building, 
-      roles: ['admin', 'super_admin'],
-      description: "Organization settings"
-    },
-    { 
-      name: "System Settings", 
-      href: "/settings", 
-      icon: Settings, 
-      roles: ['admin', 'super_admin'],
-      description: "System configuration"
-    },
-    
-    // Staff items
-    { 
-      name: "Staff Dashboard", 
-      href: "/staff-dashboard", 
-      icon: Home, 
-      roles: ['staff', 'teacher', 'teacher_assistant'],
-      description: "Staff overview"
-    },
-    { 
-      name: "Check-In/Out", 
-      href: "/check-in-out", 
-      icon: ClipboardCheck, 
-      roles: ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant'],
-      description: "Attendance management"
-    },
-    { 
-      name: "Reports", 
-      href: "/reports", 
-      icon: BarChart3, 
-      roles: ['admin', 'super_admin', 'staff', 'teacher'],
-      description: "View reports"
-    },
-    
-    // Parent items
-    { 
-      name: "Parent Dashboard", 
-      href: "/parent-dashboard", 
-      icon: Home, 
-      roles: ['parent'],
-      description: "Parent overview"
-    },
-    { 
-      name: "My Children", 
-      href: "/children-management", 
-      icon: Baby, 
-      roles: ['parent'],
-      description: "Manage your children"
-    },
-    
-    // Common items (role-filtered)
-    { 
-      name: "Calendar", 
-      href: "/calendar", 
-      icon: Calendar, 
-      roles: ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'parent'],
-      description: "View events and schedules"
-    },
-    { 
-      name: "Family Connect", 
-      href: "/family-connect", 
-      icon: MessageSquare, 
-      roles: ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'parent'],
-      description: "Communication center"
-    },
-  ];
+  const currentPath = location.pathname;
 
-  // Filter items based on user role
-  const allowedItems = navigationItems.filter(item => 
-    userRole && item.roles.includes(userRole)
-  );
+  const isActive = (path: string) => currentPath === path;
+  const isGroupActive = (items: any[]) => items.some(item => isActive(item.url));
 
-  const isActive = (href: string) => {
-    if (href === "/" || href === "/admin-dashboard" || href === "/staff-dashboard" || href === "/parent-dashboard") {
-      return location.pathname === href || (location.pathname === "/" && href.includes("dashboard"));
-    }
-    return location.pathname.startsWith(href);
+  const toggleGroup = (title: string) => {
+    setOpenGroups(prev => 
+      prev.includes(title) 
+        ? prev.filter(group => group !== title)
+        : [...prev, title]
+    );
   };
 
-  const handleNavigation = (href: string) => {
-    console.log('Navigating to:', href, 'Current role:', userRole);
-    navigate(href);
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const getRoleBadgeColor = () => {
-    switch (userRole) {
-      case 'super_admin':
-        return 'bg-purple-100 text-purple-800 border-purple-300';
-      case 'admin':
-        return 'bg-red-100 text-red-800 border-red-300';
-      case 'staff':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'teacher':
-        return 'bg-green-100 text-green-800 border-green-300';
-      case 'teacher_assistant':
-        return 'bg-teal-100 text-teal-800 border-teal-300';
-      case 'parent':
-        return 'bg-amber-100 text-amber-800 border-amber-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
+  const getNavClass = (active: boolean) => 
+    active 
+      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+      : "hover:bg-accent hover:text-accent-foreground";
 
   return (
-    <Sidebar className={cn("border-r", collapsed ? "w-14" : "w-64")} collapsible="icon">
+    <Sidebar className={collapsed ? "w-16" : "w-64"} collapsible>
       {/* Header */}
-      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+      <div className="flex items-center justify-between p-4 border-b">
         {!collapsed && (
-          <div className="flex items-center gap-2 font-semibold">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <span>KiddoChecker</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <GraduationCap className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-lg">ChildCare Pro</h2>
+              <p className="text-xs text-muted-foreground">Admin Panel</p>
+            </div>
           </div>
         )}
-        <SidebarTrigger className="ml-auto" />
+        <SidebarTrigger />
       </div>
 
-      <SidebarContent>
-        {/* Role Badge */}
+      <SidebarContent className="flex-1 overflow-y-auto">
+        {/* Quick Actions */}
         {!collapsed && (
-          <div className="px-4 py-2 border-b">
-            <Badge variant="outline" className={cn("text-xs", getRoleBadgeColor())}>
-              {userRole?.replace('_', ' ').toUpperCase()}
-            </Badge>
-            {userRole === 'admin' && (
-              <div className="flex items-center gap-2 mt-2 p-2 bg-amber-50 rounded-lg">
-                <AlertTriangle className="h-3 w-3 text-amber-600" />
-                <span className="text-xs text-amber-700">Administrative Access</span>
-              </div>
-            )}
+          <div className="p-4 border-b">
+            <Button size="sm" className="w-full">
+              <Plus className="mr-2 h-4 w-4" />
+              Quick Add
+            </Button>
           </div>
         )}
 
+        {/* Navigation */}
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {allowedItems.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton 
-                      asChild 
-                      className={cn(
-                        "w-full justify-start gap-3 h-10 px-3",
-                        active ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-accent-foreground",
-                        collapsed && "px-2 justify-center"
-                      )}
-                    >
-                      <button onClick={() => handleNavigation(item.href)}>
-                        <Icon className="h-4 w-4 flex-shrink-0" />
-                        {!collapsed && <span className="truncate">{item.name}</span>}
-                      </button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
+              {navigationItems.map((item) => {
+                if (item.items) {
+                  const isGroupOpen = openGroups.includes(item.title);
+                  const groupActive = isGroupActive(item.items);
+                  
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <Collapsible 
+                        open={isGroupOpen} 
+                        onOpenChange={() => toggleGroup(item.title)}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton className={getNavClass(groupActive)}>
+                            <item.icon className="mr-2 h-4 w-4" />
+                            {!collapsed && (
+                              <>
+                                <span className="flex-1">{item.title}</span>
+                                <ChevronDown className={`h-4 w-4 transition-transform ${isGroupOpen ? 'rotate-180' : ''}`} />
+                              </>
+                            )}
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        {!collapsed && (
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {item.items.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.url}>
+                                  <SidebarMenuSubButton asChild>
+                                    <NavLink 
+                                      to={subItem.url} 
+                                      className={({ isActive }) => getNavClass(isActive)}
+                                    >
+                                      <span>{subItem.title}</span>
+                                    </NavLink>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        )}
+                      </Collapsible>
+                    </SidebarMenuItem>
+                  );
+                } else {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink 
+                          to={item.url} 
+                          className={({ isActive }) => getNavClass(isActive)}
+                        >
+                          <item.icon className="mr-2 h-4 w-4" />
+                          {!collapsed && (
+                            <>
+                              <span className="flex-1">{item.title}</span>
+                              {item.badge && (
+                                <Badge variant="secondary" className="ml-auto">
+                                  {item.badge}
+                                </Badge>
+                              )}
+                            </>
+                          )}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
               })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Quick Actions for Kiosk Mode */}
-        {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'staff') && (
+        {/* Support Section */}
+        {!collapsed && (
           <SidebarGroup>
-            <SidebarGroupLabel>Quick Actions</SidebarGroupLabel>
+            <SidebarGroupLabel>Support</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <button 
-                      onClick={() => window.open('/check-in-kiosk', '_blank', 'fullscreen=yes')}
-                      className="w-full justify-start gap-3 h-10 px-3 hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <Monitor className="h-4 w-4" />
-                      {!collapsed && <span>Open Kiosk Mode</span>}
-                    </button>
+                  <SidebarMenuButton>
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    Help & Documentation
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -286,19 +281,38 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* Footer */}
-      <div className="mt-auto p-4 border-t">
-        <SidebarMenuButton 
-          asChild 
-          className={cn(
-            "w-full justify-start gap-3 h-10",
-            collapsed && "px-2 justify-center"
-          )}
-        >
-          <button onClick={handleSignOut}>
-            <LogOut className="h-4 w-4 flex-shrink-0" />
-            {!collapsed && <span>Logout</span>}
-          </button>
-        </SidebarMenuButton>
+      <div className="border-t p-4">
+        {!collapsed ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                <UserCog className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{user?.email}</p>
+                <p className="text-xs text-muted-foreground">Administrator</p>
+              </div>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full justify-start" 
+              onClick={signOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
+        ) : (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full p-2" 
+            onClick={signOut}
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </Sidebar>
   );

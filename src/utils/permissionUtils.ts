@@ -109,7 +109,7 @@ export const adminManageUser = async (
       return { success: false, error: error.message };
     }
     
-    if (result?.error) {
+    if (result && typeof result === 'object' && 'error' in result) {
       return { success: false, error: result.error };
     }
     
@@ -132,7 +132,7 @@ export const getAdminDashboardStats = async () => {
       return null;
     }
     
-    if (data?.error) {
+    if (data && typeof data === 'object' && 'error' in data) {
       console.error("Permission error:", data.error);
       return null;
     }

@@ -9,7 +9,7 @@ import ManagementHeader from "@/components/management/ManagementHeader";
 import SearchAndFilter from "@/components/management/SearchAndFilter";
 import EmptyState from "@/components/management/EmptyState";
 import { Pencil, Trash2, UserPlus, Users } from "lucide-react";
-import SimpleLayout from "@/components/layout/SimpleLayout";
+import ModernLayout from "@/components/layout/ModernLayout";
 
 const StaffManagement = () => {
   const { staffMembers, isLoading, deleteStaff, isDeletingStaff } = useStaffManagement();
@@ -55,16 +55,16 @@ const StaffManagement = () => {
 
   if (isLoading) {
     return (
-      <SimpleLayout>
+      <ModernLayout>
         <div className="flex items-center justify-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
-      </SimpleLayout>
+      </ModernLayout>
     );
   }
 
   return (
-    <SimpleLayout>
+    <ModernLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <ManagementHeader 
@@ -158,7 +158,7 @@ const StaffManagement = () => {
           onSuccess={() => setShowAddForm(false)}
         />
       </div>
-    </SimpleLayout>
+    </ModernLayout>
   );
 };
 
