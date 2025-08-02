@@ -15,7 +15,8 @@ import {
   BookOpen,
   Shield,
   Clock,
-  Heart
+  Heart,
+  Baby
 } from "lucide-react";
 
 const ModernSidebar = () => {
@@ -33,7 +34,7 @@ const ModernSidebar = () => {
     return `${baseClasses} hover:bg-accent hover:text-accent-foreground`;
   };
 
-  // Define navigation items based on role
+  // Define navigation items based on role with proper separation
   const getNavigationItems = () => {
     const commonItems = [
       { to: "/help", icon: HelpCircle, label: "Help & Support" },
@@ -43,7 +44,7 @@ const ModernSidebar = () => {
       case 'parent':
         return [
           { to: "/parent-dashboard", icon: Home, label: "Dashboard" },
-          { to: "/children", icon: Users, label: "My Children" },
+          { to: "/children", icon: Baby, label: "My Children" },
           { to: "/messages", icon: MessageSquare, label: "Messages" },
           { to: "/events", icon: Calendar, label: "Events" },
           ...commonItems,
@@ -93,9 +94,9 @@ const ModernSidebar = () => {
         ];
 
       default:
+        // For any unrecognized role, show minimal navigation
         return [
-          { to: "/volunteer-dashboard", icon: Heart, label: "Dashboard" },
-          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Help" },
+          { to: "/dashboard", icon: Home, label: "Dashboard" },
           ...commonItems,
         ];
     }
@@ -108,6 +109,17 @@ const ModernSidebar = () => {
       {/* Logo/Brand */}
       <div className="p-4 border-b border-border">
         <h2 className="text-lg font-semibold">Childcare System</h2>
+        {userRole && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {userRole === 'parent' ? 'Parent Portal' : 
+             userRole === 'admin' ? 'Admin Panel' :
+             userRole === 'super_admin' ? 'Super Admin Panel' :
+             userRole === 'staff' ? 'Staff Portal' :
+             userRole === 'teacher' ? 'Teacher Portal' :
+             userRole === 'teacher_assistant' ? 'Assistant Portal' :
+             'Dashboard'}
+          </p>
+        )}
       </div>
 
       {/* Navigation */}

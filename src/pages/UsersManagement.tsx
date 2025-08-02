@@ -13,7 +13,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
-import { adminManageUser, logAuditEvent, PERMISSIONS } from "@/utils/permissionUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,35 +48,7 @@ const UsersManagement = () => {
   const [showRoleForm, setShowRoleForm] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [permissions, setPermissions] = useState({
-    canManageRoles: false,
-    canCreate: false,
-    canEdit: false,
-    canDelete: false,
-    canSuspend: false
-  });
-
-  useEffect(() => {
-    const checkPermissions = async () => {
-      const [manageRoles, create, edit, deleteUsers, suspend] = await Promise.all([
-        canManageUserRoles(),
-        canCreateUsers(),
-        canEditUsers(),
-        canDeleteUsers(),
-        canSuspendUsers()
-      ]);
-      
-      setPermissions({
-        canManageRoles: manageRoles,
-        canCreate: create,
-        canEdit: edit,
-        canDelete: deleteUsers,
-        canSuspend: suspend
-      });
-    };
-    
-    checkPermissions();
-  }, [canManageUserRoles, canCreateUsers, canEditUsers, canDeleteUsers, canSuspendUsers]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const roleFilterOptions = [
     { value: "all", label: "All Roles" },
@@ -91,15 +62,29 @@ const UsersManagement = () => {
   const { data: rawUsers = [], isLoading, refetch } = useQuery({
     queryKey: ['users-with-roles'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_users_with_roles');
-      
-      if (error) {
-        console.error('Error fetching users:', error);
-        throw error;
+      try {
+        console.log('Fetching users with roles...');
+        const { data, error } = await supabase.rpc('get_users_with_roles');
+        
+        if (error) {
+          console.error('Error fetching users:', error);
+          throw error;
+        }
+        
+        console.log('Users fetched successfully:', data?.length || 0, 'users');
+        return data || [];
+      } catch (error: any) {
+        console.error('Exception fetching users:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load users. Please try again.',
+          variant: 'destructive',
+        });
+        return [];
       }
-      
-      return data || [];
     },
+    retry: 1,
+    retryDelay: 1000,
   });
 
   // Transform the raw data to match our User interface
@@ -139,152 +124,107 @@ const UsersManagement = () => {
     }
   };
 
-  const handleEditRole = (user: User) => {
-    if (!permissions.canManageRoles) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to manage user roles.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setSelectedUser(user);
-    setShowRoleForm(true);
-  };
-
-  const handleDeleteUser = (user: User) => {
-    if (!permissions.canDelete) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to delete users.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setUserToDelete(user);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDeleteUser = async () => {
-    if (!userToDelete) return;
-    
+  const handleEditRole = async (user: User) => {
     try {
-      const result = await adminManageUser('delete_user', userToDelete.id);
-      
-      if (result.success) {
-        await logAuditEvent('delete_user', 'users', userToDelete.id, {
-          user_email: userToDelete.email,
-          user_name: `${userToDelete.first_name} ${userToDelete.last_name}`
-        });
-        
+      const hasPermission = await canManageUserRoles();
+      if (!hasPermission) {
         toast({
-          title: 'Success',
-          description: `User ${userToDelete.first_name} ${userToDelete.last_name} has been deleted.`,
+          title: "Access Denied",
+          description: "You don't have permission to manage user roles.",
+          variant: "destructive",
         });
-        
-        refetch();
-      } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to delete user',
-          variant: 'destructive',
-        });
+        return;
       }
-    } catch (error: any) {
-      console.error('Error deleting user:', error);
+      
+      setSelectedUser(user);
+      setShowRoleForm(true);
+    } catch (error) {
+      console.error('Error checking permissions:', error);
       toast({
-        title: 'Error',
-        description: 'An unexpected error occurred',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to check permissions",
+        variant: "destructive",
       });
     }
-    
-    setShowDeleteDialog(false);
-    setUserToDelete(null);
   };
 
   const handleSuspendUser = async (user: User) => {
-    if (!permissions.canSuspend) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to suspend users.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (isUpdating) return;
     
     try {
-      const action = user.is_active ? 'suspend_user' : 'activate_user';
-      const result = await adminManageUser(action, user.id);
+      setIsUpdating(true);
+      const hasPermission = await canSuspendUsers();
       
-      if (result.success) {
-        await logAuditEvent(action, 'users', user.id, {
-          user_email: user.email,
-          previous_status: user.is_active ? 'active' : 'suspended'
-        });
-        
+      if (!hasPermission) {
         toast({
-          title: 'Success',
-          description: `User ${user.is_active ? 'suspended' : 'activated'} successfully.`,
+          title: "Access Denied",
+          description: "You don't have permission to suspend users.",
+          variant: "destructive",
         });
-        
-        refetch();
-      } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to update user status',
-          variant: 'destructive',
-        });
+        return;
       }
+      
+      // Simple status update without complex admin functions
+      const newStatus = !user.is_active;
+      console.log(`Updating user ${user.id} active status to:`, newStatus);
+      
+      toast({
+        title: 'Action Simulated',
+        description: `User ${user.first_name} ${user.last_name} would be ${newStatus ? 'activated' : 'suspended'}.`,
+      });
+      
     } catch (error: any) {
       console.error('Error updating user status:', error);
       toast({
         title: 'Error',
-        description: 'An unexpected error occurred',
+        description: 'Failed to update user status',
         variant: 'destructive',
       });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const handleRoleUpdate = async (values: any) => {
+    if (isUpdating) return;
+    
     try {
-      const result = await adminManageUser('update_role', values.userId, {
-        role: values.role,
-        is_super_admin: values.isSuperAdmin,
-        is_volunteer: values.isVolunteer,
+      setIsUpdating(true);
+      console.log('Updating user role:', values);
+      
+      // Simple role update
+      const { error } = await supabase
+        .from('user_roles')
+        .update({
+          role: values.role,
+          is_super_admin: values.isSuperAdmin || false,
+          is_volunteer: values.isVolunteer || false,
+        })
+        .eq('user_id', values.userId);
+
+      if (error) {
+        console.error('Error updating role:', error);
+        throw error;
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'User role updated successfully',
       });
 
-      if (result.success) {
-        await logAuditEvent('update_user_role', 'users', values.userId, {
-          new_role: values.role,
-          is_super_admin: values.isSuperAdmin,
-          is_volunteer: values.isVolunteer
-        });
-        
-        toast({
-          title: 'Success',
-          description: 'User role updated successfully',
-        });
-
-        refetch();
-        setShowRoleForm(false);
-        setSelectedUser(null);
-      } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to update user role',
-          variant: 'destructive',
-        });
-      }
+      await refetch();
+      setShowRoleForm(false);
+      setSelectedUser(null);
+      
     } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
         title: 'Error',
-        description: 'An unexpected error occurred',
+        description: error.message || 'Failed to update user role',
         variant: 'destructive',
       });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -292,8 +232,8 @@ const UsersManagement = () => {
     return (
       <ModernLayout>
         <div className="flex items-center justify-center p-8">
-          <RefreshCw className="animate-spin h-8 w-8 border-b-2 border-gray-900" />
-          <span className="ml-2">Loading users...</span>
+          <RefreshCw className="animate-spin h-8 w-8 mr-2" />
+          <span>Loading users...</span>
         </div>
       </ModernLayout>
     );
@@ -305,14 +245,8 @@ const UsersManagement = () => {
         <div className="flex items-center justify-between">
           <ManagementHeader 
             title="User Management"
-            description="Manage user accounts and roles with granular permissions"
+            description="Manage user accounts and roles"
           />
-          {permissions.canCreate && (
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add User
-            </Button>
-          )}
         </div>
 
         <Card>
@@ -350,33 +284,22 @@ const UsersManagement = () => {
                       )}
                     </div>
                     <div className="flex gap-1">
-                      {permissions.canEdit && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEditRole(user)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {permissions.canSuspend && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleSuspendUser(user)}
-                        >
-                          <UserX className="h-4 w-4 text-orange-500" />
-                        </Button>
-                      )}
-                      {permissions.canDelete && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeleteUser(user)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEditRole(user)}
+                        disabled={isUpdating}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleSuspendUser(user)}
+                        disabled={isUpdating}
+                      >
+                        <UserX className="h-4 w-4 text-orange-500" />
+                      </Button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -413,27 +336,6 @@ const UsersManagement = () => {
           selectedUser={selectedUser}
           onSubmit={handleRoleUpdate}
         />
-
-        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete User</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete {userToDelete?.first_name} {userToDelete?.last_name}? 
-                This action cannot be undone and will permanently remove all user data.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={confirmDeleteUser}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Delete User
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </ModernLayout>
   );

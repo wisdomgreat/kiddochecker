@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error("Error fetching user role:", error);
         
-        // Check if this is an organization creator (should not get parent role)
+        // For organization creators, they should get super_admin role, not parent
         const isOrgCreator = user.user_metadata?.is_org_creator;
         
         if (error.code === 'PGRST116' && !isOrgCreator) {
@@ -52,13 +53,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserRole('parent');
           }
         } else if (isOrgCreator) {
-          console.log('Organization creator detected, waiting for admin role assignment...');
+          console.log('Organization creator detected, should have admin role...');
           // For org creators, wait a bit longer for role assignment
           setTimeout(() => {
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 3000);
+          }, 2000);
         } else if (mounted.current) {
           setUserRole('parent'); // fallback
         }
@@ -114,12 +115,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Slight delay to ensure user is properly set
+          // Quick role fetch for immediate redirection
           setTimeout(() => {
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 500); // Increased delay for better reliability
+          }, 100); // Reduced delay for faster redirection
         }
         
         setLoading(false);
@@ -146,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 500);
+          }, 100);
         }
         
         setLoading(false);
