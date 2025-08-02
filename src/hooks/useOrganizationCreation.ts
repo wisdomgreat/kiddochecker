@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 interface OrganizationFormValues {
   organizationName: string;
@@ -17,6 +18,7 @@ interface OrganizationFormValues {
 export const useOrganizationCreation = (onComplete: () => void) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { updateTheme } = useTheme();
 
   const createOrganization = async (values: OrganizationFormValues) => {
     setIsSubmitting(true);
@@ -65,7 +67,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
       console.log("Organization created:", orgData);
 
       // Wait a moment to ensure user is fully created
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Now assign super admin role using the new database function
       console.log("Assigning super_admin role to organization creator:", authData.user.id);
@@ -74,20 +76,33 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         p_org_id: orgData,
       });
 
-      if (roleError || !roleResult) {
+      if (roleError) {
         console.error('Failed to assign organization creator role:', roleError);
         toast({
           title: "Warning",
-          description: "Organization created but admin role assignment failed. Please assign super admin role manually.",
+          description: "Organization created but admin role assignment failed. Please contact support.",
           variant: "destructive",
         });
       } else {
         console.log('Organization creator role assigned successfully');
       }
 
+      // Apply the selected theme immediately
+      const colorScheme = values.primaryColor === '#6366f1' ? 'purple' : 
+                          values.primaryColor === '#3b82f6' ? 'blue' :
+                          values.primaryColor === '#22c55e' ? 'green' : 'purple';
+
+      updateTheme({
+        theme: "light",
+        colorScheme,
+        highContrast: false,
+        largeText: false,
+        animations: true,
+      });
+
       toast({
-        title: "Organization Created Successfully",
-        description: "Your organization has been set up. Please check your email to confirm your account, then sign in to access the admin dashboard.",
+        title: "Organization Created Successfully!",
+        description: "Your organization has been set up. You can now sign in to access the admin dashboard.",
       });
 
       onComplete();
@@ -95,7 +110,7 @@ export const useOrganizationCreation = (onComplete: () => void) => {
       console.error('Error creating organization:', error);
       toast({
         title: "Setup Failed",
-        description: error.message || "Failed to create organization",
+        description: error.message || "Failed to create organization. Please try again.",
         variant: "destructive",
       });
     } finally {

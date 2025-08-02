@@ -5,8 +5,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import Index from "./pages/Index";
+import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
+import ParentRegistration from "./pages/ParentRegistration";
 import Dashboard from "./pages/Dashboard";
 import ParentDashboard from "./pages/ParentDashboard";
 import StaffDashboard from "./pages/StaffDashboard";
@@ -30,36 +33,40 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/parent-dashboard" element={<ParentDashboard />} />
-            <Route path="/staff-dashboard" element={<StaffDashboard />} />
-            <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
-            <Route path="/volunteer-dashboard" element={<VolunteerDashboard />} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/staff-realtime-dashboard" element={<StaffRealtimeDashboard />} />
-            <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
-            <Route path="/check-out-station" element={<CheckOutStation />} />
-            <Route path="/children" element={<ChildrenManagement />} />
-            <Route path="/classes" element={<ClassesManagement />} />
-            <Route path="/attendance" element={<AttendanceManagement />} />
-            <Route path="/users" element={<UsersManagement />} />
-            <Route path="/events" element={<EventsManagement />} />
-            <Route path="/messages" element={<MessagesManagement />} />
-            <Route path="/organization" element={<OrganizationSettings />} />
-            <Route path="/roles" element={<RolePermissionsManagement />} />
-            <Route path="/help" element={<HelpDocumentation />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/parent-registration" element={<ParentRegistration />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/parent-dashboard" element={<ParentDashboard />} />
+              <Route path="/staff-dashboard" element={<StaffDashboard />} />
+              <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
+              <Route path="/volunteer-dashboard" element={<VolunteerDashboard />} />
+              <Route path="/admin-dashboard" element={<AdminDashboard />} />
+              <Route path="/staff-realtime-dashboard" element={<StaffRealtimeDashboard />} />
+              <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
+              <Route path="/check-out-station" element={<CheckOutStation />} />
+              <Route path="/children" element={<ChildrenManagement />} />
+              <Route path="/classes" element={<ClassesManagement />} />
+              <Route path="/attendance" element={<AttendanceManagement />} />
+              <Route path="/users" element={<UsersManagement />} />
+              <Route path="/events" element={<EventsManagement />} />
+              <Route path="/messages" element={<MessagesManagement />} />
+              <Route path="/organization" element={<OrganizationSettings />} />
+              <Route path="/roles" element={<RolePermissionsManagement />} />
+              <Route path="/help" element={<HelpDocumentation />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,9 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error("Error fetching user role:", error);
-        // If no role found, assign default parent role
-        if (error.code === 'PGRST116') {
-          console.log('No role found, creating default parent role');
+        
+        // Check if this is an organization creator (should not get parent role)
+        const isOrgCreator = user.user_metadata?.is_org_creator;
+        
+        if (error.code === 'PGRST116' && !isOrgCreator) {
+          console.log('No role found for regular user, creating default parent role');
           const { error: insertError } = await supabase
             .from('user_roles')
             .insert({
@@ -49,6 +51,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!insertError && mounted.current) {
             setUserRole('parent');
           }
+        } else if (isOrgCreator) {
+          console.log('Organization creator detected, waiting for admin role assignment...');
+          // For org creators, wait a bit longer for role assignment
+          setTimeout(() => {
+            if (mounted.current) {
+              refreshUserRole();
+            }
+          }, 3000);
         } else if (mounted.current) {
           setUserRole('parent'); // fallback
         }
@@ -109,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 100);
+          }, 500); // Increased delay for better reliability
         }
         
         setLoading(false);
@@ -136,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 100);
+          }, 500);
         }
         
         setLoading(false);
