@@ -15,6 +15,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
       eventsPerSecond: 10,
     },
   },
+  global: {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  },
 });
 
 // Helper functions for session management
@@ -196,6 +201,9 @@ export const isSetupCompleted = async () => {
       
     if (error) {
       console.error("Error checking setup status:", error);
+      if (error.message.includes('fetch') || error.message.includes('network')) {
+        throw new Error("Network connection failed while checking setup status");
+      }
       return false;
     }
     
@@ -204,7 +212,7 @@ export const isSetupCompleted = async () => {
     return setupComplete;
   } catch (error) {
     console.error("Error in isSetupCompleted:", error);
-    return false;
+    throw error; // Re-throw to let caller handle network errors
   }
 };
 
