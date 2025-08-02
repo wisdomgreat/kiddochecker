@@ -33,19 +33,34 @@ export const useStaffManagement = () => {
   const { data: staffMembers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['staff-members'],
     queryFn: async (): Promise<StaffMember[]> => {
-      const { data, error } = await supabase.rpc('get_staff_members');
-      
-      if (error) {
-        console.error('Error fetching staff members:', error);
+      try {
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        const { data, error } = await supabase.rpc('get_staff_members');
+        
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          console.error('Error fetching staff members:', error);
+          throw error;
+        }
+        
+        // Type the data properly with AppRole
+        return (data || []).map(member => ({
+          ...member,
+          role: member.role as AppRole
+        }));
+      } catch (error: any) {
+        console.error('Exception fetching staff members:', error);
         throw error;
       }
-      
-      // Type the data properly with AppRole
-      return (data || []).map(member => ({
-        ...member,
-        role: member.role as AppRole
-      }));
     },
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 30000, // Cache for 30 seconds
+    gcTime: 60000, // Keep in cache for 1 minute
   });
 
   const addStaffMutation = useMutation({

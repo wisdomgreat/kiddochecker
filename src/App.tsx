@@ -23,11 +23,14 @@ import ChildrenManagement from "./pages/ChildrenManagement";
 import ClassesManagement from "./pages/ClassesManagement";
 import AttendanceManagement from "./pages/AttendanceManagement";
 import UsersManagement from "./pages/UsersManagement";
+import StaffManagement from "./pages/StaffManagement";
 import EventsManagement from "./pages/EventsManagement";
 import MessagesManagement from "./pages/MessagesManagement";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import RolePermissionsManagement from "./pages/RolePermissionsManagement";
 import HelpDocumentation from "./pages/HelpDocumentation";
+import DeviceManagement from "./pages/DeviceManagement";
+import SystemHealth from "./pages/SystemHealth";
 
 const queryClient = new QueryClient();
 
@@ -57,10 +60,30 @@ const App = () => (
               <Route path="/classes" element={<ClassesManagement />} />
               <Route path="/attendance" element={<AttendanceManagement />} />
               <Route path="/users" element={<UsersManagement />} />
+              <Route path="/users-management" element={<UsersManagement />} />
+              <Route path="/staff-management" element={<StaffManagement />} />
+              <Route path="/roles-management" element={<RolePermissionsManagement />} />
+              <Route path="/role-permissions-management" element={<RolePermissionsManagement />} />
+              <Route path="/teachers" element={<StaffManagement />} />
+              <Route path="/attendance-reports" element={<AttendanceManagement />} />
+              <Route path="/kiosk" element={<CheckInKiosk />} />
+              <Route path="/calendar" element={<EventsManagement />} />
+              <Route path="/event-registration" element={<EventsManagement />} />
+              <Route path="/announcements" element={<MessagesManagement />} />
+              <Route path="/notifications" element={<MessagesManagement />} />
+              <Route path="/analytics" element={<AttendanceManagement />} />
+              <Route path="/export" element={<AttendanceManagement />} />
+              <Route path="/devices" element={<DeviceManagement />} />
+              <Route path="/system-health" element={<SystemHealth />} />
+              <Route path="/integrations" element={<OrganizationSettings />} />
+              <Route path="/organization-settings" element={<OrganizationSettings />} />
+              <Route path="/security-settings" element={<OrganizationSettings />} />
+              <Route path="/backup" element={<OrganizationSettings />} />
               <Route path="/events" element={<EventsManagement />} />
               <Route path="/messages" element={<MessagesManagement />} />
               <Route path="/organization" element={<OrganizationSettings />} />
               <Route path="/roles" element={<RolePermissionsManagement />} />
+              <Route path="/reports" element={<AttendanceManagement />} />
               <Route path="/help" element={<HelpDocumentation />} />
             </Routes>
           </BrowserRouter>

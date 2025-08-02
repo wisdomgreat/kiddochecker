@@ -64,7 +64,14 @@ const UsersManagement = () => {
     queryFn: async () => {
       try {
         console.log('Fetching users with roles...');
+        
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const { data, error } = await supabase.rpc('get_users_with_roles');
+        
+        clearTimeout(timeoutId);
         
         if (error) {
           console.error('Error fetching users:', error);
@@ -85,6 +92,8 @@ const UsersManagement = () => {
     },
     retry: 1,
     retryDelay: 1000,
+    staleTime: 30000, // Cache for 30 seconds
+    gcTime: 60000, // Keep in cache for 1 minute
   });
 
   // Transform the raw data to match our User interface
