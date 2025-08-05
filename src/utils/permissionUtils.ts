@@ -85,7 +85,9 @@ export const hasRoleOrHigher = (userRole: string, requiredRole: string): boolean
   if (userRole === requiredRole) return true;
   
   const hierarchy = ROLE_HIERARCHY[userRole as keyof typeof ROLE_HIERARCHY];
-  return hierarchy?.includes(requiredRole as any) || false;
+  if (!hierarchy) return false;
+  
+  return hierarchy.includes(requiredRole as keyof typeof ROLE_HIERARCHY);
 };
 
 export const getAdminDashboardStats = async () => {
