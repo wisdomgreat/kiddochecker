@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface CheckInData {
@@ -30,7 +29,7 @@ export class AttendanceService {
       }
 
       console.log("Child checked in successfully with attendance ID:", result);
-      return { success: true, attendanceId: result };
+      return { success: true, attendanceId: result as string };
     } catch (error: any) {
       console.error("Exception during check-in:", error);
       return { success: false, error: error.message };
