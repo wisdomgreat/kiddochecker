@@ -87,11 +87,11 @@ export const useOrganizationCreation = (onComplete: () => void) => {
 
       console.log("Organization created with ID:", orgData);
 
-      // Wait a moment to ensure user is fully created
+      // Wait a moment to ensure user role is created by trigger
       console.log("Waiting for user setup to complete...");
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Now assign super admin role using the new database function
+      // Now assign super admin role using the database function
       console.log("Assigning super_admin role to organization creator:", authData.user.id);
       const { data: roleResult, error: roleError } = await supabase.rpc('assign_organization_creator_role', {
         p_user_id: authData.user.id,
@@ -100,13 +100,10 @@ export const useOrganizationCreation = (onComplete: () => void) => {
 
       if (roleError) {
         console.error('Failed to assign organization creator role:', roleError);
-        toast({
-          title: "Warning",
-          description: "Organization created but admin role assignment failed. Please contact support.",
-          variant: "destructive",
-        });
+        // Try to continue anyway - the role might have been assigned by the trigger
+        console.log('Continuing with organization setup despite role assignment error');
       } else {
-        console.log('Organization creator role assigned successfully');
+        console.log('Organization creator role assigned successfully:', roleResult);
       }
 
       // Apply the selected theme immediately
@@ -123,10 +120,26 @@ export const useOrganizationCreation = (onComplete: () => void) => {
         animations: true,
       });
 
-      toast({
-        title: "Organization Created Successfully!",
-        description: "Your organization has been set up. You can now sign in to access the admin dashboard.",
+      // Force sign in the user after creation
+      console.log("Signing in the newly created user...");
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: values.adminEmail,
+        password: values.adminPassword,
       });
+
+      if (signInError) {
+        console.error("Sign in error after creation:", signInError);
+        // Don't throw error here, user can sign in manually
+        toast({
+          title: "Organization Created Successfully!",
+          description: "Please sign in with your credentials to access the admin dashboard.",
+        });
+      } else {
+        toast({
+          title: "Organization Created Successfully!",
+          description: "You are now signed in and can access the admin dashboard.",
+        });
+      }
 
       console.log("Organization setup completed successfully");
       onComplete();

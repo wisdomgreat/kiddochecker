@@ -15,25 +15,22 @@ export interface CheckOutData {
 export class AttendanceService {
   static async checkInChild(data: CheckInData): Promise<{ success: boolean; attendanceId?: string; error?: string }> {
     try {
-      const { data: result, error } = await supabase
-        .from('attendance')
-        .insert({
-          child_id: data.childId,
-          class_id: data.classId || null,
-          checked_in_by: data.checkedInBy || null,
-          checked_in_at: new Date().toISOString(),
-          attendance_date: new Date().toISOString().split('T')[0]
-        })
-        .select()
-        .single();
+      console.log("Checking in child:", data.childId);
+      
+      // Use the new database function for check-in
+      const { data: result, error } = await supabase.rpc('checkin_child', {
+        p_child_id: data.childId,
+        p_class_id: data.classId || null,
+        p_checked_in_by: data.checkedInBy || null
+      });
 
       if (error) {
         console.error("Check-in error:", error);
         return { success: false, error: error.message };
       }
 
-      console.log("Child checked in successfully:", result.id);
-      return { success: true, attendanceId: result.id };
+      console.log("Child checked in successfully with attendance ID:", result);
+      return { success: true, attendanceId: result };
     } catch (error: any) {
       console.error("Exception during check-in:", error);
       return { success: false, error: error.message };
@@ -42,18 +39,21 @@ export class AttendanceService {
 
   static async checkOutChild(data: CheckOutData): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await supabase
-        .from('attendance')
-        .update({
-          checked_out_at: new Date().toISOString(),
-          checked_out_by: data.checkedOutBy || null
-        })
-        .eq('id', data.attendanceId)
-        .is('checked_out_at', null); // Only update if not already checked out
+      console.log("Checking out child with attendance ID:", data.attendanceId);
+      
+      // Use the new database function for check-out
+      const { data: result, error } = await supabase.rpc('checkout_child', {
+        p_attendance_id: data.attendanceId,
+        p_checked_out_by: data.checkedOutBy || null
+      });
 
       if (error) {
         console.error("Check-out error:", error);
         return { success: false, error: error.message };
+      }
+
+      if (!result) {
+        return { success: false, error: "Child was already checked out or attendance record not found" };
       }
 
       console.log("Child checked out successfully");
@@ -113,6 +113,32 @@ export class AttendanceService {
       return data || [];
     } catch (error) {
       console.error("Exception fetching checked-in children:", error);
+      return [];
+    }
+  }
+
+  static async getAttendanceHistory(childId: string, limit: number = 10): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('attendance')
+        .select(`
+          *,
+          child:children(*),
+          class:classes(*)
+        `)
+        .eq('child_id', childId)
+        .order('attendance_date', { ascending: false })
+        .order('checked_in_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error("Error fetching attendance history:", error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error("Exception fetching attendance history:", error);
       return [];
     }
   }

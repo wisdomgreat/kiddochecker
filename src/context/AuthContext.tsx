@@ -28,16 +28,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user role for user:', user.id);
       
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, is_super_admin')
-        .eq('user_id', user.id)
-        .single();
+      // Use the improved database function
+      const { data, error } = await supabase.rpc('get_current_user_role');
 
       if (error) {
         console.error("Error fetching user role:", error);
         
-        // For organization creators, they should get super_admin role, not parent
+        // For organization creators, they should get super_admin role
         const isOrgCreator = user.user_metadata?.is_org_creator;
         
         if (error.code === 'PGRST116' && !isOrgCreator) {
@@ -54,12 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } else if (isOrgCreator) {
           console.log('Organization creator detected, should have admin role...');
-          // For org creators, wait a bit longer for role assignment
+          // For org creators, wait a bit for role assignment to complete
           setTimeout(() => {
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 2000);
+          }, 1000);
         } else if (mounted.current) {
           setUserRole('parent'); // fallback
         }
@@ -67,9 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (mounted.current && data) {
-        const role = data.is_super_admin ? 'super_admin' : data.role;
-        console.log('User role set to:', role);
-        setUserRole(role);
+        console.log('User role set to:', data);
+        setUserRole(data as AppRole);
       }
     } catch (error) {
       console.error("Exception refreshing user role:", error);
@@ -120,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (mounted.current) {
               refreshUserRole();
             }
-          }, 100); // Reduced delay for faster redirection
+          }, 100);
         }
         
         setLoading(false);

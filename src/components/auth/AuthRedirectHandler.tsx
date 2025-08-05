@@ -20,6 +20,7 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
       const isOnLandingPage = location.pathname === '/landing';
       const isOnRegisterPage = location.pathname === '/parent-registration';
       const isOnRootPage = location.pathname === '/';
+      const isOnSetupPage = location.pathname === '/organization-setup';
       const isOnCheckInKiosk = location.pathname === '/check-in-kiosk';
       const isOnCheckOutStation = location.pathname === '/check-out-station';
       
@@ -28,13 +29,24 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
         return;
       }
       
+      // Don't redirect if on setup page and user is admin/super_admin
+      if (isOnSetupPage && (userRole === 'admin' || userRole === 'super_admin')) {
+        return;
+      }
+      
       // Redirect to appropriate dashboard if on login/landing/register/root pages
       if (isOnLoginPage || isOnLandingPage || isOnRegisterPage || isOnRootPage) {
         console.log('Redirecting user to dashboard, role:', userRole);
         navigateToDashboard();
       }
+    } else if (!loading && !user) {
+      // Redirect unauthenticated users to landing page if they're on protected routes
+      const publicRoutes = ['/landing', '/login', '/parent-registration', '/organization-setup'];
+      if (!publicRoutes.includes(location.pathname)) {
+        navigate('/landing');
+      }
     }
-  }, [user, userRole, loading, location.pathname, navigateToDashboard]);
+  }, [user, userRole, loading, location.pathname, navigateToDashboard, navigate]);
 
   return <>{children}</>;
 };
