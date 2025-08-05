@@ -1,96 +1,153 @@
-
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
-import Index from "./pages/Index";
-import Login from "./pages/LoginPage";
-import Signup from "./pages/ParentRegistration";
-import Setup from "./pages/OrganizationSetup";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import Dashboard from "./pages/Dashboard";
+import ProtectedRoute from "./components/security/ProtectedRoute";
+import PublicRoute from "./components/security/PublicRoute";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import SetupOrganizationPage from "./pages/SetupOrganizationPage";
+import CheckinKiosk from "./pages/CheckinKiosk";
+import CheckoutStation from "./pages/CheckoutStation";
 import ParentDashboard from "./pages/ParentDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import StaffDashboard from "./pages/StaffDashboard";
-import ChildrenManagement from "./pages/ChildrenManagement";
-import UsersManagement from "./pages/UsersManagement";
-import StaffManagement from "./pages/StaffManagement";
-import ClassesManagement from "./pages/ClassesManagement";
-import AttendanceManagement from "./pages/AttendanceManagement";
-import CheckInKiosk from "./pages/CheckInKiosk";
-import CheckOutProcessPage from "./pages/CheckOutProcessPage";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import ReportsPage from "./pages/ReportsPage";
-import OrganizationSettings from "./pages/OrganizationSettings";
-import DeviceManagement from "./pages/DeviceManagement";
-import RoleGuard from "@/components/security/RoleGuard";
+import RoleGuard from "./components/security/RoleGuard";
+import ModernLayout from "./components/layout/ModernLayout";
+const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const StaffManagement = lazy(() => import("./pages/StaffManagement"));
+const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
+const DeviceManagementPage = lazy(() => import("./pages/DeviceManagementPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes
+      staleTime: 60000,
+      cacheTime: 120000,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/setup" element={<Setup />} />
-            
-            {/* Parent Routes */}
-            <Route path="/parent" element={
-              <RoleGuard requireParentAccess>
-                <ParentDashboard />
-              </RoleGuard>
-            } />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={
-              <RoleGuard requireAdminAccess>
-                <AdminDashboard />
-              </RoleGuard>
-            } />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
-            <Route path="/admin/reports" element={<ReportsPage />} />
-            <Route path="/admin/settings" element={
-              <RoleGuard requireAdminAccess>
-                <OrganizationSettings />
-              </RoleGuard>
-            } />
-            
-            {/* Staff Routes */}
-            <Route path="/staff" element={
-              <RoleGuard requireStaffAccess>
-                <StaffDashboard />
-              </RoleGuard>
-            } />
-            
-            {/* Management Routes */}
-            <Route path="/children" element={<ChildrenManagement />} />
-            <Route path="/users" element={<UsersManagement />} />
-            <Route path="/staff-management" element={<StaffManagement />} />
-            <Route path="/classes" element={<ClassesManagement />} />
-            <Route path="/attendance" element={<AttendanceManagement />} />
-            <Route path="/devices" element={<DeviceManagement />} />
-            
-            {/* Kiosk Routes */}
-            <Route path="/checkin-kiosk" element={<CheckInKiosk />} />
-            <Route path="/checkout-process" element={<CheckOutProcessPage />} />
-          </Routes>
-        </BrowserRouter>
+        <AuthProvider>
+          <Toaster />
+          <Sonner 
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+                border: '1px solid hsl(var(--border))',
+              },
+              className: 'bg-background text-foreground border-border',
+            }}
+          />
+          <BrowserRouter>
+            <Routes>
+              <Route
+                path="/login"
+                element={
+                  <PublicRoute>
+                    <LoginPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/register"
+                element={
+                  <PublicRoute>
+                    <RegisterPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <PublicRoute>
+                    <ForgotPasswordPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <PublicRoute>
+                    <ResetPasswordPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/setup-organization"
+                element={
+                  <ProtectedRoute>
+                    <SetupOrganizationPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent-dashboard"
+                element={
+                  <ProtectedRoute>
+                    <RoleGuard requireParentAccess>
+                      <ParentDashboard />
+                    </RoleGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/checkin" element={<CheckinKiosk />} />
+              <Route path="/checkout" element={<CheckoutStation />} />
+              <Route path="/admin/users" element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <AdminUsersPage />
+                </Suspense>
+              } />
+              <Route path="/staff-management" element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <StaffManagement />
+                </Suspense>
+              } />
+              <Route path="/user-management" element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <UserManagementPage />
+                </Suspense>
+              } />
+              <Route path="/device-management" element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <DeviceManagementPage />
+                </Suspense>
+              } />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+};
 
 export default App;
