@@ -39,20 +39,20 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <AuthRedirectHandler>
-            <Toaster />
-            <Sonner 
-              position="top-right"
-              toastOptions={{
-                style: {
-                  background: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  border: '1px solid hsl(var(--border))',
-                },
-                className: 'bg-background text-foreground border-border',
-              }}
-            />
-            <BrowserRouter>
+          <Toaster />
+          <Sonner 
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+                border: '1px solid hsl(var(--border))',
+              },
+              className: 'bg-background text-foreground border-border',
+            }}
+          />
+          <BrowserRouter>
+            <AuthRedirectHandler>
               <Routes>
                 <Route path="/landing" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
@@ -106,8 +106,8 @@ const App = () => {
                   </Suspense>
                 } />
               </Routes>
-            </BrowserRouter>
-          </AuthRedirectHandler>
+            </AuthRedirectHandler>
+          </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
