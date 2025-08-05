@@ -1,3 +1,4 @@
+
 import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,28 +7,29 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
+import ParentRegistrationPage from "./pages/ParentRegistrationPage";
 import Dashboard from "./pages/Dashboard";
-import ProtectedRoute from "./components/security/ProtectedRoute";
-import PublicRoute from "./components/security/PublicRoute";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import SetupOrganizationPage from "./pages/SetupOrganizationPage";
+import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import RoleGuard from "./components/security/RoleGuard";
+import ParentDashboard from "./pages/ParentDashboard";
 import CheckinKiosk from "./pages/CheckinKiosk";
 import CheckoutStation from "./pages/CheckoutStation";
-import ParentDashboard from "./pages/ParentDashboard";
-import RoleGuard from "./components/security/RoleGuard";
-import ModernLayout from "./components/layout/ModernLayout";
+
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
 const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const DeviceManagementPage = lazy(() => import("./pages/DeviceManagementPage"));
 
+// Create PublicRoute component for routes that should only be accessible when not authenticated
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  return <>{children}</>;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60000,
-      cacheTime: 120000,
+      gcTime: 120000, // Updated from cacheTime to gcTime
       refetchOnMount: false,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
@@ -63,35 +65,11 @@ const App = () => {
                 }
               />
               <Route
-                path="/register"
+                path="/parent-registration"
                 element={
                   <PublicRoute>
-                    <RegisterPage />
+                    <ParentRegistrationPage />
                   </PublicRoute>
-                }
-              />
-              <Route
-                path="/forgot-password"
-                element={
-                  <PublicRoute>
-                    <ForgotPasswordPage />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/reset-password"
-                element={
-                  <PublicRoute>
-                    <ResetPasswordPage />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/setup-organization"
-                element={
-                  <ProtectedRoute>
-                    <SetupOrganizationPage />
-                  </ProtectedRoute>
                 }
               />
               <Route
