@@ -72,22 +72,22 @@ export const getUserPermissions = async (): Promise<Permission[]> => {
 };
 
 // Role hierarchy for permission inheritance
-export const ROLE_HIERARCHY = {
+export const ROLE_HIERARCHY: Record<string, string[]> = {
   'super_admin': ['admin', 'staff', 'teacher', 'teacher_assistant', 'parent'],
   'admin': ['staff', 'teacher', 'teacher_assistant'],
   'staff': ['teacher', 'teacher_assistant'],
   'teacher': [],
   'teacher_assistant': [],
   'parent': []
-} as const;
+};
 
 export const hasRoleOrHigher = (userRole: string, requiredRole: string): boolean => {
   if (userRole === requiredRole) return true;
   
-  const hierarchy = ROLE_HIERARCHY[userRole as keyof typeof ROLE_HIERARCHY];
+  const hierarchy = ROLE_HIERARCHY[userRole];
   if (!hierarchy) return false;
   
-  return hierarchy.includes(requiredRole as keyof typeof ROLE_HIERARCHY);
+  return hierarchy.includes(requiredRole);
 };
 
 export const getAdminDashboardStats = async () => {
