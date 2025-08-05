@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,19 +62,53 @@ const UsersManagement = () => {
     queryKey: ['users-with-roles'],
     queryFn: async () => {
       try {
-        console.log('Fetching users with roles...');
+        console.log('Fetching users with roles (enhanced for super admin)...');
         
         // Add timeout to prevent hanging
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout
         
-        const { data, error } = await supabase.rpc('get_users_with_roles');
+        // Use the RPC function with proper casting
+        const { data, error } = await supabase.rpc('get_users_with_roles' as any);
         
         clearTimeout(timeoutId);
         
         if (error) {
           console.error('Error fetching users:', error);
-          throw error;
+          
+          // If RPC fails, try direct query as fallback for super admin
+          console.log('Attempting fallback query...');
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('user_roles')
+            .select(`
+              user_id,
+              role,
+              is_super_admin,
+              is_volunteer,
+              profiles:user_id (
+                first_name,
+                last_name,
+                phone
+              )
+            `);
+            
+          if (fallbackError) {
+            throw new Error(`Failed to fetch users: ${fallbackError.message}`);
+          }
+          
+          // Transform fallback data
+          return (fallbackData || []).map((item: any) => ({
+            id: item.user_id,
+            email: 'Email not available', // Placeholder since we can't access auth.users directly
+            first_name: item.profiles?.first_name || '',
+            last_name: item.profiles?.last_name || '',
+            role: item.role,
+            is_super_admin: item.is_super_admin || false,
+            is_active: true, // Default since we can't check auth status
+            is_volunteer: item.is_volunteer || false,
+            phone: item.profiles?.phone || '',
+            created_at: new Date().toISOString()
+          }));
         }
         
         console.log('Users fetched successfully:', data?.length || 0, 'users');
@@ -84,16 +117,16 @@ const UsersManagement = () => {
         console.error('Exception fetching users:', error);
         toast({
           title: 'Error',
-          description: 'Failed to load users. Please try again.',
+          description: 'Failed to load users. Please check your admin permissions.',
           variant: 'destructive',
         });
         return [];
       }
     },
-    retry: 1,
-    retryDelay: 1000,
-    staleTime: 30000, // Cache for 30 seconds
-    gcTime: 60000, // Keep in cache for 1 minute
+    retry: 2,
+    retryDelay: 2000,
+    staleTime: 30000,
+    gcTime: 60000,
   });
 
   // Transform the raw data to match our User interface
@@ -135,7 +168,7 @@ const UsersManagement = () => {
 
   const handleEditRole = async (user: User) => {
     try {
-      const hasPermission = await canManageUserRoles();
+      const hasPermission = canManageUserRoles(); // Use synchronous check
       if (!hasPermission) {
         toast({
           title: "Access Denied",
@@ -256,6 +289,16 @@ const UsersManagement = () => {
             title="User Management"
             description="Manage user accounts and roles"
           />
+          <Button 
+            onClick={() => {
+              // Navigate to admin users page for enhanced user management
+              window.location.href = '/admin/users';
+            }}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Advanced User Management
+          </Button>
         </div>
 
         <Card>
@@ -275,7 +318,7 @@ const UsersManagement = () => {
           <EmptyState
             icon={Users}
             title="No users found"
-            description="No users found matching your criteria."
+            description="No users found matching your criteria. Try adjusting your search or visit the Advanced User Management page."
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

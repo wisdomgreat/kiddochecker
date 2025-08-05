@@ -1,16 +1,16 @@
 
 import ModernLayout from "@/components/layout/ModernLayout";
-import ReportsAndAnalytics from "@/components/admin/ReportsAndAnalytics";
+import AdminUserManagement from "@/components/admin/AdminUserManagement";
 import RoleGuard from "@/components/security/RoleGuard";
 
-const ReportsPage = () => {
+const AdminUsersPage = () => {
   return (
     <ModernLayout>
       <RoleGuard requireAdminAccess>
-        <ReportsAndAnalytics />
+        <AdminUserManagement />
       </RoleGuard>
     </ModernLayout>
   );
 };
 
-export default ReportsPage;
+export default AdminUsersPage;
