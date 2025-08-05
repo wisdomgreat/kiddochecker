@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { AuthRedirectHandler } from "@/components/auth/AuthRedirectHandler";
+import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import ParentRegistrationPage from "./pages/ParentRegistrationPage";
 import Dashboard from "./pages/Dashboard";
@@ -20,16 +22,11 @@ const StaffManagement = lazy(() => import("./pages/StaffManagement"));
 const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const DeviceManagementPage = lazy(() => import("./pages/DeviceManagementPage"));
 
-// Create PublicRoute component for routes that should only be accessible when not authenticated
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  return <>{children}</>;
-};
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60000,
-      gcTime: 120000, // Updated from cacheTime to gcTime
+      gcTime: 120000,
       refetchOnMount: false,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
@@ -42,86 +39,75 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Sonner 
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: 'hsl(var(--background))',
-                color: 'hsl(var(--foreground))',
-                border: '1px solid hsl(var(--border))',
-              },
-              className: 'bg-background text-foreground border-border',
-            }}
-          />
-          <BrowserRouter>
-            <Routes>
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginPage />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/parent-registration"
-                element={
-                  <PublicRoute>
-                    <ParentRegistrationPage />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/parent-dashboard"
-                element={
-                  <ProtectedRoute>
-                    <RoleGuard requireParentAccess>
-                      <ParentDashboard />
-                    </RoleGuard>
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/checkin" element={<CheckInKiosk />} />
-              <Route path="/checkout" element={<CheckOutStation />} />
-              <Route path="/admin/users" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <AdminUsersPage />
-                </Suspense>
-              } />
-              <Route path="/staff-management" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <StaffManagement />
-                </Suspense>
-              } />
-              <Route path="/user-management" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <UserManagementPage />
-                </Suspense>
-              } />
-              <Route path="/device-management" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <DeviceManagementPage />
-                </Suspense>
-              } />
-            </Routes>
-          </BrowserRouter>
+          <AuthRedirectHandler>
+            <Toaster />
+            <Sonner 
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  border: '1px solid hsl(var(--border))',
+                },
+                className: 'bg-background text-foreground border-border',
+              }}
+            />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/landing" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/parent-registration" element={<ParentRegistrationPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/parent-dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <RoleGuard requireParentAccess>
+                        <ParentDashboard />
+                      </RoleGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/checkin" element={<CheckInKiosk />} />
+                <Route path="/checkout" element={<CheckOutStation />} />
+                <Route path="/admin/users" element={
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <AdminUsersPage />
+                  </Suspense>
+                } />
+                <Route path="/staff-management" element={
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <StaffManagement />
+                  </Suspense>
+                } />
+                <Route path="/user-management" element={
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <UserManagementPage />
+                  </Suspense>
+                } />
+                <Route path="/device-management" element={
+                  <Suspense fallback={<div>Loading...</div>}>
+                    <DeviceManagementPage />
+                  </Suspense>
+                } />
+              </Routes>
+            </BrowserRouter>
+          </AuthRedirectHandler>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

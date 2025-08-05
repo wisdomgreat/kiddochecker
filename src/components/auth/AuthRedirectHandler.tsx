@@ -17,12 +17,11 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
   useEffect(() => {
     if (!loading && user && userRole) {
       const isOnLoginPage = location.pathname === '/login';
-      const isOnLandingPage = location.pathname === '/landing';
       const isOnRegisterPage = location.pathname === '/parent-registration';
       const isOnRootPage = location.pathname === '/';
       const isOnSetupPage = location.pathname === '/organization-setup';
-      const isOnCheckInKiosk = location.pathname === '/check-in-kiosk';
-      const isOnCheckOutStation = location.pathname === '/check-out-station';
+      const isOnCheckInKiosk = location.pathname === '/checkin';
+      const isOnCheckOutStation = location.pathname === '/checkout';
       
       // Don't redirect if on kiosk/station pages
       if (isOnCheckInKiosk || isOnCheckOutStation) {
@@ -34,14 +33,23 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
         return;
       }
       
-      // Redirect to appropriate dashboard if on login/landing/register/root pages
-      if (isOnLoginPage || isOnLandingPage || isOnRegisterPage || isOnRootPage) {
-        console.log('Redirecting user to dashboard, role:', userRole);
+      // Redirect to appropriate dashboard if on login/register/root pages
+      if (isOnLoginPage || isOnRegisterPage || isOnRootPage) {
+        console.log('Redirecting authenticated user to dashboard, role:', userRole);
         navigateToDashboard();
       }
     } else if (!loading && !user) {
-      // Redirect unauthenticated users to landing page if they're on protected routes
+      // Redirect unauthenticated users to landing page only if they're trying to access protected routes
       const publicRoutes = ['/landing', '/login', '/parent-registration', '/organization-setup'];
+      const isOnRootPage = location.pathname === '/';
+      
+      // If user is on root page, redirect to landing
+      if (isOnRootPage) {
+        navigate('/landing');
+        return;
+      }
+      
+      // If user is trying to access a protected route, redirect to landing
       if (!publicRoutes.includes(location.pathname)) {
         navigate('/landing');
       }
