@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface CheckInData {
@@ -16,8 +17,8 @@ export class AttendanceService {
     try {
       console.log("Checking in child:", data.childId);
       
-      // Use the new database function for check-in
-      const { data: result, error } = await supabase.rpc('checkin_child', {
+      // Use direct RPC call with proper error handling
+      const { data: result, error } = await supabase.rpc('checkin_child' as any, {
         p_child_id: data.childId,
         p_class_id: data.classId || null,
         p_checked_in_by: data.checkedInBy || null
@@ -40,8 +41,8 @@ export class AttendanceService {
     try {
       console.log("Checking out child with attendance ID:", data.attendanceId);
       
-      // Use the new database function for check-out
-      const { data: result, error } = await supabase.rpc('checkout_child', {
+      // Use direct RPC call with proper error handling
+      const { data: result, error } = await supabase.rpc('checkout_child' as any, {
         p_attendance_id: data.attendanceId,
         p_checked_out_by: data.checkedOutBy || null
       });

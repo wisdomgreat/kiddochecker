@@ -61,7 +61,7 @@ export const checkoutChild = async (attendanceId: string, checkedOutBy?: string)
   try {
     console.log("Checking out child with attendance ID:", attendanceId);
     
-    const { data, error } = await supabase.rpc('checkout_child', {
+    const { data, error } = await supabase.rpc('checkout_child' as any, {
       p_attendance_id: attendanceId,
       p_checked_out_by: checkedOutBy || null
     });
