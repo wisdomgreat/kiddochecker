@@ -1,3 +1,4 @@
+
 export const PERMISSIONS = {
   // User Management
   VIEW_USERS: 'view_users',
@@ -85,4 +86,44 @@ export const hasRoleOrHigher = (userRole: string, requiredRole: string): boolean
   
   const hierarchy = ROLE_HIERARCHY[userRole as keyof typeof ROLE_HIERARCHY];
   return hierarchy?.includes(requiredRole as any) || false;
+};
+
+export const getAdminDashboardStats = async () => {
+  try {
+    // Mock data for now - would fetch from actual database
+    return {
+      total_users: 150,
+      active_users: 142,
+      total_children: 85,
+      total_classes: 12,
+      todays_attendance: 67,
+      pending_checkouts: 3,
+      user_roles_breakdown: {
+        admin: 2,
+        teacher: 8,
+        teacher_assistant: 4,
+        staff: 6,
+        parent: 130
+      },
+      recent_activity: [
+        { date: '2025-01-01', checkins: 45, checkouts: 43 },
+        { date: '2025-01-02', checkins: 52, checkouts: 50 },
+        { date: '2025-01-03', checkins: 38, checkouts: 36 },
+        { date: '2025-01-04', checkins: 67, checkouts: 65 },
+        { date: '2025-01-05', checkins: 54, checkouts: 52 }
+      ]
+    };
+  } catch (error) {
+    console.error('Error fetching admin dashboard stats:', error);
+    return {
+      total_users: 0,
+      active_users: 0,
+      total_children: 0,
+      total_classes: 0,
+      todays_attendance: 0,
+      pending_checkouts: 0,
+      user_roles_breakdown: {},
+      recent_activity: []
+    };
+  }
 };
