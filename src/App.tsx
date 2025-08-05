@@ -9,11 +9,11 @@ import { AuthProvider } from "@/context/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import ParentRegistrationPage from "./pages/ParentRegistrationPage";
 import Dashboard from "./pages/Dashboard";
-import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import ProtectedRoute from "./components/layout/ProtectedRoute";
 import RoleGuard from "./components/security/RoleGuard";
 import ParentDashboard from "./pages/ParentDashboard";
-import CheckinKiosk from "./pages/CheckinKiosk";
-import CheckoutStation from "./pages/CheckoutStation";
+import CheckInKiosk from "./pages/CheckInKiosk";
+import CheckOutStation from "./pages/CheckOutStation";
 
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
@@ -98,8 +98,8 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/checkin" element={<CheckinKiosk />} />
-              <Route path="/checkout" element={<CheckoutStation />} />
+              <Route path="/checkin" element={<CheckInKiosk />} />
+              <Route path="/checkout" element={<CheckOutStation />} />
               <Route path="/admin/users" element={
                 <Suspense fallback={<div>Loading...</div>}>
                   <AdminUsersPage />
