@@ -13,7 +13,7 @@ const ModernLayout = ({ children }: ModernLayoutProps) => {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <main className="flex-1 overflow-auto">
-          <div className="container mx-auto p-6 max-w-7xl">
+          <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
             {children}
           </div>
         </main>

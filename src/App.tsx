@@ -1,3 +1,4 @@
+
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,9 +11,7 @@ import LoginPage from '@/pages/LoginPage';
 import ParentRegistration from '@/pages/ParentRegistration';
 import ParentDashboardPage from '@/pages/ParentDashboardPage';
 import AdminDashboardPage from '@/pages/AdminDashboardPage';
-import ManagementDashboard from '@/pages/ManagementDashboard';
 import AdminUsersPage from '@/pages/AdminUsersPage';
-import CheckInPage from '@/pages/CheckInPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,13 +33,11 @@ function App() {
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/parent-registration" element={<ParentRegistration />} />
-              <Route path="/check-in" element={<CheckInPage />} />
               
               {/* Protected Routes */}
               <Route path="/dashboard" element={<Navigate to="/parent-dashboard" replace />} />
               <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
               <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
-              <Route path="/management" element={<ManagementDashboard />} />
               <Route path="/admin/users" element={<AdminUsersPage />} />
               
               {/* Default redirect */}

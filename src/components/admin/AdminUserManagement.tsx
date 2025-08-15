@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AddUserModal from "./AddUserModal";
 import EditUserModal from "./EditUserModal";
 import { AppRole } from "@/types/supabase";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { useAuth } from "@/context/AuthContext";
 
 interface AdminUser {
   id: string;
@@ -30,21 +30,19 @@ interface AdminUser {
 const AdminUserManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isAdmin, canCreateUsers, canDeleteUsers } = useAdminPermissions();
+  const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
-  // Fetch all users with enhanced query
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async (): Promise<AdminUser[]> => {
       try {
         console.log('Fetching all users for admin...');
         
-        // Use direct RPC call to get users with roles
         const { data, error } = await supabase.rpc('get_users_with_roles');
         
         if (error) {
@@ -54,7 +52,6 @@ const AdminUserManagement = () => {
         
         console.log('Admin users data:', data);
         
-        // Transform data to match AdminUser interface
         return (data || []).map((user: any) => ({
           id: user.id,
           email: user.email || '',
@@ -99,21 +96,11 @@ const AdminUserManagement = () => {
   };
 
   const handleDeleteUser = async (user: AdminUser) => {
-    if (!canDeleteUsers) {
-      toast({
-        title: 'Permission Denied',
-        description: 'You do not have permission to delete users',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     if (!window.confirm(`Are you sure you want to delete ${user.first_name} ${user.last_name}?`)) {
       return;
     }
 
     try {
-      // This would require admin API access
       toast({
         title: 'Delete User',
         description: `User deletion requires additional admin privileges`,
@@ -146,7 +133,7 @@ const AdminUserManagement = () => {
         <CardContent className="flex flex-col items-center justify-center py-12">
           <Shield className="h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
-          <p className="text-gray-500">You don't have permission to manage users.</p>
+          <p className="text-gray-500 text-center">You don't have permission to manage users.</p>
         </CardContent>
       </Card>
     );
@@ -162,23 +149,21 @@ const AdminUserManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="text-left">
           <h2 className="text-2xl font-bold">User Management</h2>
           <p className="text-gray-600">Manage all users in the system</p>
         </div>
-        {canCreateUsers && (
-          <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700">
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
-        )}
+        <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add User
+        </Button>
       </div>
 
       {/* Search and Filter */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
@@ -189,7 +174,7 @@ const AdminUserManagement = () => {
               />
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
               <SelectContent>
@@ -212,11 +197,11 @@ const AdminUserManagement = () => {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-            <p className="text-gray-500">No users match your current search criteria.</p>
+            <p className="text-gray-500 text-center">No users match your current search criteria.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredUsers.map((user) => (
             <Card key={user.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
@@ -227,7 +212,7 @@ const AdminUserManagement = () => {
                         {user.first_name?.[0]}{user.last_name?.[0]}
                       </span>
                     </div>
-                    <div>
+                    <div className="text-left">
                       <CardTitle className="text-base">
                         {user.first_name} {user.last_name}
                       </CardTitle>
@@ -238,11 +223,9 @@ const AdminUserManagement = () => {
                     <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    {canDeleteUsers && (
-                      <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    )}
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user)}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -275,16 +258,14 @@ const AdminUserManagement = () => {
         </div>
       )}
 
-      {canCreateUsers && (
-        <AddUserModal 
-          open={showAddModal} 
-          onOpenChange={setShowAddModal}
-          onSuccess={() => {
-            setShowAddModal(false);
-            refetch();
-          }}
-        />
-      )}
+      <AddUserModal 
+        open={showAddModal} 
+        onOpenChange={setShowAddModal}
+        onSuccess={() => {
+          setShowAddModal(false);
+          refetch();
+        }}
+      />
 
       <EditUserModal
         open={showEditModal}

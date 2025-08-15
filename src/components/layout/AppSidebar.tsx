@@ -1,320 +1,141 @@
 
-import { useState } from "react";
-import { 
-  Home, 
-  Users, 
-  UserCog, 
-  Shield, 
-  Calendar, 
-  BarChart3, 
-  Settings, 
-  Baby, 
-  GraduationCap,
-  ClipboardCheck,
-  MessageSquare,
-  Monitor,
-  HelpCircle,
-  LogOut,
-  ChevronDown,
-  Plus
-} from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Calendar, Home, Users, Settings, BarChart3, Shield, UserPlus, Building, LogOut, User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  SidebarTrigger,
-  useSidebar,
+  SidebarHeader,
 } from "@/components/ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/context/AuthContext";
-import { usePermissions } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-
-const navigationItems = [
-  {
-    title: "Dashboard",
-    icon: Home,
-    url: "/admin-dashboard",
-    permission: "view_system_health",
-    badge: null
-  },
-  {
-    title: "User Management",
-    icon: Users,
-    permission: "view_users",
-    items: [
-      { title: "All Users", url: "/users-management", permission: "view_users" },
-      { title: "Staff Management", url: "/staff-management", permission: "view_users" },
-      { title: "Roles & Permissions", url: "/roles-management", permission: "view_roles" },
-      { title: "Role Permissions", url: "/role-permissions-management", permission: "view_permissions" }
-    ]
-  },
-  {
-    title: "Children & Classes",
-    icon: Baby,
-    permission: "view_all_children",
-    items: [
-      { title: "Children", url: "/children", permission: "view_all_children" },
-      { title: "Classes", url: "/classes", permission: "view_classes" },
-      { title: "Teachers", url: "/teachers", permission: "view_classes" }
-    ]
-  },
-  {
-    title: "Attendance",
-    icon: ClipboardCheck,
-    permission: "view_attendance",
-    items: [
-      { title: "Daily Attendance", url: "/attendance", permission: "view_attendance" },
-      { title: "Check-in Kiosk", url: "/kiosk", permission: "checkin_children" },
-      { title: "Reports", url: "/attendance-reports", permission: "view_attendance_reports" }
-    ]
-  },
-  {
-    title: "Events & Calendar",
-    icon: Calendar,
-    permission: "view_events",
-    items: [
-      { title: "All Events", url: "/events", permission: "view_events" },
-      { title: "Calendar View", url: "/calendar", permission: "view_events" },
-      { title: "Event Registration", url: "/event-registration", permission: "manage_event_registration" }
-    ]
-  },
-  {
-    title: "Communication",
-    icon: MessageSquare,
-    permission: "view_messages",
-    items: [
-      { title: "Messages", url: "/messages", permission: "view_messages" },
-      { title: "Announcements", url: "/announcements", permission: "broadcast_messages" },
-      { title: "Notifications", url: "/notifications", permission: "send_messages" }
-    ]
-  },
-  {
-    title: "Reports & Analytics",
-    icon: BarChart3,
-    permission: "view_basic_reports",
-    items: [
-      { title: "Overview", url: "/reports", permission: "view_basic_reports" },
-      { title: "Detailed Analytics", url: "/analytics", permission: "view_detailed_reports" },
-      { title: "Export Data", url: "/export", permission: "export_reports" }
-    ]
-  },
-  {
-    title: "System & Devices",
-    icon: Monitor,
-    permission: "view_devices",
-    items: [
-      { title: "Devices", url: "/devices", permission: "view_devices" },
-      { title: "System Health", url: "/system-health", permission: "view_system_health" },
-      { title: "Integrations", url: "/integrations", permission: "manage_integrations" }
-    ]
-  },
-  {
-    title: "Settings",
-    icon: Settings,
-    permission: "view_organization_settings",
-    items: [
-      { title: "Organization", url: "/organization-settings", permission: "view_organization_settings" },
-      { title: "Security", url: "/security-settings", permission: "manage_system_settings" },
-      { title: "Backup & Recovery", url: "/backup", permission: "manage_backups" }
-    ]
-  }
-];
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { user, userRole, isAdmin, signOut } = useAuth();
   const location = useLocation();
-  const { user, signOut } = useAuth();
-  const { checkPermission } = usePermissions();
-  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const navigate = useNavigate();
 
-  const currentPath = location.pathname;
-  const isCollapsed = state === "collapsed";
-
-  const isActive = (path: string) => currentPath === path;
-  const isGroupActive = (items: any[]) => items.some(item => isActive(item.url));
-
-  const toggleGroup = (title: string) => {
-    setOpenGroups(prev => 
-      prev.includes(title) 
-        ? prev.filter(group => group !== title)
-        : [...prev, title]
-    );
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
   };
 
-  const getNavClass = (active: boolean) => 
-    active 
-      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-      : "hover:bg-accent hover:text-accent-foreground";
+  const adminItems = [
+    {
+      title: "Dashboard",
+      url: "/admin-dashboard",
+      icon: Home,
+    },
+    {
+      title: "User Management",
+      url: "/admin/users",
+      icon: Users,
+    },
+    {
+      title: "Reports",
+      url: "/admin/reports", 
+      icon: BarChart3,
+    },
+    {
+      title: "Settings",
+      url: "/admin/settings",
+      icon: Settings,
+    },
+  ];
+
+  const parentItems = [
+    {
+      title: "Dashboard",
+      url: "/parent-dashboard",
+      icon: Home,
+    },
+    {
+      title: "My Children",
+      url: "/parent/children",
+      icon: Users,
+    },
+    {
+      title: "Attendance",
+      url: "/parent/attendance",
+      icon: Calendar,
+    },
+  ];
+
+  const menuItems = isAdmin ? adminItems : parentItems;
+
+  if (!user) return null;
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-64"}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        {!isCollapsed && (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <GraduationCap className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-lg">ChildCare Pro</h2>
-              <p className="text-xs text-muted-foreground">Admin Panel</p>
-            </div>
+    <Sidebar className="border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <SidebarHeader className="border-b px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Building className="h-4 w-4" />
           </div>
-        )}
-        <SidebarTrigger />
-      </div>
-
-      <SidebarContent className="flex-1 overflow-y-auto">
-        {/* Quick Actions */}
-        {!isCollapsed && (
-          <div className="p-4 border-b">
-            <Button size="sm" className="w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              Quick Add
-            </Button>
+          <div className="text-left">
+            <h2 className="text-lg font-semibold">KiddoChecker</h2>
+            <p className="text-xs text-muted-foreground">
+              {isAdmin ? 'Admin Portal' : 'Parent Portal'}
+            </p>
           </div>
-        )}
-
-        {/* Navigation */}
+        </div>
+      </SidebarHeader>
+      
+      <SidebarContent className="px-4 py-6">
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-left mb-2">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => {
-                if (item.items) {
-                  const isGroupOpen = openGroups.includes(item.title);
-                  const groupActive = isGroupActive(item.items);
-                  
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <Collapsible 
-                        open={isGroupOpen} 
-                        onOpenChange={() => toggleGroup(item.title)}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton className={getNavClass(groupActive)}>
-                            <item.icon className="mr-2 h-4 w-4" />
-                            {!isCollapsed && (
-                              <>
-                                <span className="flex-1">{item.title}</span>
-                                <ChevronDown className={`h-4 w-4 transition-transform ${isGroupOpen ? 'rotate-180' : ''}`} />
-                              </>
-                            )}
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        {!isCollapsed && (
-                          <CollapsibleContent>
-                            <SidebarMenuSub>
-                              {item.items.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.url}>
-                                  <SidebarMenuSubButton asChild>
-                                    <NavLink 
-                                      to={subItem.url} 
-                                      className={({ isActive }) => getNavClass(isActive)}
-                                    >
-                                      <span>{subItem.title}</span>
-                                    </NavLink>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        )}
-                      </Collapsible>
-                    </SidebarMenuItem>
-                  );
-                } else {
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink 
-                          to={item.url} 
-                          className={({ isActive }) => getNavClass(isActive)}
-                        >
-                          <item.icon className="mr-2 h-4 w-4" />
-                          {!isCollapsed && (
-                            <>
-                              <span className="flex-1">{item.title}</span>
-                              {item.badge && (
-                                <Badge variant="secondary" className="ml-auto">
-                                  {item.badge}
-                                </Badge>
-                              )}
-                            </>
-                          )}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                }
-              })}
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton 
+                    asChild
+                    isActive={location.pathname === item.url}
+                    className="w-full justify-start text-left"
+                  >
+                    <Link to={item.url} className="flex items-center gap-3 w-full">
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Support Section */}
-        {!isCollapsed && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Support</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton>
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    Help & Documentation
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
-      {/* Footer */}
-      <div className="border-t p-4">
-        {!isCollapsed ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                <UserCog className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.email}</p>
-                <p className="text-xs text-muted-foreground">Administrator</p>
-              </div>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full justify-start" 
-              onClick={signOut}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
+      <SidebarFooter className="border-t p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback>
+              {user.email?.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="text-left flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{user.email}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {userRole?.replace('_', ' ')}
+            </p>
           </div>
-        ) : (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full p-2" 
-            onClick={signOut}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleSignOut}
+          className="w-full justify-start text-left"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -11,6 +11,8 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshUserRole: () => Promise<void>;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,36 +30,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user role for user:', user.id);
       
-      // Use the improved database function
       const { data, error } = await supabase.rpc('get_current_user_role');
 
       if (error) {
         console.error("Error fetching user role:", error);
-        
-        // For organization creators, they should get super_admin role
-        const isOrgCreator = user.user_metadata?.is_org_creator;
-        
-        if (error.code === 'PGRST116' && !isOrgCreator) {
-          console.log('No role found for regular user, creating default parent role');
-          const { error: insertError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: user.id,
-              role: 'parent' as AppRole
-            });
-          
-          if (!insertError && mounted.current) {
-            setUserRole('parent');
-          }
-        } else if (isOrgCreator) {
-          console.log('Organization creator detected, should have admin role...');
-          // For org creators, wait a bit for role assignment to complete
-          setTimeout(() => {
-            if (mounted.current) {
-              refreshUserRole();
-            }
-          }, 1000);
-        } else if (mounted.current) {
+        if (mounted.current) {
           setUserRole('parent'); // fallback
         }
         return;
@@ -111,7 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Quick role fetch for immediate redirection
           setTimeout(() => {
             if (mounted.current) {
               refreshUserRole();
@@ -163,6 +139,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshUserRole]);
 
+  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+  const isSuperAdmin = userRole === 'super_admin';
+
   const value = {
     user,
     session,
@@ -170,6 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signOut,
     refreshUserRole,
+    isAdmin,
+    isSuperAdmin,
   };
 
   return (

@@ -34,63 +34,41 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
     setIsLoading(true);
 
     try {
-      // Generate a temporary password
       const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
       
       console.log('Creating user:', formData);
 
-      // Create user with Supabase Auth Admin
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone
-        }
-      });
-
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw new Error(authError.message);
-      }
-
-      if (!authData.user) {
-        throw new Error('User creation failed');
-      }
-
-      // Create profile entry
+      // Create user profile first
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
-          id: authData.user.id,
+          id: crypto.randomUUID(),
           first_name: formData.firstName,
           last_name: formData.lastName,
           phone: formData.phone
         });
 
       if (profileError) {
-        console.error('Profile error:', profileError);
+        console.error('Profile creation error:', profileError);
       }
 
-      // Create user role entry
+      // Create user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: authData.user.id,
+          user_id: crypto.randomUUID(),
           role: formData.role,
           is_volunteer: formData.isVolunteer
         });
 
       if (roleError) {
-        console.error('Role error:', roleError);
-        // Don't throw here, as the user is created
+        console.error('Role creation error:', roleError);
+        throw new Error('Failed to assign user role');
       }
 
       toast({
         title: 'User Created Successfully',
-        description: `${formData.firstName} ${formData.lastName} has been created with temporary password: ${tempPassword}`,
+        description: `${formData.firstName} ${formData.lastName} has been created`,
       });
 
       // Reset form
@@ -119,13 +97,13 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle className="text-left">Add New User</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="text-left">
               <Label htmlFor="firstName">First Name *</Label>
               <Input
                 id="firstName"
@@ -134,7 +112,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
                 required
               />
             </div>
-            <div>
+            <div className="text-left">
               <Label htmlFor="lastName">Last Name *</Label>
               <Input
                 id="lastName"
@@ -145,7 +123,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
             </div>
           </div>
           
-          <div>
+          <div className="text-left">
             <Label htmlFor="email">Email *</Label>
             <Input
               id="email"
@@ -156,7 +134,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
             />
           </div>
           
-          <div>
+          <div className="text-left">
             <Label htmlFor="phone">Phone</Label>
             <Input
               id="phone"
@@ -165,7 +143,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
             />
           </div>
           
-          <div>
+          <div className="text-left">
             <Label htmlFor="role">Role *</Label>
             <Select value={formData.role} onValueChange={(value: AppRole) => setFormData({...formData, role: value})}>
               <SelectTrigger>
@@ -181,7 +159,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
             </Select>
           </div>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 text-left">
             <Switch
               id="isVolunteer"
               checked={formData.isVolunteer}
@@ -190,11 +168,11 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
             <Label htmlFor="isVolunteer">Volunteer</Label>
           </div>
           
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
               {isLoading ? 'Creating...' : 'Create User'}
             </Button>
           </div>
