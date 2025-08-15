@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AddUserModal from "./AddUserModal";
 import EditUserModal from "./EditUserModal";
 import { AppRole } from "@/types/supabase";
+import { useAdminPermissions } from "@/hooks/useAdminPermissions";
 
 interface AdminUser {
   id: string;
@@ -29,6 +30,7 @@ interface AdminUser {
 const AdminUserManagement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAdmin, canCreateUsers, canDeleteUsers } = useAdminPermissions();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -43,7 +45,7 @@ const AdminUserManagement = () => {
         console.log('Fetching all users for admin...');
         
         // Use direct RPC call to get users with roles
-        const { data, error } = await supabase.rpc('get_users_with_roles' as any);
+        const { data, error } = await supabase.rpc('get_users_with_roles');
         
         if (error) {
           console.error('Error fetching users:', error);
@@ -77,6 +79,7 @@ const AdminUserManagement = () => {
     },
     retry: 2,
     staleTime: 30000,
+    enabled: isAdmin,
   });
 
   const filteredUsers = users.filter(user => {
@@ -96,15 +99,25 @@ const AdminUserManagement = () => {
   };
 
   const handleDeleteUser = async (user: AdminUser) => {
+    if (!canDeleteUsers) {
+      toast({
+        title: 'Permission Denied',
+        description: 'You do not have permission to delete users',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!window.confirm(`Are you sure you want to delete ${user.first_name} ${user.last_name}?`)) {
       return;
     }
 
     try {
-      // For now, just show a confirmation - actual deletion would need admin API
+      // This would require admin API access
       toast({
         title: 'Delete User',
-        description: `User ${user.first_name} ${user.last_name} would be deleted (admin function required)`,
+        description: `User deletion requires additional admin privileges`,
+        variant: 'destructive',
       });
     } catch (error) {
       toast({
@@ -127,6 +140,18 @@ const AdminUserManagement = () => {
     }
   };
 
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <Shield className="h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Access Denied</h3>
+          <p className="text-gray-500">You don't have permission to manage users.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -142,10 +167,12 @@ const AdminUserManagement = () => {
           <h2 className="text-2xl font-bold">User Management</h2>
           <p className="text-gray-600">Manage all users in the system</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700">
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
+        {canCreateUsers && (
+          <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        )}
       </div>
 
       {/* Search and Filter */}
@@ -211,9 +238,11 @@ const AdminUserManagement = () => {
                     <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                    {canDeleteUsers && (
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -246,14 +275,16 @@ const AdminUserManagement = () => {
         </div>
       )}
 
-      <AddUserModal 
-        open={showAddModal} 
-        onOpenChange={setShowAddModal}
-        onSuccess={() => {
-          setShowAddModal(false);
-          refetch();
-        }}
-      />
+      {canCreateUsers && (
+        <AddUserModal 
+          open={showAddModal} 
+          onOpenChange={setShowAddModal}
+          onSuccess={() => {
+            setShowAddModal(false);
+            refetch();
+          }}
+        />
+      )}
 
       <EditUserModal
         open={showEditModal}
