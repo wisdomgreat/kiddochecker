@@ -39,16 +39,51 @@ const ParentChildManagement = () => {
       if (!user) return [];
       
       try {
-        const { data, error } = await supabase.rpc('get_parent_children_with_classes', {
+        // Try to use the RPC function first
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
           parent_user_id: user.id
         });
+        
+        if (!rpcError && rpcData) {
+          // Map the RPC result to match our Child interface
+          return rpcData.map((child: any) => ({
+            id: child.child_id,
+            first_name: child.first_name,
+            last_name: child.last_name,
+            age: child.age,
+            allergies: child.allergies,
+            medical_info: child.medical_info,
+            emergency_contact_name: child.emergency_contact_name,
+            emergency_contact_phone: child.emergency_contact_phone,
+            current_class_name: child.current_class_name,
+            is_present: false, // Default value
+          }));
+        }
+        
+        // Fallback to direct query
+        const { data, error } = await supabase
+          .from('children')
+          .select('*')
+          .eq('parent_id', user.id)
+          .order('first_name');
         
         if (error) {
           console.error('Error fetching children:', error);
           throw error;
         }
         
-        return data || [];
+        return (data || []).map(child => ({
+          id: child.id,
+          first_name: child.first_name,
+          last_name: child.last_name,
+          age: child.age,
+          allergies: child.allergies,
+          medical_info: child.medical_info,
+          emergency_contact_name: child.emergency_contact_name,
+          emergency_contact_phone: child.emergency_contact_phone,
+          current_class_name: undefined,
+          is_present: false,
+        }));
       } catch (error) {
         console.error('Error in parent children fetch:', error);
         toast({
