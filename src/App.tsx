@@ -21,6 +21,9 @@ const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
 const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const DeviceManagementPage = lazy(() => import("./pages/DeviceManagementPage"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,6 +77,36 @@ const App = () => {
                   }
                 />
                 <Route
+                  path="/admin-dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                      <Suspense fallback={<div>Loading...</div>}>
+                        <AdminDashboard />
+                      </Suspense>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/staff-dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={['staff', 'admin', 'super_admin']}>
+                      <Suspense fallback={<div>Loading...</div>}>
+                        <StaffDashboard />
+                      </Suspense>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/teacher-dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={['teacher', 'teacher_assistant', 'admin', 'super_admin']}>
+                      <Suspense fallback={<div>Loading...</div>}>
+                        <TeacherDashboard />
+                      </Suspense>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/parent-dashboard"
                   element={
                     <ProtectedRoute>
@@ -86,24 +119,32 @@ const App = () => {
                 <Route path="/checkin" element={<CheckInKiosk />} />
                 <Route path="/checkout" element={<CheckOutStation />} />
                 <Route path="/admin/users" element={
-                  <Suspense fallback={<div>Loading...</div>}>
-                    <AdminUsersPage />
-                  </Suspense>
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      <AdminUsersPage />
+                    </Suspense>
+                  </ProtectedRoute>
                 } />
                 <Route path="/staff-management" element={
-                  <Suspense fallback={<div>Loading...</div>}>
-                    <StaffManagement />
-                  </Suspense>
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      <StaffManagement />
+                    </Suspense>
+                  </ProtectedRoute>
                 } />
                 <Route path="/user-management" element={
-                  <Suspense fallback={<div>Loading...</div>}>
-                    <UserManagementPage />
-                  </Suspense>
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      <UserManagementPage />
+                    </Suspense>
+                  </ProtectedRoute>
                 } />
                 <Route path="/device-management" element={
-                  <Suspense fallback={<div>Loading...</div>}>
-                    <DeviceManagementPage />
-                  </Suspense>
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      <DeviceManagementPage />
+                    </Suspense>
+                  </ProtectedRoute>
                 } />
               </Routes>
             </AuthRedirectHandler>

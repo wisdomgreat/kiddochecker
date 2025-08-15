@@ -1,237 +1,161 @@
 
-import { useState } from "react";
-import ModernLayout from "@/components/layout/ModernLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  Users,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Calendar,
-  MessageSquare,
-  QrCode
-} from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
-import RoleGuard from "@/components/security/RoleGuard";
+import { useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import MainLayout from '@/components/layout/MainLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Users, Calendar, Clock, MessageSquare, CheckSquare, AlertCircle } from 'lucide-react';
 
 const StaffDashboard = () => {
-  const { user } = useAuth();
+  const { user, userRole, loading } = useAuth();
   const navigate = useNavigate();
-  const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // Fetch today's attendance
-  const { data: todayAttendance = [], isLoading } = useQuery({
-    queryKey: ["today-attendance", selectedDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .select(`
-          *,
-          children (first_name, last_name, allergies),
-          classes (name)
-        `)
-        .eq('attendance_date', selectedDate);
-      
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  useEffect(() => {
+    if (!loading && (!user || !['staff', 'admin', 'super_admin'].includes(userRole || ''))) {
+      navigate('/landing');
+    }
+  }, [user, userRole, loading, navigate]);
 
-  // Fetch all children for quick stats
-  const { data: allChildren = [] } = useQuery({
-    queryKey: ["all-children"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('children')
-        .select('*');
-      
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const checkedInCount = todayAttendance.filter(record => !record.checked_out_at).length;
-  const checkedOutCount = todayAttendance.filter(record => record.checked_out_at).length;
-  const childrenWithAllergies = todayAttendance.filter(record => record.children?.allergies).length;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   const quickActions = [
     {
-      title: "Check-In Kiosk",
-      description: "Quick check-in for arrivals",
-      icon: QrCode,
-      color: "bg-green-100 text-green-600",
-      action: () => navigate('/check-in-kiosk')
+      title: 'Check-in Children',
+      description: 'Manually check-in children',
+      icon: CheckSquare,
+      action: () => navigate('/checkin'),
+      color: 'bg-green-500 hover:bg-green-600'
     },
     {
-      title: "Attendance Management",
-      description: "Manage daily attendance",
-      icon: Users,
-      color: "bg-blue-100 text-blue-600",
-      action: () => navigate('/attendance')
-    },
-    {
-      title: "View All Children",
-      description: "Browse all registered children",
-      icon: Users,
-      color: "bg-purple-100 text-purple-600",
-      action: () => navigate('/children')
-    },
-    {
-      title: "Real-time Dashboard",
-      description: "Live attendance tracking",
+      title: 'Check-out Children',
+      description: 'Process child check-outs',
       icon: Clock,
-      color: "bg-orange-100 text-orange-600",
-      action: () => navigate('/staff-realtime-dashboard')
+      action: () => navigate('/checkout'),
+      color: 'bg-blue-500 hover:bg-blue-600'
+    },
+    {
+      title: 'View Children',
+      description: 'View all children in system',
+      icon: Users,
+      action: () => navigate('/children'),
+      color: 'bg-purple-500 hover:bg-purple-600'
+    },
+    {
+      title: 'Send Messages',
+      description: 'Communicate with parents',
+      icon: MessageSquare,
+      action: () => navigate('/messages'),
+      color: 'bg-orange-500 hover:bg-orange-600'
     }
   ];
 
   return (
-    <RoleGuard requireStaffAccess>
-      <ModernLayout>
-        <div className="space-y-6">
-          {/* Header */}
+    <MainLayout>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Staff Dashboard</h1>
-            <p className="text-muted-foreground">Manage daily operations and track attendance</p>
+            <h1 className="text-3xl font-bold text-gray-900">Staff Dashboard</h1>
+            <p className="text-gray-600 mt-2">Welcome back, {user?.email}. Ready to help today?</p>
           </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Checked In Today</p>
-                    <p className="text-2xl font-bold">{checkedInCount}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <XCircle className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Checked Out</p>
-                    <p className="text-2xl font-bold">{checkedOutCount}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">With Allergies Present</p>
-                    <p className="text-2xl font-bold">{childrenWithAllergies}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-purple-600" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Registered</p>
-                    <p className="text-2xl font-bold">{allChildren.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-5 w-5 text-blue-500" />
+            <span className="text-sm font-medium text-blue-600">Staff Access</span>
           </div>
+        </div>
 
-          {/* Quick Actions */}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Children Present</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {quickActions.map((action, index) => (
-                  <div
-                    key={index}
-                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={action.action}
-                  >
-                    <div className={`w-12 h-12 rounded-lg ${action.color} flex items-center justify-center mb-3`}>
-                      <action.icon className="h-6 w-6" />
-                    </div>
-                    <h3 className="font-medium mb-1">{action.title}</h3>
-                    <p className="text-sm text-muted-foreground">{action.description}</p>
-                  </div>
-                ))}
-              </div>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Currently checked in</p>
             </CardContent>
           </Card>
 
-          {/* Today's Activity */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Today's Activity ({format(new Date(selectedDate), 'MMM dd, yyyy')})
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Check-outs</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="py-8 text-center">Loading today's attendance...</div>
-              ) : todayAttendance.length === 0 ? (
-                <div className="py-8 text-center">
-                  <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium">No attendance records today</h3>
-                  <p className="text-muted-foreground">
-                    Attendance records will appear here as children check in.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {todayAttendance.map((record: any) => (
-                    <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${record.checked_out_at ? 'bg-blue-500' : 'bg-green-500'}`} />
-                        <div>
-                          <p className="font-medium">
-                            {record.children?.first_name} {record.children?.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {record.classes?.name || 'No class assigned'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {record.children?.allergies && (
-                          <Badge variant="destructive" className="text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Allergies
-                          </Badge>
-                        )}
-                        <div className="text-right text-sm">
-                          <p>In: {record.checked_in_at ? format(new Date(record.checked_in_at), 'HH:mm') : '-'}</p>
-                          <p>Out: {record.checked_out_at ? format(new Date(record.checked_out_at), 'HH:mm') : 'Present'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Awaiting pickup</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Today's Check-ins</CardTitle>
+              <CheckSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Total for today</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Messages</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">Unread messages</p>
             </CardContent>
           </Card>
         </div>
-      </ModernLayout>
-    </RoleGuard>
+
+        {/* Quick Actions */}
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {quickActions.map((action, index) => (
+              <Card key={index} className="hover:shadow-md transition-shadow cursor-pointer" onClick={action.action}>
+                <CardContent className="p-6">
+                  <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg ${action.color} text-white mb-4`}>
+                    <action.icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">{action.title}</h3>
+                  <p className="text-sm text-gray-600">{action.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Today's Schedule */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="mr-2 h-5 w-5" />
+              Today's Schedule
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                <p>No scheduled activities for today</p>
+                <p className="text-sm">Check back later for updates</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </MainLayout>
   );
 };
 

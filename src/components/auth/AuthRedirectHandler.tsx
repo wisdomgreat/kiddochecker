@@ -15,42 +15,39 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && user && userRole) {
-      const isOnLoginPage = location.pathname === '/login';
-      const isOnRegisterPage = location.pathname === '/parent-registration';
-      const isOnRootPage = location.pathname === '/';
-      const isOnSetupPage = location.pathname === '/organization-setup';
-      const isOnCheckInKiosk = location.pathname === '/checkin';
-      const isOnCheckOutStation = location.pathname === '/checkout';
+    if (loading) return;
+
+    const isOnLoginPage = location.pathname === '/login';
+    const isOnRegisterPage = location.pathname === '/parent-registration';
+    const isOnRootPage = location.pathname === '/';
+    const isOnLandingPage = location.pathname === '/landing';
+    const isOnCheckInKiosk = location.pathname === '/checkin';
+    const isOnCheckOutStation = location.pathname === '/checkout';
+    
+    // Don't redirect kiosk/station pages
+    if (isOnCheckInKiosk || isOnCheckOutStation) {
+      return;
+    }
+
+    if (user && userRole) {
+      console.log('User authenticated with role:', userRole);
       
-      // Don't redirect if on kiosk/station pages
-      if (isOnCheckInKiosk || isOnCheckOutStation) {
-        return;
-      }
-      
-      // Don't redirect if on setup page and user is admin/super_admin
-      if (isOnSetupPage && (userRole === 'admin' || userRole === 'super_admin')) {
-        return;
-      }
-      
-      // Redirect to appropriate dashboard if on login/register/root pages
-      if (isOnLoginPage || isOnRegisterPage || isOnRootPage) {
-        console.log('Redirecting authenticated user to dashboard, role:', userRole);
+      // Redirect authenticated users away from public pages
+      if (isOnLoginPage || isOnRegisterPage || isOnRootPage || isOnLandingPage) {
+        console.log('Redirecting authenticated user to dashboard');
         navigateToDashboard();
       }
-    } else if (!loading && !user) {
-      // Redirect unauthenticated users to landing page only if they're trying to access protected routes
-      const publicRoutes = ['/landing', '/login', '/parent-registration', '/organization-setup'];
-      const isOnRootPage = location.pathname === '/';
+    } else {
+      console.log('User not authenticated or no role');
       
-      // If user is on root page, redirect to landing
+      // Redirect unauthenticated users to landing page
+      const publicRoutes = ['/landing', '/login', '/parent-registration'];
+      
       if (isOnRootPage) {
+        console.log('Redirecting to landing page from root');
         navigate('/landing');
-        return;
-      }
-      
-      // If user is trying to access a protected route, redirect to landing
-      if (!publicRoutes.includes(location.pathname)) {
+      } else if (!publicRoutes.includes(location.pathname)) {
+        console.log('Redirecting to landing page from protected route');
         navigate('/landing');
       }
     }

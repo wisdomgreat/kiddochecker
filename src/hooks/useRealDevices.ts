@@ -40,18 +40,24 @@ export const useRealDevices = () => {
           return [];
         }
 
-        // Transform data to include online status
-        const devicesWithStatus = data.map(device => ({
-          id: device.id,
-          device_id: device.device_id,
-          name: device.name,
-          type: device.type as 'check_in_kiosk' | 'check_out_station',
-          location: device.location || '',
-          created_at: device.created_at || new Date().toISOString(),
-          updated_at: device.updated_at || new Date().toISOString(),
-          is_online: Math.random() > 0.3, // Simulate online status - replace with real logic
-          last_seen: new Date(Date.now() - Math.random() * 3600000).toISOString()
-        }));
+        // Transform data with real online status calculation
+        const devicesWithStatus = data.map(device => {
+          const lastSeenDate = device.updated_at ? new Date(device.updated_at) : new Date(device.created_at);
+          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+          const isOnline = lastSeenDate > fiveMinutesAgo;
+
+          return {
+            id: device.id,
+            device_id: device.device_id,
+            name: device.name,
+            type: device.type as 'check_in_kiosk' | 'check_out_station',
+            location: device.location || '',
+            created_at: device.created_at || new Date().toISOString(),
+            updated_at: device.updated_at || new Date().toISOString(),
+            is_online: isOnline,
+            last_seen: device.updated_at || device.created_at
+          };
+        });
 
         console.log(`Successfully loaded ${devicesWithStatus.length} devices`);
         return devicesWithStatus;

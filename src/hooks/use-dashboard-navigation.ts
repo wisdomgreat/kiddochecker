@@ -14,14 +14,16 @@ export const useDashboardNavigation = () => {
     }
 
     switch (userRole) {
-      case 'admin':
       case 'super_admin':
+      case 'admin':
         navigate('/admin-dashboard');
         break;
       case 'staff':
+        navigate('/staff-dashboard');
+        break;
       case 'teacher':
       case 'teacher_assistant':
-        navigate('/staff-dashboard');
+        navigate('/teacher-dashboard');
         break;
       case 'parent':
       default:
@@ -34,13 +36,14 @@ export const useDashboardNavigation = () => {
     const currentRole = role || userRole;
     
     switch (currentRole) {
-      case 'admin':
       case 'super_admin':
+      case 'admin':
         return '/admin-dashboard';
       case 'staff':
+        return '/staff-dashboard';
       case 'teacher':
       case 'teacher_assistant':
-        return '/staff-dashboard';
+        return '/teacher-dashboard';
       case 'parent':
       default:
         return '/parent-dashboard';
