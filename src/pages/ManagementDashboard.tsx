@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, Monitor, BookOpen, Shield, Settings, BarChart3 } from "lucide-react";
-import SimpleLayout from "@/components/layout/SimpleLayout";
+import ModernLayout from "@/components/layout/ModernLayout";
 import ManagementCard from "@/components/management/ManagementCard";
 import ManagementHeader from "@/components/management/ManagementHeader";
 import { useManagementNavigation } from "@/hooks/useManagementNavigation";
@@ -28,19 +28,19 @@ const ManagementDashboard = () => {
 
   const managementItems = [
     {
-      title: "Staff Management",
+      title: "User Management",
+      description: "Manage all users and their roles",
+      icon: Users,
+      onClick: navigateToManagement.users,
+      count: usersCount,
+      status: 'active' as const,
+    },
+    {
+      title: "Staff Management", 
       description: "Manage teachers, assistants, and administrative staff",
       icon: Users,
       onClick: navigateToManagement.staff,
       count: staffMembers.length,
-      status: 'active' as const,
-    },
-    {
-      title: "User Management", 
-      description: "Manage user accounts and role assignments",
-      icon: Shield,
-      onClick: navigateToManagement.users,
-      count: usersCount,
       status: 'active' as const,
     },
     {
@@ -76,52 +76,114 @@ const ManagementDashboard = () => {
   ];
 
   return (
-    <SimpleLayout>
+    <ModernLayout>
       <div className="space-y-6">
         <ManagementHeader 
-          title="Management Dashboard"
-          description="Comprehensive management tools for your organization"
+          title="Admin Dashboard"
+          description="Welcome back, manage your organization from here."
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {managementItems.map((item) => (
-            <ManagementCard
-              key={item.title}
-              title={item.title}
-              description={item.description}
-              icon={item.icon}
-              onClick={item.onClick}
-              count={item.count}
-              status={item.status}
-            />
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-blue-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Users</p>
+                  <p className="text-2xl font-bold">{usersCount}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {usersCount} active users
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Shield className="h-8 w-8 text-red-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Admins</p>
+                  <p className="text-2xl font-bold">1</p>
+                  <p className="text-xs text-muted-foreground">
+                    Super admin access
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-green-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Staff</p>
+                  <p className="text-2xl font-bold">{staffMembers.length}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Active staff members
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-amber-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Parents</p>
+                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-xs text-muted-foreground">
+                    Registered parents
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {managementItems.map((item) => (
+              <ManagementCard
+                key={item.title}
+                title={item.title}
+                description={item.description}
+                icon={item.icon}
+                onClick={item.onClick}
+                count={item.count}
+                status={item.status}
+              />
+            ))}
+          </div>
         </div>
 
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Quick Stats</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{staffMembers.length}</div>
-                <div className="text-sm text-gray-600">Staff Members</div>
+            <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">System started successfully</span>
+                <span className="text-xs text-gray-400 ml-auto">Just now</span>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{usersCount}</div>
-                <div className="text-sm text-gray-600">Total Users</div>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm text-gray-600">Admin dashboard loaded</span>
+                <span className="text-xs text-gray-400 ml-auto">1 minute ago</span>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{devices.length}</div>
-                <div className="text-sm text-gray-600">Devices</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{classes.length}</div>
-                <div className="text-sm text-gray-600">Classes</div>
+              <div className="text-center py-8 text-gray-500">
+                <p>More activity will appear here as users interact with the system</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-    </SimpleLayout>
+    </ModernLayout>
   );
 };
 

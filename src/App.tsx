@@ -24,6 +24,7 @@ const DeviceManagementPage = lazy(() => import("./pages/DeviceManagementPage"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const StaffDashboard = lazy(() => import("./pages/StaffDashboard"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+const ManagementDashboard = lazy(() => import("./pages/ManagementDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,7 +82,7 @@ const App = () => {
                   element={
                     <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
                       <Suspense fallback={<div>Loading...</div>}>
-                        <AdminDashboard />
+                        <ManagementDashboard />
                       </Suspense>
                     </ProtectedRoute>
                   }
@@ -133,6 +134,13 @@ const App = () => {
                   </ProtectedRoute>
                 } />
                 <Route path="/user-management" element={
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      <UserManagementPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                } />
+                <Route path="/users-management" element={
                   <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
                     <Suspense fallback={<div>Loading...</div>}>
                       <UserManagementPage />

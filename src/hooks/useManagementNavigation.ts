@@ -6,7 +6,7 @@ export const useManagementNavigation = () => {
 
   const navigateToManagement = {
     staff: () => navigate('/staff-management'),
-    users: () => navigate('/users-management'),
+    users: () => navigate('/user-management'),
     devices: () => navigate('/device-management'),
     classes: () => navigate('/classes-management'),
     reports: () => navigate('/reports'),
