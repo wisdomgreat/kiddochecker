@@ -9,12 +9,13 @@ import { Toaster } from '@/components/ui/toaster';
 import LandingPage from '@/pages/LandingPage';
 import LoginPage from '@/pages/LoginPage';
 import ParentRegistration from '@/pages/ParentRegistration';
-import ParentDashboardPage from '@/pages/ParentDashboardPage';
-import AdminDashboardPage from '@/pages/AdminDashboardPage';
-import AdminUsersPage from '@/pages/AdminUsersPage';
 
-// Import layout components
-import ResponsiveLayout from '@/components/layout/ResponsiveLayout';
+// Import layout and components
+import MobileFirstLayout from '@/components/layout/MobileFirstLayout';
+import CleanAdminDashboard from '@/components/admin/CleanAdminDashboard';
+import CleanParentDashboard from '@/components/parent/CleanParentDashboard';
+import AdminUserManagement from '@/components/admin/AdminUserManagement';
+import ParentChildManagement from '@/components/parent/ParentChildManagement';
 import { useAuth } from '@/context/AuthContext';
 
 const queryClient = new QueryClient({
@@ -45,12 +46,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  return <ResponsiveLayout>{children}</ResponsiveLayout>;
+  return <MobileFirstLayout>{children}</MobileFirstLayout>;
 };
 
 // Role-based redirect component
 const RoleBasedRedirect = () => {
-  const { userRole, loading } = useAuth();
+  const { userRole, loading, isAdmin, isParent } = useAuth();
   
   if (loading) {
     return (
@@ -63,11 +64,14 @@ const RoleBasedRedirect = () => {
     );
   }
   
-  // Redirect based on role
-  if (userRole === 'admin' || userRole === 'super_admin') {
+  // Clear role-based redirection
+  if (isAdmin) {
     return <Navigate to="/admin-dashboard" replace />;
-  } else {
+  } else if (isParent) {
     return <Navigate to="/parent-dashboard" replace />;
+  } else {
+    // If no role is detected, redirect to login
+    return <Navigate to="/login" replace />;
   }
 };
 
@@ -85,24 +89,24 @@ function App() {
               
               {/* Protected Routes */}
               <Route path="/dashboard" element={<ProtectedRoute><RoleBasedRedirect /></ProtectedRoute>} />
-              <Route path="/parent-dashboard" element={<ProtectedRoute><ParentDashboardPage /></ProtectedRoute>} />
-              <Route path="/admin-dashboard" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-              <Route path="/admin/users" element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} />
-              
-              {/* Parent Routes */}
-              <Route path="/parent/children" element={<ProtectedRoute><div className="p-6"><h1>My Children</h1><p>Feature coming soon...</p></div></ProtectedRoute>} />
-              <Route path="/parent/attendance" element={<ProtectedRoute><div className="p-6"><h1>Attendance</h1><p>Feature coming soon...</p></div></ProtectedRoute>} />
-              <Route path="/parent/messages" element={<ProtectedRoute><div className="p-6"><h1>Messages</h1><p>Feature coming soon...</p></div></ProtectedRoute>} />
               
               {/* Admin Routes */}
-              <Route path="/admin/reports" element={<ProtectedRoute><div className="p-6"><h1>Reports</h1><p>Feature coming soon...</p></div></ProtectedRoute>} />
-              <Route path="/admin/settings" element={<ProtectedRoute><div className="p-6"><h1>Settings</h1><p>Feature coming soon...</p></div></ProtectedRoute>} />
+              <Route path="/admin-dashboard" element={<ProtectedRoute><CleanAdminDashboard /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute><AdminUserManagement /></ProtectedRoute>} />
+              <Route path="/admin/reports" element={<ProtectedRoute><div className="p-6"><h1 className="text-2xl font-bold text-left">Reports</h1><p className="text-left">Feature coming soon...</p></div></ProtectedRoute>} />
+              <Route path="/admin/settings" element={<ProtectedRoute><div className="p-6"><h1 className="text-2xl font-bold text-left">Settings</h1><p className="text-left">Feature coming soon...</p></div></ProtectedRoute>} />
               
-              {/* Default redirect */}
-              <Route path="/" element={<Navigate to="/landing" replace />} />
+              {/* Parent Routes */}
+              <Route path="/parent-dashboard" element={<ProtectedRoute><CleanParentDashboard /></ProtectedRoute>} />
+              <Route path="/parent/children" element={<ProtectedRoute><ParentChildManagement /></ProtectedRoute>} />
+              <Route path="/parent/attendance" element={<ProtectedRoute><div className="p-6"><h1 className="text-2xl font-bold text-left">Attendance</h1><p className="text-left">Feature coming soon...</p></div></ProtectedRoute>} />
+              <Route path="/parent/messages" element={<ProtectedRoute><div className="p-6"><h1 className="text-2xl font-bold text-left">Messages</h1><p className="text-left">Feature coming soon...</p></div></ProtectedRoute>} />
+              
+              {/* Default redirects */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               
               {/* Catch all route */}
-              <Route path="*" element={<Navigate to="/landing" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
             <Toaster />
           </div>
