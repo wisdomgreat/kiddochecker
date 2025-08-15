@@ -15,7 +15,7 @@ import {
   GraduationCap,
   Baby
 } from "lucide-react";
-import { ModernLayout } from "@/components/layout/ModernLayout";
+import ModernLayout from "@/components/layout/ModernLayout";
 import UserManagement from "@/components/admin/UserManagement";
 import ClassManagement from "@/components/admin/ClassManagement";
 import EnhancedReporting from "@/components/admin/EnhancedReporting";
