@@ -13,6 +13,7 @@ interface AuthContextType {
   refreshUserRole: () => Promise<void>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  isParent: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,19 +31,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user role for user:', user.id);
       
-      const { data, error } = await supabase.rpc('get_current_user_role');
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, is_super_admin')
+        .eq('user_id', user.id)
+        .single();
 
       if (error) {
         console.error("Error fetching user role:", error);
         if (mounted.current) {
-          setUserRole('parent'); // fallback
+          setUserRole('parent'); // Default fallback
         }
         return;
       }
 
       if (mounted.current && data) {
-        console.log('User role set to:', data);
-        setUserRole(data as AppRole);
+        console.log('User role data:', data);
+        setUserRole(data.role as AppRole);
       }
     } catch (error) {
       console.error("Exception refreshing user role:", error);
@@ -139,8 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshUserRole]);
 
+  // Clear role-based permissions
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
   const isSuperAdmin = userRole === 'super_admin';
+  const isParent = userRole === 'parent';
 
   const value = {
     user,
@@ -151,6 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUserRole,
     isAdmin,
     isSuperAdmin,
+    isParent,
   };
 
   return (

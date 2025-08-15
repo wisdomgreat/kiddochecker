@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Edit2, Trash2, Shield, Search, Users } from "lucide-react";
+import { UserPlus, Edit2, Trash2, Shield, Search, Users, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AddUserModal from "./AddUserModal";
@@ -37,7 +37,7 @@ const AdminUserManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
-  const { data: users = [], isLoading, refetch } = useQuery({
+  const { data: users = [], isLoading, refetch, error } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async (): Promise<AdminUser[]> => {
       try {
@@ -59,19 +59,14 @@ const AdminUserManagement = () => {
           last_name: user.last_name || '',
           role: user.role as AppRole,
           is_super_admin: user.is_super_admin || false,
-          is_active: user.is_active || false,
+          is_active: user.is_active !== false, // Default to true if not specified
           is_volunteer: user.is_volunteer || false,
           phone: user.phone || '',
           created_at: user.created_at || new Date().toISOString()
         }));
       } catch (error) {
         console.error('Error in admin user fetch:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load users',
-          variant: 'destructive',
-        });
-        return [];
+        throw error;
       }
     },
     retry: 2,
@@ -90,6 +85,14 @@ const AdminUserManagement = () => {
     return matchesSearch && matchesRole;
   });
 
+  const handleRefresh = async () => {
+    await refetch();
+    toast({
+      title: 'Refreshed',
+      description: 'User data has been refreshed',
+    });
+  };
+
   const handleEditUser = (user: AdminUser) => {
     setSelectedUser(user);
     setShowEditModal(true);
@@ -100,19 +103,11 @@ const AdminUserManagement = () => {
       return;
     }
 
-    try {
-      toast({
-        title: 'Delete User',
-        description: `User deletion requires additional admin privileges`,
-        variant: 'destructive',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete user',
-        variant: 'destructive',
-      });
-    }
+    toast({
+      title: 'Delete User',
+      description: `User deletion requires additional admin privileges`,
+      variant: 'destructive',
+    });
   };
 
   const getRoleBadgeColor = (role: AppRole) => {
@@ -139,25 +134,51 @@ const AdminUserManagement = () => {
     );
   }
 
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-red-600 mb-2">Error Loading Users</h3>
+            <p className="text-gray-500 mb-4">There was an error loading the user data.</p>
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Loading users...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-2 sm:p-0">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="text-left">
-          <h2 className="text-2xl font-bold">User Management</h2>
-          <p className="text-gray-600">Manage all users in the system</p>
+          <h2 className="text-xl sm:text-2xl font-bold">User Management</h2>
+          <p className="text-gray-600 text-sm sm:text-base">Manage all users in the system</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button onClick={() => setShowAddModal(true)} className="bg-blue-600 hover:bg-blue-700 flex-1 sm:flex-none">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -205,21 +226,24 @@ const AdminUserManagement = () => {
           {filteredUsers.map((user) => (
             <Card key={user.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                       <span className="text-blue-600 font-medium text-sm">
-                        {user.first_name?.[0]}{user.last_name?.[0]}
+                        {user.first_name?.[0] || user.email?.[0]?.toUpperCase()}{user.last_name?.[0]}
                       </span>
                     </div>
-                    <div className="text-left">
-                      <CardTitle className="text-base">
-                        {user.first_name} {user.last_name}
+                    <div className="text-left min-w-0 flex-1">
+                      <CardTitle className="text-base truncate">
+                        {user.first_name || user.last_name ? 
+                          `${user.first_name} ${user.last_name}`.trim() : 
+                          'No Name'
+                        }
                       </CardTitle>
-                      <p className="text-sm text-gray-600">{user.email}</p>
+                      <p className="text-sm text-gray-600 truncate">{user.email}</p>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-shrink-0">
                     <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>

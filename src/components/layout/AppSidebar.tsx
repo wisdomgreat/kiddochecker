@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Settings, BarChart3, Shield, UserPlus, Building, LogOut, User } from "lucide-react";
+import { Calendar, Home, Users, Settings, BarChart3, Shield, UserPlus, Building, LogOut, User, Baby, FileText } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -16,9 +16,10 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 export function AppSidebar() {
-  const { user, userRole, isAdmin, signOut } = useAuth();
+  const { user, userRole, isAdmin, isParent, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -27,6 +28,7 @@ export function AppSidebar() {
     navigate('/login');
   };
 
+  // Role-specific navigation items
   const adminItems = [
     {
       title: "Dashboard",
@@ -59,38 +61,60 @@ export function AppSidebar() {
     {
       title: "My Children",
       url: "/parent/children",
-      icon: Users,
+      icon: Baby,
     },
     {
       title: "Attendance",
       url: "/parent/attendance",
       icon: Calendar,
     },
+    {
+      title: "Messages",
+      url: "/parent/messages",
+      icon: FileText,
+    },
   ];
 
+  // Determine which menu items to show based on role
   const menuItems = isAdmin ? adminItems : parentItems;
 
   if (!user) return null;
 
+  const getRoleBadgeColor = () => {
+    switch (userRole) {
+      case 'super_admin': return 'bg-purple-100 text-purple-800';
+      case 'admin': return 'bg-red-100 text-red-800';
+      case 'teacher': return 'bg-green-100 text-green-800';
+      case 'teacher_assistant': return 'bg-blue-100 text-blue-800';
+      case 'staff': return 'bg-gray-100 text-gray-800';
+      case 'parent': return 'bg-amber-100 text-amber-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
-    <Sidebar className="border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <SidebarHeader className="border-b px-6 py-4">
+    <Sidebar className="border-r bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 w-64">
+      <SidebarHeader className="border-b px-4 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Building className="h-4 w-4" />
           </div>
-          <div className="text-left">
-            <h2 className="text-lg font-semibold">KiddoChecker</h2>
-            <p className="text-xs text-muted-foreground">
-              {isAdmin ? 'Admin Portal' : 'Parent Portal'}
-            </p>
+          <div className="text-left flex-1">
+            <h2 className="text-lg font-semibold truncate">KiddoChecker</h2>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={`text-xs ${getRoleBadgeColor()}`}>
+                {userRole?.replace('_', ' ')}
+              </Badge>
+            </div>
           </div>
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="px-4 py-6">
+      <SidebarContent className="px-2 py-4">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-left mb-2">Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-left mb-2 px-2">
+            {isAdmin ? 'Admin Portal' : 'Parent Portal'}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -100,9 +124,9 @@ export function AppSidebar() {
                     isActive={location.pathname === item.url}
                     className="w-full justify-start text-left"
                   >
-                    <Link to={item.url} className="flex items-center gap-3 w-full">
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                    <Link to={item.url} className="flex items-center gap-3 w-full px-3 py-2">
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -114,14 +138,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t p-4">
         <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-8 w-8 flex-shrink-0">
             <AvatarFallback>
               {user.email?.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="text-left flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user.email}</p>
-            <p className="text-xs text-muted-foreground capitalize">
+            <p className="text-xs text-muted-foreground capitalize truncate">
               {userRole?.replace('_', ' ')}
             </p>
           </div>
@@ -132,8 +156,8 @@ export function AppSidebar() {
           onClick={handleSignOut}
           className="w-full justify-start text-left"
         >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
+          <LogOut className="h-4 w-4 mr-2 flex-shrink-0" />
+          <span>Sign Out</span>
         </Button>
       </SidebarFooter>
     </Sidebar>

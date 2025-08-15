@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AppRole } from "@/types/supabase";
+import { Loader2 } from "lucide-react";
 
 interface AddUserModalProps {
   open: boolean;
@@ -34,15 +35,41 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
     setIsLoading(true);
 
     try {
+      console.log('Creating user with data:', formData);
+
+      // Generate a temporary password for the user
       const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
       
-      console.log('Creating user:', formData);
+      // Create the user account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: tempPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone,
+          }
+        }
+      });
 
-      // Create user profile first
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
+
+      console.log('User created successfully:', authData.user.id);
+
+      // Create user profile
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
-          id: crypto.randomUUID(),
+          id: authData.user.id,
           first_name: formData.firstName,
           last_name: formData.lastName,
           phone: formData.phone
@@ -50,25 +77,27 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
+        // Don't throw here, as the user was created successfully
       }
 
-      // Create user role
+      // Assign user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: crypto.randomUUID(),
+          user_id: authData.user.id,
           role: formData.role,
-          is_volunteer: formData.isVolunteer
+          is_volunteer: formData.isVolunteer,
+          is_super_admin: formData.role === 'super_admin'
         });
 
       if (roleError) {
-        console.error('Role creation error:', roleError);
-        throw new Error('Failed to assign user role');
+        console.error('Role assignment error:', roleError);
+        // Don't throw here, as the user was created successfully
       }
 
       toast({
         title: 'User Created Successfully',
-        description: `${formData.firstName} ${formData.lastName} has been created`,
+        description: `${formData.firstName} ${formData.lastName} has been created with email ${formData.email}`,
       });
 
       // Reset form
@@ -87,7 +116,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
       console.error('Error creating user:', error);
       toast({
         title: 'Error Creating User',
-        description: error.message || 'Failed to create user',
+        description: error.message || 'Failed to create user. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -110,6 +139,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
                 value={formData.firstName}
                 onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="text-left">
@@ -119,6 +149,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
                 value={formData.lastName}
                 onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                 required
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -131,6 +162,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
               required
+              disabled={isLoading}
             />
           </div>
           
@@ -140,12 +172,17 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
               id="phone"
               value={formData.phone}
               onChange={(e) => setFormData({...formData, phone: e.target.value})}
+              disabled={isLoading}
             />
           </div>
           
           <div className="text-left">
             <Label htmlFor="role">Role *</Label>
-            <Select value={formData.role} onValueChange={(value: AppRole) => setFormData({...formData, role: value})}>
+            <Select 
+              value={formData.role} 
+              onValueChange={(value: AppRole) => setFormData({...formData, role: value})}
+              disabled={isLoading}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
@@ -155,6 +192,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
                 <SelectItem value="teacher">Teacher</SelectItem>
                 <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="super_admin">Super Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -164,16 +202,34 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
               id="isVolunteer"
               checked={formData.isVolunteer}
               onCheckedChange={(checked) => setFormData({...formData, isVolunteer: checked})}
+              disabled={isLoading}
             />
             <Label htmlFor="isVolunteer">Volunteer</Label>
           </div>
           
           <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)} 
+              className="w-full sm:w-auto"
+              disabled={isLoading}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
-              {isLoading ? 'Creating...' : 'Create User'}
+            <Button 
+              type="submit" 
+              disabled={isLoading} 
+              className="w-full sm:w-auto"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create User'
+              )}
             </Button>
           </div>
         </form>
