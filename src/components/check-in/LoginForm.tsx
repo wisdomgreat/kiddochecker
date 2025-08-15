@@ -16,8 +16,8 @@ interface LoginFormProps {
 }
 
 export const LoginForm = ({ onSignUp }: LoginFormProps) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [pin, setPin] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -36,20 +36,11 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
     }
   }, [user, userRole, authLoading, loading, location.pathname, navigateToDashboard]);
 
-  const handleContinue = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) {
+  const handleLogin = async () => {
+    if (!email || !password) {
       toast({
-        title: "Invalid Phone Number",
-        description: "Please enter a valid phone number",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!pin || pin.length < 6) {
-      toast({
-        title: "Invalid PIN",
-        description: "Please enter a PIN of at least 6 characters",
+        title: "Missing Information",
+        description: "Please enter both email and password",
         variant: "destructive",
       });
       return;
@@ -58,13 +49,9 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
     try {
       setLoading(true);
       
-      // Convert phone to email format for authentication
-      const cleanedPhone = phoneNumber.replace(/\D/g, '');
-      const fakeEmail = `${cleanedPhone}@phone.local`;
-      
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: fakeEmail,
-        password: pin,
+        email: email.trim(),
+        password: password,
       });
 
       if (error) {
@@ -80,15 +67,34 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
         description: "Welcome back!",
       });
       
+      // The useEffect hook will handle navigation after role is loaded
+      
     } catch (error: any) {
       console.error("Login error:", error);
+      
+      let errorMessage = "Invalid email or password. Please try again.";
+      
+      if (error.message.includes('Invalid login credentials')) {
+        errorMessage = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.message.includes('Email not confirmed')) {
+        errorMessage = "Please check your email and click the confirmation link before signing in.";
+      } else if (error.message.includes('Too many requests')) {
+        errorMessage = "Too many login attempts. Please wait a moment before trying again.";
+      }
+      
       toast({
         title: "Login Failed",
-        description: "Invalid phone number or PIN. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleLogin();
     }
   };
 
@@ -100,26 +106,66 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
             <User className="h-5 w-5 text-blue-500" />
           </div>
           <div className="text-left">
-            <h2 className="text-xl font-semibold">Parent Login</h2>
+            <h2 className="text-xl font-semibold">Sign In</h2>
             <p className="text-sm text-gray-500">Enter your credentials to continue</p>
           </div>
         </div>
         
         <div className="space-y-6 mt-8">
-          <PhoneNumberForm phoneNumber={phoneNumber} onChange={setPhoneNumber} />
-          <PinEntryForm pin={pin} onChange={setPin} />
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter your email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              disabled={loading}
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter your password"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              disabled={loading}
+            />
+          </div>
           
           <Button 
-            onClick={handleContinue}
+            onClick={handleLogin}
             className="w-full py-6 text-base font-medium bg-blue-600 hover:bg-blue-700"
-            disabled={!phoneNumber || !pin || loading}
+            disabled={!email || !password || loading}
           >
-            {loading ? "Please wait..." : (
+            {loading ? "Signing in..." : (
               <div className="flex items-center justify-center">
-                Continue <ArrowRight className="ml-2 h-5 w-5" />
+                Sign In <ArrowRight className="ml-2 h-5 w-5" />
               </div>
             )}
           </Button>
+          
+          <div className="text-center">
+            <Button
+              variant="link"
+              onClick={onSignUp}
+              className="text-blue-600 hover:text-blue-800"
+              disabled={loading}
+            >
+              Don't have an account? Sign up here
+            </Button>
+          </div>
         </div>
         
         <div className="text-center mt-6">

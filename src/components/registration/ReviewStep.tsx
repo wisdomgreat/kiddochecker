@@ -1,62 +1,89 @@
 
-import React from "react";
-import { ChildFormData } from "./ChildrenStep";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface ReviewStepProps {
-  phoneNumber: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  address: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  children: ChildFormData[];
+  parentData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    emergencyContact: string;
+    emergencyPhone: string;
+  };
+  children: Array<{
+    firstName: string;
+    lastName: string;
+    birthdate: string;
+    allergies: string;
+    medicalInfo: string;
+    notes: string;
+  }>;
 }
 
-const ReviewStep = ({
-  phoneNumber,
-  firstName,
-  lastName,
-  email,
-  address,
-  emergencyContact,
-  emergencyPhone,
-  children
-}: ReviewStepProps) => {
+export const ReviewStep = ({ parentData, children }: ReviewStepProps) => {
+  const calculateAge = (birthdate: string): number => {
+    const today = new Date();
+    const birth = new Date(birthdate);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Review Information</h2>
-      <p className="text-gray-600">Please review your information before submitting</p>
+      <h3 className="text-lg font-semibold mb-4">Review Your Information</h3>
       
-      <div className="space-y-4">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="font-medium">Account Information</h3>
-          <p>Phone: {phoneNumber}</p>
-          <p>PIN: **** (hidden for security)</p>
-        </div>
-        
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="font-medium">Parent Information</h3>
-          <p>Name: {firstName} {lastName}</p>
-          {email && <p>Email: {email}</p>}
-          {address && <p>Address: {address}</p>}
-          {emergencyContact && <p>Emergency Contact: {emergencyContact} ({emergencyPhone})</p>}
-        </div>
-        
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="font-medium">Children</h3>
+      {/* Parent Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Parent Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div><strong>Name:</strong> {parentData.firstName} {parentData.lastName}</div>
+          <div><strong>Email:</strong> {parentData.email}</div>
+          <div><strong>Phone:</strong> {parentData.phone}</div>
+          {parentData.address && <div><strong>Address:</strong> {parentData.address}</div>}
+          {parentData.emergencyContact && (
+            <div><strong>Emergency Contact:</strong> {parentData.emergencyContact} ({parentData.emergencyPhone})</div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Children Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Children Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {children.map((child, index) => (
-            <div key={index} className="mt-2 border-t pt-2">
-              <p>Child {index + 1}: {child.firstName} {child.lastName}</p>
-              {child.birthdate && <p>Birthdate: {child.birthdate}</p>}
-              {child.allergies && <p>Allergies: {child.allergies}</p>}
-              {child.specialNeeds && <p>Special Needs: {child.specialNeeds}</p>}
+            <div key={index} className="p-4 border rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium">{child.firstName} {child.lastName}</h4>
+                <Badge variant="outline">Age: {calculateAge(child.birthdate)}</Badge>
+              </div>
+              
+              <div className="space-y-1 text-sm text-gray-600">
+                <div><strong>Date of Birth:</strong> {new Date(child.birthdate).toLocaleDateString()}</div>
+                {child.allergies && <div><strong>Allergies:</strong> {child.allergies}</div>}
+                {child.medicalInfo && <div><strong>Medical Info:</strong> {child.medicalInfo}</div>}
+                {child.notes && <div><strong>Notes:</strong> {child.notes}</div>}
+              </div>
             </div>
           ))}
-        </div>
+        </CardContent>
+      </Card>
+
+      <div className="p-4 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>Next Steps:</strong> After submitting your registration, you'll receive an email to verify your account. 
+          Once verified, you can log in and start using the check-in system for your children.
+        </p>
       </div>
     </div>
   );
 };
-
-export default ReviewStep;

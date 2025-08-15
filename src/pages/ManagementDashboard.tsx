@@ -1,189 +1,200 @@
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Users, Monitor, BookOpen, Shield, Settings, BarChart3 } from "lucide-react";
-import ModernLayout from "@/components/layout/ModernLayout";
-import ManagementCard from "@/components/management/ManagementCard";
-import ManagementHeader from "@/components/management/ManagementHeader";
-import { useManagementNavigation } from "@/hooks/useManagementNavigation";
-import { useStaffManagement } from "@/hooks/useStaffManagement";
-import { useDevices } from "@/hooks/useDevices";
-import { useClasses } from "@/hooks/useClasses";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { 
+  Users, 
+  UserPlus, 
+  Settings, 
+  BarChart3, 
+  Calendar,
+  MessageSquare,
+  Shield,
+  Monitor,
+  GraduationCap,
+  Baby
+} from "lucide-react";
+import { ModernLayout } from "@/components/layout/ModernLayout";
+import UserManagement from "@/components/admin/UserManagement";
+import ClassManagement from "@/components/admin/ClassManagement";
+import EnhancedReporting from "@/components/admin/EnhancedReporting";
+import DeviceManagement from "@/components/admin/DeviceManagement";
+import StaffInvitationManager from "@/components/staff/StaffInvitationManager";
+import EnhancedCheckInSystem from "@/components/checkin/EnhancedCheckInSystem";
 
 const ManagementDashboard = () => {
-  const { navigateToManagement } = useManagementNavigation();
-  const { staffMembers } = useStaffManagement();
-  const { devices } = useDevices();
-  const { classes } = useClasses();
+  const [activeTab, setActiveTab] = useState("overview");
 
-  const { data: usersCount = 0 } = useQuery({
-    queryKey: ['users-count'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_users_with_roles');
-      if (error) throw error;
-      return data?.length || 0;
-    },
-  });
-
-  const managementItems = [
-    {
-      title: "User Management",
-      description: "Manage all users and their roles",
-      icon: Users,
-      onClick: navigateToManagement.users,
-      count: usersCount,
-      status: 'active' as const,
-    },
-    {
-      title: "Staff Management", 
-      description: "Manage teachers, assistants, and administrative staff",
-      icon: Users,
-      onClick: navigateToManagement.staff,
-      count: staffMembers.length,
-      status: 'active' as const,
-    },
-    {
-      title: "Device Management",
-      description: "Manage check-in kiosks and check-out stations",
-      icon: Monitor,
-      onClick: navigateToManagement.devices,
-      count: devices.length,
-      status: devices.length > 0 ? 'active' as const : 'warning' as const,
-    },
-    {
-      title: "Classes Management",
-      description: "Manage classes and teacher assignments",
-      icon: BookOpen,
-      onClick: navigateToManagement.classes,
-      count: classes.length,
-      status: 'active' as const,
-    },
-    {
-      title: "Reports & Analytics",
-      description: "View attendance reports and system analytics",
-      icon: BarChart3,
-      onClick: navigateToManagement.reports,
-      status: 'active' as const,
-    },
-    {
-      title: "System Settings",
-      description: "Configure organization settings and preferences",
-      icon: Settings,
-      onClick: navigateToManagement.settings,
-      status: 'active' as const,
-    },
+  const tabItems = [
+    { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "users", label: "User Management", icon: Users },
+    { id: "staff", label: "Staff & Invitations", icon: UserPlus },
+    { id: "children", label: "Children Management", icon: Baby },
+    { id: "classes", label: "Class Management", icon: GraduationCap },
+    { id: "checkin", label: "Check-in System", icon: Monitor },
+    { id: "reports", label: "Reports & Analytics", icon: BarChart3 },
+    { id: "devices", label: "Device Management", icon: Monitor },
+    { id: "settings", label: "Organization Settings", icon: Settings },
   ];
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "overview":
+        return <DashboardOverview />;
+      case "users":
+        return <UserManagement />;
+      case "staff":
+        return <StaffInvitationManager />;
+      case "children":
+        return <ChildrenManagement />;
+      case "classes":
+        return <ClassManagement />;
+      case "checkin":
+        return <EnhancedCheckInSystem />;
+      case "reports":
+        return <EnhancedReporting />;
+      case "devices":
+        return <DeviceManagement />;
+      case "settings":
+        return <OrganizationSettings />;
+      default:
+        return <DashboardOverview />;
+    }
+  };
 
   return (
     <ModernLayout>
       <div className="space-y-6">
-        <ManagementHeader 
-          title="Admin Dashboard"
-          description="Welcome back, manage your organization from here."
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-blue-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold">{usersCount}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {usersCount} active users
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Shield className="h-8 w-8 text-red-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Admins</p>
-                  <p className="text-2xl font-bold">1</p>
-                  <p className="text-xs text-muted-foreground">
-                    Super admin access
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-green-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Staff</p>
-                  <p className="text-2xl font-bold">{staffMembers.length}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Active staff members
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-amber-600 mr-3" />
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Parents</p>
-                  <p className="text-2xl font-bold">0</p>
-                  <p className="text-xs text-muted-foreground">
-                    Registered parents
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {managementItems.map((item) => (
-              <ManagementCard
-                key={item.title}
-                title={item.title}
-                description={item.description}
-                icon={item.icon}
-                onClick={item.onClick}
-                count={item.count}
-                status={item.status}
-              />
-            ))}
-          </div>
+          <h1 className="text-3xl font-bold">Administration Dashboard</h1>
+          <p className="text-gray-600">Manage your organization, users, and settings</p>
         </div>
 
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">System started successfully</span>
-                <span className="text-xs text-gray-400 ml-auto">Just now</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Admin dashboard loaded</span>
-                <span className="text-xs text-gray-400 ml-auto">1 minute ago</span>
-              </div>
-              <div className="text-center py-8 text-gray-500">
-                <p>More activity will appear here as users interact with the system</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 h-auto">
+            {tabItems.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  className="flex flex-col items-center gap-1 p-3 text-xs"
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+
+          <div className="mt-6">
+            {renderTabContent()}
+          </div>
+        </Tabs>
       </div>
     </ModernLayout>
+  );
+};
+
+// Dashboard Overview Component
+const DashboardOverview = () => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">0</div>
+          <p className="text-xs text-muted-foreground">Registered users</p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Active Children</CardTitle>
+          <Baby className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">0</div>
+          <p className="text-xs text-muted-foreground">Enrolled children</p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Classes</CardTitle>
+          <GraduationCap className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">0</div>
+          <p className="text-xs text-muted-foreground">Available classes</p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
+          <Monitor className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">0</div>
+          <p className="text-xs text-muted-foreground">Check-ins today</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Children Management Component
+const ChildrenManagement = () => {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Children Management</h2>
+        <Button>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add Child
+        </Button>
+      </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Registered Children</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            <Baby className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <p>No children registered yet</p>
+            <p className="text-sm">Children will appear here when parents register them</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Organization Settings Component
+const OrganizationSettings = () => {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Organization Settings</h2>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>General Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            <Settings className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <p>Settings panel coming soon</p>
+            <p className="text-sm">Configure your organization preferences here</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
