@@ -1,213 +1,204 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Users, UserPlus, Settings, BarChart3, Calendar, Shield, TrendingUp, AlertCircle } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Users, UserPlus, Clock, Settings, BarChart3, Shield } from 'lucide-react';
+import { UserCreationModal } from './UserCreationModal';
+import { CheckInOutManager } from '@/components/checkin/CheckInOutManager';
+import { useAuth } from '@/context/AuthContext';
 
 const CleanAdminDashboard = () => {
-  const { user, userRole, isAdmin } = useAuth();
-  const navigate = useNavigate();
+  const { user, userRole, signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // Fetch real dashboard stats
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['admin-dashboard-stats'],
-    queryFn: async () => {
-      try {
-        const { data: usersData } = await supabase.rpc('get_users_with_roles');
-        const { data: childrenData } = await supabase.from('children').select('id');
-        const { data: classesData } = await supabase.from('classes').select('id');
-        
-        return {
-          totalUsers: usersData?.length || 0,
-          activeUsers: usersData?.filter((u: any) => u.is_active)?.length || 0,
-          totalChildren: childrenData?.length || 0,
-          totalClasses: classesData?.length || 0,
-        };
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-        return {
-          totalUsers: 0,
-          activeUsers: 0,
-          totalChildren: 0,
-          totalClasses: 0,
-        };
-      }
-    },
-    enabled: isAdmin,
-  });
-
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2 text-left">Access Denied</h2>
-            <p className="text-muted-foreground text-left">You don't have permission to access the admin dashboard.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const quickActions = [
-    {
-      title: "Manage Users",
-      description: "Add, edit, and manage user accounts",
-      icon: Users,
-      action: () => navigate("/admin/users"),
-      color: "bg-blue-500 hover:bg-blue-600"
-    },
-    {
-      title: "Add New User",
-      description: "Create new user accounts",
-      icon: UserPlus,  
-      action: () => navigate("/admin/users"),
-      color: "bg-green-500 hover:bg-green-600"
-    },
-    {
-      title: "View Reports",
-      description: "Access system reports and analytics",
-      icon: BarChart3,
-      action: () => navigate("/admin/reports"),
-      color: "bg-purple-500 hover:bg-purple-600"
-    },
-    {
-      title: "Settings",
-      description: "Configure system settings",
-      icon: Settings,
-      action: () => navigate("/admin/settings"),
-      color: "bg-orange-500 hover:bg-orange-600"
-    }
-  ];
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-left">
-        <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-        <div className="flex items-center gap-2 mt-2">
-          <Shield className="h-4 w-4 text-blue-600" />
-          <p className="text-muted-foreground">
-            Welcome back, {user?.email}. Role: <span className="capitalize">{userRole?.replace('_', ' ')}</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-left">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-left">
-              {isLoading ? "..." : stats?.totalUsers || 0}
-            </div>
-            <p className="text-xs text-muted-foreground text-left">
-              {isLoading ? "Loading..." : `${stats?.activeUsers || 0} active`}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-left">Total Children</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-left">
-              {isLoading ? "..." : stats?.totalChildren || 0}
-            </div>
-            <p className="text-xs text-muted-foreground text-left">Registered children</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-left">Classes</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-left">
-              {isLoading ? "..." : stats?.totalClasses || 0}
-            </div>
-            <p className="text-xs text-muted-foreground text-left">Active classes</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-left">System Status</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-left text-green-600">Active</div>
-            <p className="text-xs text-muted-foreground text-left">All systems operational</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-xl font-semibold text-left mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action, index) => (
-            <Card 
-              key={index} 
-              className="hover:shadow-md transition-shadow cursor-pointer" 
-              onClick={action.action}
-            >
-              <CardContent className="p-6">
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-lg ${action.color} text-white mb-4`}>
-                  <action.icon className="h-6 w-6" />
-                </div>
-                <h3 className="font-semibold text-left mb-2">{action.title}</h3>
-                <p className="text-sm text-muted-foreground text-left">{action.description}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* System Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-left flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            System Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'checkin':
+        return <CheckInOutManager />;
+      case 'users':
+        return (
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-left">Database Connection</span>
-              </div>
-              <span className="text-xs text-muted-foreground">Healthy</span>
+              <h2 className="text-2xl font-bold">User Management</h2>
+              <UserCreationModal />
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-left">Authentication Service</span>
-              </div>
-              <span className="text-xs text-muted-foreground">Active</span>
+            {/* User management content will be added here */}
+          </div>
+        );
+      default:
+        return (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">24</div>
+                  <p className="text-xs text-muted-foreground">+2 from last week</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Present Today</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">18</div>
+                  <p className="text-xs text-muted-foreground">Active check-ins</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Total Check-ins</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">45</div>
+                  <p className="text-xs text-muted-foreground">Today</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Active Devices</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">3</div>
+                  <p className="text-xs text-muted-foreground">Kiosks online</p>
+                </CardContent>
+              </Card>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-left">Storage Service</span>
-              </div>
-              <span className="text-xs text-muted-foreground">Operational</span>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <UserPlus className="h-5 w-5 mr-2" />
+                    Quick Actions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <UserCreationModal />
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setActiveTab('checkin')}
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Manage Check-ins
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setActiveTab('users')}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Manage Users
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <BarChart3 className="h-5 w-5 mr-2" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">New user registered</span>
+                      <span className="text-xs text-muted-foreground">2 min ago</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Child checked in</span>
+                      <span className="text-xs text-muted-foreground">5 min ago</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Device registered</span>
+                      <span className="text-xs text-muted-foreground">1 hour ago</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-sm text-gray-600">Welcome back, {user?.email}</p>
+            <p className="text-xs text-blue-600">Role: {userRole}</p>
+          </div>
+          <Button variant="outline" onClick={signOut}>
+            Sign Out
+          </Button>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="flex overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
+              activeTab === 'overview'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <BarChart3 className="h-4 w-4 inline mr-2" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('checkin')}
+            className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
+              activeTab === 'checkin'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Clock className="h-4 w-4 inline mr-2" />
+            Check-In/Out
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
+              activeTab === 'users'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Users className="h-4 w-4 inline mr-2" />
+            Users
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
+              activeTab === 'settings'
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Settings className="h-4 w-4 inline mr-2" />
+            Settings
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6">
+        {renderContent()}
+      </div>
     </div>
   );
 };

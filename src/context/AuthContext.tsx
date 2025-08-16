@@ -27,7 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const refreshUserRole = useCallback(async () => {
-    if (!user) {
+    if (!user?.id) {
+      console.log('No user ID available for role refresh');
       setUserRole(null);
       return;
     }
@@ -43,24 +44,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error("Error fetching user role:", error);
-        // Don't set a default role - let it be null if there's an error
+        // Check if this is a new user without role - assign default parent role
+        if (error.code === 'PGRST116') {
+          console.log('No role found, creating default parent role');
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: user.id,
+              role: 'parent'
+            });
+          
+          if (!insertError) {
+            setUserRole('parent');
+            return;
+          }
+        }
         setUserRole(null);
         return;
       }
 
       if (data) {
-        console.log('User role data:', data);
+        console.log('User role data received:', data);
         const role = data.is_super_admin ? 'super_admin' : data.role;
         setUserRole(role as AppRole);
+        console.log('Final assigned role:', role);
+      } else {
+        console.log('No role data returned');
+        setUserRole(null);
       }
     } catch (error) {
       console.error("Exception refreshing user role:", error);
       setUserRole(null);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const signOut = useCallback(async () => {
     try {
+      console.log('Signing out user');
       setUser(null);
       setSession(null);
       setUserRole(null);
@@ -81,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         if (!mounted) return;
         
-        console.log('Auth state change:', event, session?.user?.id);
+        console.log('Auth state change event:', event, 'User ID:', session?.user?.id);
         
         if (event === 'SIGNED_OUT' || !session) {
           setSession(null);
@@ -100,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (mounted) {
               refreshUserRole();
             }
-          }, 100);
+          }, 200);
         }
         
         setLoading(false);
@@ -109,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const getInitialSession = async () => {
       try {
+        console.log('Getting initial session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -120,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (session?.user) {
+          console.log('Initial session found for user:', session.user.id);
           setSession(session);
           setUser(session.user);
           
@@ -127,7 +149,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (mounted) {
               refreshUserRole();
             }
-          }, 100);
+          }, 200);
+        } else {
+          console.log('No initial session found');
         }
         
         setLoading(false);
@@ -147,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshUserRole]);
 
-  // Role-based permissions
+  // Role-based permissions with proper checks
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
   const isSuperAdmin = userRole === 'super_admin';
   const isParent = userRole === 'parent';
