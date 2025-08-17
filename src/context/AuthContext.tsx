@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppRole } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   session: Session | null;
   userRole: AppRole | null;
