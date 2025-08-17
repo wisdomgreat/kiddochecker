@@ -1,163 +1,154 @@
-import React, { useState, useMemo } from "react";
+
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/CleanAuthContext";
-import { 
-  Users, 
-  UserPlus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  Edit, 
-  Trash2, 
-  Shield,
-  Mail,
-  Phone,
-  Calendar
-} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, UserPlus, Edit, Trash2, RefreshCcw } from "lucide-react";
+import { AppRole } from "@/types/supabase";
 
 interface UserProfile {
   id: string;
-  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
   created_at: string;
-  user_metadata: {
-    full_name?: string;
-    avatar_url?: string;
-  };
 }
 
 interface UserRole {
   user_id: string;
-  role: string;
+  role: AppRole;
   is_super_admin: boolean;
+  is_volunteer: boolean;
 }
 
 const EnhancedUserManagement = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user: currentUser } = useAuth();
+  
+  // State for filters and search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState<string>("all");
+  
+  // State for dialogs
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  
+  // State for new user creation
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<AppRole>("parent");
+  const [isCreating, setIsCreating] = useState(false);
 
-  const { data: users, isLoading, error, refetch } = useQuery({
-    queryKey: ["users"],
+  // Fetch all users
+  const { data: users, isLoading: usersLoading, refetch: refetchUsers } = useQuery({
+    queryKey: ['users'],
     queryFn: async () => {
-      const { data: profiles, error: profilesError } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
-        .select('*');
-
-      if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
-        throw profilesError;
-      }
-
-      const { data: usersData, error: usersError } = await supabase.auth.admin.listUsers();
-
-      if (usersError) {
-        console.error("Error fetching users:", usersError);
-        throw usersError;
-      }
-
-      const usersWithProfiles = usersData.users.map(user => {
-        const profile = profiles?.find(profile => profile.id === user.id);
-        return {
-          ...user,
-          profile
-        };
-      });
-
-      return usersWithProfiles;
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data as UserProfile[];
     },
   });
 
-  const { data: userRoles, isLoading: isRolesLoading, error: rolesError } = useQuery({
-    queryKey: ["user-roles"],
+  // Fetch user roles
+  const { data: userRoles, isLoading: rolesLoading, refetch: refetchRoles } = useQuery({
+    queryKey: ['user-roles'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
         .select('*');
-
-      if (error) {
-        console.error("Error fetching user roles:", error);
-        throw error;
-      }
-
-      return data || [];
+      
+      if (error) throw error;
+      return data as UserRole[];
     },
   });
 
-  const filteredUsers = useMemo(() => {
-    if (!users) return [];
+  // Filter users based on search and role
+  const filteredUsers = users?.filter(user => {
+    const matchesSearch = !searchQuery || 
+      `${user.first_name} ${user.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (filterRole === "all") return true;
+    
+    const userRole = userRoles?.find(ur => ur.user_id === user.id);
+    return userRole?.role === filterRole;
+  }) || [];
 
-    let filtered = [...users];
-
-    if (searchQuery) {
-      filtered = filtered.filter(user =>
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.user_metadata?.full_name && user.user_metadata.full_name.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
-
-    if (filterRole !== "all") {
-      filtered = filtered.filter(user => {
-        const role = userRoles?.find(ur => ur.user_id === user.id)?.role;
-        return role === filterRole;
-      });
-    }
-
-    return filtered;
-  }, [users, searchQuery, filterRole, userRoles]);
-
+  // Create user mutation
   const createUserMutation = useMutation({
-    mutationFn: async (newUserData: { email: string; password?: string; role: string }) => {
+    mutationFn: async () => {
       const { data, error } = await supabase.auth.admin.createUser({
-        email: newUserData.email,
-        password: newUserData.password || 'defaultpassword',
+        email,
+        password: 'TempPass123!',
+        email_confirm: true,
         user_metadata: {
-          role: newUserData.role,
-        },
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone,
+        }
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      if (data) {
+      // Assign role if not parent
+      if (role !== 'parent' && data.user) {
         const { error: roleError } = await supabase
           .from('user_roles')
-          .insert({
-            user_id: data.user.id,
-            role: newUserData.role as "admin" | "staff" | "teacher" | "teacher_assistant" | "parent" | "super_admin",
-          });
-
-        if (roleError) {
-          console.error("Error assigning role:", roleError);
-          throw roleError;
-        }
+          .update({ role })
+          .eq('user_id', data.user.id);
+        
+        if (roleError) throw roleError;
       }
 
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", "user-roles"] });
       toast({
         title: "Success",
         description: "User created successfully",
       });
       setIsCreateDialogOpen(false);
+      resetForm();
+      refetchUsers();
+      refetchRoles();
     },
     onError: (error: any) => {
-      console.error("Error creating user:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create user",
@@ -166,57 +157,49 @@ const EnhancedUserManagement = () => {
     },
   });
 
-  const updateUserRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+  // Update user role mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
       const { error } = await supabase
         .from('user_roles')
-        .upsert({
-          user_id: userId,
-          role: role as "admin" | "staff" | "teacher" | "teacher_assistant" | "parent" | "super_admin",
-        }, { onConflict: 'user_id' });
-
-      if (error) {
-        throw error;
-      }
-
-      return null;
+        .update({ role: newRole })
+        .eq('user_id', userId);
+      
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", "user-roles"] });
       toast({
         title: "Success",
         description: "User role updated successfully",
       });
+      refetchRoles();
     },
     onError: (error: any) => {
-      console.error("Error updating user role:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update user role",
+        description: error.message || "Failed to update role",
         variant: "destructive",
       });
     },
   });
 
+  // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       const { error } = await supabase.auth.admin.deleteUser(userId);
-
-      if (error) {
-        throw error;
-      }
-
-      return null;
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", "user-roles"] });
       toast({
         title: "Success",
         description: "User deleted successfully",
       });
+      setIsDeleteDialogOpen(false);
+      setSelectedUserId(null);
+      refetchUsers();
+      refetchRoles();
     },
     onError: (error: any) => {
-      console.error("Error deleting user:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete user",
@@ -225,40 +208,68 @@ const EnhancedUserManagement = () => {
     },
   });
 
-  const handleCreateUser = async (newUserData: { email: string; password?: string; role: string }) => {
-    createUserMutation.mutate(newUserData);
+  const resetForm = () => {
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
+    setRole("parent");
   };
 
-  const handleUpdateUserRole = async (userId: string, role: string) => {
-    updateUserRoleMutation.mutate({ userId, role });
+  const handleCreateUser = () => {
+    if (!firstName || !lastName || !email) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsCreating(true);
+    createUserMutation.mutate();
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    deleteUserMutation.mutate(userId);
+  const handleUpdateUserRole = (userId: string, newRole: AppRole) => {
+    updateRoleMutation.mutate({ userId, newRole });
   };
 
-  if (isLoading || isRolesLoading) {
-    return <div className="text-center">Loading users...</div>;
-  }
+  const handleDeleteUser = (userId: string) => {
+    setSelectedUserId(userId);
+    setIsDeleteDialogOpen(true);
+  };
 
-  if (error || rolesError) {
-    return <div className="text-center">Error loading users.</div>;
-  }
+  const confirmDelete = () => {
+    if (selectedUserId) {
+      deleteUserMutation.mutate(selectedUserId);
+    }
+  };
+
+  const isLoading = usersLoading || rolesLoading;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>User Management</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Input
-              type="text"
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>User Management</span>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Add User
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* Search and Filter Controls */}
+          <div className="flex gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search users..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <Select value={filterRole} onValueChange={setFilterRole}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by role" />
@@ -266,129 +277,192 @@ const EnhancedUserManagement = () => {
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="teacher">Teacher</SelectItem>
+                <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
+                <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="parent">Parent</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant="outline" onClick={() => { refetchUsers(); refetchRoles(); }}>
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Create User
-          </Button>
-        </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredUsers.map(user => {
-              const userRoleData = userRoles?.find(ur => ur.user_id === user.id);
-              const role = userRoleData ? userRoleData.role : 'parent';
-
-              return (
-                <TableRow key={user.id}>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={role}
-                      onValueChange={(newRole) => handleUpdateUserRole(user.id, newRole)}
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                        <SelectItem value="teacher">Teacher</SelectItem>
-                        <SelectItem value="parent">Parent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteUser(user.id)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </Button>
-                  </TableCell>
+          {/* Users Table */}
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <RefreshCcw className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map(user => {
+                  const userRoleData = userRoles?.find(ur => ur.user_id === user.id);
+                  const role = userRoleData ? userRoleData.role : 'parent';
 
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New User</DialogTitle>
-            </DialogHeader>
-            <CreateUserForm onCreate={handleCreateUser} />
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
-  );
-};
+                  return (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.first_name} {user.last_name}</TableCell>
+                      <TableCell>{user.id}</TableCell>
+                      <TableCell>{user.phone || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={role}
+                          onValueChange={(newRole) => handleUpdateUserRole(user.id, newRole as AppRole)}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="teacher">Teacher</SelectItem>
+                            <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
+                            <SelectItem value="staff">Staff</SelectItem>
+                            <SelectItem value="parent">Parent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-interface CreateUserFormProps {
-  onCreate: (newUserData: { email: string; password?: string; role: string }) => void;
-}
+      {/* Create User Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New User</DialogTitle>
+            <DialogDescription>
+              Add a new user to the system. They will receive an email to set their password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="firstName" className="text-right">
+                First Name
+              </label>
+              <Input
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="lastName" className="text-right">
+                Last Name
+              </label>
+              <Input
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="email" className="text-right">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="phone" className="text-right">
+                Phone
+              </label>
+              <Input
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <label htmlFor="role" className="text-right">
+                Role
+              </label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="teacher">Teacher</SelectItem>
+                  <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateUser} disabled={createUserMutation.isPending}>
+              {createUserMutation.isPending ? "Creating..." : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-const CreateUserForm = ({ onCreate }: CreateUserFormProps) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("parent");
-
-  const handleSubmit = () => {
-    onCreate({ email, password, role });
-  };
-
-  return (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-4 items-center gap-4">
-        <label htmlFor="email" className="text-right">
-          Email
-        </label>
-        <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} className="col-span-3" />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <label htmlFor="password" className="text-right">
-          Password
-        </label>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <label htmlFor="role" className="text-right">
-          Role
-        </label>
-        <Select value={role} onValueChange={setRole}>
-          <SelectTrigger className="col-span-3">
-            <SelectValue placeholder="Select a role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="admin">Admin</SelectItem>
-            <SelectItem value="staff">Staff</SelectItem>
-            <SelectItem value="teacher">Teacher</SelectItem>
-            <SelectItem value="parent">Parent</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <Button onClick={handleSubmit}>Create User</Button>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

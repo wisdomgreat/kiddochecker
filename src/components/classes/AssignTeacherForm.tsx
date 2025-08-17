@@ -183,7 +183,7 @@ export const AssignTeacherForm = ({
                   <FormLabel>Select Teacher</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value || ""}
                     disabled={isLoading}
                   >
                     <FormControl>
@@ -228,7 +228,7 @@ export const AssignTeacherForm = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || isLoading}
+                disabled={isSubmitting || isLoading || !form.watch("teacherId")}
               >
                 {isSubmitting ? "Assigning..." : "Assign Teacher"}
               </Button>
