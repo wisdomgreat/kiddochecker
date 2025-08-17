@@ -11,7 +11,7 @@ import { RoleBasedRedirect } from "@/components/auth/RoleBasedRedirect";
 // Import pages
 import LoginPage from "@/pages/LoginPage";
 import LandingPage from "@/pages/LandingPage";
-import ParentRegisterPage from "@/pages/ParentRegisterPage";
+import ParentRegistrationPage from "@/pages/ParentRegistrationPage";
 import CheckInKiosk from "@/pages/CheckInKiosk";
 import CheckOutStation from "@/pages/CheckOutStation";
 
@@ -39,7 +39,7 @@ const App = () => {
                 {/* Public Routes */}
                 <Route path="/landing" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/parent-registration" element={<ParentRegisterPage />} />
+                <Route path="/parent-registration" element={<ParentRegistrationPage />} />
                 
                 {/* Kiosk Routes (Public) */}
                 <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
