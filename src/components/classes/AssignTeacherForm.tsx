@@ -183,7 +183,7 @@ export const AssignTeacherForm = ({
                   <FormLabel>Select Teacher</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value || "none"}
+                    value={field.value || "placeholder"}
                     disabled={isLoading}
                   >
                     <FormControl>
@@ -201,11 +201,16 @@ export const AssignTeacherForm = ({
                           No teachers available
                         </SelectItem>
                       ) : (
-                        staffMembers.map((member) => (
-                          <SelectItem key={member.user_id} value={member.user_id}>
-                            {member.first_name} {member.last_name}
+                        <>
+                          <SelectItem value="placeholder" disabled>
+                            Select a teacher
                           </SelectItem>
-                        ))
+                          {staffMembers.map((member) => (
+                            <SelectItem key={member.user_id} value={member.user_id}>
+                              {member.first_name} {member.last_name}
+                            </SelectItem>
+                          ))}
+                        </>
                       )}
                     </SelectContent>
                   </Select>
@@ -228,7 +233,7 @@ export const AssignTeacherForm = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || isLoading || !form.watch("teacherId") || form.watch("teacherId") === "none"}
+                disabled={isSubmitting || isLoading || !form.watch("teacherId") || form.watch("teacherId") === "placeholder"}
               >
                 {isSubmitting ? "Assigning..." : "Assign Teacher"}
               </Button>
