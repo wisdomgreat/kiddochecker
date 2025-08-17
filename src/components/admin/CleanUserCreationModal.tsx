@@ -192,7 +192,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
 
           <div>
             <Label htmlFor="role">User Role *</Label>
-            <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+            <Select value={formData.role || "parent"} onValueChange={(value) => handleInputChange('role', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select user role" />
               </SelectTrigger>
