@@ -183,7 +183,7 @@ export const AssignTeacherForm = ({
                   <FormLabel>Select Teacher</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value || ""}
+                    value={field.value || "none"}
                     disabled={isLoading}
                   >
                     <FormControl>
@@ -197,7 +197,7 @@ export const AssignTeacherForm = ({
                           Loading teachers...
                         </SelectItem>
                       ) : staffMembers.length === 0 ? (
-                        <SelectItem value="none" disabled>
+                        <SelectItem value="none-available" disabled>
                           No teachers available
                         </SelectItem>
                       ) : (
@@ -228,7 +228,7 @@ export const AssignTeacherForm = ({
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting || isLoading || !form.watch("teacherId")}
+                disabled={isSubmitting || isLoading || !form.watch("teacherId") || form.watch("teacherId") === "none"}
               >
                 {isSubmitting ? "Assigning..." : "Assign Teacher"}
               </Button>
