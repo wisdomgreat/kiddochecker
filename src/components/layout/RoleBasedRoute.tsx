@@ -31,13 +31,19 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRoutePr
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If user has a role and it's in allowed roles, show content
-  if (userRole && allowedRoles.includes(userRole)) {
-    return <>{children}</>;
-  }
+  // Check if user has required role access
+  const hasAccess = () => {
+    if (!userRole) return false;
+    
+    // Super admin always has access (but we need to handle it carefully since it might not be in AppRole type)
+    if (userRole === 'super_admin' as any) return true;
+    
+    // Check if user's role is in allowed roles
+    return allowedRoles.includes(userRole);
+  };
 
-  // Super admin always has access
-  if (userRole === 'super_admin') {
+  // If user has access, show content
+  if (hasAccess()) {
     return <>{children}</>;
   }
 
@@ -48,9 +54,13 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRoutePr
 
   // Default behavior - navigate to appropriate dashboard based on role
   if (userRole) {
+    // Handle super_admin case
+    if (userRole === 'super_admin' as any) {
+      return <Navigate to="/admin-dashboard" replace />;
+    }
+    
     switch (userRole) {
       case 'admin':
-      case 'super_admin':
         return <Navigate to="/admin-dashboard" replace />;
       case 'staff':
       case 'teacher':
