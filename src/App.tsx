@@ -21,6 +21,9 @@ import AdminUsersPage from "@/pages/AdminUsersPage";
 
 // Parent pages
 import ParentDashboardPage from "@/pages/ParentDashboardPage";
+import ParentChildrenPage from "@/pages/ParentChildrenPage";
+import ParentMessagesPage from "@/pages/ParentMessagesPage";
+import ParentAttendancePage from "@/pages/ParentAttendancePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +60,9 @@ function App() {
                   
                   {/* Parent Routes */}
                   <Route path="/dashboard" element={<ParentDashboardPage />} />
+                  <Route path="/parent/children" element={<ParentChildrenPage />} />
+                  <Route path="/parent/messages" element={<ParentMessagesPage />} />
+                  <Route path="/parent/attendance" element={<ParentAttendancePage />} />
                 </Routes>
               </div>
             </AuthProvider>

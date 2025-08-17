@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Search, Users } from 'lucide-react';
 import { useChildren } from '@/hooks/useChildren';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/CleanAuthContext';
 
 const ChildrenPage = () => {
   const { user, userRole } = useAuth();

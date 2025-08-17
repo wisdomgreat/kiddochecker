@@ -1,7 +1,7 @@
 
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/CleanAuthContext';
 import { useRoleAccess } from '@/hooks/usePermissions';
 import { AppRole } from '@/types/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
