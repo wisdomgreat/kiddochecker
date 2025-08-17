@@ -39,7 +39,7 @@ export const AppearanceStep = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>Font Family</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <Select onValueChange={field.onChange} value={field.value || "Inter"}>
               <FormControl>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a font" />
