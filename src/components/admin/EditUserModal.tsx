@@ -35,7 +35,7 @@ const EditUserModal = ({ open, onOpenChange, user, onSuccess }: EditUserModalPro
         firstName: user.first_name || '',
         lastName: user.last_name || '',
         phone: user.phone || '',
-        role: user.role,
+        role: user.role || 'parent',
         isVolunteer: user.is_volunteer || false,
         isActive: user.is_active || true
       });
