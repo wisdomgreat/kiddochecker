@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import ModernLayout from "@/components/layout/ModernLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,7 @@ import {
   Eye,
   User
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/CleanAuthContext";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import RoleGuard from "@/components/security/RoleGuard";

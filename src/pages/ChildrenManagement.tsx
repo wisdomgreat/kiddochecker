@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import ModernLayout from "@/components/layout/ModernLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/CleanAuthContext";
 
 interface Child {
   id: string;

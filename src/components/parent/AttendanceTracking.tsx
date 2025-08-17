@@ -1,202 +1,124 @@
-
-import { useState } from "react";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { Calendar, Clock, User, Download } from "lucide-react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { useAuth } from "@/context/CleanAuthContext";
+import { Calendar, Clock, MapPin, User, CheckCircle, XCircle } from "lucide-react";
+import { format } from "date-fns";
+
+interface AttendanceRecord {
+  id: string;
+  child_id: string;
+  check_in_time: string;
+  check_out_time: string | null;
+  location: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 const AttendanceTracking = () => {
   const { user } = useAuth();
-  const [dateRange, setDateRange] = useState<"week" | "month">("week");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const { data: children = [] } = useQuery({
-    queryKey: ["parent-children", user?.id],
-    queryFn: async () => {
+  const formattedDate = format(selectedDate, "yyyy-MM-dd");
+
+  const { data: attendanceRecords = [], isLoading, error } = useQuery({
+    queryKey: ["attendance", user?.id, formattedDate],
+    queryFn: async (): Promise<AttendanceRecord[]> => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from('children')
-        .select('*')
-        .eq('parent_id', user.id);
+      try {
+        const { data, error } = await supabase
+          .from('attendance')
+          .select('*')
+          .eq('parent_id', user.id)
+          .eq('date', formattedDate)
+          .order('check_in_time', { ascending: false });
 
-      if (error) {
-        console.error("Error fetching children:", error);
+        if (error) {
+          console.error("Error fetching attendance:", error);
+          return [];
+        }
+
+        return data || [];
+      } catch (error: any) {
+        console.error("Error in AttendanceTracking:", error);
         return [];
       }
-
-      return data || [];
     },
     enabled: !!user,
   });
 
-  const { data: attendance = [], isLoading } = useQuery({
-    queryKey: ["parent-attendance", user?.id, dateRange],
-    queryFn: async () => {
-      if (!user || children.length === 0) return [];
-
-      const now = new Date();
-      const startDate = dateRange === "week" ? startOfWeek(now) : startOfMonth(now);
-      const endDate = dateRange === "week" ? endOfWeek(now) : endOfMonth(now);
-
-      const childIds = children.map(child => child.id);
-      
-      const { data, error } = await supabase
-        .from('attendance')
-        .select(`
-          *,
-          children:child_id(first_name, last_name)
-        `)
-        .in('child_id', childIds)
-        .gte('attendance_date', startDate.toISOString().split('T')[0])
-        .lte('attendance_date', endDate.toISOString().split('T')[0])
-        .order('attendance_date', { ascending: false });
-
-      if (error) {
-        console.error("Error fetching attendance:", error);
-        return [];
-      }
-
-      return data || [];
-    },
-    enabled: !!user && children.length > 0,
-  });
-
-  const exportAttendance = () => {
-    const csvContent = [
-      ['Child Name', 'Date', 'Check In', 'Check Out', 'Duration'].join(','),
-      ...attendance.map(record => [
-        `${record.children?.first_name} ${record.children?.last_name}`,
-        format(new Date(record.attendance_date), 'MM/dd/yyyy'),
-        record.checked_in_at ? format(new Date(record.checked_in_at), 'HH:mm') : '',
-        record.checked_out_at ? format(new Date(record.checked_out_at), 'HH:mm') : 'Still present',
-        record.checked_in_at && record.checked_out_at 
-          ? `${Math.round((new Date(record.checked_out_at).getTime() - new Date(record.checked_in_at).getTime()) / (1000 * 60))} minutes`
-          : ''
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `attendance-${dateRange}-report.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Attendance Tracking</h2>
-          <p className="text-gray-600">View your children's attendance history</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant={dateRange === "week" ? "default" : "outline"}
-            onClick={() => setDateRange("week")}
-            size="sm"
-          >
-            This Week
-          </Button>
-          <Button
-            variant={dateRange === "month" ? "default" : "outline"}
-            onClick={() => setDateRange("month")}
-            size="sm"
-          >
-            This Month
-          </Button>
-          <Button onClick={exportAttendance} size="sm" variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-        </div>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Attendance Tracking</h2>
+        <input
+          type="date"
+          className="border rounded px-3 py-2"
+          value={formattedDate}
+          onChange={(e) => handleDateChange(new Date(e.target.value))}
+        />
       </div>
 
-      {children.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <User className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No children registered</h3>
-            <p className="text-gray-500">Add children to view their attendance records.</p>
+      {isLoading ? (
+        <Card className="col-span-full">
+          <CardContent className="p-6 flex justify-center items-center">
+            <div className="animate-pulse text-center">
+              <div className="h-8 w-48 bg-gray-200 rounded mb-4 mx-auto"></div>
+              <div className="h-4 w-32 bg-gray-200 rounded mx-auto"></div>
+            </div>
           </CardContent>
         </Card>
-      ) : attendance.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Calendar className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No attendance records</h3>
-            <p className="text-gray-500">
-              Attendance records for the selected period will appear here.
-            </p>
+      ) : attendanceRecords.length === 0 ? (
+        <Card className="col-span-full">
+          <CardContent className="p-6 text-center">
+            <Calendar size={48} className="mx-auto text-gray-400 mb-2" />
+            <h3 className="font-medium text-lg">No attendance records for {format(selectedDate, "MMMM dd, yyyy")}</h3>
+            <p className="text-gray-500">Check back after your child has been checked in/out.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {children.map(child => {
-            const childAttendance = attendance.filter(record => record.child_id === child.id);
-            const presentDays = childAttendance.length;
-            
-            return (
-              <Card key={child.id}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      {child.first_name} {child.last_name}
-                    </span>
-                    <Badge variant="outline">
-                      {presentDays} day{presentDays !== 1 ? 's' : ''} present
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {childAttendance.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">
-                      No attendance records for this period
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {childAttendance.map(record => (
-                        <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-gray-500" />
-                              <span className="font-medium">
-                                {format(new Date(record.attendance_date), 'EEE, MMM dd')}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 text-green-600" />
-                              <span>In: {record.checked_in_at ? format(new Date(record.checked_in_at), 'HH:mm') : '-'}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 text-red-600" />
-                              <span>Out: {record.checked_out_at ? format(new Date(record.checked_out_at), 'HH:mm') : 'Still present'}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {attendanceRecords.map(record => (
+            <Card key={record.id} className="overflow-hidden">
+              <div className="bg-gradient-to-r from-green-500 to-blue-500 h-2"></div>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex justify-between items-center">
+                  <span>Child ID: {record.child_id}</span>
+                  <Badge variant="secondary">Present</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center text-sm text-gray-600">
+                  <Clock size={14} className="mr-1" />
+                  <span>Check-In: {format(new Date(record.check_in_time), "hh:mm a")}</span>
+                </div>
+                {record.check_out_time && (
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Clock size={14} className="mr-1" />
+                    <span>Check-Out: {format(new Date(record.check_out_time), "hh:mm a")}</span>
+                  </div>
+                )}
+                <div className="flex items-center text-sm text-gray-600">
+                  <MapPin size={14} className="mr-1" />
+                  <span>Location: {record.location}</span>
+                </div>
+                <div className="mt-4 flex space-x-2">
+                  <Button size="sm" variant="outline" className="w-full">
+                    View Details
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>

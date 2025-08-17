@@ -1,153 +1,88 @@
+import { useAuth } from "@/context/CleanAuthContext";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Home, Users, Settings, LogOut, BarChart3, Calendar, MessageSquare } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
-import { useAuth } from "@/context/AuthContext";
-import { NavLink, useLocation } from "react-router-dom";
-import { 
-  Users, 
-  Calendar, 
-  ClipboardList, 
-  UserCog, 
-  MessageSquare, 
-  Settings, 
-  HelpCircle,
-  Home,
-  QrCode,
-  LogOut as LogOutIcon,
-  BookOpen,
-  Shield,
-  Clock,
-  Heart,
-  Baby
-} from "lucide-react";
+interface SidebarProps {
+  className?: string;
+}
 
-const ModernSidebar = () => {
+export const ModernSidebar = ({ className }: SidebarProps = {}) => {
+  const { signOut, userRole, isAdmin } = useAuth();
   const location = useLocation();
-  const { userRole, signOut } = useAuth();
-  const currentPath = location.pathname;
 
-  const isActive = (path: string) => currentPath === path;
+  const navigation = [
+    {
+      name: "Dashboard",
+      href: "/",
+      icon: Home,
+    },
+    {
+      name: "Users",
+      href: "/users",
+      icon: Users,
+      requireAdmin: true,
+    },
+    {
+      name: "Reports",
+      href: "/reports",
+      icon: BarChart3,
+      requireAdmin: true,
+    },
+    {
+      name: "Calendar",
+      href: "/calendar",
+      icon: Calendar,
+    },
+    {
+      name: "Messages",
+      href: "/messages",
+      icon: MessageSquare,
+    },
+    {
+      name: "Settings",
+      href: "/settings",
+      icon: Settings,
+    },
+  ];
 
-  const getNavCls = (path: string) => {
-    const baseClasses = "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors";
-    if (isActive(path)) {
-      return `${baseClasses} bg-primary text-primary-foreground`;
-    }
-    return `${baseClasses} hover:bg-accent hover:text-accent-foreground`;
+  const handleSignOut = async () => {
+    await signOut();
   };
-
-  // Define navigation items based on role with proper separation
-  const getNavigationItems = () => {
-    const commonItems = [
-      { to: "/help", icon: HelpCircle, label: "Help & Support" },
-    ];
-
-    switch (userRole) {
-      case 'parent':
-        return [
-          { to: "/parent-dashboard", icon: Home, label: "Dashboard" },
-          { to: "/children", icon: Baby, label: "My Children" },
-          { to: "/messages", icon: MessageSquare, label: "Messages" },
-          { to: "/events", icon: Calendar, label: "Events" },
-          ...commonItems,
-        ];
-
-      case 'staff':
-        return [
-          { to: "/staff-dashboard", icon: Home, label: "Dashboard" },
-          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Kiosk" },
-          { to: "/check-out-station", icon: LogOutIcon, label: "Check-Out Station" },
-          { to: "/attendance", icon: ClipboardList, label: "Attendance" },
-          { to: "/children", icon: Users, label: "All Children" },
-          { to: "/classes", icon: BookOpen, label: "Classes" },
-          { to: "/messages", icon: MessageSquare, label: "Messages" },
-          { to: "/staff-realtime-dashboard", icon: Clock, label: "Real-time Dashboard" },
-          ...commonItems,
-        ];
-
-      case 'teacher':
-      case 'teacher_assistant':
-        return [
-          { to: "/teacher-dashboard", icon: Home, label: "Dashboard" },
-          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Assistance" },
-          { to: "/attendance", icon: ClipboardList, label: "Attendance" },
-          { to: "/classes", icon: BookOpen, label: "My Classes" },
-          { to: "/children", icon: Users, label: "Students" },
-          { to: "/messages", icon: MessageSquare, label: "Messages" },
-          ...commonItems,
-        ];
-
-      case 'admin':
-      case 'super_admin':
-        return [
-          { to: "/admin-dashboard", icon: Home, label: "Admin Dashboard" },
-          { to: "/check-in-kiosk", icon: QrCode, label: "Check-In Kiosk" },
-          { to: "/check-out-station", icon: LogOutIcon, label: "Check-Out Station" },
-          { to: "/attendance", icon: ClipboardList, label: "Attendance" },
-          { to: "/children", icon: Users, label: "Children" },
-          { to: "/classes", icon: BookOpen, label: "Classes" },
-          { to: "/users", icon: UserCog, label: "Users" },
-          { to: "/roles", icon: Shield, label: "Roles & Permissions" },
-          { to: "/messages", icon: MessageSquare, label: "Messages" },
-          { to: "/events", icon: Calendar, label: "Events" },
-          { to: "/organization", icon: Settings, label: "Organization" },
-          { to: "/staff-realtime-dashboard", icon: Clock, label: "Real-time Dashboard" },
-          ...commonItems,
-        ];
-
-      default:
-        // For any unrecognized role, show minimal navigation
-        return [
-          { to: "/dashboard", icon: Home, label: "Dashboard" },
-          ...commonItems,
-        ];
-    }
-  };
-
-  const navigationItems = getNavigationItems();
 
   return (
-    <div className="w-64 bg-background border-r border-border h-full flex flex-col">
-      {/* Logo/Brand */}
-      <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold">Childcare System</h2>
-        {userRole && (
-          <p className="text-xs text-muted-foreground mt-1">
-            {userRole === 'parent' ? 'Parent Portal' : 
-             userRole === 'admin' ? 'Admin Panel' :
-             userRole === 'super_admin' ? 'Super Admin Panel' :
-             userRole === 'staff' ? 'Staff Portal' :
-             userRole === 'teacher' ? 'Teacher Portal' :
-             userRole === 'teacher_assistant' ? 'Assistant Portal' :
-             'Dashboard'}
-          </p>
-        )}
+    <div className={cn("flex flex-col border-r bg-secondary/50 w-60", className)}>
+      <div className="px-4 py-6">
+        <Link to="/" className="font-semibold text-lg">
+          KiddoCheck
+        </Link>
       </div>
+      <nav className="flex flex-col flex-1 px-2 space-y-1">
+        {navigation.map((item) => {
+          if (item.requireAdmin && !isAdmin) {
+            return null;
+          }
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {navigationItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={getNavCls(item.to)}
-          >
-            <item.icon className="h-5 w-5 flex-shrink-0" />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+          const active = location.pathname === item.href;
+
+          return (
+            <Link key={item.href} to={item.href}>
+              <Button variant="ghost" className={cn("justify-start", active ? "bg-accent" : "hover:bg-accent", "w-full")}>
+                <item.icon className="mr-2 h-4 w-4" />
+                {item.name}
+              </Button>
+            </Link>
+          );
+        })}
       </nav>
-
-      {/* Sign Out */}
-      <div className="p-4 border-t border-border">
-        <button
-          onClick={signOut}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground w-full text-left"
-        >
-          <LogOutIcon className="h-5 w-5 flex-shrink-0" />
-          <span>Sign Out</span>
-        </button>
+      {/* Logout Button */}
+      <div className="p-4">
+        <Button variant="outline" className="w-full" onClick={handleSignOut}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
       </div>
     </div>
   );
 };
-
-export default ModernSidebar;

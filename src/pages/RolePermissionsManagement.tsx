@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import ModernLayout from "@/components/layout/ModernLayout";
 import {
@@ -32,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/CleanAuthContext";
 import { AppRole } from "@/types/supabase";
 
 const RolePermissionsManagement = () => {

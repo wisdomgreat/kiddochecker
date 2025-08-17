@@ -1,6 +1,6 @@
 
 import { ReactNode, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/CleanAuthContext";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Home, Users, Calendar, MessageSquare, Settings, BarChart3, Baby, UserPlus } from "lucide-react";

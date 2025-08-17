@@ -1,190 +1,276 @@
-
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Child } from "@/hooks/useChildren";
-import { useAuth } from "@/context/AuthContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/CleanAuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddEditChildDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (childData: any) => void;
-  child?: Child | null;
-  isLoading?: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  childId?: string;
+  onSuccess?: () => void;
 }
 
-const AddEditChildDialog = ({ 
-  isOpen, 
-  onClose, 
-  onSave, 
-  child, 
-  isLoading = false 
-}: AddEditChildDialogProps) => {
+interface Child {
+  id: string;
+  parent_id: string;
+  first_name: string;
+  last_name: string;
+  age?: number;
+  allergies?: string;
+  medical_info?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenChange, childId, onSuccess }) => {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [age, setAge] = useState<number | undefined>(undefined);
+  const [allergies, setAllergies] = useState("");
+  const [medicalInfo, setMedicalInfo] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const { user } = useAuth();
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    age: '',
-    allergies: '',
-    medical_info: '',
-    notes: '',
-    emergency_contact_name: '',
-    emergency_contact_phone: '',
-  });
 
   useEffect(() => {
-    if (child) {
-      setFormData({
-        first_name: child.first_name || '',
-        last_name: child.last_name || '',
-        age: child.age?.toString() || '',
-        allergies: child.allergies || '',
-        medical_info: child.medical_info || '',
-        notes: child.notes || '',
-        emergency_contact_name: child.emergency_contact_name || '',
-        emergency_contact_phone: child.emergency_contact_phone || '',
-      });
-    } else {
-      setFormData({
-        first_name: '',
-        last_name: '',
-        age: '',
-        allergies: '',
-        medical_info: '',
-        notes: '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-      });
-    }
-  }, [child, isOpen]);
+    const fetchChildData = async () => {
+      if (childId && user) {
+        setLoading(true);
+        try {
+          const { data: childData, error } = await supabase
+            .from('children')
+            .select('*')
+            .eq('id', childId)
+            .single();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const childData = {
-      ...formData,
-      age: formData.age ? parseInt(formData.age) : null,
-      parent_id: user?.id,
+          if (error) {
+            console.error("Error fetching child:", error);
+            toast({
+              title: "Error",
+              description: "Failed to load child data",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (childData) {
+            setFirstName(childData.first_name || "");
+            setLastName(childData.last_name || "");
+            setAge(childData.age);
+            setAllergies(childData.allergies || "");
+            setMedicalInfo(childData.medical_info || "");
+            setEmergencyContactName(childData.emergency_contact_name || "");
+            setEmergencyContactPhone(childData.emergency_contact_phone || "");
+            setNotes(childData.notes || "");
+          }
+        } catch (error) {
+          console.error("Error fetching child:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load child data",
+            variant: "destructive",
+          });
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Reset form if no childId is provided (i.e., adding a new child)
+        setFirstName("");
+        setLastName("");
+        setAge(undefined);
+        setAllergies("");
+        setMedicalInfo("");
+        setEmergencyContactName("");
+        setEmergencyContactPhone("");
+        setNotes("");
+      }
     };
 
-    if (child) {
-      onSave({ id: child.id, ...childData });
-    } else {
-      onSave(childData);
-    }
-  };
+    fetchChildData();
+  }, [childId, user, open, toast]);
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleSubmit = async () => {
+    if (!firstName || !lastName) {
+      toast({
+        title: "Error",
+        description: "First and last name are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const childData = {
+        first_name: firstName,
+        last_name: lastName,
+        age: age,
+        allergies: allergies,
+        medical_info: medicalInfo,
+        emergency_contact_name: emergencyContactName,
+        emergency_contact_phone: emergencyContactPhone,
+        notes: notes,
+        parent_id: user?.id,
+      };
+
+      if (childId) {
+        // Update existing child
+        const { error } = await supabase
+          .from('children')
+          .update(childData)
+          .eq('id', childId);
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Success",
+          description: "Child updated successfully!",
+        });
+      } else {
+        // Add new child
+        const { error } = await supabase
+          .from('children')
+          .insert(childData);
+
+        if (error) {
+          throw error;
+        }
+
+        toast({
+          title: "Success",
+          description: "Child added successfully!",
+        });
+      }
+
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Error during submit:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save child data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {child ? 'Edit Child' : 'Add New Child'}
-          </DialogTitle>
+          <DialogTitle>{childId ? "Edit Child" : "Add Child"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="first_name">First Name *</Label>
+              <Label htmlFor="firstName">First Name</Label>
               <Input
-                id="first_name"
-                value={formData.first_name}
-                onChange={(e) => handleChange('first_name', e.target.value)}
-                required
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                disabled={loading}
               />
             </div>
             <div>
-              <Label htmlFor="last_name">Last Name *</Label>
+              <Label htmlFor="lastName">Last Name</Label>
               <Input
-                id="last_name"
-                value={formData.last_name}
-                onChange={(e) => handleChange('last_name', e.target.value)}
-                required
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                disabled={loading}
               />
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="age">Age</Label>
             <Input
               id="age"
               type="number"
-              value={formData.age}
-              onChange={(e) => handleChange('age', e.target.value)}
-              min="0"
-              max="18"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="allergies">Allergies</Label>
-            <Textarea
-              id="allergies"
-              value={formData.allergies}
-              onChange={(e) => handleChange('allergies', e.target.value)}
-              placeholder="List any allergies or dietary restrictions..."
-              className="min-h-[60px]"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="medical_info">Medical Information</Label>
-            <Textarea
-              id="medical_info"
-              value={formData.medical_info}
-              onChange={(e) => handleChange('medical_info', e.target.value)}
-              placeholder="Any medical conditions or medications..."
-              className="min-h-[60px]"
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="emergency_contact_name">Emergency Contact Name</Label>
-              <Input
-                id="emergency_contact_name"
-                value={formData.emergency_contact_name}
-                onChange={(e) => handleChange('emergency_contact_name', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="emergency_contact_phone">Emergency Contact Phone</Label>
-              <Input
-                id="emergency_contact_phone"
-                value={formData.emergency_contact_phone}
-                onChange={(e) => handleChange('emergency_contact_phone', e.target.value)}
-                type="tel"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <Label htmlFor="notes">Additional Notes</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => handleChange('notes', e.target.value)}
-              placeholder="Any additional information..."
-              className="min-h-[60px]"
+              value={age !== undefined ? age.toString() : ""}
+              onChange={(e) => setAge(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              disabled={loading}
             />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Saving...' : child ? 'Update Child' : 'Add Child'}
-            </Button>
+          <div>
+            <Label htmlFor="allergies">Allergies</Label>
+            <Input
+              id="allergies"
+              value={allergies}
+              onChange={(e) => setAllergies(e.target.value)}
+              disabled={loading}
+            />
           </div>
-        </form>
+
+          <div>
+            <Label htmlFor="medicalInfo">Medical Info</Label>
+            <Textarea
+              id="medicalInfo"
+              value={medicalInfo}
+              onChange={(e) => setMedicalInfo(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="emergencyContactName">Emergency Contact Name</Label>
+              <Input
+                id="emergencyContactName"
+                value={emergencyContactName}
+                onChange={(e) => setEmergencyContactName(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <Label htmlFor="emergencyContactPhone">Emergency Contact Phone</Label>
+              <Input
+                id="emergencyContactPhone"
+                value={emergencyContactPhone}
+                onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" onClick={handleSubmit} disabled={loading}>
+            {loading ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
