@@ -134,7 +134,7 @@ export const UserCreationForm = ({ onUserCreated }: UserCreationFormProps) => {
       </div>
       <div>
         <label className="text-sm font-medium">Role</label>
-        <Select value={newUserForm.role} onValueChange={(value: any) => setNewUserForm(prev => ({ ...prev, role: value }))}>
+        <Select value={newUserForm.role || "parent"} onValueChange={(value: any) => setNewUserForm(prev => ({ ...prev, role: value }))}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
