@@ -193,13 +193,13 @@ export const AssignTeacherForm = ({
                     </FormControl>
                     <SelectContent>
                       {isLoading ? (
-                        <SelectItem value="loading" disabled>
+                        <div className="p-2 text-sm text-muted-foreground">
                           Loading teachers...
-                        </SelectItem>
+                        </div>
                       ) : staffMembers.length === 0 ? (
-                        <SelectItem value="none-available" disabled>
+                        <div className="p-2 text-sm text-muted-foreground">
                           No teachers available
-                        </SelectItem>
+                        </div>
                       ) : (
                         staffMembers.map((member) => (
                           <SelectItem key={member.user_id} value={member.user_id}>
