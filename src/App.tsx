@@ -1,12 +1,12 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import { AuthRedirectHandler } from "@/components/auth/AuthRedirectHandler";
-import { RoleBasedRedirect } from "@/components/auth/RoleBasedRedirect";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { AuthProvider } from "@/context/CleanAuthContext";
+import { SimpleRoleRouter } from "@/components/auth/SimpleRoleRouter";
 
 // Import pages
 import LoginPage from "@/pages/LoginPage";
@@ -15,75 +15,57 @@ import ParentRegistrationPage from "@/pages/ParentRegistrationPage";
 import CheckInKiosk from "@/pages/CheckInKiosk";
 import CheckOutStation from "@/pages/CheckOutStation";
 
-// Admin Pages
-import CleanAdminDashboard from "@/components/admin/CleanAdminDashboard";
+// Admin pages
+import AdminDashboardPage from "@/pages/AdminDashboardPage";
 import AdminUsersPage from "@/pages/AdminUsersPage";
-import CheckInOutManagement from "@/pages/CheckInOutManagement";
 
-// Parent Pages  
-import CleanParentDashboard from "@/components/parent/CleanParentDashboard";
+// Parent pages
+import ParentDashboardPage from "@/pages/ParentDashboardPage";
 
-import MobileFirstLayout from "@/components/layout/MobileFirstLayout";
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-const queryClient = new QueryClient();
-
-const App = () => {
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <BrowserRouter>
-            <AuthRedirectHandler>
-              <RoleBasedRedirect />
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/landing" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/parent-registration" element={<ParentRegistrationPage />} />
-                
-                {/* Kiosk Routes (Public) */}
-                <Route path="/check-in-kiosk" element={<CheckInKiosk />} />
-                <Route path="/checkin" element={<CheckInKiosk />} />
-                <Route path="/checkout" element={<CheckOutStation />} />
-                
-                {/* Admin Routes */}
-                <Route path="/admin/dashboard" element={
-                  <MobileFirstLayout>
-                    <CleanAdminDashboard />
-                  </MobileFirstLayout>
-                } />
-                <Route path="/admin/users" element={
-                  <MobileFirstLayout>
-                    <AdminUsersPage />
-                  </MobileFirstLayout>
-                } />
-                <Route path="/admin/checkin" element={
-                  <MobileFirstLayout>
-                    <CheckInOutManagement />
-                  </MobileFirstLayout>
-                } />
-                
-                {/* Parent Routes */}
-                <Route path="/dashboard" element={
-                  <MobileFirstLayout>
-                    <CleanParentDashboard />
-                  </MobileFirstLayout>
-                } />
-                
-                {/* Root redirect */}
-                <Route path="/" element={<Navigate to="/landing" replace />} />
-                
-                {/* Catch all - redirect to landing */}
-                <Route path="*" element={<Navigate to="/landing" replace />} />
-              </Routes>
-            </AuthRedirectHandler>
-          </BrowserRouter>
+          <Router>
+            <AuthProvider>
+              <SimpleRoleRouter />
+              <div className="min-h-screen bg-background">
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="/landing" element={<LandingPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/parent-registration" element={<ParentRegistrationPage />} />
+                  
+                  {/* Kiosk Routes */}
+                  <Route path="/checkin" element={<CheckInKiosk />} />
+                  <Route path="/checkout" element={<CheckOutStation />} />
+                  
+                  {/* Admin Routes */}
+                  <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+                  <Route path="/admin/users" element={<AdminUsersPage />} />
+                  
+                  {/* Parent Routes */}
+                  <Route path="/dashboard" element={<ParentDashboardPage />} />
+                </Routes>
+              </div>
+            </AuthProvider>
+          </Router>
           <Toaster />
-          <Sonner />
         </TooltipProvider>
-      </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;
