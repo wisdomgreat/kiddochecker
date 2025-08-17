@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole } from '@/types/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +16,9 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   isParent: boolean;
   isStaff: boolean;
+  isTeacher: boolean;
+  isTeacherAssistant: boolean;
+  hasRole: (role: AppRole) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   const refreshUserRole = useCallback(async () => {
     if (!user?.id) {
@@ -34,25 +39,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user role for:', user.id);
       
-      // Use the safe RPC function to get user role
-      const { data, error } = await supabase.rpc('get_current_user_role');
+      const { data, error } = await supabase.rpc('get_current_user_role_secure');
 
       if (error) {
         console.error("Error fetching user role:", error);
-        // If RPC fails, try direct query as fallback
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role, is_super_admin')
-          .eq('user_id', user.id)
-          .single();
-          
-        if (!roleError && roleData) {
-          const finalRole = roleData.is_super_admin ? 'super_admin' : roleData.role;
-          setUserRole(finalRole as AppRole);
-          console.log('User role set to (fallback):', finalRole);
-          return;
-        }
-        
         setUserRole('parent'); // Default fallback
         return;
       }
@@ -75,46 +65,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Error signing out:", error);
+        toast({
+          title: "Sign Out Error",
+          description: "There was an issue signing out. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Signed Out",
+          description: "You have been successfully signed out.",
+        });
       }
     } catch (error) {
       console.error("Exception during sign out:", error);
+      toast({
+        title: "Sign Out Error",
+        description: "An unexpected error occurred during sign out.",
+        variant: "destructive",
+      });
     }
-  }, []);
+  }, [toast]);
+
+  const hasRole = useCallback((role: AppRole): boolean => {
+    if (!userRole) return false;
+    if (userRole === 'super_admin') return true; // Super admin has all roles
+    return userRole === role;
+  }, [userRole]);
 
   useEffect(() => {
     let mounted = true;
-
-    const getInitialSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        if (error) {
-          console.error("Error getting session:", error);
-          setLoading(false);
-          return;
-        }
-
-        if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-          // Use setTimeout to avoid blocking the auth state change
-          setTimeout(() => {
-            if (mounted) {
-              refreshUserRole();
-            }
-          }, 0);
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error("Exception getting initial session:", error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -133,18 +112,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Use setTimeout to defer role fetching and avoid blocking
+        // Defer role fetching to avoid blocking auth state change
         if (session?.user && mounted) {
           setTimeout(() => {
             if (mounted) {
-              refreshUserRole();
+              refreshUserRole().finally(() => {
+                if (mounted) setLoading(false);
+              });
             }
           }, 0);
+        } else {
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
+
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.error("Error getting session:", error);
+          setLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          setSession(session);
+          setUser(session.user);
+          setTimeout(() => {
+            if (mounted) {
+              refreshUserRole().finally(() => {
+                if (mounted) setLoading(false);
+              });
+            }
+          }, 0);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Exception getting initial session:", error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
 
     getInitialSession();
 
@@ -154,11 +169,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshUserRole]);
 
-  // Clean role-based permissions
+  // Role-based permissions
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
   const isSuperAdmin = userRole === 'super_admin';
   const isParent = userRole === 'parent';
-  const isStaff = userRole === 'staff' || userRole === 'teacher' || userRole === 'teacher_assistant';
+  const isStaff = userRole === 'staff';
+  const isTeacher = userRole === 'teacher';
+  const isTeacherAssistant = userRole === 'teacher_assistant';
 
   const value = {
     user,
@@ -171,6 +188,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSuperAdmin,
     isParent,
     isStaff,
+    isTeacher,
+    isTeacherAssistant,
+    hasRole,
   };
 
   return (

@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          resource: string
+          resource_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource: string
+          resource_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource?: string
+          resource_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           attendance_date: string
@@ -71,6 +115,13 @@ export type Database = {
             foreignKeyName: "attendance_class_id_fkey"
             columns: ["class_id"]
             isOneToOne: false
+            referencedRelation: "attendance_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "attendance_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
             referencedRelation: "classes"
             referencedColumns: ["id"]
           },
@@ -114,6 +165,54 @@ export type Database = {
           {
             foreignKeyName: "calendar_events_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "auth_users_with_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      child_notes: {
+        Row: {
+          child_id: string
+          created_at: string | null
+          id: string
+          is_private: boolean | null
+          note_text: string
+          note_type: string | null
+          teacher_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          child_id: string
+          created_at?: string | null
+          id?: string
+          is_private?: boolean | null
+          note_text: string
+          note_type?: string | null
+          teacher_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          child_id?: string
+          created_at?: string | null
+          id?: string
+          is_private?: boolean | null
+          note_text?: string
+          note_type?: string | null
+          teacher_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_notes_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "child_notes_teacher_id_fkey"
+            columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "auth_users_with_emails"
             referencedColumns: ["id"]
@@ -696,6 +795,13 @@ export type Database = {
             foreignKeyName: "teachers_class_id_fkey"
             columns: ["class_id"]
             isOneToOne: false
+            referencedRelation: "attendance_summary"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "teachers_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
             referencedRelation: "classes"
             referencedColumns: ["id"]
           },
@@ -774,6 +880,18 @@ export type Database = {
       }
     }
     Views: {
+      attendance_summary: {
+        Row: {
+          attendance_date: string | null
+          checked_in_count: number | null
+          checked_out_count: number | null
+          class_id: string | null
+          class_name: string | null
+          currently_present: number | null
+          total_children: number | null
+        }
+        Relationships: []
+      }
       auth_users_with_emails: {
         Row: {
           email: string | null
@@ -877,6 +995,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_current_user_role_secure: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_detailed_attendance_report: {
         Args: { end_date?: string; start_date?: string }
         Returns: {
@@ -953,8 +1075,16 @@ export type Database = {
         Args: { role: Database["public"]["Enums"]["app_role"]; user_id: string }
         Returns: boolean
       }
+      has_role_secure: {
+        Args: { check_role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      is_admin_secure: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       is_admin_user: {
@@ -966,6 +1096,10 @@ export type Database = {
         Returns: boolean
       }
       is_current_user_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_super_admin_secure: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
