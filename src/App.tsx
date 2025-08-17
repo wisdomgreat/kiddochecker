@@ -1,7 +1,8 @@
+
 import React from "react";
 import "./App.css";
 import { Toaster } from "@/components/ui/toaster";
-import { Sonner } from "@/components/ui/sonner";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -12,8 +13,7 @@ import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 // Auth & Landing Pages
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import Landing from "./pages/Landing";
+import LandingPage from "./pages/LandingPage";
 
 // Dashboard Pages
 import AdminDashboardPage from "./pages/AdminDashboardPage";
@@ -29,12 +29,10 @@ import StaffDocumentUpload from "./pages/StaffDocumentUpload";
 
 // Check-in/Check-out Pages
 import CheckInKiosk from "./pages/CheckInKiosk";
-import CheckOutPage from "./pages/CheckOutPage";
 
 // Management Pages
 import DeviceManagementPage from "./pages/DeviceManagementPage";
 import ClassesPage from "./pages/ClassesPage";
-import AttendancePage from "./pages/AttendancePage";
 import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
 
@@ -59,18 +57,16 @@ function App() {
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/landing" element={<Landing />} />
+              <Route path="/landing" element={<LandingPage />} />
 
               {/* Check-in/Check-out Routes (public for kiosk mode) */}
               <Route path="/check-in" element={<CheckInKiosk />} />
-              <Route path="/check-out" element={<CheckOutPage />} />
 
               {/* Role-based Dashboard Routes */}
               <Route 
                 path="/dashboard" 
                 element={
-                  <RoleBasedRoute>
+                  <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'parent']}>
                     <div>Loading...</div>
                   </RoleBasedRoute>
                 } 
@@ -158,16 +154,6 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['parent']}>
                     <ParentDashboardPage />
-                  </ProtectedRoute>
-                } 
-              />
-
-              {/* Shared Routes (for all authenticated users) */}
-              <Route 
-                path="/attendance" 
-                element={
-                  <ProtectedRoute>
-                    <AttendancePage />
                   </ProtectedRoute>
                 } 
               />
