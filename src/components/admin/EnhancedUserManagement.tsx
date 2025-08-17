@@ -270,7 +270,7 @@ const EnhancedUserManagement = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Select value={filterRole || "all"} onValueChange={setFilterRole}>
+            <Select value={filterRole} onValueChange={setFilterRole}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
@@ -317,7 +317,7 @@ const EnhancedUserManagement = () => {
                       <TableCell>{user.phone || 'N/A'}</TableCell>
                       <TableCell>
                         <Select
-                          value={userRole || "parent"}
+                          value={userRole}
                           onValueChange={(newRole) => handleUpdateUserRole(user.id, newRole as AppRole)}
                         >
                           <SelectTrigger className="w-[180px]">
@@ -411,7 +411,7 @@ const EnhancedUserManagement = () => {
               <label htmlFor="role" className="text-right">
                 Role
               </label>
-              <Select value={role || "parent"} onValueChange={(value) => setRole(value as AppRole)}>
+              <Select value={role} onValueChange={(value) => setRole(value as AppRole)}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
