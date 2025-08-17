@@ -35,7 +35,7 @@ export function ChurchInfoFields({ form }: ChurchInfoFieldsProps) {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Time Zone</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <Select onValueChange={field.onChange} value={field.value || ""}>
               <FormControl>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a timezone" />

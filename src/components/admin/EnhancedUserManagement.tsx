@@ -259,7 +259,7 @@ const EnhancedUserManagement = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <Select onValueChange={setFilterRole} defaultValue={filterRole}>
+            <Select value={filterRole} onValueChange={setFilterRole}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
@@ -289,7 +289,7 @@ const EnhancedUserManagement = () => {
           <TableBody>
             {filteredUsers.map(user => {
               const userRoleData = userRoles?.find(ur => ur.user_id === user.id);
-              const role = userRoleData ? userRoleData.role : 'N/A';
+              const role = userRoleData ? userRoleData.role : 'parent';
 
               return (
                 <TableRow key={user.id}>
@@ -300,7 +300,7 @@ const EnhancedUserManagement = () => {
                       onValueChange={(newRole) => handleUpdateUserRole(user.id, newRole)}
                     >
                       <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder={role} />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
@@ -376,7 +376,7 @@ const CreateUserForm = ({ onCreate }: CreateUserFormProps) => {
         <label htmlFor="role" className="text-right">
           Role
         </label>
-        <Select onValueChange={setRole} defaultValue={role}>
+        <Select value={role} onValueChange={setRole}>
           <SelectTrigger className="col-span-3">
             <SelectValue placeholder="Select a role" />
           </SelectTrigger>

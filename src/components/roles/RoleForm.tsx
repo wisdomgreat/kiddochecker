@@ -70,7 +70,7 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
     if (selectedUser) {
       form.reset({
         userId: selectedUser.id,
-        role: selectedUser.role as AppRole,
+        role: (selectedUser.role as AppRole) || "parent",
         isSuperAdmin: !!selectedUser.roleData?.is_super_admin,
         isVolunteer: !!selectedUser.roleData?.is_volunteer,
       });
@@ -123,8 +123,7 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
                   <FormLabel>Role</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    value={field.value}
+                    value={field.value || "parent"}
                   >
                     <FormControl>
                       <SelectTrigger>
