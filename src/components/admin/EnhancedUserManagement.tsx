@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -307,7 +308,7 @@ const EnhancedUserManagement = () => {
               <TableBody>
                 {filteredUsers.map(user => {
                   const userRoleData = userRoles?.find(ur => ur.user_id === user.id);
-                  const role = userRoleData ? userRoleData.role : 'parent';
+                  const userRole = userRoleData ? userRoleData.role : 'parent';
 
                   return (
                     <TableRow key={user.id}>
@@ -316,7 +317,7 @@ const EnhancedUserManagement = () => {
                       <TableCell>{user.phone || 'N/A'}</TableCell>
                       <TableCell>
                         <Select
-                          value={role || "parent"}
+                          value={userRole || "parent"}
                           onValueChange={(newRole) => handleUpdateUserRole(user.id, newRole as AppRole)}
                         >
                           <SelectTrigger className="w-[180px]">
