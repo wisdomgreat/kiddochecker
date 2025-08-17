@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,7 @@ const ParentProfile = () => {
       if (!user) return null;
 
       try {
+        // Get profile data from profiles table
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -48,7 +50,19 @@ const ParentProfile = () => {
           throw profileError;
         }
 
-        return profileData as Profile;
+        // Combine with email from user
+        const profile: Profile = {
+          id: profileData.id,
+          email: user.email || '',
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
+          phone: profileData.phone,
+          address: profileData.address,
+          created_at: profileData.created_at,
+          updated_at: profileData.updated_at,
+        };
+
+        return profile;
       } catch (error: any) {
         console.error("Error in ParentProfile:", error);
         toast({
@@ -60,14 +74,6 @@ const ParentProfile = () => {
       }
     },
     enabled: !!user,
-    onSuccess: (data) => {
-      if (data) {
-        setFirstName(data.first_name || "");
-        setLastName(data.last_name || "");
-        setPhone(data.phone || "");
-        setAddress(data.address || "");
-      }
-    },
   });
 
   useEffect(() => {
