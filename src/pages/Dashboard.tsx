@@ -9,48 +9,24 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Dashboard page - User:', user?.id, 'Role:', userRole, 'Loading:', loading);
+    
     if (!loading) {
       if (!user) {
-        navigate('/login');
+        navigate('/login', { replace: true });
         return;
       }
 
-      if (userRole) {
-        switch (userRole) {
-          case 'super_admin':
-          case 'admin':
-            navigate('/admin-dashboard');
-            break;
-          case 'staff':
-          case 'teacher':
-          case 'teacher_assistant':
-            navigate('/staff-dashboard');
-            break;
-          case 'parent':
-          default:
-            navigate('/parent-dashboard');
-            break;
-        }
-      }
+      // This is likely an old route - redirect to root to let Index handle it
+      navigate('/', { replace: true });
     }
   }, [user, userRole, loading, navigate]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-        <p className="text-gray-600">Redirecting to your dashboard...</p>
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Redirecting to your dashboard...</p>
       </div>
     </div>
   );

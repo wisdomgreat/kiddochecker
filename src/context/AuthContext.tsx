@@ -39,38 +39,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user role for:', user.id);
       
-      // Use direct query instead of RPC to avoid recursion
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, is_super_admin')
-        .eq('user_id', user.id)
-        .single();
+      // Use direct query with timeout to prevent hanging
+      const { data, error } = await Promise.race([
+        supabase
+          .from('user_roles')
+          .select('role, is_super_admin')
+          .eq('user_id', user.id)
+          .single(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Role fetch timeout')), 10000)
+        )
+      ]) as any;
 
       if (error) {
         console.error("Error fetching user role:", error);
-        // Default to parent role for new users
-        const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: user.id,
-            role: 'parent' as AppRole,
-            is_super_admin: false
-          });
         
-        if (!insertError) {
+        // If user doesn't exist in user_roles, create a default parent role
+        if (error.code === 'PGRST116') {
+          console.log('User not found in user_roles, creating default parent role');
+          const { error: insertError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: user.id,
+              role: 'parent' as AppRole,
+              is_super_admin: false
+            });
+          
+          if (!insertError) {
+            setUserRole('parent');
+            console.log('Created default parent role for user');
+          } else {
+            console.error('Error creating default role:', insertError);
+            setUserRole('parent'); // Fallback
+          }
+        } else {
+          // For other errors, default to parent
           setUserRole('parent');
         }
         return;
       }
 
-      const finalRole = data?.role || 'parent';
+      const finalRole = (data?.is_super_admin ? 'super_admin' : data?.role) || 'parent';
       setUserRole(finalRole as AppRole);
       console.log('User role set to:', finalRole);
     } catch (error) {
       console.error("Exception refreshing user role:", error);
+      // Default to parent role to prevent infinite loading
       setUserRole('parent');
+      toast({
+        title: "Role Loading Issue",
+        description: "Defaulted to parent access. Please refresh if this seems incorrect.",
+        variant: "destructive",
+      });
     }
-  }, [user?.id]);
+  }, [user?.id, toast]);
 
   const signOut = useCallback(async () => {
     try {
@@ -113,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+    let roleTimeout: NodeJS.Timeout | null = null;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -132,6 +155,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
         
         if (session?.user && mounted) {
+          // Add timeout to prevent infinite loading
+          roleTimeout = setTimeout(() => {
+            if (mounted && !userRole) {
+              console.warn('Role fetch taking too long, defaulting to parent');
+              setUserRole('parent');
+              setLoading(false);
+            }
+          }, 15000); // 15 second timeout
+          
           await refreshUserRole();
         }
         
@@ -141,10 +173,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Get initial session
+    // Get initial session with timeout
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 10000)
+        );
+        
+        const { data: { session }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any;
         
         if (!mounted) return;
         
@@ -167,6 +207,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Exception getting initial session:", error);
         if (mounted) {
           setLoading(false);
+          // Show error message but don't crash
+          toast({
+            title: "Connection Issue",
+            description: "Please refresh the page if you continue to see loading screens.",
+            variant: "destructive",
+          });
         }
       }
     };
@@ -175,9 +221,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       mounted = false;
+      if (roleTimeout) clearTimeout(roleTimeout);
       subscription.unsubscribe();
     };
-  }, [refreshUserRole]);
+  }, [refreshUserRole, toast]);
 
   // Role-based permissions
   const isAdmin = userRole === 'admin' || userRole === 'super_admin';
