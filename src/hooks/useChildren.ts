@@ -1,8 +1,7 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/CleanAuthContext";
 
 export interface Child {
   id: string;
@@ -32,7 +31,6 @@ export const useChildren = () => {
       try {
         let query = supabase.from('children').select('*');
         
-        // If user is a parent, only show their children
         if (userRole === 'parent') {
           query = query.eq('parent_id', user.id);
         }

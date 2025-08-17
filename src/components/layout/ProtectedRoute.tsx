@@ -1,7 +1,7 @@
 
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/CleanAuthContext';
 import { AppRole } from '@/types/supabase';
 
 interface ProtectedRouteProps {
@@ -13,7 +13,6 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, userRole, loading } = useAuth();
   const location = useLocation();
 
-  // Show loading while auth is being determined
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -22,12 +21,10 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     );
   }
 
-  // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role-based access if roles are specified
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
     console.info("Access denied for path:", location.pathname, "User role:", userRole, "Required roles:", allowedRoles);
     return <Navigate to="/landing" replace />;

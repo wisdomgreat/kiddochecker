@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, UserPlus, Clock, Settings, BarChart3, Shield } from 'lucide-react';
 import { UserCreationModal } from './UserCreationModal';
 import { CheckInOutManager } from '@/components/checkin/CheckInOutManager';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/CleanAuthContext';
 
 const CleanAdminDashboard = () => {
   const { user, userRole, signOut } = useAuth();
@@ -22,7 +21,6 @@ const CleanAdminDashboard = () => {
               <h2 className="text-2xl font-bold">User Management</h2>
               <UserCreationModal />
             </div>
-            {/* User management content will be added here */}
           </div>
         );
       default:
@@ -131,7 +129,6 @@ const CleanAdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -145,7 +142,6 @@ const CleanAdminDashboard = () => {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
       <div className="bg-white border-b border-gray-200">
         <div className="flex overflow-x-auto">
           <button
@@ -195,7 +191,6 @@ const CleanAdminDashboard = () => {
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-6">
         {renderContent()}
       </div>

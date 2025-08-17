@@ -1,8 +1,7 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/CleanAuthContext";
 
 export interface Message {
   id: string;
@@ -30,7 +29,6 @@ export const useMessages = () => {
       if (!user?.id) return [];
 
       try {
-        // First get messages without the problematic join
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select('*')
@@ -46,16 +44,13 @@ export const useMessages = () => {
           return [];
         }
 
-        // Get unique sender IDs
         const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
         
-        // Get sender profiles separately
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, first_name, last_name')
           .in('id', senderIds);
 
-        // Combine the data
         const messagesWithSenders = messagesData.map(message => ({
           ...message,
           sender: profiles?.find(profile => profile.id === message.sender_id) || undefined

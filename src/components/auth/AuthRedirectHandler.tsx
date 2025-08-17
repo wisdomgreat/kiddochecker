@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/CleanAuthContext';
 import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -24,7 +24,6 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
     const isOnCheckInKiosk = location.pathname === '/checkin';
     const isOnCheckOutStation = location.pathname === '/checkout';
     
-    // Don't redirect kiosk/station pages
     if (isOnCheckInKiosk || isOnCheckOutStation) {
       return;
     }
@@ -32,7 +31,6 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
     if (user && userRole) {
       console.log('User authenticated with role:', userRole);
       
-      // Redirect authenticated users away from public pages
       if (isOnLoginPage || isOnRegisterPage || isOnRootPage || isOnLandingPage) {
         console.log('Redirecting authenticated user to dashboard');
         navigateToDashboard();
@@ -40,7 +38,6 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
     } else {
       console.log('User not authenticated or no role');
       
-      // Redirect unauthenticated users to landing page
       const publicRoutes = ['/landing', '/login', '/parent-registration'];
       
       if (isOnRootPage) {

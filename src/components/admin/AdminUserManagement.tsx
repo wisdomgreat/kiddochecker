@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AddUserModal from "./AddUserModal";
 import EditUserModal from "./EditUserModal";
 import { AppRole } from "@/types/supabase";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/CleanAuthContext";
 
 interface AdminUser {
   id: string;
@@ -59,7 +58,7 @@ const AdminUserManagement = () => {
           last_name: user.last_name || '',
           role: user.role as AppRole,
           is_super_admin: user.is_super_admin || false,
-          is_active: user.is_active !== false, // Default to true if not specified
+          is_active: user.is_active !== false,
           is_volunteer: user.is_volunteer || false,
           phone: user.phone || '',
           created_at: user.created_at || new Date().toISOString()
@@ -181,7 +180,6 @@ const AdminUserManagement = () => {
         </div>
       </div>
 
-      {/* Search and Filter */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -212,7 +210,6 @@ const AdminUserManagement = () => {
         </CardContent>
       </Card>
 
-      {/* User Grid */}
       {filteredUsers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">

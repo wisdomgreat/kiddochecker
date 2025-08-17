@@ -1,7 +1,7 @@
 
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/context/CleanAuthContext';
 import { AppRole } from '@/types/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShieldX, AlertTriangle } from 'lucide-react';
@@ -35,7 +35,6 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRoutePr
       return <Navigate to={redirectTo} replace />;
     }
 
-    // Show access denied page
     return (
       <div className="flex items-center justify-center min-h-screen p-8 bg-background">
         <Alert className="max-w-md border-red-200 bg-red-50">
