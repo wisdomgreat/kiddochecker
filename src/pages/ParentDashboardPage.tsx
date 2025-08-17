@@ -1,12 +1,15 @@
 
-import ParentDashboard from "@/components/parent/ParentDashboard";
-import AppLayout from "@/components/layout/AppLayout";
+import WorkingParentDashboard from "@/components/parent/WorkingParentDashboard";
+import ModernLayout from "@/components/layout/ModernLayout";
+import RoleGuard from "@/components/security/RoleGuard";
 
 const ParentDashboardPage = () => {
   return (
-    <AppLayout>
-      <ParentDashboard />
-    </AppLayout>
+    <ModernLayout>
+      <RoleGuard requireParentAccess>
+        <WorkingParentDashboard />
+      </RoleGuard>
+    </ModernLayout>
   );
 };
 

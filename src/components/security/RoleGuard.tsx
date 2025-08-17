@@ -1,55 +1,78 @@
 
-import { ReactNode } from "react";
-import { useAuth } from "@/context/CleanAuthContext";
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertTriangle } from "lucide-react";
+import { ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ShieldX, AlertTriangle } from 'lucide-react';
 
 interface RoleGuardProps {
   children: ReactNode;
-  requireAdminAccess?: boolean;
   requireParentAccess?: boolean;
-  fallback?: ReactNode;
+  requireStaffAccess?: boolean;
+  requireAdminAccess?: boolean;
 }
 
-const RoleGuard = ({ children, requireAdminAccess, requireParentAccess, fallback }: RoleGuardProps) => {
-  const { loading, isAdmin, isParent } = useAuth();
+const RoleGuard = ({ 
+  children, 
+  requireParentAccess,
+  requireStaffAccess,
+  requireAdminAccess
+}: RoleGuardProps) => {
+  const { user, userRole, loading } = useAuth();
+  const location = useLocation();
 
+  // Show loading while auth is being determined
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
-  if (requireAdminAccess && !isAdmin) {
-    return fallback || (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-              <p className="text-muted-foreground">You don't have permission to access this area.</p>
-            </div>
-          </CardContent>
-        </Card>
+  // Redirect to login if not authenticated
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Check parent access
+  if (requireParentAccess && userRole !== 'parent') {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-8">
+        <Alert className="max-w-md">
+          <ShieldX className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            This feature is only available to parent accounts.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
-  if (requireParentAccess && !isParent) {
-    return fallback || (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-              <p className="text-muted-foreground">This area is only accessible to parents.</p>
-            </div>
-          </CardContent>
-        </Card>
+  // Check staff access (includes staff, teacher, teacher_assistant)
+  if (requireStaffAccess && !['staff', 'teacher', 'teacher_assistant'].includes(userRole || '')) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-8">
+        <Alert className="max-w-md">
+          <ShieldX className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            This feature is only available to staff members.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Check admin access
+  if (requireAdminAccess && !['admin', 'super_admin'].includes(userRole || '')) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-8">
+        <Alert className="max-w-md">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            This feature requires administrative privileges.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }

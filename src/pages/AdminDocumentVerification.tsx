@@ -1,16 +1,16 @@
 
-import WorkingAdminDashboard from "@/components/admin/WorkingAdminDashboard";
+import DocumentVerificationSystem from "@/components/admin/DocumentVerificationSystem";
 import ModernLayout from "@/components/layout/ModernLayout";
 import RoleGuard from "@/components/security/RoleGuard";
 
-const AdminDashboardPage = () => {
+const AdminDocumentVerification = () => {
   return (
     <ModernLayout>
       <RoleGuard requireAdminAccess>
-        <WorkingAdminDashboard />
+        <DocumentVerificationSystem />
       </RoleGuard>
     </ModernLayout>
   );
 };
 
-export default AdminDashboardPage;
+export default AdminDocumentVerification;
