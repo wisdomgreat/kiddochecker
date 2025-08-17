@@ -7,12 +7,25 @@ import { Child } from "@/hooks/useChildren";
 
 interface ChildCardProps {
   child: Child;
-  onEdit: (child: Child) => void;
-  onDelete: (childId: string) => void;
+  onEdit?: (child: Child) => void;
+  onDelete?: (childId: string) => void;
+  onUpdate?: () => void;
   showActions?: boolean;
 }
 
-const ChildCard = ({ child, onEdit, onDelete, showActions = true }: ChildCardProps) => {
+const ChildCard = ({ child, onEdit, onDelete, onUpdate, showActions = true }: ChildCardProps) => {
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit(child);
+    }
+  };
+
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(child.id);
+    }
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center space-y-0 pb-2">
@@ -27,14 +40,14 @@ const ChildCard = ({ child, onEdit, onDelete, showActions = true }: ChildCardPro
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onEdit(child)}
+              onClick={handleEdit}
             >
               <Edit className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onDelete(child.id)}
+              onClick={handleDelete}
               className="text-red-600 hover:text-red-700"
             >
               <Trash2 className="h-4 w-4" />

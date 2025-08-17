@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -75,6 +76,16 @@ const ChildrenManagement = () => {
     enabled: !!user,
   });
 
+  const handleEdit = (child: Child) => {
+    // TODO: Implement edit functionality
+    console.log("Edit child:", child);
+  };
+
+  const handleDelete = (childId: string) => {
+    // TODO: Implement delete functionality
+    console.log("Delete child:", childId);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -108,7 +119,13 @@ const ChildrenManagement = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {children.map(child => (
-            <ChildCard key={child.id} child={child} onUpdate={refetch} />
+            <ChildCard 
+              key={child.id} 
+              child={child} 
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onUpdate={refetch}
+            />
           ))}
         </div>
       )}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,8 @@ import {
 
 interface User {
   id: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
   role: string;
 }
@@ -40,8 +41,8 @@ interface Message {
   is_read: boolean;
   created_at: string;
   sender?: {
-    firstName?: string;
-    lastName?: string;
+    first_name?: string;
+    last_name?: string;
   };
 }
 
@@ -68,7 +69,7 @@ const MessageSystem = () => {
       try {
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
-          .select('*, sender:sender_id(firstName, lastName)')
+          .select('*')
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false });
 
@@ -77,7 +78,23 @@ const MessageSystem = () => {
           return [];
         }
 
-        return messagesData || [];
+        if (!messagesData || messagesData.length === 0) {
+          return [];
+        }
+
+        const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
+        
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', senderIds);
+
+        const messagesWithSenders = messagesData.map(message => ({
+          ...message,
+          sender: profiles?.find(profile => profile.id === message.sender_id) || undefined
+        }));
+
+        return messagesWithSenders;
       } catch (error: any) {
         console.error("Error in useMessages:", error);
         return [];
@@ -91,14 +108,24 @@ const MessageSystem = () => {
       try {
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, firstName, lastName, email, role');
+          .select('id, first_name, last_name')
+          .limit(100);
 
         if (profilesError) {
           console.error("Error fetching profiles:", profilesError);
           return;
         }
 
-        setUsers(profiles || []);
+        // Convert to User format with mock email and role
+        const usersData = (profiles || []).map(profile => ({
+          id: profile.id,
+          first_name: profile.first_name || '',
+          last_name: profile.last_name || '',
+          email: `${profile.first_name}@example.com`, // Mock email
+          role: 'user' // Mock role
+        }));
+
+        setUsers(usersData);
       } catch (error: any) {
         console.error("Error fetching users:", error);
       }
@@ -116,8 +143,8 @@ const MessageSystem = () => {
       filtered = filtered.filter(message =>
         message.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        message.sender?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        message.sender?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
+        message.sender?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.sender?.last_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -218,7 +245,7 @@ const MessageSystem = () => {
                       <div className="space-y-1">
                         <div className="font-medium">{message.subject || 'No Subject'}</div>
                         <div className="text-sm text-gray-500">
-                          From: {message.sender?.firstName} {message.sender?.lastName}
+                          From: {message.sender?.first_name} {message.sender?.last_name}
                         </div>
                         <div className="text-sm text-gray-500">
                           {message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content}
@@ -226,7 +253,7 @@ const MessageSystem = () => {
                       </div>
                       <div>
                         {!message.is_read && (
-                          <Button variant="outline" size="xs" onClick={() => markAsRead(message.id)}>
+                          <Button variant="outline" size="sm" onClick={() => markAsRead(message.id)}>
                             Mark as Read
                           </Button>
                         )}
@@ -275,7 +302,7 @@ const MessageSystem = () => {
                   <SelectContent>
                     {users.map(user => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.firstName} {user.lastName} - {user.role}
+                        {user.first_name} {user.last_name} - {user.role}
                       </SelectItem>
                     ))}
                   </SelectContent>

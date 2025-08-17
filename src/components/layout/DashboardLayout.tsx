@@ -1,31 +1,39 @@
 
 import React from "react";
 import { useAuth } from "@/context/CleanAuthContext";
-import TopNavigation from "./TopNavigation";
-import { ModernSidebar } from "./ModernSidebar";
-import { Toaster } from "@/components/ui/toaster";
+import { ModernSidebar } from "@/components/layout/ModernSidebar";
+import { TopNavigation } from "@/components/layout/TopNavigation";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex h-screen">
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex">
         <ModernSidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col">
           <TopNavigation />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background">
-            <div className="container mx-auto px-6 py-8">
-              {children}
-            </div>
+          <main className="flex-1 p-6">
+            {children}
           </main>
         </div>
       </div>
-      <Toaster />
     </div>
   );
 };
