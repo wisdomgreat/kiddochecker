@@ -183,7 +183,7 @@ export const AssignTeacherForm = ({
                   <FormLabel>Select Teacher</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value || ""}
+                    value={field.value || undefined}
                     disabled={isLoading}
                   >
                     <FormControl>
