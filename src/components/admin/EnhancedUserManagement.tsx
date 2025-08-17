@@ -137,7 +137,7 @@ const EnhancedUserManagement = () => {
           .from('user_roles')
           .insert({
             user_id: data.user.id,
-            role: newUserData.role,
+            role: newUserData.role as "admin" | "staff" | "teacher" | "teacher_assistant" | "parent" | "super_admin",
           });
 
         if (roleError) {
@@ -172,7 +172,7 @@ const EnhancedUserManagement = () => {
         .from('user_roles')
         .upsert({
           user_id: userId,
-          role: role,
+          role: role as "admin" | "staff" | "teacher" | "teacher_assistant" | "parent" | "super_admin",
         }, { onConflict: 'user_id' });
 
       if (error) {

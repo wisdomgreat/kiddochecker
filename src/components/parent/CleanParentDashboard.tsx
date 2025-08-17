@@ -1,6 +1,8 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/CleanAuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,9 +30,9 @@ const DashboardCard: React.FC<DashboardCardProps> = ({ title, value, icon: Icon,
 const CleanParentDashboard = () => {
   const { user, userRole } = useAuth();
 
-  const { data: childrenCount, isLoading: isLoadingChildren } = useQuery(
-    ["children-count", user?.id],
-    async () => {
+  const { data: childrenCount, isLoading: isLoadingChildren } = useQuery({
+    queryKey: ["children-count", user?.id],
+    queryFn: async () => {
       if (!user?.id) return 0;
       const { count, error } = await supabase
         .from("children")
@@ -38,21 +40,21 @@ const CleanParentDashboard = () => {
         .eq("parent_id", user.id);
       if (error) throw error;
       return count || 0;
-    }
-  );
+    },
+  });
 
-  const { data: upcomingEvents, isLoading: isLoadingEvents } = useQuery(
-    ["upcoming-events", user?.id],
-    async () => {
+  const { data: upcomingEvents, isLoading: isLoadingEvents } = useQuery({
+    queryKey: ["upcoming-events", user?.id],
+    queryFn: async () => {
       if (!user?.id) return 0;
       // Replace with actual query for upcoming events
       return 5;
-    }
-  );
+    },
+  });
 
-  const { data: unreadMessages, isLoading: isLoadingMessages } = useQuery(
-    ["unread-messages", user?.id],
-    async () => {
+  const { data: unreadMessages, isLoading: isLoadingMessages } = useQuery({
+    queryKey: ["unread-messages", user?.id],
+    queryFn: async () => {
       if (!user?.id) return 0;
       // Replace with actual query for unread messages
       const { count, error } = await supabase
@@ -62,8 +64,8 @@ const CleanParentDashboard = () => {
         .eq("is_read", false);
       if (error) throw error;
       return count || 0;
-    }
-  );
+    },
+  });
 
   return (
     <div className="space-y-4">

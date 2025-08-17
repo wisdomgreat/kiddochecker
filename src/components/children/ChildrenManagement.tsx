@@ -10,10 +10,17 @@ import ChildCard from "./ChildCard";
 
 interface Child {
   id: string;
-  firstName: string;
-  lastName: string;
-  age: number;
+  parent_id: string;
+  first_name: string;
+  last_name: string;
+  age?: number;
   allergies?: string;
+  medical_info: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }
 
 const ChildrenManagement = () => {
@@ -48,10 +55,17 @@ const ChildrenManagement = () => {
 
         return (childrenData || []).map(child => ({
           id: child.id,
-          firstName: child.first_name,
-          lastName: child.last_name,
+          parent_id: child.parent_id,
+          first_name: child.first_name,
+          last_name: child.last_name,
           age: child.age,
           allergies: child.allergies,
+          medical_info: child.medical_info,
+          emergency_contact_name: child.emergency_contact_name,
+          emergency_contact_phone: child.emergency_contact_phone,
+          notes: child.notes,
+          created_at: child.created_at,
+          updated_at: child.updated_at,
         }));
       } catch (error) {
         console.error("Error fetching children:", error);

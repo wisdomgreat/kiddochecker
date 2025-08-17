@@ -1,32 +1,35 @@
 import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/CleanAuthContext";
 import { 
   MessageSquare, 
   Send, 
-  Plus, 
-  Search, 
-  Filter,
-  Mail,
-  MailOpen,
-  Reply,
-  Forward,
-  Trash2,
-  Star,
-  Clock
+  Mail, 
+  Users, 
+  Plus,
+  Search,
+  Filter
 } from "lucide-react";
-import { useAuth } from "@/context/CleanAuthContext";
+
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+}
 
 interface Message {
   id: string;
@@ -36,25 +39,28 @@ interface Message {
   content: string;
   is_read: boolean;
   created_at: string;
-  updated_at: string;
   sender?: {
-    first_name?: string;
-    last_name?: string;
+    firstName?: string;
+    lastName?: string;
   };
 }
 
 const MessageSystem = () => {
-  const [selectedTab, setSelectedTab] = useState("inbox");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("inbox");
   const [isComposeOpen, setIsComposeOpen] = useState(false);
-  const [recipient, setRecipient] = useState("");
-  const [subject, setSubject] = useState("");
-  const [content, setContent] = useState("");
-  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [users, setUsers] = useState<User[]>([]);
+  const [newMessage, setNewMessage] = useState({
+    subject: "",
+    content: "",
+    recipientId: ""
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const { data: messages = [], isLoading, error, refetch } = useQuery({
+  const { data: messages, isLoading, error, refetch } = useQuery({
     queryKey: ["messages", user?.id],
     queryFn: async (): Promise<Message[]> => {
       if (!user?.id) return [];
@@ -62,7 +68,7 @@ const MessageSystem = () => {
       try {
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
-          .select('*')
+          .select('*, sender:sender_id(firstName, lastName)')
           .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false });
 
@@ -71,23 +77,7 @@ const MessageSystem = () => {
           return [];
         }
 
-        if (!messagesData || messagesData.length === 0) {
-          return [];
-        }
-
-        const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
-        
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .in('id', senderIds);
-
-        const messagesWithSenders = messagesData.map(message => ({
-          ...message,
-          sender: profiles?.find(profile => profile.id === message.sender_id) || undefined
-        }));
-
-        return messagesWithSenders;
+        return messagesData || [];
       } catch (error: any) {
         console.error("Error in useMessages:", error);
         return [];
@@ -96,21 +86,53 @@ const MessageSystem = () => {
     enabled: !!user?.id,
   });
 
-  const sendMessageMutation = useMutation({
-    mutationFn: async (messageData: {
-      subject?: string;
-      content: string;
-      recipient_id?: string;
-    }) => {
-      if (!user?.id) throw new Error("User not authenticated");
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, firstName, lastName, email, role');
 
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+          return;
+        }
+
+        setUsers(profiles || []);
+      } catch (error: any) {
+        console.error("Error fetching users:", error);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  const filteredMessages = React.useMemo(() => {
+    if (!messages) return [];
+
+    let filtered = [...messages];
+
+    if (searchQuery) {
+      filtered = filtered.filter(message =>
+        message.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.sender?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.sender?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [messages, searchQuery]);
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (messageData: { subject: string; content: string; recipientId?: string }) => {
       const { data, error } = await supabase
         .from('messages')
         .insert({
-          sender_id: user.id,
+          sender_id: user?.id,
           subject: messageData.subject,
           content: messageData.content,
-          recipient_id: messageData.recipient_id || null,
+          recipient_id: messageData.recipientId || null,
         })
         .select()
         .single();
@@ -125,12 +147,9 @@ const MessageSystem = () => {
         description: "Message sent successfully",
       });
       setIsComposeOpen(false);
-      setRecipient("");
-      setSubject("");
-      setContent("");
+      setNewMessage({ subject: "", content: "", recipientId: "" });
     },
     onError: (error: any) => {
-      console.error("Error sending message:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to send message",
@@ -139,206 +158,162 @@ const MessageSystem = () => {
     },
   });
 
-  const filteredMessages = messages.filter(msg => {
-    const searchTerm = searchQuery.toLowerCase();
-    return (
-      msg.subject?.toLowerCase().includes(searchTerm) ||
-      msg.content.toLowerCase().includes(searchTerm) ||
-      msg.sender?.first_name?.toLowerCase().includes(searchTerm) ||
-      msg.sender?.last_name?.toLowerCase().includes(searchTerm)
-    );
-  });
+  const markAsRead = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('id', messageId);
 
-  const inboxMessages = filteredMessages.filter(msg => msg.recipient_id === user?.id);
-  const sentMessages = filteredMessages.filter(msg => msg.sender_id === user?.id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark as read",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-2xl">Family Connect</CardTitle>
-          <div className="flex items-center space-x-2">
-            <Input
-              type="search"
-              placeholder="Search messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="md:w-64"
-            />
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" /> Filter
+        <CardTitle className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5" />
+          Messages
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="inbox" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="inbox" onClick={() => setActiveTab("inbox")}>Inbox</TabsTrigger>
+            <TabsTrigger value="sent" onClick={() => setActiveTab("sent")}>Sent</TabsTrigger>
+          </TabsList>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Input
+                type="text"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button onClick={() => setIsComposeOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Compose
             </Button>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <Tabs defaultValue="inbox" className="w-full">
-          <TabsList className="p-4">
-            <TabsTrigger value="inbox" onClick={() => setSelectedTab("inbox")}>
-              <MailOpen className="h-4 w-4 mr-2" /> Inbox <Badge className="ml-2">{inboxMessages.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="sent" onClick={() => setSelectedTab("sent")}>
-              <Send className="h-4 w-4 mr-2" /> Sent
-            </TabsTrigger>
-            <TabsTrigger value="compose" onClick={() => setIsComposeOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Compose
-            </TabsTrigger>
-          </TabsList>
-          <Separator />
-          <TabsContent value="inbox" className="p-4">
-            <ScrollArea className="h-[400px] w-full">
-              {isLoading ? (
-                <p>Loading messages...</p>
-              ) : error ? (
-                <p>Error: {error.message}</p>
-              ) : inboxMessages.length === 0 ? (
-                <p>No messages in inbox.</p>
-              ) : (
-                <div className="space-y-3">
-                  {inboxMessages.map(message => (
-                    <Card key={message.id} className="shadow-sm">
-                      <CardContent className="flex items-start justify-between p-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <Mail className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm font-medium">{message.subject || "No Subject"}</span>
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            From: {message.sender?.first_name} {message.sender?.last_name}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {message.content.length > 100 ? message.content.substring(0, 100) + "..." : message.content}
-                          </p>
-                          <div className="flex items-center space-x-2 text-xs text-gray-400">
-                            <Clock className="h-3 w-3" />
-                            <span>{new Date(message.created_at).toLocaleString()}</span>
-                          </div>
+          <TabsContent value="inbox">
+            <div className="space-y-2">
+              {filteredMessages
+                ?.filter(message => message.recipient_id === user?.id)
+                .map(message => (
+                  <div
+                    key={message.id}
+                    className={`p-3 rounded-md border ${!message.is_read ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="font-medium">{message.subject || 'No Subject'}</div>
+                        <div className="text-sm text-gray-500">
+                          From: {message.sender?.firstName} {message.sender?.lastName}
                         </div>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            <Reply className="h-4 w-4 mr-2" /> Reply
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Forward className="h-4 w-4 mr-2" /> Forward
-                          </Button>
+                        <div className="text-sm text-gray-500">
+                          {message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content}
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+                      </div>
+                      <div>
+                        {!message.is_read && (
+                          <Button variant="outline" size="xs" onClick={() => markAsRead(message.id)}>
+                            Mark as Read
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
           </TabsContent>
-          <TabsContent value="sent" className="p-4">
-            <ScrollArea className="h-[400px] w-full">
-              {isLoading ? (
-                <p>Loading messages...</p>
-              ) : error ? (
-                <p>Error: {error.message}</p>
-              ) : sentMessages.length === 0 ? (
-                <p>No messages sent.</p>
-              ) : (
-                <div className="space-y-3">
-                  {sentMessages.map(message => (
-                    <Card key={message.id} className="shadow-sm">
-                      <CardContent className="flex items-start justify-between p-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <Mail className="h-4 w-4 text-gray-500" />
-                            <span className="text-sm font-medium">{message.subject || "No Subject"}</span>
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            To: {message.recipient_id}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {message.content.length > 100 ? message.content.substring(0, 100) + "..." : message.content}
-                          </p>
-                          <div className="flex items-center space-x-2 text-xs text-gray-400">
-                            <Clock className="h-3 w-3" />
-                            <span>{new Date(message.created_at).toLocaleString()}</span>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="h-4 w-4 mr-2" /> Delete
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+          <TabsContent value="sent">
+            <div className="space-y-2">
+              {filteredMessages
+                ?.filter(message => message.sender_id === user?.id)
+                .map(message => (
+                  <div
+                    key={message.id}
+                    className="p-3 rounded-md border bg-gray-50 border-gray-200"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-medium">{message.subject || 'No Subject'}</div>
+                      <div className="text-sm text-gray-500">To: {message.recipient_id}</div>
+                      <div className="text-sm text-gray-500">
+                        {message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Compose Message</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="recipient" className="text-right">
+                  To
+                </Label>
+                <Select onValueChange={(value) => setNewMessage({...newMessage, recipientId: value})}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select recipient" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName} - {user.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="subject" className="text-right">
+                  Subject
+                </Label>
+                <Input
+                  id="subject"
+                  value={newMessage.subject}
+                  onChange={(e) => setNewMessage({...newMessage, subject: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="content" className="text-right">
+                  Message
+                </Label>
+                <Textarea
+                  id="content"
+                  value={newMessage.content}
+                  onChange={(e) => setNewMessage({...newMessage, content: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <Button 
+                onClick={() => sendMessageMutation.mutate(newMessage)}
+                disabled={sendMessageMutation.isPending}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
-      <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Compose New Message</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="recipient" className="text-right">
-                To
-              </Label>
-              <Input
-                id="recipient"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="subject" className="text-right">
-                Subject
-              </Label>
-              <Input
-                id="subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 gap-4">
-              <Label htmlFor="content" className="text-right">
-                Message
-              </Label>
-              <Textarea
-                id="content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="col-span-3 min-h-[100px]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button variant="secondary" onClick={() => setIsComposeOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() =>
-                sendMessageMutation.mutate({
-                  recipient_id: recipient,
-                  subject: subject,
-                  content: content,
-                })
-              }
-              disabled={sendMessageMutation.isLoading}
-            >
-              {sendMessageMutation.isLoading ? (
-                <>
-                  Sending...
-                </>
-              ) : (
-                <>
-                  Send <Send className="h-4 w-4 ml-2" />
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 };
