@@ -4,9 +4,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthContext } from "@/context/AuthContext";
-import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
-import { RoleBasedRoute } from "@/components/layout/RoleBasedRoute";
+import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/layout/ProtectedRoute";
+import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 
 // Auth & Landing Pages
 import Index from "./pages/Index";
@@ -49,7 +49,7 @@ function App() {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AuthContext>
+          <AuthProvider>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
@@ -209,7 +209,7 @@ function App() {
               {/* Catch all route */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </AuthContext>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
