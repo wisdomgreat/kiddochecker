@@ -48,7 +48,7 @@ const ClassSelectionForm: React.FC<ClassSelectionFormProps> = ({
   
   return (
     <div className="space-y-4">
-      <RadioGroup value={selectedClass || ""} onValueChange={setSelectedClass}>
+      <RadioGroup value={selectedClass || "none"} onValueChange={(value) => setSelectedClass(value === "none" ? null : value)}>
         <div className="grid grid-cols-1 gap-4">
           {classes.map((classItem) => (
             <Card key={classItem.id} className={`p-4 cursor-pointer ${

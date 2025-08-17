@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -411,7 +410,7 @@ const EnhancedUserManagement = () => {
               <label htmlFor="role" className="text-right">
                 Role
               </label>
-              <Select value={role} onValueChange={setRole}>
+              <Select value={role} onValueChange={(value) => setRole(value as AppRole)}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
