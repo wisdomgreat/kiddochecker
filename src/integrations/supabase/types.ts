@@ -917,6 +917,18 @@ export type Database = {
         Args: { query: string }
         Returns: boolean
       }
+      checkin_child: {
+        Args: {
+          p_checked_in_by?: string
+          p_child_id: string
+          p_class_id?: string
+        }
+        Returns: string
+      }
+      checkout_child: {
+        Args: { p_attendance_id: string; p_checked_out_by?: string }
+        Returns: boolean
+      }
       create_class_teacher_assignment: {
         Args: {
           p_age_range: string
@@ -1038,6 +1050,18 @@ export type Database = {
           phone: string
           role: string
           user_id: string
+        }[]
+      }
+      get_todays_attendance: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          attendance_id: string
+          checked_in_at: string
+          checked_out_at: string
+          child_id: string
+          child_name: string
+          class_name: string
+          is_present: boolean
         }[]
       }
       get_upcoming_events: {

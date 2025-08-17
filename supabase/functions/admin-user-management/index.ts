@@ -75,7 +75,7 @@ serve(async (req) => {
 
         console.log('User created successfully:', authData.user.id);
 
-        // Create profile (the trigger should handle this, but let's ensure it)
+        // Create profile
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
           .upsert({
@@ -87,7 +87,6 @@ serve(async (req) => {
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
-          // Don't throw here as the user is already created
         }
 
         // Assign role
@@ -106,7 +105,15 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ 
           success: true, 
-          user: authData.user,
+          user: {
+            id: authData.user.id,
+            email: authData.user.email,
+            first_name: firstName,
+            last_name: lastName,
+            role: role,
+            is_super_admin: role === 'super_admin',
+            is_active: true
+          },
           message: 'User created successfully'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
