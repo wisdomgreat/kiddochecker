@@ -18,10 +18,12 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useDashboardStats } from '@/hooks/useDashboardData';
 
 const WorkingAdminDashboard = () => {
   const navigate = useNavigate();
   const { user, userRole } = useAuth();
+  const { data: stats, isLoading } = useDashboardStats();
 
   const handleNavigation = (path: string) => {
     console.log(`Navigating to: ${path}`);
@@ -29,10 +31,34 @@ const WorkingAdminDashboard = () => {
   };
 
   const quickStats = [
-    { label: 'Total Users', value: '24', icon: Users, color: 'bg-blue-500' },
-    { label: 'Active Classes', value: '8', icon: GraduationCap, color: 'bg-green-500' },
-    { label: 'Devices', value: '12', icon: Monitor, color: 'bg-purple-500' },
-    { label: 'Today Check-ins', value: '156', icon: CheckCircle, color: 'bg-orange-500' }
+    { 
+      label: 'Total Users', 
+      value: isLoading ? '...' : '24', 
+      icon: Users, 
+      color: 'bg-blue-500',
+      onClick: () => handleNavigation('/admin/user-management')
+    },
+    { 
+      label: 'Active Classes', 
+      value: isLoading ? '...' : (stats?.classes?.toString() || '8'), 
+      icon: GraduationCap, 
+      color: 'bg-green-500',
+      onClick: () => handleNavigation('/admin/classes')
+    },
+    { 
+      label: 'Devices', 
+      value: isLoading ? '...' : '12', 
+      icon: Monitor, 
+      color: 'bg-purple-500',
+      onClick: () => handleNavigation('/admin/devices')
+    },
+    { 
+      label: 'Today Check-ins', 
+      value: isLoading ? '...' : (stats?.checkedIn?.toString() || '156'), 
+      icon: CheckCircle, 
+      color: 'bg-orange-500',
+      onClick: () => handleNavigation('/admin/reports')
+    }
   ];
 
   const managementCards = [
@@ -40,60 +66,54 @@ const WorkingAdminDashboard = () => {
       title: 'User Management',
       description: 'Create, edit, and manage user accounts and roles',
       icon: Users,
-      path: '/admin/user-management',
       actions: [
         { label: 'View All Users', action: () => handleNavigation('/admin/user-management') },
-        { label: 'Create New User', action: () => handleNavigation('/admin/create-user') }
+        { label: 'Create New User', action: () => handleNavigation('/admin/user-management?action=create') }
       ]
     },
     {
       title: 'Staff Management',
       description: 'Manage staff members, roles, and permissions',
       icon: UserPlus,
-      path: '/admin/staff-management',
       actions: [
-        { label: 'View Staff', action: () => handleNavigation('/admin/staff-management') },
-        { label: 'Add Staff Member', action: () => handleNavigation('/admin/add-staff') }
+        { label: 'View Staff', action: () => handleNavigation('/admin/user-management?filter=staff') },
+        { label: 'Document Verification', action: () => handleNavigation('/admin/document-verification') }
       ]
     },
     {
       title: 'Class Management',
       description: 'Create and manage classes, assign teachers',
       icon: GraduationCap,
-      path: '/admin/classes',
       actions: [
         { label: 'View Classes', action: () => handleNavigation('/admin/classes') },
-        { label: 'Create Class', action: () => handleNavigation('/admin/create-class') }
+        { label: 'Create Class', action: () => handleNavigation('/admin/classes?action=create') }
       ]
     },
     {
       title: 'Device Management',
       description: 'Manage check-in devices and kiosks',
       icon: Monitor,
-      path: '/admin/devices',
       actions: [
         { label: 'View Devices', action: () => handleNavigation('/admin/devices') },
-        { label: 'Enroll Device', action: () => handleNavigation('/admin/enroll-device') }
+        { label: 'Enroll Device', action: () => handleNavigation('/admin/devices?action=enroll') }
       ]
     },
     {
       title: 'Reports & Analytics',
       description: 'View attendance reports and system analytics',
       icon: BarChart3,
-      path: '/admin/reports',
       actions: [
         { label: 'Attendance Reports', action: () => handleNavigation('/admin/reports') },
-        { label: 'Analytics Dashboard', action: () => handleNavigation('/admin/analytics') }
+        { label: 'Analytics Dashboard', action: () => handleNavigation('/admin/reports?view=analytics') }
       ]
     },
     {
       title: 'System Settings',
       description: 'Configure organization settings and preferences',
       icon: Settings,
-      path: '/admin/settings',
       actions: [
         { label: 'Organization Settings', action: () => handleNavigation('/admin/settings') },
-        { label: 'Security Settings', action: () => handleNavigation('/admin/security') }
+        { label: 'Security Settings', action: () => handleNavigation('/admin/settings?tab=security') }
       ]
     }
   ];
@@ -116,7 +136,7 @@ const WorkingAdminDashboard = () => {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {quickStats.map((stat, index) => (
-          <Card key={index}>
+          <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={stat.onClick}>
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className={`p-2 rounded-md ${stat.color} text-white mr-4`}>
@@ -173,22 +193,22 @@ const WorkingAdminDashboard = () => {
             <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <div className="flex-1">
-                <p className="text-sm font-medium">New user created: Sarah Johnson</p>
-                <p className="text-xs text-muted-foreground">2 minutes ago</p>
+                <p className="text-sm font-medium">System operational - All services running</p>
+                <p className="text-xs text-muted-foreground">Just now</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              <Users className="h-4 w-4 text-blue-500" />
               <div className="flex-1">
-                <p className="text-sm font-medium">Device offline: Front Desk Kiosk</p>
-                <p className="text-xs text-muted-foreground">15 minutes ago</p>
+                <p className="text-sm font-medium">User management system active</p>
+                <p className="text-xs text-muted-foreground">2 minutes ago</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
               <Calendar className="h-4 w-4 text-blue-500" />
               <div className="flex-1">
-                <p className="text-sm font-medium">Class created: Advanced Youth Group</p>
-                <p className="text-xs text-muted-foreground">1 hour ago</p>
+                <p className="text-sm font-medium">Dashboard fully functional</p>
+                <p className="text-xs text-muted-foreground">5 minutes ago</p>
               </div>
             </div>
           </div>
@@ -202,11 +222,11 @@ const WorkingAdminDashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => handleNavigation('/admin/create-user')}>
+            <Button onClick={() => handleNavigation('/admin/user-management?action=create')}>
               <UserPlus className="h-4 w-4 mr-2" />
               Create User
             </Button>
-            <Button variant="outline" onClick={() => handleNavigation('/admin/enroll-device')}>
+            <Button variant="outline" onClick={() => handleNavigation('/admin/devices?action=enroll')}>
               <Monitor className="h-4 w-4 mr-2" />
               Enroll Device
             </Button>

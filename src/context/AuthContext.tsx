@@ -39,25 +39,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user role for:', user.id);
       
-      const { data, error } = await supabase.rpc('get_current_user_role_secure');
+      // Use direct query instead of RPC to avoid recursion
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role, is_super_admin')
+        .eq('user_id', user.id)
+        .single();
 
       if (error) {
         console.error("Error fetching user role:", error);
-        setUserRole('parent'); // Default fallback
+        // Default to parent role for new users
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: user.id,
+            role: 'parent' as AppRole,
+            is_super_admin: false
+          });
+        
+        if (!insertError) {
+          setUserRole('parent');
+        }
         return;
       }
 
-      const finalRole = data || 'parent';
+      const finalRole = data?.role || 'parent';
       setUserRole(finalRole as AppRole);
       console.log('User role set to:', finalRole);
     } catch (error) {
       console.error("Exception refreshing user role:", error);
-      setUserRole('parent'); // Default fallback
+      setUserRole('parent');
     }
   }, [user?.id]);
 
   const signOut = useCallback(async () => {
     try {
+      setLoading(true);
       setUser(null);
       setSession(null);
       setUserRole(null);
@@ -83,12 +100,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "An unexpected error occurred during sign out.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   }, [toast]);
 
   const hasRole = useCallback((role: AppRole): boolean => {
     if (!userRole) return false;
-    if (userRole === 'super_admin') return true; // Super admin has all roles
+    if (userRole === 'super_admin') return true;
     return userRole === role;
   }, [userRole]);
 
@@ -112,16 +131,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer role fetching to avoid blocking auth state change
         if (session?.user && mounted) {
-          setTimeout(() => {
-            if (mounted) {
-              refreshUserRole().finally(() => {
-                if (mounted) setLoading(false);
-              });
-            }
-          }, 0);
-        } else {
+          await refreshUserRole();
+        }
+        
+        if (mounted) {
           setLoading(false);
         }
       }
@@ -143,14 +157,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           setSession(session);
           setUser(session.user);
-          setTimeout(() => {
-            if (mounted) {
-              refreshUserRole().finally(() => {
-                if (mounted) setLoading(false);
-              });
-            }
-          }, 0);
-        } else {
+          await refreshUserRole();
+        }
+        
+        if (mounted) {
           setLoading(false);
         }
       } catch (error) {

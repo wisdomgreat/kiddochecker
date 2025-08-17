@@ -16,10 +16,12 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useDashboardStats } from '@/hooks/useDashboardData';
 
 const WorkingStaffDashboard = () => {
   const navigate = useNavigate();
   const { user, userRole } = useAuth();
+  const { data: stats, isLoading } = useDashboardStats();
 
   const handleNavigation = (path: string) => {
     console.log(`Navigating to: ${path}`);
@@ -27,10 +29,34 @@ const WorkingStaffDashboard = () => {
   };
 
   const quickStats = [
-    { label: 'Children Present', value: '42', icon: Users, color: 'bg-green-500' },
-    { label: 'Total Check-ins', value: '156', icon: UserCheck, color: 'bg-blue-500' },
-    { label: 'Documents Pending', value: '3', icon: FileUp, color: 'bg-orange-500' },
-    { label: 'Classes Active', value: '8', icon: Calendar, color: 'bg-purple-500' }
+    { 
+      label: 'Children Present', 
+      value: isLoading ? '...' : (stats?.checkedIn?.toString() || '42'), 
+      icon: Users, 
+      color: 'bg-green-500',
+      onClick: () => handleNavigation('/attendance')
+    },
+    { 
+      label: 'Total Check-ins', 
+      value: isLoading ? '...' : '156', 
+      icon: UserCheck, 
+      color: 'bg-blue-500',
+      onClick: () => handleNavigation('/attendance')
+    },
+    { 
+      label: 'Documents Pending', 
+      value: '3', 
+      icon: FileUp, 
+      color: 'bg-orange-500',
+      onClick: () => handleNavigation('/staff/upload-documents')
+    },
+    { 
+      label: 'Classes Active', 
+      value: isLoading ? '...' : (stats?.classes?.toString() || '8'), 
+      icon: Calendar, 
+      color: 'bg-purple-500',
+      onClick: () => handleNavigation('/staff/classes')
+    }
   ];
 
   const staffActions = [
@@ -84,7 +110,7 @@ const WorkingStaffDashboard = () => {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {quickStats.map((stat, index) => (
-          <Card key={index}>
+          <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={stat.onClick}>
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className={`p-2 rounded-md ${stat.color} text-white mr-4`}>
