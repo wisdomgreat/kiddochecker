@@ -1,6 +1,6 @@
 
 import { ReactNode } from "react";
-import { useAdminPermissions } from "@/hooks/useAdminPermissions";
+import { useAuth } from "@/context/CleanAuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 
@@ -10,9 +10,9 @@ interface AdminGuardProps {
 }
 
 const AdminGuard = ({ children, fallback }: AdminGuardProps) => {
-  const { isAdmin, isLoading } = useAdminPermissions();
+  const { isAdmin, loading } = useAuth();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

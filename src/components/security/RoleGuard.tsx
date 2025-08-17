@@ -12,7 +12,7 @@ interface RoleGuardProps {
 }
 
 const RoleGuard = ({ children, requireAdminAccess, requireParentAccess, fallback }: RoleGuardProps) => {
-  const { userRole, loading, isAdmin, isParent } = useAuth();
+  const { loading, isAdmin, isParent } = useAuth();
 
   if (loading) {
     return (

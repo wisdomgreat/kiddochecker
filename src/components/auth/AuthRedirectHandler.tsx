@@ -24,6 +24,7 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
     const isOnCheckInKiosk = location.pathname === '/checkin';
     const isOnCheckOutStation = location.pathname === '/checkout';
     
+    // Skip redirection for kiosk routes
     if (isOnCheckInKiosk || isOnCheckOutStation) {
       return;
     }

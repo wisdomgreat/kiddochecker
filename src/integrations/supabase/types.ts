@@ -873,6 +873,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_current_user_role_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_detailed_attendance_report: {
         Args: { end_date?: string; start_date?: string }
         Returns: {
@@ -954,6 +958,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_admin_user_safe: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }

@@ -10,6 +10,7 @@ const useUserRoles = () => {
       try {
         console.log("Fetching users with roles...");
         
+        // Use the safe RPC function
         const { data, error } = await supabase.rpc('get_users_with_roles');
 
         if (error) {
@@ -32,9 +33,9 @@ const useUserRoles = () => {
           role: user.role || 'parent',
           isSuperAdmin: user.is_super_admin || false,
           isActive: user.is_active || false,
-          isVolunteer: user.is_volunteer || false,
-          phone: user.phone || '',
-          createdAt: user.created_at || new Date().toISOString(),
+          isVolunteer: false, // Not included in the RPC function
+          phone: '',  // Not included in the RPC function
+          createdAt: new Date().toISOString(),
           children: 0 // This can be enhanced later to include actual child count
         }));
 

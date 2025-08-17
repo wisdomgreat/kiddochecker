@@ -4,14 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useAdminPermissions = () => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, isAdmin, isSuperAdmin } = useAuth();
 
   const { data: permissions, isLoading } = useQuery({
     queryKey: ["admin-permissions", user?.id],
     queryFn: async () => {
       if (!user) return null;
       
-      // Check if user has admin permissions
+      // Check if user has admin permissions using the safe function
       const { data, error } = await supabase
         .from('user_roles')
         .select('role, is_super_admin')
@@ -27,9 +27,6 @@ export const useAdminPermissions = () => {
     },
     enabled: !!user,
   });
-
-  const isAdmin = permissions?.role === 'admin' || permissions?.role === 'super_admin' || permissions?.is_super_admin;
-  const isSuperAdmin = permissions?.role === 'super_admin' || permissions?.is_super_admin;
 
   return {
     isAdmin,

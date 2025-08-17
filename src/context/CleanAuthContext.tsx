@@ -34,33 +34,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching user role for:', user.id);
       
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, is_super_admin')
-        .eq('user_id', user.id)
-        .single();
+      // Use the safe RPC function to get user role
+      const { data, error } = await supabase.rpc('get_current_user_role');
 
       if (error) {
         console.error("Error fetching user role:", error);
-        if (error.code === 'PGRST116') {
-          // No role found, create default parent role
-          const { error: insertError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: user.id,
-              role: 'parent'
-            });
+        // If RPC fails, try direct query as fallback
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role, is_super_admin')
+          .eq('user_id', user.id)
+          .single();
           
-          if (!insertError) {
-            setUserRole('parent');
-            return;
-          }
+        if (!roleError && roleData) {
+          const finalRole = roleData.is_super_admin ? 'super_admin' : roleData.role;
+          setUserRole(finalRole as AppRole);
+          console.log('User role set to (fallback):', finalRole);
+          return;
         }
+        
         setUserRole('parent'); // Default fallback
         return;
       }
 
-      const finalRole = data.is_super_admin ? 'super_admin' : data.role;
+      const finalRole = data || 'parent';
       setUserRole(finalRole as AppRole);
       console.log('User role set to:', finalRole);
     } catch (error) {
@@ -102,7 +99,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           setSession(session);
           setUser(session.user);
-          await refreshUserRole();
+          // Use setTimeout to avoid blocking the auth state change
+          setTimeout(() => {
+            if (mounted) {
+              refreshUserRole();
+            }
+          }, 0);
         }
         
         setLoading(false);
@@ -131,8 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         setUser(session?.user ?? null);
         
+        // Use setTimeout to defer role fetching and avoid blocking
         if (session?.user && mounted) {
-          await refreshUserRole();
+          setTimeout(() => {
+            if (mounted) {
+              refreshUserRole();
+            }
+          }, 0);
         }
         
         setLoading(false);

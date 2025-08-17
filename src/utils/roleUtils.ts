@@ -45,6 +45,7 @@ export const assignUserRole = async (userId: string, role: AppRole, isSuperAdmin
 
 export const getCurrentUserRole = async () => {
   try {
+    // Use the safe RPC function
     const { data, error } = await supabase.rpc('get_current_user_role');
     if (error) throw error;
     return data;
@@ -56,22 +57,16 @@ export const getCurrentUserRole = async () => {
 
 export const verifyAdminRole = async (userId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role, is_super_admin')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) throw error;
+    // Use the safe admin check function
+    const { data, error } = await supabase.rpc('is_admin_user_safe');
     
-    const isAdmin = data.role === 'admin' || data.role === 'super_admin' || data.is_super_admin;
-    console.log(`User ${userId} admin verification:`, { 
-      role: data.role, 
-      is_super_admin: data.is_super_admin, 
-      isAdmin 
-    });
+    if (error) {
+      console.error("Error verifying admin role:", error);
+      return false;
+    }
     
-    return isAdmin;
+    console.log(`User ${userId} admin verification:`, data);
+    return data || false;
   } catch (error) {
     console.error("Error verifying admin role:", error);
     return false;

@@ -11,23 +11,31 @@ export class UserRoleService {
         return null;
       }
 
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-
+      // Use the safe RPC function first
+      const { data, error } = await supabase.rpc('get_current_user_role');
+      
       if (error) {
         console.error("Error getting current user role:", error);
-        // If no role found, assign default parent role
-        if (error.code === 'PGRST116') {
-          await this.assignRole(user.id, 'parent');
+        // If RPC fails, try direct query as fallback
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role, is_super_admin')
+          .eq('user_id', user.id)
+          .single();
+
+        if (roleError) {
+          // If no role found, assign default parent role
+          if (roleError.code === 'PGRST116') {
+            await this.assignRole(user.id, 'parent');
+            return 'parent';
+          }
           return 'parent';
         }
-        return 'parent';
+
+        return roleData?.is_super_admin ? 'super_admin' : (roleData?.role || 'parent');
       }
 
-      return data?.role || 'parent';
+      return (data as AppRole) || 'parent';
     } catch (error) {
       console.error("Exception getting current user role:", error);
       return 'parent';
