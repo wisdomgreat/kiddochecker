@@ -1,6 +1,6 @@
 
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { AppRole } from "@/types/supabase";
 
 export const useDashboardNavigation = () => {
