@@ -5,10 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { UserPlus, Loader2 } from 'lucide-react';
 import { AppRole } from '@/types/supabase';
+import { useAdminUserManagement } from '@/hooks/useAdminUserManagement';
 
 interface CleanUserCreationModalProps {
   onUserCreated?: () => void;
@@ -16,7 +15,6 @@ interface CleanUserCreationModalProps {
 
 export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ onUserCreated }) => {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -26,7 +24,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
     phone: ''
   });
 
-  const { toast } = useToast();
+  const { createUser, isCreating } = useAdminUserManagement();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -34,87 +32,31 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
 
   const handleCreateUser = async () => {
     if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
       return;
     }
 
-    setLoading(true);
-    try {
-      console.log('Creating user with clean system:', { ...formData, password: '[HIDDEN]' });
+    createUser({
+      email: formData.email,
+      password: formData.password,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      phone: formData.phone || undefined,
+      role: formData.role
+    });
 
-      // Create user account using admin API
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: formData.password,
-        email_confirm: true,
-        user_metadata: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone
-        }
-      });
-
-      if (authError) {
-        console.error('Auth user creation error:', authError);
-        throw new Error(authError.message);
-      }
-
-      if (!authData.user) {
-        throw new Error('User creation failed - no user data returned');
-      }
-
-      console.log('User created successfully:', authData.user.id);
-
-      // The trigger will create the profile automatically
-      // Now we just need to update the role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .update({
-          role: formData.role,
-          is_super_admin: formData.role === 'super_admin'
-        })
-        .eq('user_id', authData.user.id);
-
-      if (roleError) {
-        console.error('Role assignment error:', roleError);
-        throw new Error(`Failed to assign role: ${roleError.message}`);
-      }
-
-      console.log('User role assigned successfully');
-
-      toast({
-        title: "User Created Successfully",
-        description: `${formData.firstName} ${formData.lastName} has been created with ${formData.role} role`,
-      });
-
-      // Reset form and close modal
-      setFormData({
-        email: '',
-        password: '',
-        firstName: '',
-        lastName: '',
-        role: 'parent',
-        phone: ''
-      });
-      setOpen(false);
-      
-      if (onUserCreated) {
-        onUserCreated();
-      }
-
-    } catch (error: any) {
-      console.error('User creation failed:', error);
-      toast({
-        title: "User Creation Failed",
-        description: error.message || "Failed to create user account",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    // Reset form and close modal
+    setFormData({
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: '',
+      role: 'parent',
+      phone: ''
+    });
+    setOpen(false);
+    
+    if (onUserCreated) {
+      onUserCreated();
     }
   };
 
@@ -140,7 +82,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
                 value={formData.firstName}
                 onChange={(e) => handleInputChange('firstName', e.target.value)}
                 placeholder="Enter first name"
-                disabled={loading}
+                disabled={isCreating}
               />
             </div>
             <div>
@@ -150,7 +92,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
                 value={formData.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
                 placeholder="Enter last name"
-                disabled={loading}
+                disabled={isCreating}
               />
             </div>
           </div>
@@ -163,7 +105,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="Enter email address"
-              disabled={loading}
+              disabled={isCreating}
             />
           </div>
 
@@ -175,7 +117,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
               placeholder="Enter password"
-              disabled={loading}
+              disabled={isCreating}
             />
           </div>
 
@@ -186,13 +128,13 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               placeholder="Enter phone number"
-              disabled={loading}
+              disabled={isCreating}
             />
           </div>
 
           <div>
             <Label htmlFor="role">User Role *</Label>
-            <Select value={formData.role || "parent"} onValueChange={(value) => handleInputChange('role', value)}>
+            <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)} disabled={isCreating}>
               <SelectTrigger>
                 <SelectValue placeholder="Select user role" />
               </SelectTrigger>
@@ -211,16 +153,16 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
             <Button 
               variant="outline" 
               onClick={() => setOpen(false)}
-              disabled={loading}
+              disabled={isCreating}
             >
               Cancel
             </Button>
             <Button 
               onClick={handleCreateUser}
-              disabled={loading}
+              disabled={isCreating || !formData.email || !formData.password || !formData.firstName || !formData.lastName}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {loading ? (
+              {isCreating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Creating...
