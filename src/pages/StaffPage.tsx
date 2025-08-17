@@ -163,7 +163,7 @@ const StaffPage = () => {
               </div>
               <div>
                 <label className="text-sm font-medium">Role</label>
-                <Select value={newStaff.role || "staff"} onValueChange={(value: any) => setNewStaff(prev => ({ ...prev, role: value }))}>
+                <Select value={newStaff.role} onValueChange={(value: any) => setNewStaff(prev => ({ ...prev, role: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
