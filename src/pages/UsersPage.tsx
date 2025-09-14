@@ -1,147 +1,75 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import MainLayout from "@/components/layout/MainLayout";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { DataTable } from "@/components/ui/data-table";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/CleanAuthContext";
-import { RefreshCcw } from "lucide-react";
-import { getUserTableColumns } from "@/components/users/UserTableColumns";
-import UserFilters from "@/components/users/UserFilters";
-import UserActionButtons from "@/components/users/UserActionButtons";
-import EmptyUserState from "@/components/users/EmptyUserState";
-import DeleteUserDialog from "@/components/users/DeleteUserDialog";
-import useUserRoles from "@/hooks/useUserRoles";
-import { UserProfile } from "@/types/users";
+import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
+import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Users, UserPlus, Search } from 'lucide-react';
 
 const UsersPage = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
-  
-  const { data: users = [], isLoading } = useUserRoles();
-
-  const filteredUsers = users.filter((userItem) => {
-    const searchMatch =
-      userItem.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      userItem.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      userItem.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      userItem.role?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (activeTab === "all") return searchMatch;
-    if (activeTab === "parents") return userItem.role === "parent" && searchMatch;
-    if (activeTab === "staff") return (userItem.role === "staff" || userItem.role === "teacher" || userItem.role === "teacher_assistant") && searchMatch;
-    return false;
-  });
-
-  const handleEditUser = (userItem: UserProfile) => {
-    toast({
-      title: "Edit User",
-      description: `Editing ${userItem.firstName} ${userItem.lastName} (Feature coming soon)`,
-    });
-  };
-
-  const handleDeleteConfirmation = (userItem: UserProfile) => {
-    setSelectedUser(userItem);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handleDeleteUser = async () => {
-    if (!selectedUser) return;
-    
-    try {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', selectedUser.id);
-        
-      if (profileError) throw profileError;
-      
-      const { error: authError } = await supabase.auth.admin.deleteUser(selectedUser.id);
-      
-      if (authError) throw authError;
-      
-      toast({
-        title: "Success",
-        description: `${selectedUser.firstName} ${selectedUser.lastName} has been deleted`,
-      });
-      
-      setIsDeleteDialogOpen(false);
-      setSelectedUser(null);
-      
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      
-    } catch (error: any) {
-      console.error("Error deleting user:", error);
-      toast({
-        title: "Error",
-        description: `Failed to delete user: ${error.message || "Unknown error"}`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCloseDialog = () => {
-    setIsDeleteDialogOpen(false);
-    setSelectedUser(null);
-  };
-
-  const userColumns = getUserTableColumns({
-    onEdit: handleEditUser,
-    onDelete: handleDeleteConfirmation
-  });
-
   return (
-    <MainLayout>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">User Management</h1>
-        <UserActionButtons />
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <UserFilters 
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-          />
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <RefreshCcw className="animate-spin h-6 w-6 text-purple-600 mr-2" />
-              <span>Loading users...</span>
+    <RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}>
+      <UnifiedDashboardLayout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+              <p className="text-muted-foreground">Manage all users in your organization</p>
             </div>
-          ) : users.length === 0 ? (
-            <EmptyUserState searchTerm={searchTerm} />
-          ) : (
-            <DataTable
-              columns={userColumns}
-              data={filteredUsers}
-              keyExtractor={(item) => item.id}
-              searchable={false}
-              loading={isLoading}
-            />
-          )}
-        </CardContent>
-      </Card>
+            <Button className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add User
+            </Button>
+          </div>
 
-      <DeleteUserDialog 
-        isOpen={isDeleteDialogOpen}
-        onClose={handleCloseDialog}
-        onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleDeleteUser}
-        onDelete={handleDeleteUser}
-        user={selectedUser}
-        selectedUser={selectedUser}
-      />
-    </MainLayout>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">156</div>
+                <p className="text-xs text-muted-foreground">+12 from last month</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Parents</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">89</div>
+                <p className="text-xs text-muted-foreground">Parents with children</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Staff Members</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">23</div>
+                <p className="text-xs text-muted-foreground">Teachers and volunteers</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>All Users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>User management interface will be implemented here</p>
+                <p className="text-sm">Features: Search, filter, roles, permissions</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </UnifiedDashboardLayout>
+    </RoleBasedRoute>
   );
 };
 

@@ -38,7 +38,8 @@ import AttendancePage from "./pages/AttendancePage";
 import DeviceManagementPage from "./pages/DeviceManagementPage";
 import ClassesPage from "./pages/ClassesPage";
 import ReportsPage from "./pages/ReportsPage";
-import SettingsPage from "./pages/SettingsPage";
+import UsersPage from "./pages/UsersPage";
+import RegisterPage from "./pages/RegisterPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,108 +65,21 @@ function App() {
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
                   <Route path="/landing" element={<LandingPage />} />
-
-                  {/* Check-in/Check-out Routes (public for kiosk mode) */}
                   <Route path="/check-in" element={<CheckInKiosk />} />
                   <Route path="/check-out" element={<CheckOutPage />} />
-
-                  {/* Legacy Dashboard Router - redirects to root */}
                   <Route path="/dashboard" element={<Dashboard />} />
 
-                  {/* Admin Routes */}
-                  <Route 
-                    path="/admin-dashboard" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                        <AdminDashboardPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/user-management" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                        <AdminUsersPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/document-verification" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                        <AdminDocumentVerification />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/devices" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                        <DeviceManagementPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/classes" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                        <ClassesPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/reports" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                        <ReportsPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/admin/settings" 
-                    element={
-                      <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
-                        <SettingsPage />
-                      </ProtectedRoute>
-                    } 
-                  />
+                  {/* Dashboard Routes */}
+                  <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
+                  <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
+                  <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
 
-                  {/* Staff Routes */}
-                  <Route 
-                    path="/staff-dashboard" 
-                    element={
-                      <ProtectedRoute allowedRoles={['staff', 'teacher', 'teacher_assistant']}>
-                        <StaffDashboardPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/staff/upload-documents" 
-                    element={
-                      <ProtectedRoute allowedRoles={['staff', 'teacher', 'teacher_assistant']}>
-                        <StaffDocumentUpload />
-                      </ProtectedRoute>
-                    } 
-                  />
-                  <Route 
-                    path="/attendance" 
-                    element={
-                      <ProtectedRoute allowedRoles={['staff', 'teacher', 'teacher_assistant', 'admin', 'super_admin']}>
-                        <AttendancePage />
-                      </ProtectedRoute>
-                    } 
-                  />
-
-                  {/* Parent Routes */}
-                  <Route 
-                    path="/parent-dashboard" 
-                    element={
-                      <ProtectedRoute allowedRoles={['parent']}>
-                        <ParentDashboardPage />
-                      </ProtectedRoute>
-                    } 
-                  />
+                  {/* Management Routes with working navigation */}
+                  <Route path="/users" element={<UsersPage />} />
+                  <Route path="/classes" element={<ClassesPage />} />
+                  <Route path="/attendance" element={<AttendancePage />} />
 
                   {/* Catch all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />

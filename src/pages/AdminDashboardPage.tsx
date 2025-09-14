@@ -1,15 +1,15 @@
 
-import WorkingAdminDashboard from "@/components/admin/WorkingAdminDashboard";
-import ModernLayout from "@/components/layout/ModernLayout";
-import RoleGuard from "@/components/security/RoleGuard";
+import UnifiedDashboard from '@/components/dashboard/UnifiedDashboard';
+import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
+import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 
 const AdminDashboardPage = () => {
   return (
-    <ModernLayout>
-      <RoleGuard requireAdminAccess>
-        <WorkingAdminDashboard />
-      </RoleGuard>
-    </ModernLayout>
+    <RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}>
+      <UnifiedDashboardLayout>
+        <UnifiedDashboard />
+      </UnifiedDashboardLayout>
+    </RoleBasedRoute>
   );
 };
 

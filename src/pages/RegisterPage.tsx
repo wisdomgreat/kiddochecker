@@ -1,8 +1,7 @@
-
 import EnhancedLoginForm from "@/components/auth/EnhancedLoginForm";
 
-const LoginPage = () => {
+const RegisterPage = () => {
   return <EnhancedLoginForm />;
 };
 
-export default LoginPage;
+export default RegisterPage;

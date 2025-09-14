@@ -1,15 +1,15 @@
 
-import WorkingStaffDashboard from "@/components/staff/WorkingStaffDashboard";
-import ModernLayout from "@/components/layout/ModernLayout";
-import RoleGuard from "@/components/security/RoleGuard";
+import UnifiedDashboard from '@/components/dashboard/UnifiedDashboard';
+import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
+import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 
 const StaffDashboardPage = () => {
   return (
-    <ModernLayout>
-      <RoleGuard requireStaffAccess>
-        <WorkingStaffDashboard />
-      </RoleGuard>
-    </ModernLayout>
+    <RoleBasedRoute allowedRoles={['staff', 'teacher', 'teacher_assistant']}>
+      <UnifiedDashboardLayout>
+        <UnifiedDashboard />
+      </UnifiedDashboardLayout>
+    </RoleBasedRoute>
   );
 };
 

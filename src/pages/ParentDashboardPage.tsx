@@ -1,15 +1,15 @@
 
-import WorkingParentDashboard from "@/components/parent/WorkingParentDashboard";
-import ModernLayout from "@/components/layout/ModernLayout";
-import RoleGuard from "@/components/security/RoleGuard";
+import UnifiedDashboard from '@/components/dashboard/UnifiedDashboard';
+import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
+import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 
 const ParentDashboardPage = () => {
   return (
-    <ModernLayout>
-      <RoleGuard requireParentAccess>
-        <WorkingParentDashboard />
-      </RoleGuard>
-    </ModernLayout>
+    <RoleBasedRoute allowedRoles={['parent']}>
+      <UnifiedDashboardLayout>
+        <UnifiedDashboard />
+      </UnifiedDashboardLayout>
+    </RoleBasedRoute>
   );
 };
 

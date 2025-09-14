@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
+import UnifiedDashboard from '@/components/dashboard/UnifiedDashboard';
+import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -18,44 +20,32 @@ const Index = () => {
       return;
     }
 
-    if (user && userRole) {
-      console.log('User authenticated with role, redirecting to appropriate dashboard');
-      
-      // Direct navigation based on role
-      switch (userRole) {
-        case 'super_admin':
-        case 'admin':
-          navigate('/admin-dashboard', { replace: true });
-          break;
-        case 'staff':
-        case 'teacher':
-        case 'teacher_assistant':
-          navigate('/staff-dashboard', { replace: true });
-          break;
-        case 'parent':
-          navigate('/parent-dashboard', { replace: true });
-          break;
-        default:
-          console.log('Unknown role, defaulting to parent dashboard');
-          navigate('/parent-dashboard', { replace: true });
-          break;
-      }
-    } else if (user && !userRole) {
-      console.log('User exists but no role determined yet, waiting...');
-      // Keep showing loading state while role is being determined
-    }
+    // If we have a user and role (or waiting for role), show the unified dashboard
+    // No more redirects - just show the appropriate dashboard content
   }, [user, userRole, loading, navigate]);
 
-  // Show loading while determining route
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="flex flex-col items-center space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">
-          {loading ? 'Loading...' : user && !userRole ? 'Setting up your account...' : 'Redirecting...'}
-        </p>
+  // Show loading while determining authentication state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  // Show login page if no user
+  if (!user) {
+    return null; // Will redirect to login in useEffect
+  }
+
+  // Show unified dashboard for authenticated users
+  return (
+    <UnifiedDashboardLayout>
+      <UnifiedDashboard />
+    </UnifiedDashboardLayout>
   );
 };
 
