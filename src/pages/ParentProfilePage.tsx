@@ -1,13 +1,13 @@
 import React from 'react';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
-import AttendanceTracking from '@/components/parent/AttendanceTracking';
+import ParentProfile from '@/components/parent/ParentProfile';
 
-const ParentAttendancePage = () => {
+const ParentProfilePage = () => {
   return (
     <UnifiedDashboardLayout>
-      <AttendanceTracking />
+      <ParentProfile />
     </UnifiedDashboardLayout>
   );
 };
 
-export default ParentAttendancePage;
+export default ParentProfilePage;

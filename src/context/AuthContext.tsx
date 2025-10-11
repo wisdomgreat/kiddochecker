@@ -137,41 +137,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
     let roleTimeout: NodeJS.Timeout | null = null;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        console.log('Auth state change:', event, session?.user?.id);
-        
-        if (event === 'SIGNED_OUT' || !session) {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          setLoading(false);
-          return;
-        }
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user && mounted) {
-          // Add timeout to prevent infinite loading
-          roleTimeout = setTimeout(() => {
-            if (mounted && !userRole) {
-              console.warn('Role fetch taking too long, defaulting to parent');
-              setUserRole('parent');
-              setLoading(false);
-            }
-          }, 15000); // 15 second timeout
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          if (!mounted) return;
           
-          await refreshUserRole();
+          console.log('Auth state change:', event, session?.user?.id);
+          
+          if (event === 'SIGNED_OUT' || !session) {
+            setSession(null);
+            setUser(null);
+            setUserRole(null);
+            setLoading(false);
+            return;
+          }
+          
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user && mounted) {
+            // Defer role fetch to prevent blocking
+            setTimeout(() => {
+              if (mounted) {
+                refreshUserRole();
+              }
+            }, 0);
+          }
+          
+          if (mounted) {
+            setLoading(false);
+          }
         }
-        
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    );
+      );
 
     // Get initial session with timeout
     const getInitialSession = async () => {

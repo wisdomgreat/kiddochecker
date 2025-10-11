@@ -1,19 +1,12 @@
-
-import AppLayout from "@/components/layout/AppLayout";
-import ParentChildManagement from "@/components/parent/ParentChildManagement";
-import { useAuth } from "@/context/CleanAuthContext";
+import React from 'react';
+import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
+import ParentChildManagement from '@/components/parent/ParentChildManagement';
 
 const ParentChildrenPage = () => {
-  const { isParent } = useAuth();
-
-  if (!isParent) {
-    return <div>Access denied. Parent access required.</div>;
-  }
-
   return (
-    <AppLayout>
+    <UnifiedDashboardLayout>
       <ParentChildManagement />
-    </AppLayout>
+    </UnifiedDashboardLayout>
   );
 };
 

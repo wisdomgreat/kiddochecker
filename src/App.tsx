@@ -40,6 +40,15 @@ import ClassesPage from "./pages/ClassesPage";
 import ReportsPage from "./pages/ReportsPage";
 import UsersPage from "./pages/UsersPage";
 import RegisterPage from "./pages/RegisterPage";
+import SettingsPage from "./pages/SettingsPage";
+import StaffPage from "./pages/StaffPage";
+import MessagesPage from "./pages/MessagesPage";
+import ChildrenPage from "./pages/ChildrenPage";
+import CalendarPage from "./pages/CalendarPage";
+import ParentChildrenPage from "./pages/ParentChildrenPage";
+import ParentAttendancePage from "./pages/ParentAttendancePage";
+import ParentMessagesPage from "./pages/ParentMessagesPage";
+import ParentProfilePage from "./pages/ParentProfilePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +89,18 @@ function App() {
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/classes" element={<ClassesPage />} />
                   <Route path="/attendance" element={<AttendancePage />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/staff" element={<StaffPage />} />
+                  <Route path="/messages" element={<MessagesPage />} />
+                  <Route path="/children" element={<ChildrenPage />} />
+                  <Route path="/calendar" element={<CalendarPage />} />
+                  
+                  {/* Parent-specific routes */}
+                  <Route path="/parent/children" element={<ParentChildrenPage />} />
+                  <Route path="/parent/attendance" element={<ParentAttendancePage />} />
+                  <Route path="/parent/messages" element={<ParentMessagesPage />} />
+                  <Route path="/parent/profile" element={<ParentProfilePage />} />
 
                   {/* Catch all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />
