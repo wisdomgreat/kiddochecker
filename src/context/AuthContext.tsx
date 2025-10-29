@@ -5,6 +5,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppRole } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 
+// Utility function for exponential backoff retry
+const fetchWithRetry = async <T,>(
+  fetchFn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelay = 1000
+): Promise<T> => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fetchFn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      const delay = baseDelay * Math.pow(2, i);
+      console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('Max retries exceeded');
+};
+
 export interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -28,7 +47,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
+
+  // Session backup to localStorage
+  useEffect(() => {
+    if (session && user) {
+      localStorage.setItem('session_backup', JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        timestamp: Date.now()
+      }));
+    }
+  }, [session, user]);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      console.log('Connection restored');
+      toast({
+        title: "Connection Restored",
+        description: "You're back online.",
+      });
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log('Connection lost');
+      toast({
+        title: "Connection Lost",
+        description: "You're offline. The app will reconnect when your connection is restored.",
+        variant: "destructive",
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [toast]);
 
   const refreshUserRole = useCallback(async () => {
     if (!user?.id) {
@@ -36,20 +97,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     
+    // Check network status first
+    if (!navigator.onLine) {
+      console.log('Offline - skipping role fetch');
+      const backup = localStorage.getItem('session_backup');
+      if (backup) {
+        try {
+          const { userId } = JSON.parse(backup);
+          if (userId === user.id) {
+            setUserRole('parent'); // Default role for offline
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to parse session backup:', e);
+        }
+      }
+      return;
+    }
+    
     try {
       console.log('Fetching user role for:', user.id);
       
-      // Use direct query with timeout to prevent hanging
-      const { data, error } = await Promise.race([
-        supabase
-          .from('user_roles')
-          .select('role, is_super_admin')
-          .eq('user_id', user.id)
-          .single(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Role fetch timeout')), 10000)
-        )
-      ]) as any;
+      // Use fetchWithRetry with increased timeout to 30s
+      const { data, error } = await fetchWithRetry(
+        async () => {
+          const result = await Promise.race([
+            supabase
+              .from('user_roles')
+              .select('role, is_super_admin')
+              .eq('user_id', user.id)
+              .single(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Role fetch timeout')), 30000)
+            )
+          ]);
+          return result as any;
+        },
+        3,
+        1000
+      );
 
       if (error) {
         console.error("Error fetching user role:", error);
@@ -82,15 +168,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const finalRole = (data?.is_super_admin ? 'super_admin' : data?.role) || 'parent';
       setUserRole(finalRole as AppRole);
       console.log('User role set to:', finalRole);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Exception refreshing user role:", error);
+      
+      // Provide specific error messages based on error type
+      if (!navigator.onLine) {
+        toast({
+          title: "Connection Lost",
+          description: "You're offline. The app will reconnect when your connection is restored.",
+          variant: "destructive",
+        });
+      } else if (error.message?.includes('timeout')) {
+        toast({
+          title: "Slow Connection",
+          description: "Taking longer than usual. Retrying automatically...",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Role Loading Issue",
+          description: "Defaulted to parent access. Please refresh if this seems incorrect.",
+          variant: "destructive",
+        });
+      }
+      
       // Default to parent role to prevent infinite loading
       setUserRole('parent');
-      toast({
-        title: "Role Loading Issue",
-        description: "Defaulted to parent access. Please refresh if this seems incorrect.",
-        variant: "destructive",
-      });
     }
   }, [user?.id, toast]);
 
@@ -169,18 +272,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       );
 
-    // Get initial session with timeout
+    // Get initial session with timeout and retry
     const getInitialSession = async () => {
       try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session fetch timeout')), 10000)
+        const { data: { session }, error } = await fetchWithRetry(
+          async () => {
+            const result = await Promise.race([
+              supabase.auth.getSession(),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Session fetch timeout')), 30000)
+              )
+            ]);
+            return result as any;
+          },
+          3,
+          1000
         );
-        
-        const { data: { session }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]) as any;
         
         if (!mounted) return;
         

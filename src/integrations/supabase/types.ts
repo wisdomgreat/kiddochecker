@@ -20,7 +20,7 @@ export type Database = {
           created_at: string | null
           details: Json | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           resource: string
           resource_id: string | null
           user_agent: string | null
@@ -31,7 +31,7 @@ export type Database = {
           created_at?: string | null
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resource: string
           resource_id?: string | null
           user_agent?: string | null
@@ -42,7 +42,7 @@ export type Database = {
           created_at?: string | null
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resource?: string
           resource_id?: string | null
           user_agent?: string | null
@@ -913,10 +913,7 @@ export type Database = {
         Args: { p_org_id: string; p_user_id: string }
         Returns: boolean
       }
-      check_sql_query_safety: {
-        Args: { query: string }
-        Returns: boolean
-      }
+      check_sql_query_safety: { Args: { query: string }; Returns: boolean }
       checkin_child: {
         Args: {
           p_checked_in_by?: string
@@ -949,23 +946,26 @@ export type Database = {
         }
         Returns: string
       }
-      create_user_role: {
-        Args:
-          | {
+      create_user_role:
+        | {
+            Args: {
               p_is_super_admin?: boolean
               p_is_volunteer?: boolean
               p_role?: Database["public"]["Enums"]["app_role"]
               p_user_id: string
             }
-          | {
+            Returns: string
+          }
+        | {
+            Args: {
               p_is_super_admin?: boolean
               p_role?: Database["public"]["Enums"]["app_role"]
               p_user_id: string
             }
-        Returns: string
-      }
+            Returns: string
+          }
       get_all_events: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string | null
           description: string | null
@@ -978,6 +978,12 @@ export type Database = {
           title: string
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_attendance_report: {
         Args: { end_date: string; start_date: string }
@@ -1000,15 +1006,15 @@ export type Database = {
         }[]
       }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_current_user_role_safe: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_current_user_role_secure: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_detailed_attendance_report: {
@@ -1022,10 +1028,7 @@ export type Database = {
           duration_hours: number
         }[]
       }
-      get_device_profile: {
-        Args: { p_device_id: string }
-        Returns: Json
-      }
+      get_device_profile: { Args: { p_device_id: string }; Returns: Json }
       get_parent_children_with_classes: {
         Args: { parent_user_id: string }
         Returns: {
@@ -1039,7 +1042,7 @@ export type Database = {
         }[]
       }
       get_staff_members: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           email: string
           first_name: string
@@ -1053,7 +1056,7 @@ export type Database = {
         }[]
       }
       get_todays_attendance: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           attendance_id: string
           checked_in_at: string
@@ -1078,9 +1081,15 @@ export type Database = {
           title: string
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_users_with_roles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           email: string
           first_name: string
@@ -1103,30 +1112,12 @@ export type Database = {
         Args: { check_role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_admin_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_admin_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_admin_user_safe: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_current_user_super_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_super_admin_secure: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_admin_secure: { Args: never; Returns: boolean }
+      is_admin_user: { Args: never; Returns: boolean }
+      is_admin_user_safe: { Args: never; Returns: boolean }
+      is_current_user_super_admin: { Args: never; Returns: boolean }
+      is_super_admin_secure: { Args: never; Returns: boolean }
       register_device: {
         Args: {
           p_device_id: string
