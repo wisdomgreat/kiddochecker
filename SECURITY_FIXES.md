@@ -205,6 +205,31 @@ All three batches successfully implemented and tested:
 
 **Impact**: Critical security foundations established, auth experience improved, codebase consolidated and optimized.
 
+## 🎯 Phase 2 - Core CRUD Operations Security
+
+### Batch 2A: Replace auth_users_with_emails View (PARTIAL - 1 Credit)
+
+**✅ Completed:**
+1. Created `get_users_emails()` secure function with proper access controls
+   - Admins can fetch all user emails
+   - Regular users can only see emails of staff/teachers and message contacts
+   - Uses `SECURITY DEFINER` with `SET search_path = public`
+   
+2. Updated FamilyConnectPage.tsx (2 locations):
+   - Replaced `auth_users_with_emails` view queries with `get_users_emails()` RPC calls
+   - Lines 113-117 (fetchMessages function)
+   - Lines 183-187 (fetchRecipients function)
+
+**Impact:**
+- Eliminated direct access to auth.users table via view
+- Added proper permission checks for email access
+- Maintained backward compatibility with existing functionality
+
+**⏳ Remaining for Batch 2A (Tomorrow):**
+- Audit and fix other components using `auth_users_with_emails` view
+- Update AdminUserManagement and other admin components
+- Consider deprecating the view once all usages are replaced
+
 ## Next Steps
-Phase 1 Complete! Ready to proceed to:
-- **Phase 2** (Core CRUD Operations Security)
+Continue Phase 2 Batch 2A tomorrow:
+- **Phase 2 Batch 2A** (Complete remaining view replacements)

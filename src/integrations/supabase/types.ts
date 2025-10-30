@@ -1089,6 +1089,13 @@ export type Database = {
         }
       }
       get_user_email: { Args: { p_user_id: string }; Returns: string }
+      get_users_emails: {
+        Args: { user_ids: string[] }
+        Returns: {
+          email: string
+          id: string
+        }[]
+      }
       get_users_with_roles: {
         Args: never
         Returns: {

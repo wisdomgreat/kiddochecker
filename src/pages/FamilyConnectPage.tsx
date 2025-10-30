@@ -110,11 +110,9 @@ const FamilyConnectPage = () => {
         .select('id, first_name, last_name')
         .in('id', userIds);
 
-      // Get emails
+      // Get emails using secure function
       const { data: authUsers } = await supabase
-        .from('auth_users_with_emails')
-        .select('id, email')
-        .in('id', userIds);
+        .rpc('get_users_emails', { user_ids: userIds });
 
       // Combine data
       const messagesWithProfiles = messagesData.map(message => {
@@ -180,11 +178,9 @@ const FamilyConnectPage = () => {
         .select('id, first_name, last_name')
         .in('id', userIds);
 
-      // Get emails
+      // Get emails using secure function
       const { data: authUsers } = await supabase
-        .from('auth_users_with_emails')
-        .select('id, email')
-        .in('id', userIds);
+        .rpc('get_users_emails', { user_ids: userIds });
 
       // Combine data
       const combinedData: UserProfile[] = userRoles.map(role => {
