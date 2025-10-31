@@ -225,11 +225,73 @@ All three batches successfully implemented and tested:
 - Added proper permission checks for email access
 - Maintained backward compatibility with existing functionality
 
-**⏳ Remaining for Batch 2A (Tomorrow):**
-- Audit and fix other components using `auth_users_with_emails` view
-- Update AdminUserManagement and other admin components
-- Consider deprecating the view once all usages are replaced
+**✅ Completed (Final):**
+3. Dropped `auth_users_with_emails` view from database
+   - View is no longer used in application code
+   - All references replaced with `get_users_emails()` RPC function
+   - Reduced security surface area
+
+**Batch 2A Status: COMPLETE** ✅
+
+**Impact Summary:**
+- ✅ Eliminated direct auth.users exposure via view
+- ✅ Implemented granular access controls for email data
+- ✅ Maintained backward compatibility with existing functionality
+- ✅ All application code updated to use secure function
+
+---
+
+### Batch 2B: Security Definer Functions & Search Paths (READY TO START)
+
+**Security Linter Results After 2A (6 issues):**
+- 🔴 **1 ERROR** - Exposed Auth Users:
+  - Likely triggered by `get_users_with_roles()` and `get_users_emails()` functions
+  - These functions query `auth.users` table directly (with proper access controls)
+  - Need to verify if this is acceptable or requires alternative approach
+  
+- 🔴 **2 ERRORS** - Security Definer Views:
+  - Found 1 view: `attendance_summary` (does NOT expose auth.users, safe)
+  - Need to identify the 2 problematic views flagged by linter
+  
+- 🟡 **3 WARNINGS**:
+  1. Function Search Path Mutable - Some functions still missing `SET search_path = public`
+  2. Leaked Password Protection Disabled - **Manual action required**
+  3. Postgres Version Upgrade Available - **Manual action required**
+
+**Functions Verified Secure (already have search_path):**
+- ✅ `get_users_with_roles()` - Has `SET search_path TO 'public'`
+- ✅ `get_users_emails()` - Has `SET search_path = public`
+- ✅ `checkin_child()` - Has `SET search_path TO 'public'`
+- ✅ `checkout_child()` - Has `SET search_path TO 'public'`
+- ✅ `get_todays_attendance()` - Has `SET search_path TO 'public'`
+
+**Batch 2B Tasks (Tomorrow - 1-2 credits):**
+1. **Investigate Exposed Auth Users Error:**
+   - Determine if `get_users_with_roles()` / `get_users_emails()` are acceptable
+   - Linter may be flagging ANY auth.users access as risky
+   - Consider if we need alternative patterns
+   
+2. **Identify & Fix Security Definer Views:**
+   - Run deeper query to find which views are flagged
+   - Audit if views should be converted to functions
+   - Fix or document justification
+   
+3. **Fix Remaining Functions Missing search_path:**
+   - Audit all SECURITY DEFINER functions
+   - Add `SET search_path = public` to any missing it
+   - Focus on: `create_organization`, `create_user_role`, `register_device`, etc.
+
+4. **Document Manual Actions:**
+   - Leaked password protection setup guide
+   - Postgres upgrade instructions
+
+**Expected Outcome:**
+- Reduce errors from 3 → 1 (auth.users may be acceptable)
+- Reduce warnings from 3 → 2 (manual actions documented)
+- All SECURITY DEFINER functions properly secured
 
 ## Next Steps
-Continue Phase 2 Batch 2A tomorrow:
-- **Phase 2 Batch 2A** (Complete remaining view replacements)
+**Tomorrow:** Phase 2 Batch 2B
+- Start with function search_path audit (highest impact)
+- Then investigate Security Definer views
+- Finally document the auth.users exposure assessment
