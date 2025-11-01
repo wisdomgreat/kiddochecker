@@ -523,6 +523,7 @@ export type Database = {
           phone: string | null
           qr_code_data: string | null
           security_answer: string | null
+          security_answer_hash: string | null
           security_question: string | null
           updated_at: string
         }
@@ -535,6 +536,7 @@ export type Database = {
           phone?: string | null
           qr_code_data?: string | null
           security_answer?: string | null
+          security_answer_hash?: string | null
           security_question?: string | null
           updated_at?: string
         }
@@ -547,6 +549,7 @@ export type Database = {
           phone?: string | null
           qr_code_data?: string | null
           security_answer?: string | null
+          security_answer_hash?: string | null
           security_question?: string | null
           updated_at?: string
         }
@@ -1005,6 +1008,7 @@ export type Database = {
         Args: { check_role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      hash_security_answer: { Args: { answer: string }; Returns: string }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_admin_secure: { Args: never; Returns: boolean }
       is_admin_user: { Args: never; Returns: boolean }
@@ -1019,6 +1023,10 @@ export type Database = {
           p_type: string
         }
         Returns: Json
+      }
+      verify_security_answer: {
+        Args: { answer: string; user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
