@@ -868,6 +868,18 @@ export type Database = {
           total_checked_out: number
         }[]
       }
+      get_attendance_summary_secure: {
+        Args: { p_date?: string }
+        Returns: {
+          attendance_date: string
+          checked_in_count: number
+          checked_out_count: number
+          class_id: string
+          class_name: string
+          currently_present: number
+          total_children: number
+        }[]
+      }
       get_class_roster_with_attendance: {
         Args: { class_id_param: string; date_param?: string }
         Returns: {
