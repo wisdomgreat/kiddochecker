@@ -9,13 +9,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useClasses } from '@/hooks/useClasses';
-import { GraduationCap, Plus, Edit, Trash2, Users, MapPin, Clock } from 'lucide-react';
+import { GraduationCap, Plus, Edit, Trash2, Users, MapPin, Clock, UserPlus } from 'lucide-react';
+import { AssignTeacherDialog } from '@/components/classes/AssignTeacherDialog';
+import { ClassRosterDialog } from '@/components/classes/ClassRosterDialog';
 
 const ClassesManagement = () => {
   const { toast } = useToast();
   const { classes, isLoading, addClass, updateClass, deleteClass } = useClasses();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<any>(null);
+  const [assigningTeacher, setAssigningTeacher] = useState<{ id: string; name: string } | null>(null);
+  const [viewingRoster, setViewingRoster] = useState<{ id: string; name: string } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -204,6 +208,22 @@ const ClassesManagement = () => {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => setAssigningTeacher({ id: classItem.id, name: classItem.name })}
+                      title="Assign Teacher"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewingRoster({ id: classItem.id, name: classItem.name })}
+                      title="View Roster"
+                    >
+                      <Users className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleEdit(classItem)}
                     >
                       <Edit className="h-4 w-4" />
@@ -268,6 +288,24 @@ const ClassesManagement = () => {
           </Card>
         )}
       </div>
+      
+      <AssignTeacherDialog
+        classId={assigningTeacher?.id || ''}
+        className={assigningTeacher?.name || ''}
+        open={!!assigningTeacher}
+        onOpenChange={(open) => !open && setAssigningTeacher(null)}
+        onSuccess={() => {
+          setAssigningTeacher(null);
+          toast({ title: "Success", description: "Teacher assigned successfully" });
+        }}
+      />
+      
+      <ClassRosterDialog
+        classId={viewingRoster?.id || ''}
+        className={viewingRoster?.name || ''}
+        open={!!viewingRoster}
+        onOpenChange={(open) => !open && setViewingRoster(null)}
+      />
     </ModernLayout>
   );
 };

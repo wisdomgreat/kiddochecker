@@ -17,11 +17,14 @@ import {
   Filter,
   Download,
   RefreshCw,
-  Clock
+  Clock,
+  UserPlus
 } from "lucide-react";
 import { DataTable } from "@/components/ui/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
+import { CheckInDialog } from "@/components/attendance/CheckInDialog";
+import { ClassAttendanceReport } from "@/components/attendance/ClassAttendanceReport";
 
 // Updated interface to match the database function return type
 interface DetailedAttendanceRecord {
@@ -39,6 +42,7 @@ const AttendanceManagement = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showCheckInDialog, setShowCheckInDialog] = useState(false);
 
   // Fetch attendance data using the detailed report function
   const { data: attendanceData = [], isLoading, refetch } = useQuery({
@@ -237,6 +241,10 @@ const AttendanceManagement = () => {
             <p className="text-muted-foreground">Track daily attendance and check-in/out</p>
           </div>
           <div className="flex gap-2">
+            <Button onClick={() => setShowCheckInDialog(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Manual Check-In
+            </Button>
             <Button variant="outline" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
@@ -333,6 +341,9 @@ const AttendanceManagement = () => {
           </CardContent>
         </Card>
 
+        {/* Class Attendance Report */}
+        <ClassAttendanceReport selectedDate={selectedDate} />
+
         {/* Attendance Table */}
         <Card>
           <CardHeader>
@@ -361,6 +372,16 @@ const AttendanceManagement = () => {
             )}
           </CardContent>
         </Card>
+
+        <CheckInDialog
+          open={showCheckInDialog}
+          onOpenChange={setShowCheckInDialog}
+          onSuccess={() => {
+            refetch();
+            queryClient.invalidateQueries({ queryKey: ["daily-stats"] });
+            queryClient.invalidateQueries({ queryKey: ["attendance-records"] });
+          }}
+        />
       </div>
     </ModernLayout>
   );
