@@ -12,11 +12,16 @@ import {
   Users,
   CheckCircle,
   AlertCircle,
-  Keyboard
+  Keyboard,
+  Printer
 } from 'lucide-react';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import QRCodeScanner from '@/components/qr/QRCodeScanner';
+import ClassSelectionDialog from './ClassSelectionDialog';
+import NameTagPrintDialog from './NameTagPrintDialog';
+import { useQRCodes } from '@/hooks/useQRCodes';
 
 interface Child {
   id: string;
@@ -40,7 +45,14 @@ const KioskCheckInSystem = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [recentCheckIns, setRecentCheckIns] = useState<any[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showScanner, setShowScanner] = useState(false);
+  const [showClassDialog, setShowClassDialog] = useState(false);
+  const [showNameTagDialog, setShowNameTagDialog] = useState(false);
+  const [selectedChild, setSelectedChild] = useState<Child | null>(null);
+  const [checkInQRData, setCheckInQRData] = useState<string>('');
+  const [selectedClassName, setSelectedClassName] = useState<string>('');
   const { toast } = useToast();
+  const { generateQRCode } = useQRCodes();
 
   // Update current time every second
   useEffect(() => {
@@ -97,40 +109,66 @@ const KioskCheckInSystem = () => {
     }
   };
 
-  const handleCheckIn = async (child: Child): Promise<CheckInResult> => {
+  const initiateCheckIn = (child: Child) => {
+    setSelectedChild(child);
+    setShowClassDialog(true);
+  };
+
+  const handleClassSelected = async (classId: string) => {
+    if (!selectedChild) return;
+
+    setShowClassDialog(false);
     setIsLoading(true);
+
     try {
+      // Get class name for the name tag
+      const { data: classData } = await supabase
+        .from('classes')
+        .select('name')
+        .eq('id', classId)
+        .single();
+
       const result = await AttendanceService.checkInChild({
-        childId: child.id,
+        childId: selectedChild.id,
+        classId: classId,
         checkedInBy: undefined // System check-in
       });
 
       if (result.success) {
-        await loadRecentCheckIns(); // Refresh recent check-ins
-        setSearchTerm(''); // Clear search
+        // Generate QR code for checkout
+        generateQRCode(selectedChild.id);
+        
+        const qrData = `child:${selectedChild.id}:${Date.now()}`;
+        setCheckInQRData(qrData);
+        setSelectedClassName(classData?.name || '');
+        
+        await loadRecentCheckIns();
+        setSearchTerm('');
         setFilteredChildren([]);
         
+        // Show allergy alert if present
+        if (selectedChild.allergies) {
+          toast({
+            title: "⚠️ ALLERGY ALERT",
+            description: `${selectedChild.first_name} has allergies: ${selectedChild.allergies}`,
+            variant: "destructive",
+            duration: 10000,
+          });
+        }
+
         toast({
           title: "Check-in Successful!",
-          description: `${child.first_name} ${child.last_name} has been checked in`,
+          description: `${selectedChild.first_name} ${selectedChild.last_name} checked into ${classData?.name || 'class'}`,
         });
 
-        return {
-          success: true,
-          message: `${child.first_name} ${child.last_name} checked in successfully!`,
-          child
-        };
+        // Show name tag print dialog
+        setShowNameTagDialog(true);
       } else {
         toast({
           title: "Check-in Failed",
           description: result.error || "Failed to check in child",
           variant: "destructive",
         });
-
-        return {
-          success: false,
-          message: result.error || "Check-in failed"
-        };
       }
     } catch (error: any) {
       toast({
@@ -138,13 +176,45 @@ const KioskCheckInSystem = () => {
         description: error.message || "An error occurred during check-in",
         variant: "destructive",
       });
-
-      return {
-        success: false,
-        message: error.message || "An error occurred"
-      };
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleQRCodeScan = async (qrData: string) => {
+    try {
+      // Parse QR data format: "child:childId:timestamp"
+      const parts = qrData.split(':');
+      if (parts[0] !== 'child' || !parts[1]) {
+        toast({
+          title: "Invalid QR Code",
+          description: "This QR code is not valid for check-in",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const childId = parts[1];
+      
+      // Find the child
+      const child = children.find(c => c.id === childId);
+      if (!child) {
+        toast({
+          title: "Child Not Found",
+          description: "Could not find child with this QR code",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setShowScanner(false);
+      initiateCheckIn(child);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to process QR code",
+        variant: "destructive",
+      });
     }
   };
 
@@ -224,7 +294,7 @@ const KioskCheckInSystem = () => {
                         </div>
                         <Button
                           size="lg"
-                          onClick={() => handleCheckIn(child)}
+                          onClick={() => initiateCheckIn(child)}
                           disabled={isLoading}
                           className="h-16 px-8 text-lg"
                         >
@@ -239,27 +309,38 @@ const KioskCheckInSystem = () => {
             </Card>
 
             {/* QR Code Scanner */}
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-2xl">
-                  <QrCode className="h-6 w-6" />
-                  QR Code Scanner
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <QrCode className="h-24 w-24 text-muted-foreground mx-auto mb-6" />
-                  <h3 className="text-2xl font-semibold mb-4">Scan QR Code</h3>
-                  <p className="text-lg text-muted-foreground mb-6">
-                    Hold the QR code in front of the camera to check in
-                  </p>
-                  <Button size="lg" className="h-16 px-8 text-lg">
-                    <QrCode className="h-6 w-6 mr-2" />
-                    Activate Scanner
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {!showScanner ? (
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-2xl">
+                    <QrCode className="h-6 w-6" />
+                    QR Code Scanner
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <QrCode className="h-24 w-24 text-muted-foreground mx-auto mb-6" />
+                    <h3 className="text-2xl font-semibold mb-4">Scan QR Code</h3>
+                    <p className="text-lg text-muted-foreground mb-6">
+                      Hold the QR code in front of the camera to check in
+                    </p>
+                    <Button 
+                      size="lg" 
+                      className="h-16 px-8 text-lg"
+                      onClick={() => setShowScanner(true)}
+                    >
+                      <QrCode className="h-6 w-6 mr-2" />
+                      Activate Scanner
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <QRCodeScanner
+                onScanComplete={handleQRCodeScan}
+                isScanning={showScanner}
+              />
+            )}
           </div>
 
           {/* Side Panel - Recent Activity */}
@@ -331,6 +412,35 @@ const KioskCheckInSystem = () => {
           </div>
         </div>
       </div>
+
+      {/* Class Selection Dialog */}
+      {selectedChild && (
+        <ClassSelectionDialog
+          open={showClassDialog}
+          onClose={() => {
+            setShowClassDialog(false);
+            setSelectedChild(null);
+          }}
+          onConfirm={handleClassSelected}
+          childName={`${selectedChild.first_name} ${selectedChild.last_name}`}
+        />
+      )}
+
+      {/* Name Tag Print Dialog */}
+      {selectedChild && (
+        <NameTagPrintDialog
+          open={showNameTagDialog}
+          onClose={() => {
+            setShowNameTagDialog(false);
+            setSelectedChild(null);
+            setCheckInQRData('');
+            setSelectedClassName('');
+          }}
+          child={selectedChild}
+          qrData={checkInQRData}
+          className={selectedClassName}
+        />
+      )}
     </div>
   );
 };
