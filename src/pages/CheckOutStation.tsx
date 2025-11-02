@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,16 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Users, LogOut, Clock, QrCode, CheckCircle } from "lucide-react";
+import { Search, Users, LogOut, Clock, QrCode, CheckCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import QRCodeScanner from "@/components/qr/QRCodeScanner";
 
 const CheckOutStation = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [qrCodeData, setQrCodeData] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
 
-  // Fetch children currently present (checked in but not out)
+  // Fetch children currently present with realtime updates
   const { data: presentChildren = [], isLoading } = useQuery({
     queryKey: ["present-children"],
     queryFn: async () => {
@@ -25,7 +26,7 @@ const CheckOutStation = () => {
         .from('attendance')
         .select(`
           *,
-          children (first_name, last_name, allergies, emergency_contact_name),
+          children (first_name, last_name, allergies, emergency_contact_name, medical_info),
           classes (name)
         `)
         .eq('attendance_date', today)
@@ -36,6 +37,28 @@ const CheckOutStation = () => {
       return data || [];
     },
   });
+
+  // Setup realtime subscription for attendance changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('checkout-attendance-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendance'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["present-children"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Check-out mutation
   const checkOutMutation = useMutation({
@@ -83,41 +106,50 @@ const CheckOutStation = () => {
     checkOutMutation.mutate(attendanceId);
   };
 
-  const handleQRScan = () => {
-    if (!qrCodeData.trim()) {
-      toast({
-        title: "No QR Code Data",
-        description: "Please scan or enter QR code data.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleQRCodeScanned = (qrData: string) => {
+    console.log("QR Code scanned:", qrData);
+    setShowScanner(false);
 
     try {
-      const qrData = JSON.parse(qrCodeData);
-      if (qrData.type === "CHECKOUT" && qrData.attendanceId) {
-        handleCheckOut(qrData.attendanceId);
-        setQrCodeData("");
+      // Try to parse as JSON first
+      const parsedData = JSON.parse(qrData);
+      
+      if (parsedData.childId) {
+        // Find attendance record by child_id
+        const attendanceRecord = presentChildren.find((record: any) => 
+          record.child_id === parsedData.childId
+        );
+        
+        if (attendanceRecord) {
+          handleCheckOut(attendanceRecord.id);
+        } else {
+          toast({
+            title: "Child Not Found",
+            description: "This child is not currently checked in.",
+            variant: "destructive",
+          });
+        }
+      } else if (parsedData.attendanceId) {
+        handleCheckOut(parsedData.attendanceId);
       } else {
         toast({
           title: "Invalid QR Code",
-          description: "This QR code is not valid for check-out.",
+          description: "QR code format not recognized.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      // Try to find attendance by ID if not JSON
+      // If not JSON, try to match as child_id or attendance_id
       const attendanceRecord = presentChildren.find((record: any) => 
-        record.id === qrCodeData.trim()
+        record.id === qrData.trim() || record.child_id === qrData.trim()
       );
       
       if (attendanceRecord) {
-        handleCheckOut(qrCodeData.trim());
-        setQrCodeData("");
+        handleCheckOut(attendanceRecord.id);
       } else {
         toast({
           title: "Invalid QR Code",
-          description: "Could not parse QR code data.",
+          description: "Could not find matching record.",
           variant: "destructive",
         });
       }
@@ -145,24 +177,34 @@ const CheckOutStation = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Scan QR code or enter code manually..."
-                    value={qrCodeData}
-                    onChange={(e) => setQrCodeData(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={handleQRScan}
-                    disabled={!qrCodeData.trim() || checkOutMutation.isPending}
-                  >
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Check Out
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Position QR code in front of camera or enter the code manually
-                </p>
+                {showScanner ? (
+                  <div className="space-y-4">
+                    <QRCodeScanner 
+                      onScanComplete={handleQRCodeScanned}
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowScanner(false)}
+                      className="w-full"
+                    >
+                      Cancel Scanning
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={() => setShowScanner(true)}
+                      className="w-full"
+                      size="lg"
+                    >
+                      <QrCode className="h-5 w-5 mr-2" />
+                      Start QR Scanner
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Scan the QR code from the child's name tag or parent's phone
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -221,17 +263,25 @@ const CheckOutStation = () => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-3">
-                          {record.children?.allergies && (
-                            <Badge variant="destructive" className="text-xs">
-                              Allergies
-                            </Badge>
-                          )}
-                          {record.children?.emergency_contact_name && (
-                            <Badge variant="outline" className="text-xs">
-                              Emergency: {record.children.emergency_contact_name}
-                            </Badge>
-                          )}
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {record.children?.allergies && (
+                              <Badge variant="destructive" className="text-xs">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                {record.children.allergies}
+                              </Badge>
+                            )}
+                            {record.children?.medical_info && (
+                              <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
+                                Medical Info
+                              </Badge>
+                            )}
+                            {record.children?.emergency_contact_name && (
+                              <Badge variant="secondary" className="text-xs">
+                                Emergency: {record.children.emergency_contact_name}
+                              </Badge>
+                            )}
+                          </div>
                           <Button
                             onClick={() => handleCheckOut(record.id)}
                             disabled={checkOutMutation.isPending}
