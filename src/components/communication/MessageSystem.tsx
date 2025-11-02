@@ -103,36 +103,72 @@ const MessageSystem = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch staff and teachers for recipient selection
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchRecipients = async () => {
       try {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
+        const { data: staffData, error: staffError } = await supabase
+          .from('user_roles')
+          .select(`
+            user_id,
+            role,
+            profiles:user_id (
+              id,
+              first_name,
+              last_name
+            )
+          `)
+          .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant'])
           .limit(100);
 
-        if (profilesError) {
-          console.error("Error fetching profiles:", profilesError);
+        if (staffError) {
+          console.error("Error fetching staff:", staffError);
           return;
         }
 
-        // Convert to User format with mock email and role
-        const usersData = (profiles || []).map(profile => ({
-          id: profile.id,
-          first_name: profile.first_name || '',
-          last_name: profile.last_name || '',
-          email: `${profile.first_name}@example.com`, // Mock email
-          role: 'user' // Mock role
-        }));
+        const recipientUsers: User[] = (staffData || [])
+          .filter(item => item.profiles)
+          .map(item => ({
+            id: item.user_id,
+            first_name: (item.profiles as any)?.first_name || '',
+            last_name: (item.profiles as any)?.last_name || '',
+            email: '', // Not needed for display
+            role: item.role
+          }));
 
-        setUsers(usersData);
+        setUsers(recipientUsers);
       } catch (error: any) {
-        console.error("Error fetching users:", error);
+        console.error("Error fetching recipients:", error);
       }
     };
 
-    fetchUsers();
+    fetchRecipients();
   }, []);
+
+  // Real-time message subscription
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('messages-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `recipient_id=eq.${user.id}`
+        },
+        () => {
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, refetch]);
 
   const filteredMessages = React.useMemo(() => {
     if (!messages) return [];
@@ -204,139 +240,254 @@ const MessageSystem = () => {
     }
   };
 
+  const unreadCount = React.useMemo(() => {
+    return messages?.filter(m => m.recipient_id === user?.id && !m.is_read).length || 0;
+  }, [messages, user?.id]);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5" />
-          Messages
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Messages
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {unreadCount} unread
+              </Badge>
+            )}
+          </CardTitle>
+          <Button onClick={() => setIsComposeOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Message
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="inbox" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="inbox" onClick={() => setActiveTab("inbox")}>Inbox</TabsTrigger>
-            <TabsTrigger value="sent" onClick={() => setActiveTab("sent")}>Sent</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="inbox" onClick={() => setActiveTab("inbox")}>
+              Inbox {unreadCount > 0 && `(${unreadCount})`}
+            </TabsTrigger>
+            <TabsTrigger value="sent" onClick={() => setActiveTab("sent")}>
+              Sent
+            </TabsTrigger>
           </TabsList>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Input
-                type="text"
-                placeholder="Search messages..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <Button onClick={() => setIsComposeOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Compose
-            </Button>
+          
+          <div className="flex items-center space-x-2">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
           </div>
-          <TabsContent value="inbox">
-            <div className="space-y-2">
-              {filteredMessages
+
+          <TabsContent value="inbox" className="space-y-2">
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading messages...</div>
+            ) : filteredMessages?.filter(message => message.recipient_id === user?.id).length === 0 ? (
+              <div className="text-center py-12">
+                <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">No messages yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Your inbox is empty
+                </p>
+              </div>
+            ) : (
+              filteredMessages
                 ?.filter(message => message.recipient_id === user?.id)
                 .map(message => (
                   <div
                     key={message.id}
-                    className={`p-3 rounded-md border ${!message.is_read ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}
+                    className={`p-4 rounded-lg border transition-colors ${
+                      !message.is_read 
+                        ? 'bg-primary/5 border-primary/20 hover:bg-primary/10' 
+                        : 'bg-card hover:bg-accent'
+                    }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="font-medium">{message.subject || 'No Subject'}</div>
-                        <div className="text-sm text-gray-500">
-                          From: {message.sender?.first_name} {message.sender?.last_name}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          {!message.is_read && (
+                            <Badge variant="default" className="text-xs">New</Badge>
+                          )}
+                          <span className="font-semibold">
+                            {message.subject || 'No Subject'}
+                          </span>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content}
+                        <div className="text-sm text-muted-foreground">
+                          From: <span className="font-medium text-foreground">
+                            {message.sender?.first_name} {message.sender?.last_name}
+                          </span>
+                        </div>
+                        <p className="text-sm">
+                          {message.content.length > 150 
+                            ? message.content.substring(0, 150) + '...' 
+                            : message.content}
+                        </p>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(message.created_at).toLocaleString()}
                         </div>
                       </div>
-                      <div>
+                      <div className="flex flex-col gap-2">
                         {!message.is_read && (
-                          <Button variant="outline" size="sm" onClick={() => markAsRead(message.id)}>
-                            Mark as Read
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => markAsRead(message.id)}
+                          >
+                            Mark Read
                           </Button>
                         )}
                       </div>
                     </div>
                   </div>
-                ))}
-            </div>
+                ))
+            )}
           </TabsContent>
-          <TabsContent value="sent">
-            <div className="space-y-2">
-              {filteredMessages
+
+          <TabsContent value="sent" className="space-y-2">
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading messages...</div>
+            ) : filteredMessages?.filter(message => message.sender_id === user?.id).length === 0 ? (
+              <div className="text-center py-12">
+                <Send className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">No sent messages</h3>
+                <p className="text-sm text-muted-foreground">
+                  Messages you send will appear here
+                </p>
+              </div>
+            ) : (
+              filteredMessages
                 ?.filter(message => message.sender_id === user?.id)
-                .map(message => (
-                  <div
-                    key={message.id}
-                    className="p-3 rounded-md border bg-gray-50 border-gray-200"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-medium">{message.subject || 'No Subject'}</div>
-                      <div className="text-sm text-gray-500">To: {message.recipient_id}</div>
-                      <div className="text-sm text-gray-500">
-                        {message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content}
+                .map(message => {
+                  const recipient = users.find(u => u.id === message.recipient_id);
+                  return (
+                    <div
+                      key={message.id}
+                      className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+                    >
+                      <div className="space-y-2">
+                        <div className="font-semibold">
+                          {message.subject || 'No Subject'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          To: <span className="font-medium text-foreground">
+                            {recipient 
+                              ? `${recipient.first_name} ${recipient.last_name} (${recipient.role})`
+                              : 'Unknown Recipient'}
+                          </span>
+                        </div>
+                        <p className="text-sm">
+                          {message.content.length > 150 
+                            ? message.content.substring(0, 150) + '...' 
+                            : message.content}
+                        </p>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(message.created_at).toLocaleString()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-            </div>
+                  );
+                })
+            )}
           </TabsContent>
         </Tabs>
 
         <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[550px]">
             <DialogHeader>
-              <DialogTitle>Compose Message</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                New Message
+              </DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="recipient" className="text-right">
-                  To
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="recipient">
+                  To <span className="text-destructive">*</span>
                 </Label>
-                <Select onValueChange={(value) => setNewMessage({...newMessage, recipientId: value})}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select recipient" />
+                <Select 
+                  value={newMessage.recipientId}
+                  onValueChange={(value) => setNewMessage({...newMessage, recipientId: value})}
+                >
+                  <SelectTrigger id="recipient">
+                    <SelectValue placeholder="Select a recipient" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.first_name} {user.last_name} - {user.role}
-                      </SelectItem>
-                    ))}
+                    {users.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">
+                        No staff available
+                      </div>
+                    ) : (
+                      users.map(recipient => (
+                        <SelectItem key={recipient.id} value={recipient.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">
+                              {recipient.first_name} {recipient.last_name}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {recipient.role}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="subject" className="text-right">
-                  Subject
+              
+              <div className="space-y-2">
+                <Label htmlFor="subject">
+                  Subject <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="subject"
+                  placeholder="Enter subject"
                   value={newMessage.subject}
                   onChange={(e) => setNewMessage({...newMessage, subject: e.target.value})}
-                  className="col-span-3"
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="content" className="text-right">
-                  Message
+              
+              <div className="space-y-2">
+                <Label htmlFor="content">
+                  Message <span className="text-destructive">*</span>
                 </Label>
                 <Textarea
                   id="content"
+                  placeholder="Type your message here..."
                   value={newMessage.content}
                   onChange={(e) => setNewMessage({...newMessage, content: e.target.value})}
-                  className="col-span-3"
+                  className="min-h-[150px]"
                 />
               </div>
-              <Button 
-                onClick={() => sendMessageMutation.mutate(newMessage)}
-                disabled={sendMessageMutation.isPending}
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
-              </Button>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsComposeOpen(false);
+                    setNewMessage({ subject: "", content: "", recipientId: "" });
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => sendMessageMutation.mutate(newMessage)}
+                  disabled={
+                    sendMessageMutation.isPending || 
+                    !newMessage.recipientId || 
+                    !newMessage.subject || 
+                    !newMessage.content
+                  }
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

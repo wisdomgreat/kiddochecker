@@ -653,6 +653,40 @@ verify_security_answer(user_id, answer) -> returns BOOLEAN
 - ✅ Comprehensive safety features (allergies, medical info, emergency contacts)
 - ✅ Multiple input methods (QR scan, manual search, PIN entry)
 
-**PHASE 4: Communication & Polish (6 credits)** - TO BE IMPLEMENTED
-- **Batch 4A**: Messaging System (3 credits)
-- **Batch 4B**: Settings & Reports (3 credits)
+**PHASE 4: Communication & Polish (6 credits)** - IN PROGRESS
+
+### Batch 4A: Messaging System (3 credits) ✅ **COMPLETE**
+**Completed Features:**
+- ✅ Enhanced messaging UI with unread count badges
+- ✅ Inbox and Sent tabs with visual distinction
+- ✅ Real-time message notifications via Supabase subscriptions
+- ✅ Recipient selection showing staff/teachers/admins with role badges
+- ✅ Search and filter messages by content/sender
+- ✅ Mark messages as read/unread
+- ✅ Comprehensive compose dialog with validation
+- ✅ Message preview with truncation
+- ✅ Empty states for inbox and sent messages
+- ✅ Timestamp display for all messages
+
+**Files Modified:**
+- `src/pages/MessagesPage.tsx` - Integrated enhanced MessageSystem component
+- `src/components/communication/MessageSystem.tsx` - Complete messaging overhaul with real-time updates
+- `src/hooks/useMessages.ts` - Already existed, used for message operations
+
+**Features Implemented:**
+- Real-time message subscription (auto-refresh on new messages)
+- Role-based recipient selection (only staff/teachers/admins available)
+- Unread message counter with badge
+- Enhanced UI with proper empty states
+- Search across subject, content, and sender names
+- Full validation for compose form (required fields)
+- Proper loading and error states
+
+**Phase 4 Batch 4A Impact Summary:**
+- ✅ 1 component enhanced (MessageSystem)
+- ✅ 1 page updated (MessagesPage)
+- ✅ Real-time communication system fully functional
+- ✅ Proper recipient selection with role display
+- ✅ Comprehensive message management (compose, read, search)
+
+- **Batch 4B**: Settings & Reports (3 credits) - TO BE IMPLEMENTED
