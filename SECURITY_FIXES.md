@@ -700,4 +700,46 @@ verify_security_answer(user_id, answer) -> returns BOOLEAN
 - ✅ Proper recipient selection with role display
 - ✅ Comprehensive message management (compose, read, search)
 
-- **Batch 4B**: Settings & Reports (3 credits) - TO BE IMPLEMENTED
+### Batch 4B: Settings & Reports (3 credits) ✅ **COMPLETE**
+**Completed Features:**
+- ✅ Enhanced GeneralSettings with database persistence
+  - Real-time loading of organization settings from Supabase
+  - Proper save functionality with mutation and cache invalidation
+  - Loading states and error handling
+  - Form validation with React Hook Form + Zod
+- ✅ Created comprehensive EnhancedReportsPage
+  - Attendance summary reports by class and date
+  - Detailed individual attendance records with duration
+  - Real-time statistics dashboard (total children, check-ins, check-outs, currently present)
+  - Date range selector with quick shortcuts (This Week, This Month, Custom Range)
+  - Export to CSV functionality with proper formatting
+  - Summary and Detailed report tabs
+  - Uses existing Supabase RPC functions: `get_attendance_report()`, `get_detailed_attendance_report()`
+- ✅ Proper role-based access controls (admin/staff only via layout)
+- ✅ Loading states, empty states, and error handling throughout
+
+**Files Modified:**
+- `src/components/settings/GeneralSettings.tsx` - Added database persistence, loading states, proper mutations
+- `src/pages/EnhancedReportsPage.tsx` - New comprehensive reports page with data visualization
+
+**Files Created:**
+- `src/pages/EnhancedReportsPage.tsx` - Full-featured reports dashboard
+
+**Features Implemented:**
+- Organization settings CRUD with real Supabase integration
+- Comprehensive attendance reporting with multiple views
+- Date range filtering for reports
+- CSV export functionality
+- Real-time statistics cards
+- Proper React Query caching and mutations
+- Loading and empty states throughout
+
+**Phase 4 Batch 4B Impact Summary:**
+- ✅ 1 component enhanced (GeneralSettings with real DB ops)
+- ✅ 1 new comprehensive page created (EnhancedReportsPage)
+- ✅ Full settings management with database persistence
+- ✅ Complete reporting system with export capabilities
+- ✅ Proper data visualization and filtering
+
+**PHASE 4 STATUS: COMPLETE** ✅
+All batches (4A: Messaging, 4B: Settings & Reports) fully implemented and functional.
