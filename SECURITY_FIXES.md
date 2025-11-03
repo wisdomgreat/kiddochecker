@@ -668,6 +668,17 @@ verify_security_answer(user_id, answer) -> returns BOOLEAN
 - ✅ Empty states for inbox and sent messages
 - ✅ Timestamp display for all messages
 
+**Critical Security Fix:**
+- ✅ **FIXED: Infinite Recursion in user_roles RLS Policies**
+  - **Issue**: `admins_manage_roles` policy was checking `user_roles` table to determine admin status, causing infinite recursion
+  - **Impact**: Admins couldn't authenticate or access admin dashboard, all users defaulted to 'parent' role
+  - **Solution**: Dropped problematic policies and created safe policies using `is_super_admin_secure()` security definer function
+  - **New Policies**:
+    - `users_read_own_role_safe`: Users can read their own role without recursion
+    - `super_admins_manage_roles_safe`: Super admins can manage all roles using security definer function
+    - `service_role_full_access`: Service role has full access for migrations
+  - **Result**: Role-based authentication now works correctly, admins can access admin dashboard
+
 **Files Modified:**
 - `src/pages/MessagesPage.tsx` - Integrated enhanced MessageSystem component
 - `src/components/communication/MessageSystem.tsx` - Complete messaging overhaul with real-time updates
