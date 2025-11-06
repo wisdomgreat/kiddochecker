@@ -37,17 +37,17 @@ export function AppSidebar() {
     },
     {
       title: "User Management",
-      url: "/admin/users",
+      url: "/users",
       icon: Users,
     },
     {
       title: "Reports",
-      url: "/admin/reports", 
+      url: "/reports", 
       icon: BarChart3,
     },
     {
       title: "Settings",
-      url: "/admin/settings",
+      url: "/settings",
       icon: Settings,
     },
   ];
