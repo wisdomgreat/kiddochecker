@@ -826,7 +826,6 @@ export type Database = {
         | {
             Args: {
               p_is_super_admin?: boolean
-              p_is_volunteer?: boolean
               p_role?: Database["public"]["Enums"]["app_role"]
               p_user_id: string
             }
@@ -835,6 +834,7 @@ export type Database = {
         | {
             Args: {
               p_is_super_admin?: boolean
+              p_is_volunteer?: boolean
               p_role?: Database["public"]["Enums"]["app_role"]
               p_user_id: string
             }
