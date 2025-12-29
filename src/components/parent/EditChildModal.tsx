@@ -12,11 +12,11 @@ interface Child {
   id: string;
   first_name: string;
   last_name: string;
-  age: number;
-  allergies?: string;
-  medical_info?: string;
-  emergency_contact_name?: string;
-  emergency_contact_phone?: string;
+  age?: number | null;
+  allergies?: string | null;
+  medical_info?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
 }
 
 interface EditChildModalProps {

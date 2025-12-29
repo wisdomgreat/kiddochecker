@@ -37,7 +37,7 @@ import AttendancePage from "./pages/AttendancePage";
 // Management Pages
 import DeviceManagementPage from "./pages/DeviceManagementPage";
 import ClassesPage from "./pages/ClassesPage";
-import ReportsPage from "./pages/ReportsPage";
+import EnhancedReportsPage from "./pages/EnhancedReportsPage";
 import UsersPage from "./pages/UsersPage";
 import RegisterPage from "./pages/RegisterPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -89,7 +89,7 @@ function App() {
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/classes" element={<ClassesPage />} />
                   <Route path="/attendance" element={<AttendancePage />} />
-                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/reports" element={<EnhancedReportsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/staff" element={<StaffPage />} />
                   <Route path="/messages" element={<MessagesPage />} />
