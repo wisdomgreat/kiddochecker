@@ -35,7 +35,7 @@ const ParentMessages = () => {
         const { data, error } = await supabase
           .from('messages')
           .select('*')
-          .eq('sender_id', user.id)
+          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -110,11 +110,16 @@ const ParentMessages = () => {
             messages.map(message => (
               <div key={message.id} className="border rounded-md p-4">
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold">You</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="font-semibold">
+                    {message.sender_id === user?.id ? 'You' : 'Staff'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
                     {format(new Date(message.created_at), "MMM dd, yyyy hh:mm a")}
                   </div>
                 </div>
+                {message.subject && (
+                  <p className="text-sm font-medium mt-1">{message.subject}</p>
+                )}
                 <p className="mt-2">{message.content}</p>
               </div>
             ))

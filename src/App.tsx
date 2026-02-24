@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
 import AuthErrorBoundary from "@/components/auth/AuthErrorBoundary";
 
@@ -85,15 +86,15 @@ function App() {
                   <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
                   <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
 
-                  {/* Management Routes with working navigation */}
-                  <Route path="/users" element={<UsersPage />} />
-                  <Route path="/classes" element={<ClassesPage />} />
-                  <Route path="/attendance" element={<AttendancePage />} />
-                  <Route path="/reports" element={<EnhancedReportsPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/staff" element={<StaffPage />} />
+                  {/* Protected Management Routes */}
+                  <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><UsersPage /></RoleBasedRoute>} />
+                  <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
+                  <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
+                  <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><EnhancedReportsPage /></RoleBasedRoute>} />
+                  <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><SettingsPage /></RoleBasedRoute>} />
+                  <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><StaffPage /></RoleBasedRoute>} />
                   <Route path="/messages" element={<MessagesPage />} />
-                  <Route path="/children" element={<ChildrenPage />} />
+                  <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
                   <Route path="/calendar" element={<CalendarPage />} />
                   
                   {/* Parent-specific routes */}

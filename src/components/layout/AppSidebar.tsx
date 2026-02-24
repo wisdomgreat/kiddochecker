@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Settings, BarChart3, Shield, UserPlus, Building, LogOut, User, Baby, FileText } from "lucide-react";
+import { Calendar, Home, Users, Settings, BarChart3, Building, LogOut, Baby, FileText, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 export function AppSidebar() {
-  const { user, userRole, isAdmin, isParent, signOut } = useAuth();
+  const { user, userRole, isAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -28,55 +28,43 @@ export function AppSidebar() {
     navigate('/login');
   };
 
-  // Role-specific navigation items
   const adminItems = [
-    {
-      title: "Dashboard",
-      url: "/admin-dashboard",
-      icon: Home,
-    },
-    {
-      title: "User Management",
-      url: "/users",
-      icon: Users,
-    },
-    {
-      title: "Reports",
-      url: "/reports", 
-      icon: BarChart3,
-    },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
+    { title: "Dashboard", url: "/admin-dashboard", icon: Home },
+    { title: "User Management", url: "/users", icon: Users },
+    { title: "Staff", url: "/staff", icon: UserCheck },
+    { title: "Children", url: "/children", icon: Baby },
+    { title: "Classes", url: "/classes", icon: BookOpen },
+    { title: "Attendance", url: "/attendance", icon: ClipboardCheck },
+    { title: "Reports", url: "/reports", icon: BarChart3 },
+    { title: "Calendar", url: "/calendar", icon: Calendar },
+    { title: "Messages", url: "/messages", icon: MessageSquare },
+    { title: "Check-In Kiosk", url: "/check-in", icon: Monitor },
+    { title: "Settings", url: "/settings", icon: Settings },
+  ];
+
+  const staffItems = [
+    { title: "Dashboard", url: "/staff-dashboard", icon: Home },
+    { title: "Check-In", url: "/check-in", icon: Monitor },
+    { title: "Check-Out", url: "/check-out", icon: ClipboardCheck },
+    { title: "Children", url: "/children", icon: Baby },
+    { title: "Classes", url: "/classes", icon: BookOpen },
+    { title: "Attendance", url: "/attendance", icon: ClipboardCheck },
+    { title: "Calendar", url: "/calendar", icon: Calendar },
+    { title: "Messages", url: "/messages", icon: MessageSquare },
   ];
 
   const parentItems = [
-    {
-      title: "Dashboard",
-      url: "/parent-dashboard",
-      icon: Home,
-    },
-    {
-      title: "My Children",
-      url: "/parent/children",
-      icon: Baby,
-    },
-    {
-      title: "Attendance",
-      url: "/parent/attendance",
-      icon: Calendar,
-    },
-    {
-      title: "Messages",
-      url: "/parent/messages",
-      icon: FileText,
-    },
+    { title: "Dashboard", url: "/parent-dashboard", icon: Home },
+    { title: "My Children", url: "/parent/children", icon: Baby },
+    { title: "Attendance", url: "/parent/attendance", icon: Calendar },
+    { title: "Messages", url: "/parent/messages", icon: MessageSquare },
+    { title: "Profile", url: "/parent/profile", icon: Users },
   ];
 
   // Determine which menu items to show based on role
-  const menuItems = isAdmin ? adminItems : parentItems;
+  const isStaffRole = isStaff || isTeacher || isTeacherAssistant;
+  const menuItems = isAdmin ? adminItems : isStaffRole ? staffItems : parentItems;
+  const portalLabel = isAdmin ? 'Admin Portal' : isStaffRole ? 'Staff Portal' : 'Parent Portal';
 
   if (!user) return null;
 
@@ -113,7 +101,7 @@ export function AppSidebar() {
       <SidebarContent className="px-2 py-4">
         <SidebarGroup>
           <SidebarGroupLabel className="text-left mb-2 px-2">
-            {isAdmin ? 'Admin Portal' : 'Parent Portal'}
+            {portalLabel}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
