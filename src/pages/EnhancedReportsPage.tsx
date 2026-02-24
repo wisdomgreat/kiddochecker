@@ -9,9 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import { 
-  BarChart3, 
-  Download, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+import {
+  BarChart3,
+  Download,
   Calendar as CalendarIcon,
   TrendingUp,
   Users,
@@ -275,26 +285,54 @@ const EnhancedReportsPage = () => {
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
                 ) : attendanceReport && attendanceReport.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Class</TableHead>
-                        <TableHead className="text-right">Check-Ins</TableHead>
-                        <TableHead className="text-right">Check-Outs</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {attendanceReport.map((row: any, index: number) => (
-                        <TableRow key={index}>
-                          <TableCell>{format(new Date(row.attendance_date), 'MMM dd, yyyy')}</TableCell>
-                          <TableCell className="font-medium">{row.class_name || 'N/A'}</TableCell>
-                          <TableCell className="text-right">{row.total_checked_in}</TableCell>
-                          <TableCell className="text-right">{row.total_checked_out}</TableCell>
+                  <div className="space-y-6">
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={attendanceReport}
+                          margin={{
+                            top: 5,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={(value) => format(new Date(value), 'MMM dd')}
+                          />
+                          <YAxis />
+                          <Tooltip
+                            labelFormatter={(value) => format(new Date(value), 'MMM dd, yyyy')}
+                          />
+                          <Legend />
+                          <Bar dataKey="total_checked_in" name="Check-Ins" fill="#3b82f6" />
+                          <Bar dataKey="total_checked_out" name="Check-Outs" fill="#f97316" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead className="text-right">Check-Ins</TableHead>
+                          <TableHead className="text-right">Check-Outs</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {attendanceReport.map((row: any, index: number) => (
+                          <TableRow key={index}>
+                            <TableCell>{format(new Date(row.attendance_date), 'MMM dd, yyyy')}</TableCell>
+                            <TableCell className="font-medium">{row.class_name || 'N/A'}</TableCell>
+                            <TableCell className="text-right">{row.total_checked_in}</TableCell>
+                            <TableCell className="text-right">{row.total_checked_out}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />

@@ -23,43 +23,38 @@ export const useNavigation = () => {
   const navigateToSettings = () => navigate("/settings");
 
   // User management routes
-  const navigateToUsersManagement = () => navigate("/users-management");
-  const navigateToStaffManagement = () => navigate("/staff-management");
-  const navigateToRolesManagement = () => navigate("/roles-management");
-  const navigateToRolePermissions = () => navigate("/role-permissions");
+  const navigateToUsers = () => navigate("/users");
+  const navigateToStaff = () => navigate("/staff");
 
   // Class and attendance routes
-  const navigateToClassesManagement = () => navigate("/classes-management");
+  const navigateToClasses = () => navigate("/classes");
   const navigateToAttendance = () => navigate("/attendance");
 
   // Events routes
-  const navigateToEventsManagement = () => navigate("/events-management");
+  const navigateToCalendar = () => navigate("/calendar");
   const navigateToEventDetails = (eventId: string) => navigate(`/events/${eventId}`);
 
   // Check-in system routes
-  const navigateToCheckInOut = () => navigate("/check-in-out");
-  const navigateToCheckInKiosk = () => navigate("/check-in-kiosk");
-  const navigateToCheckOutStation = () => navigate("/check-out-station");
-  const navigateToCheckInProcess = () => navigate("/check-in-process");
+  const navigateToCheckInKiosk = () => navigate("/check-in");
+  const navigateToCheckOutStation = () => navigate("/check-out");
 
   // Parent dashboard routes
   const navigateToParentDashboard = () => navigate("/parent-dashboard");
-  const navigateToChildrenManagement = () => navigate("/children-management");
-  const navigateToFamilySettings = () => navigate("/family-settings");
+  const navigateToChildren = () => navigate("/children");
+  const navigateToFamilySettings = () => navigate("/parent/profile");
 
   // Teacher routes
   const navigateToTeacherDashboard = () => navigate("/teacher-dashboard");
   const navigateToClassAttendance = (classId: string) => navigate(`/class/${classId}/attendance`);
 
   // Report routes
-  const navigateToReportsDashboard = () => navigate("/reports-dashboard");
-  const navigateToAttendanceReport = () => navigate("/reports/attendance");
+  const navigateToReports = () => navigate("/reports");
 
   // User profile
   const navigateToUserProfile = () => navigate("/user-profile");
 
-  // Device management
-  const navigateToKioskManagement = () => navigate("/kiosk-management");
+  // Messages
+  const navigateToMessages = () => navigate("/messages");
 
   return {
     navigateToLanding,
@@ -70,50 +65,45 @@ export const useNavigation = () => {
     navigateToTermsOfService,
     navigateToContactUs,
     navigateToFAQ,
-    
+
     // Admin and organization
     navigateToAdminDashboard,
     navigateToOrganizationSetup,
     navigateToSettings,
-    
+
     // User management
-    navigateToUsersManagement,
-    navigateToStaffManagement,
-    navigateToRolesManagement,
-    navigateToRolePermissions,
-    
+    navigateToUsers,
+    navigateToStaff,
+
     // Class and attendance
-    navigateToClassesManagement,
+    navigateToClasses,
     navigateToAttendance,
-    
+
     // Events
-    navigateToEventsManagement,
+    navigateToCalendar,
     navigateToEventDetails,
-    
+
     // Check-in system
-    navigateToCheckInOut,
     navigateToCheckInKiosk,
     navigateToCheckOutStation,
-    navigateToCheckInProcess,
-    
+
     // Parent dashboard
     navigateToParentDashboard,
-    navigateToChildrenManagement,
+    navigateToChildren,
     navigateToFamilySettings,
-    
+
     // Teacher
     navigateToTeacherDashboard,
     navigateToClassAttendance,
-    
+
     // Reports
-    navigateToReportsDashboard,
-    navigateToAttendanceReport,
-    
+    navigateToReports,
+
     // User profile
     navigateToUserProfile,
-    
-    // Device management
-    navigateToKioskManagement,
+
+    // Messages
+    navigateToMessages,
   };
 };
 

@@ -11,38 +11,42 @@ import { useAttendance } from '@/hooks/useAttendance';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { CheckInDialog } from '@/components/attendance/CheckInDialog';
+import { ClassAttendanceReport } from '@/components/attendance/ClassAttendanceReport';
 
 const AttendancePage = () => {
   const { attendance, isLoading, error, refetch, checkOut, isCheckingOut } = useAttendance();
   const { isConnected } = useRealtimeAttendance();
   const { toast } = useToast();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Calculate statistics from real data
   const stats = useMemo(() => {
     if (!attendance) return { todayCheckins: 0, currentlyPresent: 0, checkedOut: 0, lateCheckouts: 0 };
-    
+
     const today = new Date().toDateString();
-    const todayRecords = attendance.filter(r => 
+    const todayRecords = attendance.filter(r =>
       new Date(r.attendance_date).toDateString() === today
     );
-    
+
     const checkedIn = todayRecords.filter(r => r.checked_in_at).length;
     const present = todayRecords.filter(r => r.checked_in_at && !r.checked_out_at).length;
     const checkedOut = todayRecords.filter(r => r.checked_out_at).length;
-    
+
     // Late checkouts: checked out after 6 PM
     const lateCheckouts = todayRecords.filter(r => {
       if (!r.checked_out_at) return false;
       const checkoutHour = new Date(r.checked_out_at).getHours();
       return checkoutHour >= 18;
     }).length;
-    
-    return { 
-      todayCheckins: checkedIn, 
+
+    return {
+      todayCheckins: checkedIn,
       currentlyPresent: present,
       checkedOut,
-      lateCheckouts 
+      lateCheckouts
     };
   }, [attendance]);
 
@@ -50,7 +54,7 @@ const AttendancePage = () => {
   const todayAttendance = useMemo(() => {
     if (!attendance) return [];
     const today = new Date().toDateString();
-    return attendance.filter(r => 
+    return attendance.filter(r =>
       new Date(r.attendance_date).toDateString() === today
     ).sort((a, b) => {
       const dateA = new Date(a.checked_in_at || 0);
@@ -128,7 +132,11 @@ const AttendancePage = () => {
                 )}
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={() => setShowCheckInDialog(true)}>
+                <CheckSquare className="h-4 w-4 mr-2" />
+                Manual Check-In
+              </Button>
               <Button variant="outline" onClick={() => refetch()}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -199,6 +207,19 @@ const AttendancePage = () => {
             </Card>
           </div>
 
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-muted-foreground mr-2">Filter Reports: </span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-1 flex h-9 w-auto rounded-md border border-input bg-transparent text-sm"
+            />
+          </div>
+
+          {/* Class Attendance Report */}
+          <ClassAttendanceReport selectedDate={selectedDate} />
+
           {/* Attendance Table */}
           <Card>
             <CardHeader>
@@ -238,8 +259,8 @@ const AttendancePage = () => {
                     {todayAttendance.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">
-                          {record.child ? 
-                            `${record.child.first_name} ${record.child.last_name}` : 
+                          {record.child ?
+                            `${record.child.first_name} ${record.child.last_name}` :
                             'Unknown Child'
                           }
                         </TableCell>
@@ -300,7 +321,7 @@ const AttendancePage = () => {
                   <p className="text-2xl font-bold">{stats.lateCheckouts}</p>
                 </div>
               </div>
-              
+
               <div className="max-h-[300px] overflow-y-auto">
                 <Table>
                   <TableHeader>
@@ -315,8 +336,8 @@ const AttendancePage = () => {
                     {todayAttendance.map((record) => (
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">
-                          {record.child ? 
-                            `${record.child.first_name} ${record.child.last_name}` : 
+                          {record.child ?
+                            `${record.child.first_name} ${record.child.last_name}` :
                             'Unknown'
                           }
                         </TableCell>
@@ -341,6 +362,14 @@ const AttendancePage = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        <CheckInDialog
+          open={showCheckInDialog}
+          onOpenChange={setShowCheckInDialog}
+          onSuccess={() => {
+            refetch();
+          }}
+        />
       </UnifiedDashboardLayout>
     </RoleBasedRoute>
   );

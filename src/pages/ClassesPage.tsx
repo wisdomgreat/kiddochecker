@@ -8,6 +8,8 @@ import { Progress } from '@/components/ui/progress';
 import { BookOpen, Plus, Users, Edit, Trash2, Loader2, Search } from 'lucide-react';
 import { useClasses } from '@/hooks/useClasses';
 import AddEditClassDialog from '@/components/classes/AddEditClassDialog';
+import { AssignTeacherDialog } from '@/components/classes/AssignTeacherDialog';
+import { ClassRosterDialog } from '@/components/classes/ClassRosterDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Class } from '@/types/classes';
 
@@ -17,6 +19,8 @@ const ClassesPage = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [deletingClass, setDeletingClass] = useState<Class | null>(null);
+  const [assigningTeacher, setAssigningTeacher] = useState<{ id: string; name: string } | null>(null);
+  const [viewingRoster, setViewingRoster] = useState<{ id: string; name: string } | null>(null);
 
   // Filter classes based on search
   const filteredClasses = useMemo(() => {
@@ -160,11 +164,28 @@ const ClassesPage = () => {
                         <p className="text-sm text-muted-foreground mt-1">{classItem.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap justify-end max-w-[120px]">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => setAssigningTeacher({ id: classItem.id, name: classItem.name })}
+                        title="Assign Teacher"
+                      >
+                        <Users className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => setViewingRoster({ id: classItem.id, name: classItem.name })}
+                        title="View Roster"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                      </Button>
                       <Button 
                         variant="ghost" 
                         size="icon"
                         onClick={() => setEditingClass(classItem)}
+                        title="Edit Class"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -173,6 +194,7 @@ const ClassesPage = () => {
                         size="icon"
                         onClick={() => setDeletingClass(classItem)}
                         className="text-destructive hover:text-destructive"
+                        title="Delete Class"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -239,6 +261,23 @@ const ClassesPage = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <AssignTeacherDialog
+          classId={assigningTeacher?.id || ''}
+          className={assigningTeacher?.name || ''}
+          open={!!assigningTeacher}
+          onOpenChange={(open) => !open && setAssigningTeacher(null)}
+          onSuccess={() => {
+            setAssigningTeacher(null);
+          }}
+        />
+
+        <ClassRosterDialog
+          classId={viewingRoster?.id || ''}
+          className={viewingRoster?.name || ''}
+          open={!!viewingRoster}
+          onOpenChange={(open) => !open && setViewingRoster(null)}
+        />
       </UnifiedDashboardLayout>
     </RoleBasedRoute>
   );

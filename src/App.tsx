@@ -82,9 +82,9 @@ function App() {
                   <Route path="/dashboard" element={<Dashboard />} />
 
                   {/* Dashboard Routes */}
-                  <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
-                  <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
-                  <Route path="/parent-dashboard" element={<ParentDashboardPage />} />
+                  <Route path="/admin-dashboard" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
+                  <Route path="/staff-dashboard" element={<ProtectedRoute><StaffDashboardPage /></ProtectedRoute>} />
+                  <Route path="/parent-dashboard" element={<ProtectedRoute><ParentDashboardPage /></ProtectedRoute>} />
 
                   {/* Protected Management Routes */}
                   <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><UsersPage /></RoleBasedRoute>} />
@@ -93,15 +93,14 @@ function App() {
                   <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><EnhancedReportsPage /></RoleBasedRoute>} />
                   <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><SettingsPage /></RoleBasedRoute>} />
                   <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><StaffPage /></RoleBasedRoute>} />
-                  <Route path="/messages" element={<MessagesPage />} />
+                  <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
                   <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
-                  <Route path="/calendar" element={<CalendarPage />} />
-                  
+                  <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
                   {/* Parent-specific routes */}
-                  <Route path="/parent/children" element={<ParentChildrenPage />} />
-                  <Route path="/parent/attendance" element={<ParentAttendancePage />} />
-                  <Route path="/parent/messages" element={<ParentMessagesPage />} />
-                  <Route path="/parent/profile" element={<ParentProfilePage />} />
+                  <Route path="/parent/children" element={<ProtectedRoute><ParentChildrenPage /></ProtectedRoute>} />
+                  <Route path="/parent/attendance" element={<ProtectedRoute><ParentAttendancePage /></ProtectedRoute>} />
+                  <Route path="/parent/messages" element={<ProtectedRoute><ParentMessagesPage /></ProtectedRoute>} />
+                  <Route path="/parent/profile" element={<ProtectedRoute><ParentProfilePage /></ProtectedRoute>} />
 
                   {/* Catch all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />
