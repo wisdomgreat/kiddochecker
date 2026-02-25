@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,88 +154,94 @@ const ParentProfile = () => {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="space-y-0.5">
-        <CardTitle className="text-2xl font-bold">My Profile</CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* First Name */}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="w-full">
+        <CardHeader className="space-y-0.5">
+          <CardTitle className="text-2xl font-bold">My Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* First Name */}
+            <div>
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                disabled={!isEditing}
+              />
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                disabled={!isEditing}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Email */}
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                value={profile?.email || ""}
+                disabled
+              />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={!isEditing}
+              />
+            </div>
+          </div>
+
+          {/* Address */}
           <div>
-            <Label htmlFor="firstName">First Name</Label>
-            <Input
-              id="firstName"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
+            <Label htmlFor="address">Address</Label>
+            <Textarea
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
               disabled={!isEditing}
             />
           </div>
 
-          {/* Last Name */}
-          <div>
-            <Label htmlFor="lastName">Last Name</Label>
-            <Input
-              id="lastName"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              disabled={!isEditing}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Email */}
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              value={profile?.email || ""}
-              disabled
-            />
-          </div>
-
-          {/* Phone */}
-          <div>
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={!isEditing}
-            />
-          </div>
-        </div>
-
-        {/* Address */}
-        <div>
-          <Label htmlFor="address">Address</Label>
-          <Textarea
-            id="address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            disabled={!isEditing}
-          />
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-2">
-          {isEditing ? (
-            <>
-              <Button variant="ghost" onClick={handleCancelClick}>
-                Cancel
+          {/* Actions */}
+          <div className="flex justify-end gap-2">
+            {isEditing ? (
+              <>
+                <Button variant="ghost" onClick={handleCancelClick}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveClick} disabled={updateProfileMutation.isPending}>
+                  {updateProfileMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleEditClick}>
+                Edit Profile
               </Button>
-              <Button onClick={handleSaveClick} disabled={updateProfileMutation.isPending}>
-                {updateProfileMutation.isPending ? "Saving..." : "Save"}
-              </Button>
-            </>
-          ) : (
-            <Button onClick={handleEditClick}>
-              Edit Profile
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 

@@ -37,6 +37,8 @@ export interface AuthContextType {
   isStaff: boolean;
   isTeacher: boolean;
   isTeacherAssistant: boolean;
+  verificationStatus: string | null;
+  isVerifiedStaff: boolean;
   hasRole: (role: AppRole) => boolean;
 }
 
@@ -46,6 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
@@ -71,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "You're back online.",
       });
     };
-    
+
     const handleOffline = () => {
       setIsOnline(false);
       console.log('Connection lost');
@@ -96,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserRole(null);
       return;
     }
-    
+
     // Check network status first
     if (!navigator.onLine) {
       console.log('Offline - skipping role fetch');
@@ -114,20 +117,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return;
     }
-    
+
     try {
       console.log('Fetching user role for:', user.id);
-      
+
       // Use fetchWithRetry with increased timeout to 30s
       const { data, error } = await fetchWithRetry(
         async () => {
           const result = await Promise.race([
             supabase
               .from('user_roles')
-              .select('role, is_super_admin')
+              .select('role, is_super_admin, verification_status')
               .eq('user_id', user.id)
               .single(),
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Role fetch timeout')), 30000)
             )
           ]);
@@ -139,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error("Error fetching user role:", error);
-        
+
         // If user doesn't exist in user_roles, create a default parent role
         if (error.code === 'PGRST116') {
           console.log('User not found in user_roles, creating default parent role');
@@ -150,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: 'parent' as AppRole,
               is_super_admin: false
             });
-          
+
           if (!insertError) {
             setUserRole('parent');
             console.log('Created default parent role for user');
@@ -166,11 +169,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const finalRole = (data?.is_super_admin ? 'super_admin' : data?.role) || 'parent';
+      const finalStatus = data?.verification_status || 'unverified';
       setUserRole(finalRole as AppRole);
-      console.log('User role set to:', finalRole);
+      setVerificationStatus(finalStatus);
+      console.log('User role:', finalRole, 'Status:', finalStatus);
     } catch (error: any) {
       console.error("Exception refreshing user role:", error);
-      
+
       // Provide specific error messages based on error type
       if (!navigator.onLine) {
         toast({
@@ -191,7 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           variant: "destructive",
         });
       }
-      
+
       // Default to parent role to prevent infinite loading
       setUserRole('parent');
     }
@@ -203,7 +208,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRole(null);
-      
+      setVerificationStatus(null);
+
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Error signing out:", error);
@@ -240,37 +246,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
     let roleTimeout: NodeJS.Timeout | null = null;
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (event, session) => {
-          if (!mounted) return;
-          
-          console.log('Auth state change:', event, session?.user?.id);
-          
-          if (event === 'SIGNED_OUT' || !session) {
-            setSession(null);
-            setUser(null);
-            setUserRole(null);
-            setLoading(false);
-            return;
-          }
-          
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user && mounted) {
-            // Defer role fetch to prevent blocking
-            setTimeout(() => {
-              if (mounted) {
-                refreshUserRole();
-              }
-            }, 0);
-          }
-          
-          if (mounted) {
-            setLoading(false);
-          }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) return;
+
+        console.log('Auth state change:', event, session?.user?.id);
+
+        if (event === 'SIGNED_OUT' || !session) {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          setVerificationStatus(null);
+          setLoading(false);
+          return;
         }
-      );
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user && mounted) {
+          // Defer role fetch to prevent blocking
+          setTimeout(() => {
+            if (mounted) {
+              refreshUserRole();
+            }
+          }, 0);
+        }
+
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    );
 
     // Get initial session with timeout and retry
     const getInitialSession = async () => {
@@ -279,7 +286,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           async () => {
             const result = await Promise.race([
               supabase.auth.getSession(),
-              new Promise((_, reject) => 
+              new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Session fetch timeout')), 30000)
               )
             ]);
@@ -288,9 +295,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           3,
           1000
         );
-        
+
         if (!mounted) return;
-        
+
         if (error) {
           console.error("Error getting session:", error);
           setLoading(false);
@@ -302,7 +309,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(session.user);
           await refreshUserRole();
         }
-        
+
         if (mounted) {
           setLoading(false);
         }
@@ -337,6 +344,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isTeacher = userRole === 'teacher';
   const isTeacherAssistant = userRole === 'teacher_assistant';
 
+  const isVerifiedStaff =
+    (isStaff || isTeacher || isTeacherAssistant || isAdmin) &&
+    verificationStatus === 'verified';
+
   const value = {
     user,
     session,
@@ -350,6 +361,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isStaff,
     isTeacher,
     isTeacherAssistant,
+    verificationStatus,
+    isVerifiedStaff,
     hasRole,
   };
 

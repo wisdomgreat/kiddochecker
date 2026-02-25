@@ -1,15 +1,15 @@
 
-import DocumentVerificationSystem from "@/components/admin/DocumentVerificationSystem";
-import ModernLayout from "@/components/layout/ModernLayout";
-import RoleGuard from "@/components/security/RoleGuard";
+import AdminDocumentVerificationSystem from "@/components/admin/DocumentVerificationSystem";
+import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
+import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 
 const AdminDocumentVerification = () => {
   return (
-    <ModernLayout>
-      <RoleGuard requireAdminAccess>
-        <DocumentVerificationSystem />
-      </RoleGuard>
-    </ModernLayout>
+    <RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}>
+      <UnifiedDashboardLayout>
+        <AdminDocumentVerificationSystem />
+      </UnifiedDashboardLayout>
+    </RoleBasedRoute>
   );
 };
 

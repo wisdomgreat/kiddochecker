@@ -24,19 +24,18 @@ import StaffDashboardPage from "./pages/StaffDashboardPage";
 import ParentDashboardPage from "./pages/ParentDashboardPage";
 
 // Admin Pages
-import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminDocumentVerification from "./pages/AdminDocumentVerification";
 
 // Staff Pages
 import StaffDocumentUpload from "./pages/StaffDocumentUpload";
 
 // Check-in/Check-out Pages
-import CheckInKiosk from "./pages/CheckInKiosk";
+import CheckInPage from "./pages/CheckInPage";
 import CheckOutPage from "./pages/CheckOutPage";
 import AttendancePage from "./pages/AttendancePage";
 
 // Management Pages
-import DeviceManagementPage from "./pages/DeviceManagementPage";
+import DeviceEnrollmentPage from "./pages/DeviceEnrollmentPage";
 import ClassesPage from "./pages/ClassesPage";
 import EnhancedReportsPage from "./pages/EnhancedReportsPage";
 import UsersPage from "./pages/UsersPage";
@@ -50,11 +49,16 @@ import ParentChildrenPage from "./pages/ParentChildrenPage";
 import ParentAttendancePage from "./pages/ParentAttendancePage";
 import ParentMessagesPage from "./pages/ParentMessagesPage";
 import ParentProfilePage from "./pages/ParentProfilePage";
+import ChildMedicalProfile from "./pages/ChildMedicalProfile";
+
+// New Pages
+import QRManagementPage from "./pages/QRManagementPage";
+import AuditLogPage from "./pages/AuditLogPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
       retry: 1,
       refetchOnWindowFocus: false,
     },
@@ -77,7 +81,7 @@ function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/landing" element={<LandingPage />} />
-                  <Route path="/check-in" element={<CheckInKiosk />} />
+                  <Route path="/check-in" element={<CheckInPage />} />
                   <Route path="/check-out" element={<CheckOutPage />} />
                   <Route path="/dashboard" element={<Dashboard />} />
 
@@ -86,21 +90,35 @@ function App() {
                   <Route path="/staff-dashboard" element={<ProtectedRoute><StaffDashboardPage /></ProtectedRoute>} />
                   <Route path="/parent-dashboard" element={<ProtectedRoute><ParentDashboardPage /></ProtectedRoute>} />
 
-                  {/* Protected Management Routes */}
+                  {/* Admin-Only Routes */}
                   <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><UsersPage /></RoleBasedRoute>} />
-                  <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
-                  <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
+                  <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><StaffPage /></RoleBasedRoute>} />
                   <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><EnhancedReportsPage /></RoleBasedRoute>} />
                   <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><SettingsPage /></RoleBasedRoute>} />
-                  <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><StaffPage /></RoleBasedRoute>} />
-                  <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+                  <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><DeviceEnrollmentPage /></RoleBasedRoute>} />
+                  <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><DeviceEnrollmentPage /></RoleBasedRoute>} />
+                  <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher'] as any}><QRManagementPage /></RoleBasedRoute>} />
+
+                  {/* Staff & Admin Shared Routes */}
+                  <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
+                  <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
                   <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
+
+                  {/* All Authenticated */}
+                  <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
                   <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+
                   {/* Parent-specific routes */}
                   <Route path="/parent/children" element={<ProtectedRoute><ParentChildrenPage /></ProtectedRoute>} />
                   <Route path="/parent/attendance" element={<ProtectedRoute><ParentAttendancePage /></ProtectedRoute>} />
                   <Route path="/parent/messages" element={<ProtectedRoute><ParentMessagesPage /></ProtectedRoute>} />
                   <Route path="/parent/profile" element={<ProtectedRoute><ParentProfilePage /></ProtectedRoute>} />
+
+                  {/* Staff Verification & Document Routes */}
+                  <Route path="/admin/verify-staff" element={<AdminDocumentVerification />} />
+                  <Route path="/staff/documents" element={<ProtectedRoute><StaffDocumentUpload /></ProtectedRoute>} />
+                  <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
+                  <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><AuditLogPage /></RoleBasedRoute>} />
 
                   {/* Catch all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />

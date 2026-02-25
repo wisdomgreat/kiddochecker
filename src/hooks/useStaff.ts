@@ -24,15 +24,15 @@ export const useStaff = () => {
     queryKey: ["staff"],
     queryFn: async () => {
       console.log("Fetching staff members...");
-      
+
       try {
         const { data, error } = await supabase.rpc('get_staff_members');
-        
+
         if (error) {
           console.error("Error fetching staff:", error);
           throw error;
         }
-        
+
         console.log("Staff data received:", data);
         return (data || []) as StaffMember[];
       } catch (error: any) {
@@ -53,57 +53,42 @@ export const useStaff = () => {
       role: string;
       is_volunteer?: boolean;
     }) => {
-      console.log("Creating staff member:", staffData);
-      
-      // Create user account
-      const { data: userData, error: signUpError } = await supabase.auth.signUp({
-        email: staffData.email,
-        password: 'TempPass123!',
-        options: {
-          data: {
-            first_name: staffData.first_name,
-            last_name: staffData.last_name,
-            phone: staffData.phone,
-          }
+      console.log("Creating staff member via edge function:", staffData);
+
+      const { data, error } = await supabase.functions.invoke('admin-user-management', {
+        body: {
+          action: 'create_user',
+          email: staffData.email,
+          password: 'TempPass123!', // You might want to generate this or allow input
+          firstName: staffData.first_name,
+          lastName: staffData.last_name,
+          phone: staffData.phone,
+          role: staffData.role
         }
       });
 
-      if (signUpError) {
-        console.error("Error creating user:", signUpError);
-        throw signUpError;
+      if (error) {
+        console.error("Error invoking edge function:", error);
+        throw error;
       }
 
-      if (!userData.user) {
-        throw new Error("Failed to create user account");
+      if (!data.success) {
+        throw new Error(data.error || "Failed to create staff member");
       }
 
-      console.log("User created successfully:", userData.user.id);
-
-      // Wait a moment for the trigger to create the user_role
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Update the role that was created by the trigger
-      const validRoles: AppRole[] = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
-      const roleToUse: AppRole = validRoles.includes(staffData.role as AppRole) ? staffData.role as AppRole : 'staff';
-      
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .update({ 
-          role: roleToUse,
-          is_volunteer: staffData.is_volunteer || false
-        })
-        .eq('user_id', userData.user.id);
-
-      if (roleError) {
-        console.error("Error updating role:", roleError);
-        throw roleError;
+      // If volunteer status is needed, it might need a separate update or edge function support
+      if (staffData.is_volunteer) {
+        await supabase
+          .from('user_roles')
+          .update({ is_volunteer: true })
+          .eq('user_id', data.user.id);
       }
 
-      console.log("Staff member created successfully");
-      return userData.user;
+      return data.user;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       toast({
         title: "Success",
         description: "Staff member added successfully",
@@ -120,49 +105,35 @@ export const useStaff = () => {
   });
 
   const updateStaffMutation = useMutation({
-    mutationFn: async ({ userId, updates }: { 
-      userId: string; 
-      updates: Partial<StaffMember> 
+    mutationFn: async ({ userId, updates }: {
+      userId: string;
+      updates: Partial<StaffMember>
     }) => {
-      console.log("Updating staff member:", userId, updates);
-      
-      // Update profile
-      if (updates.first_name || updates.last_name || updates.phone) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({
-            first_name: updates.first_name,
-            last_name: updates.last_name,
-            phone: updates.phone,
-          })
-          .eq('id', userId);
-        
-        if (profileError) {
-          console.error("Error updating profile:", profileError);
-          throw profileError;
-        }
-      }
+      console.log("Updating staff member via edge function:", userId, updates);
 
-      // Update role if changed
-      if (updates.role) {
-        const validRoles: AppRole[] = ['admin', 'staff', 'parent', 'super_admin', 'teacher', 'teacher_assistant'];
-        const roleToUse: AppRole = validRoles.includes(updates.role as AppRole) ? updates.role as AppRole : 'staff';
-        
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .update({
-            role: roleToUse,
-            is_volunteer: updates.is_volunteer,
-          })
-          .eq('user_id', userId);
-        
-        if (roleError) {
-          console.error("Error updating role:", roleError);
-          throw roleError;
+      const { data, error } = await supabase.functions.invoke('admin-user-management', {
+        body: {
+          action: 'update_user',
+          userId: userId,
+          updates: {
+            firstName: updates.first_name,
+            lastName: updates.last_name,
+            phone: updates.phone,
+            role: updates.role
+          }
         }
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      // Handle is_volunteer separately if not supported by edge function
+      if (updates.is_volunteer !== undefined) {
+        await supabase
+          .from('user_roles')
+          .update({ is_volunteer: updates.is_volunteer })
+          .eq('user_id', userId);
       }
-      
-      console.log("Staff member updated successfully");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });

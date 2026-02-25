@@ -4,6 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GeneralSettings from '@/components/settings/GeneralSettings';
 import AppearanceSettings from '@/components/settings/AppearanceSettings';
 import SecuritySettings from '@/components/settings/SecuritySettings';
+import KioskSettings from '@/components/settings/KioskSettings';
+import SystemMaintenance from '@/components/settings/SystemMaintenance';
+import { Monitor, Wrench } from 'lucide-react';
 
 const SettingsPage = () => {
   return (
@@ -19,6 +22,14 @@ const SettingsPage = () => {
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
+            <TabsTrigger value="kiosk" className="flex items-center gap-2">
+              <Monitor className="h-4 w-4" />
+              Kiosk
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Maintenance
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4">
@@ -31,6 +42,14 @@ const SettingsPage = () => {
 
           <TabsContent value="security" className="space-y-4">
             <SecuritySettings />
+          </TabsContent>
+
+          <TabsContent value="kiosk" className="space-y-4">
+            <KioskSettings />
+          </TabsContent>
+
+          <TabsContent value="maintenance" className="space-y-4">
+            <SystemMaintenance />
           </TabsContent>
         </Tabs>
       </div>

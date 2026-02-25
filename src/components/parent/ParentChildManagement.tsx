@@ -1,5 +1,6 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +9,7 @@ import { UserPlus, Edit2, QrCode, User, Calendar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/CleanAuthContext";
-import AddChildModal from "./AddChildModal";
-import EditChildModal from "./EditChildModal";
+import AddEditChildDialog from "@/components/children/AddEditChildDialog";
 import QRCodeModal from "./QRCodeModal";
 
 interface Child {
@@ -32,18 +32,18 @@ const ParentChildManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
-
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: children = [], isLoading, refetch } = useQuery({
     queryKey: ['parent-children', user?.id],
     queryFn: async (): Promise<Child[]> => {
       if (!user) return [];
-      
+
       try {
         // Try to use the RPC function first
         const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
           parent_user_id: user.id
         });
-        
+
         if (!rpcError && rpcData) {
           // Map the RPC result to match our Child interface
           return rpcData.map((child: any) => ({
@@ -59,19 +59,19 @@ const ParentChildManagement = () => {
             is_present: false, // Default value
           }));
         }
-        
+
         // Fallback to direct query
         const { data, error } = await supabase
           .from('children')
           .select('*')
           .eq('parent_id', user.id)
           .order('first_name');
-        
+
         if (error) {
           console.error('Error fetching children:', error);
           throw error;
         }
-        
+
         return (data || []).map(child => ({
           id: child.id,
           first_name: child.first_name,
@@ -96,6 +96,19 @@ const ParentChildManagement = () => {
     },
     enabled: !!user,
   });
+
+  useEffect(() => {
+    const childId = searchParams.get('child');
+    if (childId && children.length > 0) {
+      const child = children.find(c => c.id === childId);
+      if (child) {
+        setSelectedChild(child);
+        setShowEditModal(true);
+        // Clear param to avoid re-opening if page refreshed or navigated back
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, children, setSearchParams]);
 
   const handleEditChild = (child: Child) => {
     setSelectedChild(child);
@@ -141,73 +154,92 @@ const ParentChildManagement = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: { staggerChildren: 0.1 }
+            }
+          }}
+          initial="hidden"
+          animate="show"
+        >
           {children.map((child) => (
-            <Card key={child.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-medium">
-                        {child.first_name?.[0]}{child.last_name?.[0]}
-                      </span>
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        {child.first_name} {child.last_name}
-                      </CardTitle>
-                      <p className="text-sm text-gray-600">Age: {child.age}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleEditChild(child)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleShowQR(child)}>
-                      <QrCode className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Status:</span>
-                  <Badge variant={child.is_present ? "default" : "secondary"}>
-                    {child.is_present ? "Present" : "Not Present"}
-                  </Badge>
-                </div>
-                
-                {child.current_class_name && (
+            <motion.div
+              key={child.id}
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                show: { opacity: 1, y: 0 }
+              }}
+            >
+              <Card className="hover:shadow-md transition-shadow h-full">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Class:</span>
-                    <Badge variant="outline">{child.current_class_name}</Badge>
+                    <div className="flex items-center space-x-3">
+                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-600 font-medium">
+                          {child.first_name?.[0]}{child.last_name?.[0]}
+                        </span>
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          {child.first_name} {child.last_name}
+                        </CardTitle>
+                        <p className="text-sm text-gray-600">Age: {child.age}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleEditChild(child)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleShowQR(child)}>
+                        <QrCode className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                )}
-                
-                {child.allergies && (
-                  <div>
-                    <span className="text-sm font-medium text-red-600">Allergies:</span>
-                    <p className="text-sm text-red-600 mt-1">{child.allergies}</p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Status:</span>
+                    <Badge variant={child.is_present ? "default" : "secondary"}>
+                      {child.is_present ? "Present" : "Not Present"}
+                    </Badge>
                   </div>
-                )}
-                
-                {child.emergency_contact_name && (
-                  <div>
-                    <span className="text-sm font-medium">Emergency Contact:</span>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {child.emergency_contact_name}
-                      {child.emergency_contact_phone && ` - ${child.emergency_contact_phone}`}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+
+                  {child.current_class_name && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Class:</span>
+                      <Badge variant="outline">{child.current_class_name}</Badge>
+                    </div>
+                  )}
+
+                  {child.allergies && (
+                    <div>
+                      <span className="text-sm font-medium text-red-600">Allergies:</span>
+                      <p className="text-sm text-red-600 mt-1">{child.allergies}</p>
+                    </div>
+                  )}
+
+                  {child.emergency_contact_name && (
+                    <div>
+                      <span className="text-sm font-medium">Emergency Contact:</span>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {child.emergency_contact_name}
+                        {child.emergency_contact_phone && ` - ${child.emergency_contact_phone}`}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
-      <AddChildModal 
-        open={showAddModal} 
+      <AddEditChildDialog
+        open={showAddModal}
         onOpenChange={setShowAddModal}
         onSuccess={() => {
           setShowAddModal(false);
@@ -215,10 +247,10 @@ const ParentChildManagement = () => {
         }}
       />
 
-      <EditChildModal
+      <AddEditChildDialog
         open={showEditModal}
         onOpenChange={setShowEditModal}
-        child={selectedChild}
+        childId={selectedChild?.id}
         onSuccess={() => {
           setShowEditModal(false);
           setSelectedChild(null);

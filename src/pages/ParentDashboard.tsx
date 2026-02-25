@@ -43,19 +43,19 @@ const ParentDashboard = () => {
     queryKey: ["parent-own-children", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      
+
       console.log('Fetching children for parent:', user.id);
-      
+
       const { data, error } = await supabase
         .from('children')
         .select('*')
         .eq('parent_id', user.id); // Only get children where this user is the parent
-      
+
       if (error) {
         console.error('Error fetching parent children:', error);
         throw error;
       }
-      
+
       console.log('Parent children found:', data);
       return data || [];
     },
@@ -67,7 +67,7 @@ const ParentDashboard = () => {
     queryKey: ["parent-attendance", user?.id],
     queryFn: async () => {
       if (!user?.id || children.length === 0) return [];
-      
+
       const childIds = children.map((child: ParentChild) => child.id);
       const { data, error } = await supabase
         .from('attendance')
@@ -83,7 +83,7 @@ const ParentDashboard = () => {
         .gte('attendance_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
         .order('attendance_date', { ascending: false })
         .limit(10);
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -101,7 +101,7 @@ const ParentDashboard = () => {
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(5);
-      
+
       if (error) throw error;
       return data || [];
     },
@@ -111,11 +111,11 @@ const ParentDashboard = () => {
   const childrenWithAllergies = children.filter((child: ParentChild) => child.allergies);
 
   const handleViewChild = (childId: string) => {
-    navigate(`/children?child=${childId}`);
+    navigate(`/parent/children?child=${childId}`);
   };
 
   const handleAddChild = () => {
-    navigate('/children');
+    navigate('/parent/children');
   };
 
   return (
@@ -147,7 +147,7 @@ const ParentDashboard = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ const ParentDashboard = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ const ParentDashboard = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">

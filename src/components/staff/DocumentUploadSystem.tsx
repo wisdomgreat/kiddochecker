@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,321 +7,366 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Upload, 
-  FileText, 
-  CheckCircle, 
-  Clock, 
-  XCircle,
-  Download,
-  Eye,
-  Trash2
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import {
+  Upload, FileText, CheckCircle, Clock, XCircle,
+  Download, Eye, Trash2, Shield, AlertTriangle,
+  ArrowRight, Loader2, Lock
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useStaffVerification } from '@/hooks/useStaffVerification';
+import { useAuth } from '@/context/AuthContext';
+import { format } from 'date-fns';
 
 const DocumentUploadSystem = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState('');
   const [description, setDescription] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-  const { toast } = useToast();
+  const { user } = useAuth();
 
-  // Sample data - would be fetched from API
-  const myDocuments = [
-    {
-      id: '1',
-      name: 'Background Check Certificate',
-      type: 'background_check',
-      status: 'verified',
-      uploadedAt: '2024-01-15',
-      verifiedAt: '2024-01-16',
-      verifiedBy: 'admin@church.org',
-      size: '2.3 MB'
-    },
-    {
-      id: '2',
-      name: 'CPR Training Certificate',
-      type: 'training_cert',
-      status: 'pending',
-      uploadedAt: '2024-01-20',
-      size: '1.8 MB'
-    },
-    {
-      id: '3',
-      name: 'Reference Letter - Pastor Johnson',
-      type: 'reference',
-      status: 'rejected',
-      uploadedAt: '2024-01-18',
-      rejectedAt: '2024-01-19',
-      rejectionReason: 'Document is not legible. Please upload a clearer version.',
-      size: '956 KB'
-    }
-  ];
-
-  const documentTypes = [
-    { value: 'background_check', label: 'Background Check' },
-    { value: 'training_cert', label: 'Training Certificate' },
-    { value: 'reference', label: 'Reference Letter' },
-    { value: 'medical_clearance', label: 'Medical Clearance' },
-    { value: 'insurance', label: 'Insurance Documentation' },
-    { value: 'other', label: 'Other' }
-  ];
+  const {
+    verificationStatus,
+    isLoadingStatus,
+    requirements,
+    myDocuments,
+    isLoadingDocuments,
+    uploadDocument,
+    isUploading,
+    getDocumentUrl,
+  } = useStaffVerification();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select a file smaller than 10MB.",
-          variant: "destructive",
-        });
+        alert("File too large. Please select a file smaller than 10MB.");
         return;
       }
-
-      // Validate file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select a PDF, JPG, or PNG file.",
-          variant: "destructive",
-        });
+        alert("Invalid file type. Please select a PDF, JPG, or PNG file.");
         return;
       }
-
       setSelectedFile(file);
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile || !documentType) {
-      toast({
-        title: "Missing information",
-        description: "Please select a file and document type.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleUpload = () => {
+    if (!selectedFile || !documentType) return;
+    uploadDocument(
+      { file: selectedFile, documentType, description },
+      {
+        onSuccess: () => {
+          setSelectedFile(null);
+          setDocumentType('');
+          setDescription('');
+          // Reset the file input
+          const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        },
+      }
+    );
+  };
 
-    setIsUploading(true);
-    try {
-      // Here you would upload to Supabase Storage
-      // const { data, error } = await supabase.storage
-      //   .from('staff-documents')
-      //   .upload(`${user.id}/${selectedFile.name}`, selectedFile);
-
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      toast({
-        title: "Document uploaded successfully!",
-        description: "Your document has been submitted for verification.",
-      });
-
-      // Reset form
-      setSelectedFile(null);
-      setDocumentType('');
-      setDescription('');
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload document. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-    }
+  const handleViewDocument = async (filePath: string | null) => {
+    if (!filePath) return;
+    const url = await getDocumentUrl(filePath);
+    if (url) window.open(url, '_blank');
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'verified':
-        return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Verified</Badge>;
+      case 'approved':
+        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-200"><Clock className="h-3 w-3 mr-1" />Pending Review</Badge>;
       case 'rejected':
-        return <Badge className="bg-red-100 text-red-800"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+        return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      case 'expired':
+        return <Badge className="bg-slate-100 text-slate-800 border-slate-200"><AlertTriangle className="h-3 w-3 mr-1" />Expired</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
   };
 
+  // Calculate checklist progress
+  const mandatoryRequirements = requirements.filter(r => r.is_mandatory);
+  const completedMandatory = mandatoryRequirements.filter(req =>
+    myDocuments.some(doc => doc.document_type === req.document_type && doc.status === 'approved')
+  );
+  const progress = mandatoryRequirements.length > 0
+    ? Math.round((completedMandatory.length / mandatoryRequirements.length) * 100)
+    : 0;
+
+  const overallStatus = verificationStatus?.verification_status || 'unverified';
+
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Document Management</h1>
-        <p className="text-muted-foreground">Upload and manage your required documents</p>
-      </div>
+    <div className="space-y-6">
+      {/* Verification Status Banner */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+        {overallStatus === 'verified' ? (
+          <Alert className="bg-emerald-50 border-emerald-200">
+            <Shield className="h-5 w-5 text-emerald-600" />
+            <AlertTitle className="text-emerald-800 font-bold">Verification Complete</AlertTitle>
+            <AlertDescription className="text-emerald-700">
+              Your account is fully verified. You have full access to the KiddoChecker platform.
+            </AlertDescription>
+          </Alert>
+        ) : overallStatus === 'rejected' ? (
+          <Alert className="bg-red-50 border-red-200">
+            <XCircle className="h-5 w-5 text-red-600" />
+            <AlertTitle className="text-red-800 font-bold">Verification Rejected</AlertTitle>
+            <AlertDescription className="text-red-700">
+              Your verification was rejected. Please review the feedback on your documents below, re-upload corrected versions, and resubmit for review.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="bg-amber-50 border-amber-200">
+            <Lock className="h-5 w-5 text-amber-600" />
+            <AlertTitle className="text-amber-800 font-bold">Account Verification Required</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              Your account is pending verification. Please upload all required documents below.
+              You will have <strong>limited access</strong> until an administrator verifies your credentials.
+            </AlertDescription>
+          </Alert>
+        )}
+      </motion.div>
 
-      {/* Upload New Document */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            Upload New Document
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="text-left">
-              <Label htmlFor="documentType">Document Type *</Label>
-              <Select value={documentType} onValueChange={setDocumentType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select document type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {documentTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Progress Card */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <Card className="shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-slate-800">Verification Progress</h3>
+              <span className="text-sm font-semibold text-indigo-600">
+                {completedMandatory.length}/{mandatoryRequirements.length} required
+              </span>
             </div>
+            <Progress value={progress} className="h-3 mb-2" />
+            <p className="text-xs text-slate-500">
+              {progress === 100
+                ? "All mandatory documents approved! Your verification is being processed."
+                : `${100 - progress}% remaining. Upload your documents to get verified.`
+              }
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
 
-            <div className="text-left">
-              <Label htmlFor="file">Document File *</Label>
-              <Input
-                id="file"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileSelect}
-                className="cursor-pointer"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                PDF, JPG, PNG files only. Max 10MB.
-              </p>
-            </div>
-          </div>
-
-          <div className="text-left">
-            <Label htmlFor="description">Description (Optional)</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add any additional notes about this document..."
-              rows={3}
-            />
-          </div>
-
-          {selectedFile && (
-            <Alert>
-              <FileText className="h-4 w-4" />
-              <AlertDescription>
-                Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Button 
-            onClick={handleUpload} 
-            disabled={isUploading || !selectedFile || !documentType}
-            className="w-full"
-          >
-            {isUploading ? (
-              <>
-                <Upload className="h-4 w-4 mr-2 animate-pulse" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Upload Form */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          className="lg:col-span-2"
+        >
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-indigo-600" />
                 Upload Document
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="documentType">Document Type <span className="text-red-500">*</span></Label>
+                  <Select value={documentType} onValueChange={setDocumentType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {requirements.map((req) => (
+                        <SelectItem key={req.document_type} value={req.document_type}>
+                          <div className="flex items-center gap-2">
+                            <span>{req.display_name}</span>
+                            {req.is_mandatory && (
+                              <Badge variant="outline" className="text-xs border-red-200 text-red-600">Required</Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-      {/* My Documents */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            My Documents
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {myDocuments.map((doc) => (
-              <div key={doc.id} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-8 w-8 text-blue-500" />
-                    <div>
-                      <h3 className="font-semibold">{doc.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Uploaded {doc.uploadedAt} • {doc.size}
-                      </p>
-                      {doc.status === 'verified' && doc.verifiedAt && (
-                        <p className="text-xs text-green-600">
-                          Verified on {doc.verifiedAt} by {doc.verifiedBy}
-                        </p>
-                      )}
-                      {doc.status === 'rejected' && doc.rejectionReason && (
-                        <p className="text-xs text-red-600 mt-1">
-                          Reason: {doc.rejectionReason}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(doc.status)}
-                    <Button variant="ghost" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    {doc.status === 'rejected' && (
-                      <Button variant="ghost" size="sm" className="text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                <div>
+                  <Label htmlFor="file-upload">Document File <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleFileSelect}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    PDF, JPG, PNG files only. Max 10MB.
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Required Documents Checklist */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Required Documents Checklist</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <span>Background Check</span>
+              <div>
+                <Label htmlFor="description">Notes (Optional)</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Any additional notes about this document..."
+                  rows={2}
+                />
               </div>
-              <Badge className="bg-green-100 text-green-800">Complete</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-yellow-500" />
-                <span>Training Certificate</span>
+
+              {selectedFile && (
+                <Alert className="bg-indigo-50 border-indigo-200">
+                  <FileText className="h-4 w-4 text-indigo-600" />
+                  <AlertDescription className="text-indigo-800">
+                    Selected: <strong>{selectedFile.name}</strong> ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Button
+                onClick={handleUpload}
+                disabled={isUploading || !selectedFile || !documentType}
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
+              >
+                {isUploading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...</>
+                ) : (
+                  <><Upload className="h-4 w-4 mr-2" /> Submit Document for Review</>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Uploaded Documents */}
+          <Card className="mt-6 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-indigo-600" />
+                My Submitted Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingDocuments ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                </div>
+              ) : myDocuments.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <FileText className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                  <p className="font-semibold">No documents uploaded yet</p>
+                  <p className="text-sm">Upload your required documents above to get started.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myDocuments.map((doc) => (
+                    <motion.div
+                      key={doc.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="border rounded-xl p-4 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                            <FileText className="h-5 w-5 text-indigo-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-slate-800 text-sm">{doc.document_name}</h3>
+                            <p className="text-xs text-slate-500">
+                              {requirements.find(r => r.document_type === doc.document_type)?.display_name || doc.document_type}
+                              {' • '}
+                              Uploaded {format(new Date(doc.uploaded_at), 'MMM dd, yyyy')}
+                              {doc.file_size && ` • ${(doc.file_size / 1024 / 1024).toFixed(1)} MB`}
+                            </p>
+                            {doc.status === 'rejected' && doc.rejection_reason && (
+                              <p className="text-xs text-red-600 mt-1 bg-red-50 rounded px-2 py-1">
+                                <strong>Feedback:</strong> {doc.rejection_reason}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(doc.status)}
+                          {doc.file_path && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDocument(doc.file_path)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Requirements Checklist */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+        >
+          <Card className="shadow-sm sticky top-6">
+            <CardHeader>
+              <CardTitle className="text-base">Required Documents Checklist</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {requirements.map((req) => {
+                  const matchingDoc = myDocuments.find(d => d.document_type === req.document_type);
+                  const isComplete = matchingDoc?.status === 'approved';
+                  const isPending = matchingDoc?.status === 'pending';
+                  const isRejected = matchingDoc?.status === 'rejected';
+
+                  return (
+                    <div key={req.id} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${isComplete ? 'bg-emerald-50 border-emerald-200' :
+                        isPending ? 'bg-amber-50 border-amber-200' :
+                          isRejected ? 'bg-red-50 border-red-200' :
+                            'bg-slate-50 border-slate-200'
+                      }`}>
+                      <div className="flex items-center gap-2.5">
+                        {isComplete ? (
+                          <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                        ) : isPending ? (
+                          <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                        ) : isRejected ? (
+                          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{req.display_name}</p>
+                          {req.is_mandatory && (
+                            <p className="text-xs text-red-500 font-medium">Mandatory</p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge
+                        className={`text-xs ${isComplete ? 'bg-emerald-100 text-emerald-800' :
+                            isPending ? 'bg-amber-100 text-amber-800' :
+                              isRejected ? 'bg-red-100 text-red-800' :
+                                'bg-slate-200 text-slate-600'
+                          }`}
+                      >
+                        {isComplete ? 'Done' : isPending ? 'Reviewing' : isRejected ? 'Rejected' : 'Missing'}
+                      </Badge>
+                    </div>
+                  );
+                })}
               </div>
-              <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
-            </div>
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <XCircle className="h-5 w-5 text-red-500" />
-                <span>Reference Letters (2 required)</span>
-              </div>
-              <Badge className="bg-red-100 text-red-800">Incomplete</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
+              {requirements.length === 0 && (
+                <p className="text-sm text-slate-500 text-center py-4">Loading requirements...</p>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   );
 };

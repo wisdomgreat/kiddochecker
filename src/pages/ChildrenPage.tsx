@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Baby, UserPlus, Edit, Trash2, Loader2, AlertTriangle, Phone, Search } from 'lucide-react';
+import { Baby, UserPlus, Edit, Trash2, Loader2, AlertTriangle, Phone, Search, Heart } from 'lucide-react';
 import { useChildren } from '@/hooks/useChildren';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import AddChildModal from '@/components/parent/AddChildModal';
-import EditChildModal from '@/components/parent/EditChildModal';
+import AddEditChildDialog from '@/components/children/AddEditChildDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useNavigate } from 'react-router-dom';
 
 interface ChildData {
   id: string;
@@ -22,8 +23,9 @@ interface ChildData {
 }
 
 const ChildrenPage = () => {
+  const navigate = useNavigate();
   const { children, isLoading, deleteChild, isDeletingChild, refetch } = useChildren();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -82,7 +84,12 @@ const ChildrenPage = () => {
         </div>
 
         {/* Search and Stats */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col sm:flex-row gap-4"
+        >
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -93,21 +100,37 @@ const ChildrenPage = () => {
             />
           </div>
           <div className="flex gap-4">
-            <Card className="px-4 py-2">
-              <div className="text-sm text-muted-foreground">Total</div>
-              <div className="text-2xl font-bold">{children?.length || 0}</div>
-            </Card>
-            <Card className="px-4 py-2">
-              <div className="text-sm text-muted-foreground">With Allergies</div>
-              <div className="text-2xl font-bold">
-                {children?.filter((c: ChildData) => c.allergies).length || 0}
-              </div>
-            </Card>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Card className="px-4 py-2 h-full">
+                <div className="text-sm text-muted-foreground">Total</div>
+                <div className="text-2xl font-bold">{children?.length || 0}</div>
+              </Card>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Card className="px-4 py-2 h-full">
+                <div className="text-sm text-muted-foreground">With Allergies</div>
+                <div className="text-2xl font-bold">
+                  {children?.filter((c: ChildData) => c.allergies).length || 0}
+                </div>
+              </Card>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Children Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          layout
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: { staggerChildren: 0.1 }
+            }
+          }}
+          initial="hidden"
+          animate="show"
+        >
           {isLoading ? (
             <Card className="md:col-span-2 lg:col-span-3">
               <CardContent className="p-6 flex items-center justify-center">
@@ -116,58 +139,70 @@ const ChildrenPage = () => {
             </Card>
           ) : filteredChildren && filteredChildren.length > 0 ? (
             filteredChildren.map((child: ChildData) => (
-              <Card key={child.id} className="relative group">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Baby className="h-5 w-5 text-primary" />
+              <motion.div
+                key={child.id}
+                layout
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  show: { opacity: 1, y: 0 }
+                }}
+              >
+                <Card className="relative group hover:shadow-lg transition-shadow duration-300">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Baby className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">
+                            {child.first_name} {child.last_name}
+                          </CardTitle>
+                          {child.age && (
+                            <Badge variant="outline" className="mt-1">
+                              Age {child.age}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {child.first_name} {child.last_name}
-                        </CardTitle>
-                        {child.age && (
-                          <Badge variant="outline" className="mt-1">
-                            Age {child.age}
-                          </Badge>
-                        )}
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/children/${child.id}/medical`)} title="Medical Profile">
+                          <Heart className="h-4 w-4 text-rose-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(child)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(child)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(child)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(child)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {child.allergies && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-medium">Allergies:</span>{' '}
-                        <span className="text-muted-foreground">{child.allergies}</span>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {child.allergies && (
+                      <div className="flex items-start gap-2 text-sm">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-medium">Allergies:</span>{' '}
+                          <span className="text-muted-foreground">{child.allergies}</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {child.medical_info && (
-                    <div className="text-sm text-muted-foreground">
-                      <span className="font-medium">Medical:</span> {child.medical_info}
-                    </div>
-                  )}
-                  {child.emergency_contact_name && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-3 w-3" />
-                      {child.emergency_contact_name}
-                      {child.emergency_contact_phone && ` • ${child.emergency_contact_phone}`}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    )}
+                    {child.medical_info && (
+                      <div className="text-sm text-muted-foreground">
+                        <span className="font-medium">Medical:</span> {child.medical_info}
+                      </div>
+                    )}
+                    {child.emergency_contact_name && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-3 w-3" />
+                        {child.emergency_contact_name}
+                        {child.emergency_contact_phone && ` • ${child.emergency_contact_phone}`}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))
           ) : (
             <Card className="md:col-span-2 lg:col-span-3">
@@ -186,21 +221,19 @@ const ChildrenPage = () => {
               </CardContent>
             </Card>
           )}
-        </div>
+        </motion.div>
       </div>
 
-      {/* Add Child Modal */}
-      <AddChildModal
+      <AddEditChildDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onSuccess={handleAddSuccess}
       />
 
-      {/* Edit Child Modal */}
-      <EditChildModal
+      <AddEditChildDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
-        child={selectedChild}
+        childId={selectedChild?.id}
         onSuccess={handleEditSuccess}
       />
 
@@ -215,8 +248,8 @@ const ChildrenPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteChild} 
+            <AlertDialogAction
+              onClick={handleDeleteChild}
               disabled={isDeletingChild}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

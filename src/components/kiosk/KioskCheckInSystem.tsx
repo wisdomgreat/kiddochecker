@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  QrCode, 
-  Search, 
-  UserCheck, 
-  Clock, 
+import {
+  QrCode,
+  Search,
+  UserCheck,
+  Clock,
   Users,
   CheckCircle,
   AlertCircle,
@@ -22,6 +22,7 @@ import QRCodeScanner from '@/components/qr/QRCodeScanner';
 import ClassSelectionDialog from './ClassSelectionDialog';
 import NameTagPrintDialog from './NameTagPrintDialog';
 import { useQRCodes } from '@/hooks/useQRCodes';
+import PINDialog from './PINDialog';
 
 interface Child {
   id: string;
@@ -51,6 +52,11 @@ const KioskCheckInSystem = () => {
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [checkInQRData, setCheckInQRData] = useState<string>('');
   const [selectedClassName, setSelectedClassName] = useState<string>('');
+  const [kioskPin, setKioskPin] = useState<string>('123456');
+  const [requirePin, setRequirePin] = useState<boolean>(true);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [showPinDialog, setShowPinDialog] = useState<boolean>(false);
+  const [pendingChild, setPendingChild] = useState<Child | null>(null);
   const { toast } = useToast();
   const { generateQRCode } = useQRCodes();
 
@@ -66,7 +72,27 @@ const KioskCheckInSystem = () => {
   useEffect(() => {
     loadChildren();
     loadRecentCheckIns();
+    loadKioskSettings();
   }, []);
+
+  const loadKioskSettings = async () => {
+    try {
+      const { data, error } = await (supabase
+        .from('kiosk_settings' as any) as any)
+        .select('*');
+
+      if (data) {
+        const settings = data as any[];
+        const pinSetting = settings.find(s => s.setting_key === 'kiosk_pin');
+        const requirePinSetting = settings.find(s => s.setting_key === 'require_pin');
+
+        if (pinSetting) setKioskPin(pinSetting.setting_value);
+        if (requirePinSetting) setRequirePin(requirePinSetting.setting_value === 'true');
+      }
+    } catch (error) {
+      console.error('Error loading kiosk settings:', error);
+    }
+  };
 
   // Filter children based on search term
   useEffect(() => {
@@ -110,8 +136,23 @@ const KioskCheckInSystem = () => {
   };
 
   const initiateCheckIn = (child: Child) => {
+    if (requirePin && !isUnlocked) {
+      setPendingChild(child);
+      setShowPinDialog(true);
+      return;
+    }
     setSelectedChild(child);
     setShowClassDialog(true);
+  };
+
+  const handlePinSuccess = () => {
+    setIsUnlocked(true);
+    setShowPinDialog(false);
+    if (pendingChild) {
+      setSelectedChild(pendingChild);
+      setShowClassDialog(true);
+      setPendingChild(null);
+    }
   };
 
   const handleClassSelected = async (classId: string) => {
@@ -137,15 +178,15 @@ const KioskCheckInSystem = () => {
       if (result.success) {
         // Generate QR code for checkout
         generateQRCode(selectedChild.id);
-        
+
         const qrData = `child:${selectedChild.id}:${Date.now()}`;
         setCheckInQRData(qrData);
         setSelectedClassName(classData?.name || '');
-        
+
         await loadRecentCheckIns();
         setSearchTerm('');
         setFilteredChildren([]);
-        
+
         // Show allergy alert if present
         if (selectedChild.allergies) {
           toast({
@@ -195,7 +236,7 @@ const KioskCheckInSystem = () => {
       }
 
       const childId = parts[1];
-      
+
       // Find the child
       const child = children.find(c => c.id === childId);
       if (!child) {
@@ -222,18 +263,22 @@ const KioskCheckInSystem = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-primary/10 p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="text-center bg-white rounded-lg p-6 shadow-sm">
-          <h1 className="text-4xl font-bold text-primary mb-2">Check-In Station</h1>
-          <div className="text-2xl font-semibold text-muted-foreground">
-            {currentTime.toLocaleString('en-US', { 
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            })}
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-1">Check-In Station</h1>
+            <p className="text-slate-500 font-medium">Please search for your child or scan a QR code</p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-indigo-600 tabular-nums">
+              {currentTime.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              })}
+            </div>
+            <div className="text-sm text-slate-400 font-semibold uppercase tracking-wider">
+              {currentTime.toLocaleTimeString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </div>
           </div>
         </div>
 
@@ -324,8 +369,8 @@ const KioskCheckInSystem = () => {
                     <p className="text-lg text-muted-foreground mb-6">
                       Hold the QR code in front of the camera to check in
                     </p>
-                    <Button 
-                      size="lg" 
+                    <Button
+                      size="lg"
                       className="h-16 px-8 text-lg"
                       onClick={() => setShowScanner(true)}
                     >
@@ -370,7 +415,7 @@ const KioskCheckInSystem = () => {
                       </div>
                     </div>
                   ))}
-                  
+
                   {recentCheckIns.length === 0 && (
                     <div className="text-center py-6 text-muted-foreground">
                       <Clock className="h-8 w-8 mx-auto mb-2" />
@@ -435,12 +480,25 @@ const KioskCheckInSystem = () => {
             setSelectedChild(null);
             setCheckInQRData('');
             setSelectedClassName('');
+            // Reset lock after a successful session
+            setIsUnlocked(false);
           }}
           child={selectedChild}
           qrData={checkInQRData}
           className={selectedClassName}
         />
       )}
+
+      {/* PIN Dialog */}
+      <PINDialog
+        open={showPinDialog}
+        correctPin={kioskPin}
+        onClose={() => {
+          setShowPinDialog(false);
+          setPendingChild(null);
+        }}
+        onSuccess={handlePinSuccess}
+      />
     </div>
   );
 };

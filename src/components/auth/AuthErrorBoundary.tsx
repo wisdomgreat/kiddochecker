@@ -42,26 +42,30 @@ export class AuthErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-          <Alert className="max-w-md border-red-200 bg-red-50">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="mt-2">
-              <div className="space-y-3">
-                <p className="font-semibold text-red-800">Authentication Error</p>
-                <p className="text-sm text-red-700">
-                  There was a problem loading your account. This usually happens due to connection issues or corrupted session data.
-                </p>
-                <div className="flex gap-2">
-                  <Button onClick={this.handleRetry} size="sm" variant="outline" className="flex-1">
+        <div className="min-h-screen flex items-start justify-start p-10 bg-background">
+          <Alert className="max-w-2xl border-red-200 bg-red-50 p-8 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-red-100 rounded-2xl">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-red-900">Authentication Error</h2>
+                  <p className="text-red-700 mt-2">
+                    There was a problem loading your account. This usually happens due to connection issues or corrupted session data.
+                  </p>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={this.handleRetry} size="lg" variant="outline" className="flex-1 bg-white hover:bg-red-50 border-red-200 text-red-700">
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Retry
+                    Retry Connection
                   </Button>
-                  <Button onClick={this.handleLogout} size="sm" className="flex-1">
+                  <Button onClick={this.handleLogout} size="lg" className="flex-1 bg-red-600 hover:bg-red-700">
                     Login Again
                   </Button>
                 </div>
               </div>
-            </AlertDescription>
+            </div>
           </Alert>
         </div>
       );

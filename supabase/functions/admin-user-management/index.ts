@@ -95,7 +95,10 @@ serve(async (req) => {
           .upsert({
             user_id: authData.user.id,
             role: role as any,
-            is_super_admin: role === 'super_admin'
+            is_super_admin: role === 'super_admin',
+            verification_status: 'verified' // Auto-verify users created by admins
+          }, {
+            onConflict: 'user_id'
           });
 
         if (roleError) {
@@ -103,8 +106,8 @@ serve(async (req) => {
           throw new Error(`Failed to assign role: ${roleError.message}`);
         }
 
-        return new Response(JSON.stringify({ 
-          success: true, 
+        return new Response(JSON.stringify({
+          success: true,
           user: {
             id: authData.user.id,
             email: authData.user.email,
@@ -156,7 +159,7 @@ serve(async (req) => {
           }
         }
 
-        return new Response(JSON.stringify({ 
+        return new Response(JSON.stringify({
           success: true,
           message: 'User updated successfully'
         }), {
@@ -173,7 +176,7 @@ serve(async (req) => {
           throw new Error(`Failed to delete user: ${error.message}`);
         }
 
-        return new Response(JSON.stringify({ 
+        return new Response(JSON.stringify({
           success: true,
           message: 'User deleted successfully'
         }), {
@@ -183,13 +186,13 @@ serve(async (req) => {
 
       case 'get_users': {
         const { data: users, error } = await supabaseAdmin.rpc('get_users_with_roles');
-        
+
         if (error) {
           console.error('Error fetching users:', error);
           throw new Error(`Failed to fetch users: ${error.message}`);
         }
 
-        return new Response(JSON.stringify({ 
+        return new Response(JSON.stringify({
           success: true,
           users: users || []
         }), {
@@ -203,7 +206,7 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Error in admin-user-management function:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       success: false,
       error: error.message || 'An unexpected error occurred'
     }), {

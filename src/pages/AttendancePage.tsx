@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -153,147 +154,176 @@ const AttendancePage = () => {
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-4 gap-6"
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.1 }
+              }
+            }}
+            initial="hidden"
+            animate="show"
+          >
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Today's Check-ins</CardTitle>
+                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.todayCheckins}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Total checked in today</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Currently Present</CardTitle>
+                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.currentlyPresent}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Still checked in</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Checked Out</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.checkedOut}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Completed today</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Late Check-outs</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.lateCheckouts}
+                  </div>
+                  <p className="text-xs text-muted-foreground">After 6:00 PM</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-muted-foreground mr-2">Filter Reports: </span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-3 py-1 flex h-9 w-auto rounded-md border border-input bg-transparent text-sm"
+              />
+            </div>
+
+            {/* Class Attendance Report */}
+            <ClassAttendanceReport selectedDate={selectedDate} />
+
+            {/* Attendance Table */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Today's Check-ins</CardTitle>
-                <CheckSquare className="h-4 w-4 text-muted-foreground" />
+              <CardHeader>
+                <CardTitle>Today's Attendance</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.todayCheckins}
-                </div>
-                <p className="text-xs text-muted-foreground">Total checked in today</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Currently Present</CardTitle>
-                <CheckSquare className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.currentlyPresent}
-                </div>
-                <p className="text-xs text-muted-foreground">Still checked in</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Checked Out</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.checkedOut}
-                </div>
-                <p className="text-xs text-muted-foreground">Completed today</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Late Check-outs</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.lateCheckouts}
-                </div>
-                <p className="text-xs text-muted-foreground">After 6:00 PM</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-medium text-muted-foreground mr-2">Filter Reports: </span>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-1 flex h-9 w-auto rounded-md border border-input bg-transparent text-sm"
-            />
-          </div>
-
-          {/* Class Attendance Report */}
-          <ClassAttendanceReport selectedDate={selectedDate} />
-
-          {/* Attendance Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Today's Attendance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : error ? (
-                <div className="text-center py-8 text-destructive">
-                  <p>Error loading attendance data</p>
-                  <Button variant="outline" onClick={() => refetch()} className="mt-2">
-                    Retry
-                  </Button>
-                </div>
-              ) : todayAttendance.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No attendance records for today</p>
-                  <p className="text-sm">Check-ins will appear here in real-time</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Child Name</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead>Check-in Time</TableHead>
-                      <TableHead>Check-out Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {todayAttendance.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">
-                          {record.child ?
-                            `${record.child.first_name} ${record.child.last_name}` :
-                            'Unknown Child'
-                          }
-                        </TableCell>
-                        <TableCell>{record.class?.name || 'No Class'}</TableCell>
-                        <TableCell>{formatTime(record.checked_in_at)}</TableCell>
-                        <TableCell>{formatTime(record.checked_out_at)}</TableCell>
-                        <TableCell>
-                          {record.checked_out_at ? (
-                            <Badge variant="secondary">Checked Out</Badge>
-                          ) : (
-                            <Badge className="bg-green-600">Present</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {!record.checked_out_at && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCheckOut(record.id)}
-                              disabled={isCheckingOut}
-                            >
-                              <Clock className="h-4 w-4 mr-1" />
-                              {isCheckingOut ? 'Processing...' : 'Check Out'}
-                            </Button>
-                          )}
-                        </TableCell>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : error ? (
+                  <div className="py-12 text-left">
+                    <p className="text-lg font-semibold text-destructive">Error loading attendance data</p>
+                    <p className="text-muted-foreground mt-1 mb-4">We couldn't retrieve the latest attendance records.</p>
+                    <Button variant="outline" onClick={() => refetch()} className="gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Retry loading
+                    </Button>
+                  </div>
+                ) : todayAttendance.length === 0 ? (
+                  <div className="py-16 text-left max-w-md">
+                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mb-6">
+                      <CheckSquare className="h-6 w-6 text-slate-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800">No attendance records for today</h3>
+                    <p className="text-slate-500 mt-2">Check-ins will appear here automatically in real-time as parents and staff use the kiosk.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Child Name</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Check-in Time</TableHead>
+                        <TableHead>Check-out Time</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {todayAttendance.map((record) => (
+                        <TableRow key={record.id}>
+                          <TableCell className="font-medium">
+                            {record.child ?
+                              `${record.child.first_name} ${record.child.last_name}` :
+                              'Unknown Child'
+                            }
+                          </TableCell>
+                          <TableCell>{record.class?.name || 'No Class'}</TableCell>
+                          <TableCell>{formatTime(record.checked_in_at)}</TableCell>
+                          <TableCell>{formatTime(record.checked_out_at)}</TableCell>
+                          <TableCell>
+                            {record.checked_out_at ? (
+                              <Badge variant="secondary">Checked Out</Badge>
+                            ) : (
+                              <Badge className="bg-green-600">Present</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {!record.checked_out_at && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCheckOut(record.id)}
+                                disabled={isCheckingOut}
+                              >
+                                <Clock className="h-4 w-4 mr-1" />
+                                {isCheckingOut ? 'Processing...' : 'Check Out'}
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
         {/* Today's Report Dialog */}

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -154,76 +155,95 @@ const ClassesPage = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.1 }
+                }
+              }}
+              initial="hidden"
+              animate="show"
+            >
               {filteredClasses.map((classItem) => (
-                <Card key={classItem.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{classItem.name}</CardTitle>
-                      {classItem.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{classItem.description}</p>
+                <motion.div
+                  key={classItem.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } }
+                  }}
+                >
+                  <Card className="hover:shadow-md transition-shadow h-full">
+                    <CardHeader className="flex flex-row items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{classItem.name}</CardTitle>
+                        {classItem.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{classItem.description}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 flex-wrap justify-end max-w-[120px]">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setAssigningTeacher({ id: classItem.id, name: classItem.name })}
+                          title="Assign Teacher"
+                        >
+                          <Users className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setViewingRoster({ id: classItem.id, name: classItem.name })}
+                          title="View Roster"
+                        >
+                          <BookOpen className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingClass(classItem)}
+                          title="Edit Class"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletingClass(classItem)}
+                          className="text-destructive hover:text-destructive"
+                          title="Delete Class"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {classItem.age_range && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Age Range:</span>
+                          <span className="text-sm font-medium">{classItem.age_range}</span>
+                        </div>
                       )}
-                    </div>
-                    <div className="flex gap-1 flex-wrap justify-end max-w-[120px]">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => setAssigningTeacher({ id: classItem.id, name: classItem.name })}
-                        title="Assign Teacher"
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => setViewingRoster({ id: classItem.id, name: classItem.name })}
-                        title="View Roster"
-                      >
-                        <BookOpen className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => setEditingClass(classItem)}
-                        title="Edit Class"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => setDeletingClass(classItem)}
-                        className="text-destructive hover:text-destructive"
-                        title="Delete Class"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {classItem.age_range && (
+                      {classItem.room && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Room:</span>
+                          <span className="text-sm font-medium">{classItem.room}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Age Range:</span>
-                        <span className="text-sm font-medium">{classItem.age_range}</span>
+                        <span className="text-sm text-muted-foreground">Capacity:</span>
+                        <span className="text-sm font-medium">{classItem.capacity || 'Unlimited'}</span>
                       </div>
-                    )}
-                    {classItem.room && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Room:</span>
-                        <span className="text-sm font-medium">{classItem.room}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Capacity:</span>
-                      <span className="text-sm font-medium">{classItem.capacity || 'Unlimited'}</span>
-                    </div>
-                    {classItem.capacity && (
-                      <Progress value={0} className="h-2" />
-                    )}
-                  </CardContent>
-                </Card>
+                      {classItem.capacity && (
+                        <Progress value={0} className="h-2" />
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
 

@@ -31,8 +31,8 @@ const UnifiedDashboardLayout = ({ children }: UnifiedDashboardLayoutProps) => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          <div className="container mx-auto p-6 max-w-7xl">
+        <main className="flex-1 overflow-auto bg-slate-50/50">
+          <div className="p-6 lg:p-10 w-full max-w-[1600px]">
             {children}
           </div>
         </main>

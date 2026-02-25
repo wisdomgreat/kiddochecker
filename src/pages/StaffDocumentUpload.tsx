@@ -1,15 +1,18 @@
 
 import DocumentUploadSystem from "@/components/staff/DocumentUploadSystem";
-import ModernLayout from "@/components/layout/ModernLayout";
-import RoleGuard from "@/components/security/RoleGuard";
+import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 
 const StaffDocumentUpload = () => {
   return (
-    <ModernLayout>
-      <RoleGuard requireStaffAccess>
+    <UnifiedDashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Document Verification</h1>
+          <p className="text-muted-foreground">Upload and manage your required documents for platform access</p>
+        </div>
         <DocumentUploadSystem />
-      </RoleGuard>
-    </ModernLayout>
+      </div>
+    </UnifiedDashboardLayout>
   );
 };
 

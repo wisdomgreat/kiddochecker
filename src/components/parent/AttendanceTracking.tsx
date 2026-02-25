@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ const AttendanceTracking = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch children
       const { data: childrenData, error: childrenError } = await supabase
         .from('children')
@@ -50,13 +50,13 @@ const AttendanceTracking = () => {
         .eq('parent_id', user?.id);
 
       if (childrenError) throw childrenError;
-      
+
       setChildren(childrenData || []);
 
       // Fetch attendance records for children
       if (childrenData && childrenData.length > 0) {
         const childIds = childrenData.map(child => child.id);
-        
+
         const { data: attendanceData, error: attendanceError } = await supabase
           .from('attendance')
           .select('*')
@@ -65,7 +65,7 @@ const AttendanceTracking = () => {
           .limit(20);
 
         if (attendanceError) throw attendanceError;
-        
+
         setAttendance(attendanceData || []);
       }
     } catch (error: any) {
@@ -110,9 +110,27 @@ const AttendanceTracking = () => {
               No attendance records found
             </div>
           ) : (
-            <div className="space-y-4">
+            <motion.div
+              className="space-y-4"
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.1 }
+                }
+              }}
+              initial="hidden"
+              animate="show"
+            >
               {attendance.map((record) => (
-                <div key={record.id} className="p-4 border rounded-lg">
+                <motion.div
+                  key={record.id}
+                  variants={{
+                    hidden: { opacity: 0, x: -20 },
+                    show: { opacity: 1, x: 0 }
+                  }}
+                  className="p-4 border rounded-lg hover:shadow-sm transition-shadow"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -129,8 +147,8 @@ const AttendanceTracking = () => {
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="h-3 w-3" />
                         <span>
-                          In: {record.checked_in_at ? 
-                            new Date(record.checked_in_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+                          In: {record.checked_in_at ?
+                            new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                             : 'Not checked in'}
                         </span>
                       </div>
@@ -138,15 +156,15 @@ const AttendanceTracking = () => {
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Clock className="h-3 w-3" />
                           <span>
-                            Out: {new Date(record.checked_out_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            Out: {new Date(record.checked_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </CardContent>
       </Card>

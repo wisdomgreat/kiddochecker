@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,12 +19,12 @@ const CalendarPage = () => {
   const { events, isLoading, createEvent, isCreating } = useCalendarEvents();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -58,7 +59,7 @@ const CalendarPage = () => {
   const handleEditEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEvent) return;
-    
+
     try {
       const { error } = await supabase
         .from('calendar_events')
@@ -70,9 +71,9 @@ const CalendarPage = () => {
           location: formData.location || null,
         })
         .eq('id', selectedEvent.id);
-      
+
       if (error) throw error;
-      
+
       toast({ title: "Success", description: "Event updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       setIsEditDialogOpen(false);
@@ -84,15 +85,15 @@ const CalendarPage = () => {
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
-    
+
     try {
       const { error } = await supabase
         .from('calendar_events')
         .delete()
         .eq('id', selectedEvent.id);
-      
+
       if (error) throw error;
-      
+
       toast({ title: "Success", description: "Event deleted successfully" });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       setIsDeleteDialogOpen(false);
@@ -121,7 +122,12 @@ const CalendarPage = () => {
 
   return (
     <UnifiedDashboardLayout>
-      <div className="space-y-6">
+      <motion.div
+        className="space-y-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Calendar</h1>
@@ -146,9 +152,27 @@ const CalendarPage = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : events && events.length > 0 ? (
-              <div className="space-y-4">
+              <motion.div
+                className="space-y-4"
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.1 }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+              >
                 {events.map((event) => (
-                  <div key={event.id} className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <motion.div
+                    key={event.id}
+                    variants={{
+                      hidden: { opacity: 0, x: -20 },
+                      show: { opacity: 1, x: 0 }
+                    }}
+                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
                     <div className="space-y-1">
                       <h3 className="font-semibold">{event.title}</h3>
                       {event.description && (
@@ -175,9 +199,9 @@ const CalendarPage = () => {
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <div className="text-center min-h-[200px] flex flex-col items-center justify-center">
                 <CalendarIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -193,7 +217,7 @@ const CalendarPage = () => {
             )}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Add Event Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>

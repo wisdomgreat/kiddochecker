@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +15,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/CleanAuthContext";
-import { 
-  MessageSquare, 
-  Send, 
-  Mail, 
-  Users, 
+import {
+  MessageSquare,
+  Send,
+  Mail,
+  Users,
   Plus,
   Search,
   Filter
@@ -83,7 +84,7 @@ const MessageSystem = () => {
         }
 
         const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
-        
+
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, first_name, last_name')
@@ -273,7 +274,7 @@ const MessageSystem = () => {
               Sent
             </TabsTrigger>
           </TabsList>
-          
+
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
@@ -297,55 +298,75 @@ const MessageSystem = () => {
                 </p>
               </div>
             ) : (
-              filteredMessages
-                ?.filter(message => message.recipient_id === user?.id)
-                .map(message => (
-                  <div
-                    key={message.id}
-                    className={`p-4 rounded-lg border transition-colors ${
-                      !message.is_read 
-                        ? 'bg-primary/5 border-primary/20 hover:bg-primary/10' 
-                        : 'bg-card hover:bg-accent'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          {!message.is_read && (
-                            <Badge variant="default" className="text-xs">New</Badge>
-                          )}
-                          <span className="font-semibold">
-                            {message.subject || 'No Subject'}
-                          </span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          From: <span className="font-medium text-foreground">
-                            {message.sender?.first_name} {message.sender?.last_name}
-                          </span>
-                        </div>
-                        <p className="text-sm">
-                          {message.content.length > 150 
-                            ? message.content.substring(0, 150) + '...' 
-                            : message.content}
-                        </p>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(message.created_at).toLocaleString()}
+              <motion.div
+                className="space-y-2"
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.05 }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+              >
+                {filteredMessages
+                  ?.filter(message => message.recipient_id === user?.id)
+                  .map(message => (
+                    <motion.div
+                      key={message.id}
+                      variants={{
+                        hidden: { opacity: 0, x: -10 },
+                        show: { opacity: 1, x: 0 }
+                      }}
+                    >
+                      <div
+                        key={message.id}
+                        className={`p-4 rounded-lg border transition-colors ${!message.is_read
+                            ? 'bg-primary/5 border-primary/20 hover:bg-primary/10'
+                            : 'bg-card hover:bg-accent'
+                          }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              {!message.is_read && (
+                                <Badge variant="default" className="text-xs">New</Badge>
+                              )}
+                              <span className="font-semibold">
+                                {message.subject || 'No Subject'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              From: <span className="font-medium text-foreground">
+                                {message.sender?.first_name} {message.sender?.last_name}
+                              </span>
+                            </div>
+                            <p className="text-sm">
+                              {message.content.length > 150
+                                ? message.content.substring(0, 150) + '...'
+                                : message.content}
+                            </p>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(message.created_at).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {!message.is_read && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => markAsRead(message.id)}
+                              >
+                                Mark Read
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        {!message.is_read && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => markAsRead(message.id)}
-                          >
-                            Mark Read
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
+                    </motion.div>
+                  ))}
+              </motion.div>
             )}
           </TabsContent>
 
@@ -361,38 +382,55 @@ const MessageSystem = () => {
                 </p>
               </div>
             ) : (
-              filteredMessages
-                ?.filter(message => message.sender_id === user?.id)
-                .map(message => {
-                  const recipient = users.find(u => u.id === message.recipient_id);
-                  return (
-                    <div
-                      key={message.id}
-                      className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
-                    >
-                      <div className="space-y-2">
-                        <div className="font-semibold">
-                          {message.subject || 'No Subject'}
+              <motion.div
+                className="space-y-2"
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.05 }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+              >
+                {filteredMessages
+                  ?.filter(message => message.sender_id === user?.id)
+                  .map(message => {
+                    const recipient = users.find(u => u.id === message.recipient_id);
+                    return (
+                      <motion.div
+                        key={message.id}
+                        variants={{
+                          hidden: { opacity: 0, x: 10 },
+                          show: { opacity: 1, x: 0 }
+                        }}
+                        className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
+                      >
+                        <div className="space-y-2">
+                          <div className="font-semibold">
+                            {message.subject || 'No Subject'}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            To: <span className="font-medium text-foreground">
+                              {recipient
+                                ? `${recipient.first_name} ${recipient.last_name} (${recipient.role})`
+                                : 'Unknown Recipient'}
+                            </span>
+                          </div>
+                          <p className="text-sm">
+                            {message.content.length > 150
+                              ? message.content.substring(0, 150) + '...'
+                              : message.content}
+                          </p>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(message.created_at).toLocaleString()}
+                          </div>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          To: <span className="font-medium text-foreground">
-                            {recipient 
-                              ? `${recipient.first_name} ${recipient.last_name} (${recipient.role})`
-                              : 'Unknown Recipient'}
-                          </span>
-                        </div>
-                        <p className="text-sm">
-                          {message.content.length > 150 
-                            ? message.content.substring(0, 150) + '...' 
-                            : message.content}
-                        </p>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(message.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
+                      </motion.div>
+                    );
+                  })}
+              </motion.div>
             )}
           </TabsContent>
         </Tabs>
@@ -410,9 +448,9 @@ const MessageSystem = () => {
                 <Label htmlFor="recipient">
                   To <span className="text-destructive">*</span>
                 </Label>
-                <Select 
+                <Select
                   value={newMessage.recipientId}
-                  onValueChange={(value) => setNewMessage({...newMessage, recipientId: value})}
+                  onValueChange={(value) => setNewMessage({ ...newMessage, recipientId: value })}
                 >
                   <SelectTrigger id="recipient">
                     <SelectValue placeholder="Select a recipient" />
@@ -439,7 +477,7 @@ const MessageSystem = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="subject">
                   Subject <span className="text-destructive">*</span>
@@ -448,10 +486,10 @@ const MessageSystem = () => {
                   id="subject"
                   placeholder="Enter subject"
                   value={newMessage.subject}
-                  onChange={(e) => setNewMessage({...newMessage, subject: e.target.value})}
+                  onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="content">
                   Message <span className="text-destructive">*</span>
@@ -460,14 +498,14 @@ const MessageSystem = () => {
                   id="content"
                   placeholder="Type your message here..."
                   value={newMessage.content}
-                  onChange={(e) => setNewMessage({...newMessage, content: e.target.value})}
+                  onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
                   className="min-h-[150px]"
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setIsComposeOpen(false);
                     setNewMessage({ subject: "", content: "", recipientId: "" });
@@ -475,12 +513,12 @@ const MessageSystem = () => {
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={() => sendMessageMutation.mutate(newMessage)}
                   disabled={
-                    sendMessageMutation.isPending || 
-                    !newMessage.recipientId || 
-                    !newMessage.subject || 
+                    sendMessageMutation.isPending ||
+                    !newMessage.recipientId ||
+                    !newMessage.subject ||
                     !newMessage.content
                   }
                 >
