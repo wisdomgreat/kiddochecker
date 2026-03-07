@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, CheckCircle, QrCode, Tag, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
+import DOMPurify from "dompurify";
 
 interface NameTagPrinterProps {
   childName: string;
@@ -28,6 +29,12 @@ export const NameTagPrinter = ({
   const { toast } = useToast();
 
   const qrCodeValue = `CHILD:${childId}|CODE:${securityCode}`;
+
+  const safeChildName = DOMPurify.sanitize(childName);
+  const safeClassName = DOMPurify.sanitize(className);
+  const safeChildId = DOMPurify.sanitize(childId);
+  const safeAllergies = allergies ? DOMPurify.sanitize(allergies) : '';
+  const safeSecurityCode = DOMPurify.sanitize(securityCode);
 
   const generateNameTagHTML = () => {
     return `
@@ -159,17 +166,17 @@ export const NameTagPrinter = ({
         <body>
           <div class="name-tag">
             <div class="header">CHILDREN'S MINISTRY</div>
-            <div class="name">${childName}</div>
+            <div class="name">${safeChildName}</div>
             <div class="content">
               <div class="info">
                 <div class="info-item">
-                  <strong>Class:</strong> ${className}
+                  <strong>Class:</strong> ${safeClassName}
                 </div>
                 <div class="info-item">
-                  <strong>ID:</strong> ${childId.substring(0, 8)}
+                  <strong>ID:</strong> ${safeChildId.substring(0, 8)}
                 </div>
-                ${allergies ? `<div class="info-item allergies">
-                  <strong>⚠️ ALLERGIES:</strong><br>${allergies}
+                ${safeAllergies ? `<div class="info-item allergies">
+                  <strong>⚠️ ALLERGIES:</strong><br>${safeAllergies}
                 </div>` : ''}
               </div>
               <div class="qr-container">
@@ -182,7 +189,7 @@ export const NameTagPrinter = ({
             <div class="barcode">*${childId.substring(0, 10)}*</div>
             <div class="security-section">
               <div style="font-size: 10px; font-weight: bold;">PICKUP CODE</div>
-              <div class="security-code">${securityCode}</div>
+              <div class="security-code">${safeSecurityCode}</div>
             </div>
             <div class="footer">Keep this code for child pickup • ${new Date().toLocaleDateString()}</div>
           </div>
@@ -204,17 +211,17 @@ export const NameTagPrinter = ({
     if (printWindow) {
       printWindow.document.write(generateNameTagHTML());
       printWindow.document.close();
-      
-      printWindow.onload = function() {
+
+      printWindow.onload = function () {
         // Replace QR code placeholder with actual QR code
         const qrPlaceholder = printWindow.document.querySelector('.qr-code');
         if (qrPlaceholder) {
           qrPlaceholder.innerHTML = qrContainer.innerHTML;
         }
-        
+
         setTimeout(() => {
           printWindow.print();
-          printWindow.onafterprint = function() {
+          printWindow.onafterprint = function () {
             setPrinted(true);
             toast({
               title: "Name tag printed successfully",
@@ -243,14 +250,14 @@ export const NameTagPrinter = ({
           <h3 className="font-medium text-lg">Print Name Tag</h3>
           <p className="text-sm text-gray-600">Print name tag for {childName}</p>
         </div>
-        
+
         <div className="space-x-2">
           {onBack && (
             <Button variant="outline" onClick={onBack}>
               Back
             </Button>
           )}
-          <Button 
+          <Button
             variant="outline"
             onClick={handleDownloadPDF}
             className="text-blue-600 border-blue-200 hover:bg-blue-50"
@@ -258,8 +265,8 @@ export const NameTagPrinter = ({
             <Download className="mr-2 h-4 w-4" />
             PDF
           </Button>
-          <Button 
-            onClick={handlePrint} 
+          <Button
+            onClick={handlePrint}
             variant={printed ? "outline" : "default"}
             className={printed ? "bg-green-50 text-green-600 border-green-200" : ""}
           >
@@ -285,11 +292,11 @@ export const NameTagPrinter = ({
             CHILDREN'S MINISTRY
           </div>
         </div>
-        
+
         <div className="text-xl font-bold text-center mb-3 text-gray-800 uppercase tracking-wide">
           {childName}
         </div>
-        
+
         <div className="flex justify-between items-center mb-3">
           <div className="text-sm space-y-1">
             <div className="bg-gray-50 px-2 py-1 rounded border-l-3 border-blue-500">
@@ -304,7 +311,7 @@ export const NameTagPrinter = ({
               </div>
             )}
           </div>
-          
+
           <div className="text-center">
             <div className="border-2 border-blue-500 rounded p-1 bg-white" id="print-qr-code">
               <QRCodeSVG
@@ -330,7 +337,7 @@ export const NameTagPrinter = ({
           Keep this code for child pickup • {new Date().toLocaleDateString()}
         </div>
       </div>
-      
+
       {securityCode && (
         <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded p-3 text-center">
           <p className="text-sm font-medium">Security Code: <span className="font-bold text-lg">{securityCode}</span></p>

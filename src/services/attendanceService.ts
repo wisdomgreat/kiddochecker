@@ -5,23 +5,26 @@ export interface CheckInData {
   childId: string;
   classId?: string;
   checkedInBy?: string;
+  qrToken?: string;
 }
 
 export interface CheckOutData {
   attendanceId: string;
   checkedOutBy?: string;
+  qrToken?: string;
 }
 
 export class AttendanceService {
   static async checkInChild(data: CheckInData): Promise<{ success: boolean; attendanceId?: string; error?: string }> {
     try {
       console.log("Checking in child:", data.childId);
-      
+
       // Use direct RPC call with proper error handling
       const { data: result, error } = await supabase.rpc('checkin_child' as any, {
         p_child_id: data.childId,
         p_class_id: data.classId || null,
-        p_checked_in_by: data.checkedInBy || null
+        p_checked_in_by: data.checkedInBy || null,
+        p_qr_token: data.qrToken || null
       });
 
       if (error) {
@@ -40,11 +43,12 @@ export class AttendanceService {
   static async checkOutChild(data: CheckOutData): Promise<{ success: boolean; error?: string }> {
     try {
       console.log("Checking out child with attendance ID:", data.attendanceId);
-      
+
       // Use direct RPC call with proper error handling
       const { data: result, error } = await supabase.rpc('checkout_child' as any, {
         p_attendance_id: data.attendanceId,
-        p_checked_out_by: data.checkedOutBy || null
+        p_checked_out_by: data.checkedOutBy || null,
+        p_qr_token: data.qrToken || null
       });
 
       if (error) {
@@ -67,7 +71,7 @@ export class AttendanceService {
   static async getTodaysAttendance(): Promise<any[]> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       const { data, error } = await supabase
         .from('attendance')
         .select(`
@@ -93,7 +97,7 @@ export class AttendanceService {
   static async getCheckedInChildren(): Promise<any[]> {
     try {
       const today = new Date().toISOString().split('T')[0];
-      
+
       const { data, error } = await supabase
         .from('attendance')
         .select(`

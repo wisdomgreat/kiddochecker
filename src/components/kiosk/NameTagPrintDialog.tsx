@@ -7,8 +7,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, Download } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import DOMPurify from 'dompurify';
 
 interface NameTagPrintDialogProps {
   open: boolean;
@@ -33,16 +34,21 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
+    const safeFirstName = DOMPurify.sanitize(child.first_name);
+    const safeLastName = DOMPurify.sanitize(child.last_name);
+    const safeAllergies = child.allergies ? DOMPurify.sanitize(child.allergies) : '';
+    const safeClassName = className ? DOMPurify.sanitize(className) : '';
+
     const printWindow = window.open('', '_blank');
     if (!printWindow || !printRef.current) return;
 
     const content = printRef.current.innerHTML;
-    
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Name Tag - ${child.first_name} ${child.last_name}</title>
+          <title>Name Tag - ${safeFirstName} ${safeLastName}</title>
           <style>
             body {
               margin: 0;
@@ -95,7 +101,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
         </body>
       </html>
     `);
-    
+
     printWindow.document.close();
     setTimeout(() => {
       printWindow.print();
@@ -119,7 +125,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
               <h2 className="text-4xl font-bold text-primary">
                 {child.first_name} {child.last_name}
               </h2>
-              
+
               {child.age && (
                 <p className="text-xl text-muted-foreground">
                   Age: {child.age}
@@ -141,7 +147,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
 
               <div className="flex justify-center pt-4">
                 <div className="bg-white p-4 border-2 border-gray-200 rounded-lg">
-                  <QRCodeSVG 
+                  <QRCodeSVG
                     value={qrData}
                     size={150}
                     level="H"

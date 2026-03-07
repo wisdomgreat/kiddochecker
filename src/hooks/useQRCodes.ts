@@ -48,8 +48,8 @@ export const useQRCodes = () => {
 
   const generateQRCodeMutation = useMutation({
     mutationFn: async (childId: string) => {
-      const qrData = `child:${childId}:${Date.now()}`;
-      
+      const qrData = window.crypto.randomUUID();
+
       const { data, error } = await supabase
         .from('qr_codes')
         .insert({

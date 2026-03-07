@@ -10,6 +10,7 @@ import { Search, Users, LogOut, Clock, QrCode, CheckCircle, AlertTriangle, Loade
 import { format } from "date-fns";
 import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
+import { AttendanceService } from "@/services/attendanceService";
 
 const CheckOutPage = () => {
   const { toast } = useToast();
@@ -62,24 +63,14 @@ const CheckOutPage = () => {
 
   // Check-out mutation
   const checkOutMutation = useMutation({
-    mutationFn: async (attendanceId: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
+    mutationFn: async ({ attendanceId, qrToken }: { attendanceId: string, qrToken?: string }) => {
+      const result = await AttendanceService.checkOutChild({
+        attendanceId,
+        qrToken
+      });
 
-      const { data, error } = await supabase
-        .from('attendance')
-        .update({
-          checked_out_at: new Date().toISOString(),
-          checked_out_by: user?.id,
-        })
-        .eq('id', attendanceId)
-        .select(`
-          *,
-          children (first_name, last_name)
-        `)
-        .single();
-
-      if (error) throw error;
-      return data;
+      if (!result.success) throw new Error(result.error || "Check-out failed");
+      return result;
     },
     onSuccess: (data) => {
       toast({
@@ -102,25 +93,31 @@ const CheckOutPage = () => {
     record.children?.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCheckOut = (attendanceId: string) => {
-    checkOutMutation.mutate(attendanceId);
+  const handleCheckOut = (attendanceId: string, qrToken?: string) => {
+    checkOutMutation.mutate({ attendanceId, qrToken });
   };
 
-  const handleQRCodeScanned = (qrData: string) => {
+  const handleQRCodeScanned = async (qrData: string) => {
     console.log("QR Code scanned:", qrData);
     setShowScanner(false);
 
     try {
-      // Try to parse as JSON first
-      const parsedData = JSON.parse(qrData);
+      // Look up secure QR token
+      const { data: qrRecord, error } = await supabase
+        .from('qr_codes')
+        .select('*, child:children(*)')
+        .eq('qr_data', qrData)
+        .eq('is_active', true)
+        .single();
 
-      if (parsedData.childId) {
+      if (qrRecord) {
+        // Find current attendance record for this child
         const attendanceRecord = presentChildren.find((record: any) =>
-          record.child_id === parsedData.childId
+          record.child_id === qrRecord.child_id
         );
 
         if (attendanceRecord) {
-          handleCheckOut(attendanceRecord.id);
+          handleCheckOut(attendanceRecord.id, qrData);
         } else {
           toast({
             title: "Child Not Found",
@@ -128,29 +125,20 @@ const CheckOutPage = () => {
             variant: "destructive",
           });
         }
-      } else if (parsedData.attendanceId) {
-        handleCheckOut(parsedData.attendanceId);
       } else {
         toast({
           title: "Invalid QR Code",
-          description: "QR code format not recognized.",
+          description: "This QR code is not valid or has expired.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      const attendanceRecord = presentChildren.find((record: any) =>
-        record.id === qrData.trim() || record.child_id === qrData.trim()
-      );
-
-      if (attendanceRecord) {
-        handleCheckOut(attendanceRecord.id);
-      } else {
-        toast({
-          title: "Invalid QR Code",
-          description: "Could not find matching record.",
-          variant: "destructive",
-        });
-      }
+      console.error("Error processing QR:", error);
+      toast({
+        title: "Scan Failed",
+        description: "Could not verify QR code data.",
+        variant: "destructive",
+      });
     }
   };
 

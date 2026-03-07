@@ -18,6 +18,7 @@ interface Profile {
   last_name?: string;
   phone?: string;
   address?: string;
+  security_pin?: string;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +32,8 @@ const ParentProfile = () => {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [securityPin, setSecurityPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
 
   const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["profile", user?.id],
@@ -39,11 +42,11 @@ const ParentProfile = () => {
 
       try {
         // Get profile data from profiles table
-        const { data: profileData, error: profileError } = await supabase
+        const { data: profileData, error: profileError } = await (supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single();
+          .single() as any);
 
         if (profileError) {
           console.error("Error fetching profile:", profileError);
@@ -82,6 +85,7 @@ const ParentProfile = () => {
       setLastName(profile.last_name || "");
       setPhone(profile.phone || "");
       setAddress(profile.address || "");
+      setSecurityPin(profile.security_pin || "");
     }
   }, [profile]);
 
@@ -96,7 +100,8 @@ const ParentProfile = () => {
           last_name: lastName,
           phone: phone,
           address: address,
-        })
+          security_pin: securityPin,
+        } as any)
         .eq('id', user.id)
         .select()
         .single();
@@ -133,6 +138,7 @@ const ParentProfile = () => {
       setLastName(profile.last_name || "");
       setPhone(profile.phone || "");
       setAddress(profile.address || "");
+      setSecurityPin(profile.security_pin || "");
     }
   };
 
@@ -212,14 +218,53 @@ const ParentProfile = () => {
           </div>
 
           {/* Address */}
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
             <Textarea
               id="address"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               disabled={!isEditing}
+              placeholder="Enter your home address"
+              className="min-h-[100px]"
             />
+          </div>
+
+          {/* Security PIN */}
+          <div className="space-y-2">
+            <Label htmlFor="securityPin">Kiosk Security PIN</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="securityPin"
+                  type={showPin ? "text" : "password"}
+                  value={securityPin}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setSecurityPin(val);
+                  }}
+                  disabled={!isEditing}
+                  placeholder="6-digit PIN"
+                  className="font-mono tracking-widest text-lg"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                  onClick={() => setShowPin(!showPin)}
+                >
+                  {showPin ? (
+                    <X className="h-4 w-4" />
+                  ) : (
+                    <Edit className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This 6-digit PIN will be used to check in your children at the kiosk station.
+            </p>
           </div>
 
           {/* Actions */}

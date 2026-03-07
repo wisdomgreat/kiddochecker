@@ -53,14 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
 
-  // Session backup to localStorage
+  // Session backup to localStorage — stores only non-PII (userId, not email)
   useEffect(() => {
     if (session && user) {
       localStorage.setItem('session_backup', JSON.stringify({
         userId: user.id,
-        email: user.email,
         timestamp: Date.now()
       }));
+    } else {
+      localStorage.removeItem('session_backup');
     }
   }, [session, user]);
 
@@ -172,7 +173,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const finalStatus = data?.verification_status || 'unverified';
       setUserRole(finalRole as AppRole);
       setVerificationStatus(finalStatus);
-      console.log('User role:', finalRole, 'Status:', finalStatus);
     } catch (error: any) {
       console.error("Exception refreshing user role:", error);
 
@@ -244,19 +244,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
-    let roleTimeout: NodeJS.Timeout | null = null;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!mounted) return;
-
-        console.log('Auth state change:', event, session?.user?.id);
 
         if (event === 'SIGNED_OUT' || !session) {
           setSession(null);
           setUser(null);
           setUserRole(null);
           setVerificationStatus(null);
+          localStorage.removeItem('session_backup');
           setLoading(false);
           return;
         }
@@ -331,7 +329,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       mounted = false;
-      if (roleTimeout) clearTimeout(roleTimeout);
       subscription.unsubscribe();
     };
   }, [refreshUserRole, toast]);

@@ -60,31 +60,30 @@ const CheckOutStation = () => {
     };
   }, [queryClient]);
 
-  // Check-out mutation
+  // Check-out mutation — uses secure checkout_child RPC for server-side authorization
   const checkOutMutation = useMutation({
-    mutationFn: async (attendanceId: string) => {
+    mutationFn: async ({ attendanceId, qrToken }: { attendanceId: string; qrToken?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      const { data, error } = await supabase
-        .from('attendance')
-        .update({
-          checked_out_at: new Date().toISOString(),
-          checked_out_by: user?.id,
-        })
-        .eq('id', attendanceId)
-        .select(`
-          *,
-          children (first_name, last_name)
-        `)
-        .single();
+
+      const { data: result, error } = await supabase.rpc('checkout_child' as any, {
+        p_attendance_id: attendanceId,
+        p_checked_out_by: user?.id || null,
+        p_qr_token: qrToken || null,
+      });
 
       if (error) throw error;
-      return data;
+      if (!result) throw new Error('Child was already checked out or attendance record not found');
+
+      // Return the child name for toast message
+      const record = presentChildren.find((r: any) => r.id === attendanceId);
+      return record;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: "Check-out Successful",
-        description: `${data.children?.first_name} ${data.children?.last_name} has been checked out.`,
+        description: data?.children
+          ? `${data.children.first_name} ${data.children.last_name} has been checked out.`
+          : "Child has been checked out.",
       });
       queryClient.invalidateQueries({ queryKey: ["present-children"] });
     },
@@ -102,57 +101,68 @@ const CheckOutStation = () => {
     record.children?.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCheckOut = (attendanceId: string) => {
-    checkOutMutation.mutate(attendanceId);
+  const handleCheckOut = (attendanceId: string, qrToken?: string) => {
+    checkOutMutation.mutate({ attendanceId, qrToken });
   };
 
-  const handleQRCodeScanned = (qrData: string) => {
-    console.log("QR Code scanned:", qrData);
+  const handleQRCodeScanned = async (qrData: string) => {
+    console.log("QR Code scanned");
     setShowScanner(false);
 
     try {
-      // Try to parse as JSON first
-      const parsedData = JSON.parse(qrData);
-      
-      if (parsedData.childId) {
-        // Find attendance record by child_id
-        const attendanceRecord = presentChildren.find((record: any) => 
-          record.child_id === parsedData.childId
-        );
-        
-        if (attendanceRecord) {
-          handleCheckOut(attendanceRecord.id);
-        } else {
-          toast({
-            title: "Child Not Found",
-            description: "This child is not currently checked in.",
-            variant: "destructive",
-          });
+      // Support secure UUID token format (new format) — look up in qr_codes table
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(qrData.trim())) {
+        const token = qrData.trim();
+        const { data: qrRecord, error: qrError } = await supabase
+          .from('qr_codes')
+          .select('child_id, is_active')
+          .eq('qr_data', token)
+          .single();
+
+        if (qrError || !qrRecord?.is_active) {
+          toast({ title: "Invalid QR Code", description: "QR token not recognized or expired.", variant: "destructive" });
+          return;
         }
-      } else if (parsedData.attendanceId) {
-        handleCheckOut(parsedData.attendanceId);
-      } else {
-        toast({
-          title: "Invalid QR Code",
-          description: "QR code format not recognized.",
-          variant: "destructive",
-        });
+
+        const attendanceRecord = presentChildren.find((r: any) => r.child_id === qrRecord.child_id);
+        if (attendanceRecord) {
+          handleCheckOut(attendanceRecord.id, token);
+        } else {
+          toast({ title: "Child Not Found", description: "This child is not currently checked in.", variant: "destructive" });
+        }
+        return;
       }
-    } catch (error) {
-      // If not JSON, try to match as child_id or attendance_id
-      const attendanceRecord = presentChildren.find((record: any) => 
-        record.id === qrData.trim() || record.child_id === qrData.trim()
-      );
-      
-      if (attendanceRecord) {
-        handleCheckOut(attendanceRecord.id);
+
+      // Legacy JSON format support
+      let parsedData: any = null;
+      try { parsedData = JSON.parse(qrData); } catch { /* not JSON */ }
+
+      if (parsedData) {
+        const childId = parsedData.childId || parsedData.id;
+        const attendanceId = parsedData.attendanceId;
+
+        if (attendanceId) {
+          handleCheckOut(attendanceId);
+        } else if (childId) {
+          const attendanceRecord = presentChildren.find((r: any) => r.child_id === childId);
+          attendanceRecord
+            ? handleCheckOut(attendanceRecord.id)
+            : toast({ title: "Child Not Found", description: "This child is not currently checked in.", variant: "destructive" });
+        } else {
+          toast({ title: "Invalid QR Code", description: "QR code format not recognized.", variant: "destructive" });
+        }
       } else {
-        toast({
-          title: "Invalid QR Code",
-          description: "Could not find matching record.",
-          variant: "destructive",
-        });
+        // Fallback: direct ID match
+        const attendanceRecord = presentChildren.find((r: any) =>
+          r.id === qrData.trim() || r.child_id === qrData.trim()
+        );
+        attendanceRecord
+          ? handleCheckOut(attendanceRecord.id)
+          : toast({ title: "Invalid QR Code", description: "Could not find matching record.", variant: "destructive" });
       }
+    } catch (error: any) {
+      toast({ title: "QR Scan Error", description: error.message || "An error occurred processing the QR code.", variant: "destructive" });
     }
   };
 

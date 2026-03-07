@@ -8,6 +8,7 @@ import { Loader2, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const EnhancedLoginForm = () => {
@@ -22,6 +23,15 @@ const EnhancedLoginForm = () => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  // Auto-redirect if already logged in
+  React.useEffect(() => {
+    if (!loading && user) {
+      console.log('User detected, redirecting from login page');
+      navigate('/', { replace: true });
+    }
+  }, [user, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +59,7 @@ const EnhancedLoginForm = () => {
           title: "Welcome back!",
           description: "You have successfully logged in.",
         });
-        // Redirect will be handled by AuthContext
-        navigate('/');
+        // Navigation will be handled by useEffect above
       }
     } catch (error: any) {
       setError(error.message || 'An unexpected error occurred');

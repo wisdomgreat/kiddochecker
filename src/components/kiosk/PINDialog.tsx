@@ -20,6 +20,20 @@ interface PINDialogProps {
 const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => {
     const [pin, setPin] = useState('');
     const [error, setError] = useState(false);
+    const [attempts, setAttempts] = useState(0);
+    const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    useEffect(() => {
+        if (lockoutUntil) {
+            const timer = setInterval(() => {
+                const remaining = Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000));
+                setTimeLeft(remaining);
+                if (remaining === 0) setLockoutUntil(null);
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [lockoutUntil]);
 
     useEffect(() => {
         if (pin.length === correctPin.length) {
@@ -27,14 +41,23 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
                 onSuccess();
                 setPin('');
                 setError(false);
+                setAttempts(0);
             } else {
                 setError(true);
                 setPin('');
-                // Shake animation could be added here
+                const newAttempts = attempts + 1;
+                setAttempts(newAttempts);
+
+                if (newAttempts >= 5) {
+                    const lockoutTime = 30; // 30 seconds lockout
+                    setLockoutUntil(Date.now() + lockoutTime * 1000);
+                    setAttempts(0);
+                }
+
                 setTimeout(() => setError(false), 500);
             }
         }
-    }, [pin, correctPin, onSuccess]);
+    }, [pin, correctPin, onSuccess, attempts]);
 
     if (!open) return null;
 
@@ -60,7 +83,13 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
 
                     <div>
                         <h2 className="text-2xl font-bold text-slate-800">Security PIN Required</h2>
-                        <p className="text-slate-500 mt-1">Please enter your 6-digit access code</p>
+                        {lockoutUntil ? (
+                            <p className="text-red-500 font-semibold mt-1 animate-pulse">
+                                Too many attempts. Try again in {timeLeft}s
+                            </p>
+                        ) : (
+                            <p className="text-slate-500 mt-1">Please enter your 6-digit access code</p>
+                        )}
                     </div>
 
                     <div className="flex justify-center gap-3">
@@ -84,6 +113,7 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
                                 variant="outline"
                                 className="h-16 text-2xl font-bold rounded-2xl hover:bg-slate-50 hover:border-indigo-300 active:scale-95 transition-all"
                                 onClick={() => handleNumberClick(num)}
+                                disabled={!!lockoutUntil}
                             >
                                 {num}
                             </Button>
@@ -99,6 +129,7 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
                             variant="outline"
                             className="h-16 text-2xl font-bold rounded-2xl hover:bg-slate-50 active:scale-95 transition-all"
                             onClick={() => handleNumberClick('0')}
+                            disabled={!!lockoutUntil}
                         >
                             0
                         </Button>
@@ -106,6 +137,7 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
                             variant="ghost"
                             className="h-16 rounded-2xl text-slate-400"
                             onClick={handleDelete}
+                            disabled={!!lockoutUntil}
                         >
                             <Delete className="h-6 w-6" />
                         </Button>

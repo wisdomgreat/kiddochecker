@@ -47,10 +47,22 @@ const ParentRegistrationPage = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
+    if (formData.password.length < 8) {
       toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
+        title: "Weak Password",
+        description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const hasUpperCase = /[A-Z]/.test(formData.password);
+    const hasLowerCase = /[a-z]/.test(formData.password);
+    const hasNumber = /[0-9]/.test(formData.password);
+    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
+      toast({
+        title: "Weak Password",
+        description: "Password must contain at least one uppercase letter, one lowercase letter, and one number",
         variant: "destructive",
       });
       return;
@@ -195,9 +207,10 @@ const ParentRegistrationPage = () => {
                     name="password"
                     type="password"
                     required
+                    minLength={8}
                     value={formData.password}
                     onChange={handleInputChange}
-                    placeholder="Create a password"
+                    placeholder="Min 8 chars, upper, lower, number"
                   />
                 </div>
                 <div className="space-y-2">

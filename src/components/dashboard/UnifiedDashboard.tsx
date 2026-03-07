@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 import AdminDashboardNew from "./AdminDashboardNew";
 import StaffTeacherDashboard from "./StaffTeacherDashboard";
 import ParentDashboardNew from "./ParentDashboardNew";
-import VolunteerDashboardNew from "./VolunteerDashboardNew";
 
 const UnifiedDashboard = () => {
   const { user, userRole, loading, isAdmin, isStaff, isParent } = useAuth();
@@ -33,11 +32,6 @@ const UnifiedDashboard = () => {
   // General staff
   if (isStaff) {
     return <StaffTeacherDashboard />;
-  }
-
-  // Volunteer — simplified view
-  if (userRole === "volunteer") {
-    return <VolunteerDashboardNew />;
   }
 
   // Parent

@@ -57,6 +57,8 @@ const KioskCheckInSystem = () => {
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [showPinDialog, setShowPinDialog] = useState<boolean>(false);
   const [pendingChild, setPendingChild] = useState<Child | null>(null);
+  const [scannedQRToken, setScannedQRToken] = useState<string | null>(null);
+  const [activeParentPin, setActiveParentPin] = useState<string>('');
   const { toast } = useToast();
   const { generateQRCode } = useQRCodes();
 
@@ -94,35 +96,49 @@ const KioskCheckInSystem = () => {
     }
   };
 
-  // Filter children based on search term
+  // Search children based on search term (Server-Side)
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredChildren([]);
-    } else {
-      const filtered = children.filter(child =>
-        `${child.first_name} ${child.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        child.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        child.last_name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredChildren(filtered.slice(0, 10)); // Limit to 10 results
-    }
-  }, [searchTerm, children]);
+    const searchTimer = setTimeout(async () => {
+      if (searchTerm.trim().length >= 2) {
+        setIsLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('children')
+            .select('*')
+            .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
+            .limit(10);
+          
+          if (error) throw error;
+          setFilteredChildren(data || []);
+        } catch (err) {
+          console.error('Kiosk search error:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setFilteredChildren([]);
+      }
+    }, 400); // 400ms debounce
+
+    return () => clearTimeout(searchTimer);
+  }, [searchTerm]);
 
   const loadChildren = async () => {
+    // Only load initial children if search is empty
+    if (searchTerm.trim() !== '') return;
+    
     try {
       const { data, error } = await supabase
         .from('children')
         .select('*')
+        .limit(20) // Only load some initial children
         .order('first_name');
-
-      if (error) {
-        console.error('Error loading children:', error);
-        return;
-      }
-
+      
+      if (error) throw error;
       setChildren(data || []);
+      setFilteredChildren(data || []);
     } catch (error) {
-      console.error('Error loading children:', error);
+       console.error('Error loading children:', error);
     }
   };
 
@@ -135,8 +151,30 @@ const KioskCheckInSystem = () => {
     }
   };
 
-  const initiateCheckIn = (child: Child) => {
+  const initiateCheckIn = async (child: Child) => {
     if (requirePin && !isUnlocked) {
+      setIsLoading(true);
+      try {
+        // Fetch parent's specific PIN
+        const { data, error } = await (supabase
+          .from('profiles')
+          .select('security_pin')
+          .eq('id', child.parent_id)
+          .single() as any);
+        
+        if (data?.security_pin) {
+          setActiveParentPin(data.security_pin);
+        } else {
+          // Fallback to global kiosk pin if parent hasn't set one
+          setActiveParentPin(kioskPin);
+        }
+      } catch (err) {
+        console.error('Error fetching parent PIN:', err);
+        setActiveParentPin(kioskPin);
+      } finally {
+        setIsLoading(false);
+      }
+
       setPendingChild(child);
       setShowPinDialog(true);
       return;
@@ -172,15 +210,22 @@ const KioskCheckInSystem = () => {
       const result = await AttendanceService.checkInChild({
         childId: selectedChild.id,
         classId: classId,
-        checkedInBy: undefined // System check-in
+        checkedInBy: undefined, // System check-in
+        qrToken: scannedQRToken || undefined
       });
 
       if (result.success) {
-        // Generate QR code for checkout
-        generateQRCode(selectedChild.id);
+        // Fetch the newly created QR code to show on screen/tag
+        const { data: qrCodeData } = await supabase
+          .from('qr_codes')
+          .select('qr_data')
+          .eq('child_id', selectedChild.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-        const qrData = `child:${selectedChild.id}:${Date.now()}`;
-        setCheckInQRData(qrData);
+        setCheckInQRData(qrCodeData?.qr_data || '');
         setSelectedClassName(classData?.name || '');
 
         await loadRecentCheckIns();
@@ -224,38 +269,35 @@ const KioskCheckInSystem = () => {
 
   const handleQRCodeScan = async (qrData: string) => {
     try {
-      // Parse QR data format: "child:childId:timestamp"
-      const parts = qrData.split(':');
-      if (parts[0] !== 'child' || !parts[1]) {
+      setIsLoading(true);
+      // Look up the child by the QR token
+      const { data: qrRecord, error: qrError } = await supabase
+        .from('qr_codes')
+        .select('*, child:children(*)')
+        .eq('qr_data', qrData)
+        .eq('is_active', true)
+        .single();
+
+      if (qrError || !qrRecord) {
         toast({
           title: "Invalid QR Code",
-          description: "This QR code is not valid for check-in",
+          description: "This QR code is not valid or has expired",
           variant: "destructive",
         });
         return;
       }
 
-      const childId = parts[1];
-
-      // Find the child
-      const child = children.find(c => c.id === childId);
-      if (!child) {
-        toast({
-          title: "Child Not Found",
-          description: "Could not find child with this QR code",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      setScannedQRToken(qrData);
       setShowScanner(false);
-      initiateCheckIn(child);
+      initiateCheckIn(qrRecord.child as any);
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to process QR code",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -480,6 +522,7 @@ const KioskCheckInSystem = () => {
             setSelectedChild(null);
             setCheckInQRData('');
             setSelectedClassName('');
+            setScannedQRToken(null);
             // Reset lock after a successful session
             setIsUnlocked(false);
           }}
@@ -492,10 +535,11 @@ const KioskCheckInSystem = () => {
       {/* PIN Dialog */}
       <PINDialog
         open={showPinDialog}
-        correctPin={kioskPin}
+        correctPin={activeParentPin || kioskPin}
         onClose={() => {
           setShowPinDialog(false);
           setPendingChild(null);
+          setActiveParentPin('');
         }}
         onSuccess={handlePinSuccess}
       />

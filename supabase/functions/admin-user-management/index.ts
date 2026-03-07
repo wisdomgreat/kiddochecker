@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': '*', // Ideally restricted to KIDDOCHECKER domain in production
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -14,6 +14,7 @@ interface CreateUserRequest {
   lastName: string;
   phone?: string;
   role: string;
+  isVolunteer?: boolean;
 }
 
 interface UpdateUserRequest {
@@ -24,6 +25,7 @@ interface UpdateUserRequest {
     phone?: string;
     role?: string;
     isActive?: boolean;
+    isVolunteer?: boolean;
   };
 }
 
@@ -33,17 +35,58 @@ serve(async (req) => {
   }
 
   try {
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+    // 1. Get Authentication Context
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    // Create a regular client to verify the user's identity
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+
+    if (userError || !user) {
+      console.error('User verification failed:', userError);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 2. Create admin client for privileged operations
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
       }
-    );
+    });
+
+    // 3. Verify Admin Authorization
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role, is_super_admin')
+      .eq('user_id', user.id)
+      .single();
+
+    const isAdmin = roleData?.role === 'admin' || roleData?.role === 'super_admin' || roleData?.is_super_admin === true;
+
+    if (roleError || !isAdmin) {
+      console.error('Unauthorized access attempt by:', user.id, 'Role:', roleData?.role);
+      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const { action, ...data } = await req.json();
     console.log(`Admin user management action: ${action}`, data);
@@ -89,13 +132,14 @@ serve(async (req) => {
           console.error('Profile creation error:', profileError);
         }
 
-        // Assign role
+        // Assign role with volunteer status
         const { error: roleError } = await supabaseAdmin
           .from('user_roles')
           .upsert({
             user_id: authData.user.id,
             role: role as any,
             is_super_admin: role === 'super_admin',
+            is_volunteer: (data as CreateUserRequest).isVolunteer ?? false,
             verification_status: 'verified' // Auto-verify users created by admins
           }, {
             onConflict: 'user_id'
@@ -143,14 +187,20 @@ serve(async (req) => {
           }
         }
 
-        // Update role if needed
-        if (updates.role) {
+        // Update role / volunteer status if needed
+        if (updates.role !== undefined || updates.isVolunteer !== undefined) {
+          const roleUpdate: Record<string, any> = {};
+          if (updates.role !== undefined) {
+            roleUpdate.role = updates.role as any;
+            roleUpdate.is_super_admin = updates.role === 'super_admin';
+          }
+          if (updates.isVolunteer !== undefined) {
+            roleUpdate.is_volunteer = updates.isVolunteer;
+          }
+
           const { error: roleError } = await supabaseAdmin
             .from('user_roles')
-            .update({
-              role: updates.role as any,
-              is_super_admin: updates.role === 'super_admin'
-            })
+            .update(roleUpdate)
             .eq('user_id', userId);
 
           if (roleError) {

@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, User, QrCode } from "lucide-react";
+import DOMPurify from "dompurify";
 
 interface QRCodeGeneratorProps {
   attendanceId: string;
@@ -13,9 +14,9 @@ interface QRCodeGeneratorProps {
   onPrint?: () => void;
 }
 
-const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ 
-  attendanceId, 
-  childName, 
+const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
+  attendanceId,
+  childName,
   className = "",
   checkInTime,
   onPrint
@@ -27,8 +28,10 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
     className,
     timestamp: new Date().toISOString()
   });
-  
+
   const handlePrint = () => {
+    const safeChildName = DOMPurify.sanitize(childName);
+    const safeClassName = DOMPurify.sanitize(className);
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
@@ -76,8 +79,8 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
           </head>
           <body>
             <div class="qr-container">
-              <div class="child-name">${childName}</div>
-              ${className ? `<div class="class-name">${className}</div>` : ''}
+              <div class="child-name">${safeChildName}</div>
+              ${safeClassName ? `<div class="class-name">${safeClassName}</div>` : ''}
               <div style="background: white; padding: 20px; display: inline-block;">
                 <div id="qr-placeholder" style="width: 200px; height: 200px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center;">
                   QR Code
@@ -95,13 +98,13 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
           </body>
         </html>
       `);
-      
+
       // Get the QR code SVG and insert it
       const qrCodeElement = document.querySelector('.qr-code-svg');
       if (qrCodeElement) {
         const svgContent = qrCodeElement.outerHTML;
         printWindow.document.close();
-        
+
         // Wait a moment for the document to load, then replace placeholder
         setTimeout(() => {
           const placeholder = printWindow.document.getElementById('qr-placeholder');
@@ -115,12 +118,12 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         printWindow.print();
       }
     }
-    
+
     if (onPrint) {
       onPrint();
     }
   };
-  
+
   return (
     <Card className="w-full max-w-sm mx-auto">
       <CardHeader className="text-center pb-2">
@@ -147,17 +150,17 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
             </div>
           )}
         </div>
-        
+
         <div className="bg-white inline-block p-4 border rounded-lg">
-          <QRCodeSVG 
-            value={qrCodeValue} 
-            size={180} 
+          <QRCodeSVG
+            value={qrCodeValue}
+            size={180}
             level="H"
             includeMargin={true}
             className="qr-code-svg"
           />
         </div>
-        
+
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
             Scan this code at check-out time
@@ -166,7 +169,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
             ID: {attendanceId.substring(0, 8)}...
           </div>
         </div>
-        
+
         <button
           onClick={handlePrint}
           className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors"

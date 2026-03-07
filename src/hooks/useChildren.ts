@@ -1,7 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { QUERY_KEYS } from '@/lib/queryKeys';
+import { childrenService } from '@/services/childrenService';
 
 export interface Child {
   id: string;
@@ -24,118 +25,50 @@ export const useChildren = () => {
   const { user, userRole } = useAuth();
 
   const { data: children = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["children", user?.id],
-    queryFn: async (): Promise<Child[]> => {
-      if (!user) return [];
-
-      try {
-        let query = supabase.from('children').select('*');
-        
-        if (userRole === 'parent') {
-          query = query.eq('parent_id', user.id);
-        }
-        
-        const { data, error } = await query.order('first_name');
-
-        if (error) {
-          console.error("Error fetching children:", error);
-          throw error;
-        }
-
-        return data || [];
-      } catch (error: any) {
-        console.error("Error in useChildren:", error);
-        return [];
-      }
+    queryKey: QUERY_KEYS.CHILDREN(user?.id),
+    queryFn: (): Promise<Child[]> => {
+      if (!user) return Promise.resolve([]);
+      return userRole === 'parent'
+        ? childrenService.getByParent(user.id)
+        : childrenService.getAll();
     },
     enabled: !!user,
   });
 
   const addChildMutation = useMutation({
-    mutationFn: async (childData: Omit<Child, 'id' | 'created_at' | 'updated_at'>) => {
-      if (!user) throw new Error("User not authenticated");
-
-      const { data, error } = await supabase
-        .from('children')
-        .insert({
-          ...childData,
-          parent_id: user.id
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: (childData: Omit<Child, 'id' | 'created_at' | 'updated_at'>) => {
+      if (!user) throw new Error('User not authenticated');
+      return childrenService.create(user.id, childData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["children"] });
-      toast({
-        title: "Success",
-        description: "Child added successfully",
-      });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CHILDREN() });
+      toast({ title: 'Child added successfully' });
     },
-    onError: (error: any) => {
-      console.error("Error adding child:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add child",
-        variant: "destructive",
-      });
+    onError: (error: Error) => {
+      toast({ title: 'Failed to add child', description: error.message, variant: 'destructive' });
     },
   });
 
   const updateChildMutation = useMutation({
-    mutationFn: async ({ id, ...childData }: Partial<Child> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('children')
-        .update(childData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ id, ...childData }: Partial<Child> & { id: string }) =>
+      childrenService.update(id, childData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["children"] });
-      toast({
-        title: "Success",
-        description: "Child updated successfully",
-      });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CHILDREN() });
+      toast({ title: 'Child updated successfully' });
     },
-    onError: (error: any) => {
-      console.error("Error updating child:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update child",
-        variant: "destructive",
-      });
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update child', description: error.message, variant: 'destructive' });
     },
   });
 
   const deleteChildMutation = useMutation({
-    mutationFn: async (childId: string) => {
-      const { error } = await supabase
-        .from('children')
-        .delete()
-        .eq('id', childId);
-
-      if (error) throw error;
-    },
+    mutationFn: (childId: string) => childrenService.delete(childId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["children"] });
-      toast({
-        title: "Success",
-        description: "Child removed successfully",
-      });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CHILDREN() });
+      toast({ title: 'Child removed successfully' });
     },
-    onError: (error: any) => {
-      console.error("Error deleting child:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to remove child",
-        variant: "destructive",
-      });
+    onError: (error: Error) => {
+      toast({ title: 'Failed to remove child', description: error.message, variant: 'destructive' });
     },
   });
 

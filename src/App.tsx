@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import "./App.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,49 +10,57 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
 import AuthErrorBoundary from "@/components/auth/AuthErrorBoundary";
+import { Loader2 } from "lucide-react";
 
-// Auth & Landing Pages
-import Index from "./pages/Index";
-import LoginPage from "./pages/LoginPage";
-import LandingPage from "./pages/LandingPage";
-import Dashboard from "./pages/Dashboard";
+// ─── Lazy Page Imports (code splitting) ───────────────────────────────────────
+// Auth & Landing
+const Index = lazy(() => import("./pages/Index"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 
-// Dashboard Pages
-import AdminDashboardPage from "./pages/AdminDashboardPage";
-import StaffDashboardPage from "./pages/StaffDashboardPage";
-import ParentDashboardPage from "./pages/ParentDashboardPage";
+// Dashboards
+const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
+const StaffDashboardPage = lazy(() => import("./pages/StaffDashboardPage"));
+const ParentDashboardPage = lazy(() => import("./pages/ParentDashboardPage"));
 
-// Admin Pages
-import AdminDocumentVerification from "./pages/AdminDocumentVerification";
+// Admin
+const AdminDocumentVerification = lazy(() => import("./pages/AdminDocumentVerification"));
+const StaffDocumentUpload = lazy(() => import("./pages/StaffDocumentUpload"));
 
-// Staff Pages
-import StaffDocumentUpload from "./pages/StaffDocumentUpload";
+// Check-in / attendance
+const CheckInPage = lazy(() => import("./pages/CheckInPage"));
+const CheckOutPage = lazy(() => import("./pages/CheckOutPage"));
+const AttendancePage = lazy(() => import("./pages/AttendancePage"));
 
-// Check-in/Check-out Pages
-import CheckInPage from "./pages/CheckInPage";
-import CheckOutPage from "./pages/CheckOutPage";
-import AttendancePage from "./pages/AttendancePage";
+// Management
+const DeviceEnrollmentPage = lazy(() => import("./pages/DeviceEnrollmentPage"));
+const ClassesPage = lazy(() => import("./pages/ClassesPage"));
+const EnhancedReportsPage = lazy(() => import("./pages/EnhancedReportsPage"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const StaffPage = lazy(() => import("./pages/StaffPage"));
+const MessagesPage = lazy(() => import("./pages/MessagesPage"));
+const ChildrenPage = lazy(() => import("./pages/ChildrenPage"));
+const CalendarPage = lazy(() => import("./pages/CalendarPage"));
+const ParentChildrenPage = lazy(() => import("./pages/ParentChildrenPage"));
+const ParentAttendancePage = lazy(() => import("./pages/ParentAttendancePage"));
+const ParentMessagesPage = lazy(() => import("./pages/ParentMessagesPage"));
+const ParentProfilePage = lazy(() => import("./pages/ParentProfilePage"));
+const ChildMedicalProfile = lazy(() => import("./pages/ChildMedicalProfile"));
+const QRManagementPage = lazy(() => import("./pages/QRManagementPage"));
+const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 
-// Management Pages
-import DeviceEnrollmentPage from "./pages/DeviceEnrollmentPage";
-import ClassesPage from "./pages/ClassesPage";
-import EnhancedReportsPage from "./pages/EnhancedReportsPage";
-import UsersPage from "./pages/UsersPage";
-import RegisterPage from "./pages/RegisterPage";
-import SettingsPage from "./pages/SettingsPage";
-import StaffPage from "./pages/StaffPage";
-import MessagesPage from "./pages/MessagesPage";
-import ChildrenPage from "./pages/ChildrenPage";
-import CalendarPage from "./pages/CalendarPage";
-import ParentChildrenPage from "./pages/ParentChildrenPage";
-import ParentAttendancePage from "./pages/ParentAttendancePage";
-import ParentMessagesPage from "./pages/ParentMessagesPage";
-import ParentProfilePage from "./pages/ParentProfilePage";
-import ChildMedicalProfile from "./pages/ChildMedicalProfile";
-
-// New Pages
-import QRManagementPage from "./pages/QRManagementPage";
-import AuditLogPage from "./pages/AuditLogPage";
+// ─── Loading Fallback ──────────────────────────────────────────────────────────
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex flex-col items-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground">Loading...</p>
+    </div>
+  </div>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,7 +82,8 @@ function App() {
           <BrowserRouter>
             <AuthErrorBoundary>
               <AuthProvider>
-                <Routes>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<LoginPage />} />
@@ -91,18 +99,18 @@ function App() {
                   <Route path="/parent-dashboard" element={<ProtectedRoute><ParentDashboardPage /></ProtectedRoute>} />
 
                   {/* Admin-Only Routes */}
-                  <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><UsersPage /></RoleBasedRoute>} />
-                  <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><StaffPage /></RoleBasedRoute>} />
-                  <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><EnhancedReportsPage /></RoleBasedRoute>} />
-                  <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><SettingsPage /></RoleBasedRoute>} />
-                  <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><DeviceEnrollmentPage /></RoleBasedRoute>} />
-                  <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><DeviceEnrollmentPage /></RoleBasedRoute>} />
-                  <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher'] as any}><QRManagementPage /></RoleBasedRoute>} />
+                  <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><UsersPage /></RoleBasedRoute>} />
+                  <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><StaffPage /></RoleBasedRoute>} />
+                  <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EnhancedReportsPage /></RoleBasedRoute>} />
+                  <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SettingsPage /></RoleBasedRoute>} />
+                  <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
+                  <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
+                  <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><QRManagementPage /></RoleBasedRoute>} />
 
                   {/* Staff & Admin Shared Routes */}
-                  <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
-                  <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
-                  <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
+                  <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
+                  <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
+                  <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
 
                   {/* All Authenticated */}
                   <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
@@ -114,21 +122,26 @@ function App() {
                   <Route path="/parent/messages" element={<ProtectedRoute><ParentMessagesPage /></ProtectedRoute>} />
                   <Route path="/parent/profile" element={<ProtectedRoute><ParentProfilePage /></ProtectedRoute>} />
 
-                  {/* Staff Verification & Document Routes */}
-                  <Route path="/admin/verify-staff" element={<AdminDocumentVerification />} />
+                  {/* Staff Verification & Document Routes – admin-only */}
+                  <Route path="/admin/verify-staff" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                      <AdminDocumentVerification />
+                    </RoleBasedRoute>
+                  } />
                   <Route path="/staff/documents" element={<ProtectedRoute><StaffDocumentUpload /></ProtectedRoute>} />
-                  <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
-                  <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}><AuditLogPage /></RoleBasedRoute>} />
+                  <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
+                  <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
 
                   {/* Catch all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
-              </AuthProvider>
-            </AuthErrorBoundary>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+              </Suspense>
+            </AuthProvider>
+          </AuthErrorBoundary>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
   );
 }
 

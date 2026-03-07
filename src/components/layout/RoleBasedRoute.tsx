@@ -9,8 +9,19 @@ import { ShieldX, Loader2 } from 'lucide-react';
 interface RoleBasedRouteProps {
   children: ReactNode;
   allowedRoles: AppRole[];
+  /** Optional override: where to redirect on access denied. Defaults to role-based home. */
   redirectTo?: string;
 }
+
+/** Maps each role to its default home dashboard. */
+const ROLE_HOME: Record<AppRole, string> = {
+  super_admin: '/admin-dashboard',
+  admin: '/admin-dashboard',
+  staff: '/staff-dashboard',
+  teacher: '/staff-dashboard',
+  teacher_assistant: '/staff-dashboard',
+  parent: '/parent-dashboard',
+};
 
 const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRouteProps) => {
   const { user, userRole, loading } = useAuth();
@@ -31,49 +42,24 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRoutePr
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if user has required role access
-  const hasAccess = () => {
-    if (!userRole) return false;
-    
-    // Super admin always has access (but we need to handle it carefully since it might not be in AppRole type)
-    if (userRole === 'super_admin' as any) return true;
-    
-    // Check if user's role is in allowed roles
-    return allowedRoles.includes(userRole);
-  };
+  // super_admin always has access to everything
+  const hasAccess = userRole === 'super_admin' || (userRole ? allowedRoles.includes(userRole) : false);
 
-  // If user has access, show content
-  if (hasAccess()) {
+  if (hasAccess) {
     return <>{children}</>;
   }
 
-  // If redirectTo is specified, redirect there
+  // Redirect to a specific path if provided
   if (redirectTo) {
     return <Navigate to={redirectTo} replace />;
   }
 
-  // Default behavior - navigate to appropriate dashboard based on role
-  if (userRole) {
-    // Handle super_admin case
-    if (userRole === 'super_admin' as any) {
-      return <Navigate to="/admin-dashboard" replace />;
-    }
-    
-    switch (userRole) {
-      case 'admin':
-        return <Navigate to="/admin-dashboard" replace />;
-      case 'staff':
-      case 'teacher':
-      case 'teacher_assistant':
-        return <Navigate to="/staff-dashboard" replace />;
-      case 'parent':
-        return <Navigate to="/parent-dashboard" replace />;
-      default:
-        return <Navigate to="/parent-dashboard" replace />;
-    }
+  // If the user is authenticated but lacks access, send them to their home
+  if (userRole && ROLE_HOME[userRole]) {
+    return <Navigate to={ROLE_HOME[userRole]} replace />;
   }
 
-  // If no role is determined yet, show loading
+  // Role not yet determined
   return (
     <div className="flex items-center justify-center min-h-screen p-8">
       <Alert className="max-w-md border-amber-200 bg-amber-50">

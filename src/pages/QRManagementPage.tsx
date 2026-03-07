@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import { format } from "date-fns";
+import DOMPurify from "dompurify";
 
 interface Child {
     id: string;
@@ -128,7 +129,11 @@ const QRManagementPage = () => {
             if (!printWindow) { setIsPrinting(false); return; }
 
             const labelsHTML = toPrint.map((child) => {
-                const qrData = JSON.stringify({ type: "CHILD_CHECKIN", id: child.id, name: `${child.first_name} ${child.last_name}`, v: 1 });
+                const safeFirstName = DOMPurify.sanitize(child.first_name);
+                const safeLastName = DOMPurify.sanitize(child.last_name);
+                const safeAllergies = child.allergies ? DOMPurify.sanitize(child.allergies) : '';
+                const qrData = JSON.stringify({ type: "CHILD_CHECKIN", id: child.id, name: `${safeFirstName} ${safeLastName}`, v: 1 });
+
                 return `
           <div class="label">
             <p class="org">KiddoChecker</p>
@@ -137,10 +142,10 @@ const QRManagementPage = () => {
                 <!-- QR placeholder - actual QR rendered via JS below -->
               </svg>
             </div>
-            <p class="name">${child.first_name} ${child.last_name}</p>
+            <p class="name">${safeFirstName} ${safeLastName}</p>
             <p class="age">${child.age ? child.age + " years old" : ""}</p>
-            ${child.allergies ? `<div class="allergy">⚠ ${child.allergies}</div>` : ""}
-            ${child.emergency_contact_phone ? `<p class="phone">📞 ${child.emergency_contact_phone}</p>` : ""}
+            ${safeAllergies ? `<div class="allergy">⚠ ${safeAllergies}</div>` : ""}
+            ${child.emergency_contact_phone ? `<p class="phone">📞 ${DOMPurify.sanitize(child.emergency_contact_phone)}</p>` : ""}
             <p class="id">${child.id.substring(0, 12).toUpperCase()}</p>
           </div>`;
             }).join("");
