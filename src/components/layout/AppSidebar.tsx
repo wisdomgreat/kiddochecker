@@ -47,7 +47,7 @@ export function AppSidebar() {
 
   const staffItems = [
     { title: "Dashboard", url: "/staff-dashboard", icon: Home },
-    ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: "Check-In", url: "/check-in", icon: Monitor }, { title: "Check-Out", url: "/check-out", icon: ClipboardCheck }, { title: "Attendance", url: "/attendance", icon: ClipboardCheck }] : []),
+    ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: "Attendance", url: "/attendance", icon: ClipboardCheck }] : []),
     ...(isTeacher || isTeacherAssistant ? [
       { title: "Children", url: "/children", icon: Baby },
       { title: "Classes", url: "/classes", icon: BookOpen },

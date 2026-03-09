@@ -113,10 +113,6 @@ const StaffTeacherDashboard = () => {
                             )}
                             Messages
                         </Button>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2" onClick={() => navigate("/check-in")}>
-                            <QrCode className="h-4 w-4" />
-                            Check-In
-                        </Button>
                     </div>
                 </div>
             </motion.div>
@@ -270,7 +266,6 @@ const StaffTeacherDashboard = () => {
                 >
                     <h3 className="font-bold text-slate-800">Quick Actions</h3>
                     {[
-                        { label: "Check-In Station", icon: QrCode, color: "bg-indigo-600 hover:bg-indigo-700", path: "/check-in" },
                         { label: "View Children", icon: Baby, color: "bg-emerald-600 hover:bg-emerald-700", path: "/children" },
                         { label: "Attendance Record", icon: ClipboardCheck, color: "bg-blue-600 hover:bg-blue-700", path: "/attendance" },
                         { label: "My Calendar", icon: Calendar, color: "bg-purple-600 hover:bg-purple-700", path: "/calendar" },
