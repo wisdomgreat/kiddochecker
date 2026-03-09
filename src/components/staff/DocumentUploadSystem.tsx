@@ -38,8 +38,8 @@ const DocumentUploadSystem = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert("File too large. Please select a file smaller than 10MB.");
+      if (file.size > 300 * 1024) {
+        alert("File too large. Please select a file smaller than 300KB.");
         return;
       }
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
@@ -91,11 +91,15 @@ const DocumentUploadSystem = () => {
 
   // Calculate checklist progress
   const mandatoryRequirements = requirements.filter(r => r.is_mandatory);
+  const submittedMandatory = mandatoryRequirements.filter(req =>
+    myDocuments.some(doc => doc.document_type === req.document_type && (doc.status === 'approved' || doc.status === 'pending'))
+  );
   const completedMandatory = mandatoryRequirements.filter(req =>
     myDocuments.some(doc => doc.document_type === req.document_type && doc.status === 'approved')
   );
+  
   const progress = mandatoryRequirements.length > 0
-    ? Math.round((completedMandatory.length / mandatoryRequirements.length) * 100)
+    ? Math.round((submittedMandatory.length / mandatoryRequirements.length) * 100)
     : 0;
 
   const overallStatus = verificationStatus?.verification_status || 'unverified';
@@ -137,16 +141,16 @@ const DocumentUploadSystem = () => {
         <Card className="shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-slate-800">Verification Progress</h3>
+              <h3 className="font-bold text-slate-800">Registration Progress</h3>
               <span className="text-sm font-semibold text-indigo-600">
-                {completedMandatory.length}/{mandatoryRequirements.length} required
+                {submittedMandatory.length}/{mandatoryRequirements.length} submitted
               </span>
             </div>
             <Progress value={progress} className="h-3 mb-2" />
             <p className="text-xs text-slate-500">
-              {progress === 100
-                ? "All mandatory documents approved! Your verification is being processed."
-                : `${100 - progress}% remaining. Upload your documents to get verified.`
+              {submittedMandatory.length === mandatoryRequirements.length
+                ? "All mandatory documents submitted! Pending final review."
+                : `${mandatoryRequirements.length - submittedMandatory.length} documents remaining. Upload your documents to get verified.`
               }
             </p>
           </CardContent>
@@ -199,7 +203,7 @@ const DocumentUploadSystem = () => {
                     className="cursor-pointer"
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    PDF, JPG, PNG files only. Max 10MB.
+                    PDF, JPG, PNG files only. Max 300KB.
                   </p>
                 </div>
               </div>
