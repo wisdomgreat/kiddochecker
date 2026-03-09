@@ -99,7 +99,6 @@ const EditStaffForm = ({ open, onOpenChange, staffMember, onSuccess }: EditStaff
           last_name: values.lastName,
           phone: values.phone,
           role: values.role as AppRole,
-          is_super_admin: values.isSuperAdmin,
           is_volunteer: values.isVolunteer,
         }
       });

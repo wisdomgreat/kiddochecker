@@ -72,10 +72,10 @@ const CheckOutPage = () => {
       if (!result.success) throw new Error(result.error || "Check-out failed");
       return result;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
         title: "Check-out Successful",
-        description: `${data.children?.first_name} ${data.children?.last_name} has been checked out.`,
+        description: "Child has been checked out successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["present-children"] });
     },
