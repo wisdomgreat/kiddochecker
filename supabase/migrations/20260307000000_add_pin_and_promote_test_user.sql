@@ -11,14 +11,18 @@ BEGIN
     SELECT id INTO v_user_id FROM auth.users WHERE email = 'testparent2@example.com';
     
     IF v_user_id IS NOT NULL THEN
-        -- Upsert role into user_roles
-        INSERT INTO public.user_roles (user_id, role, is_super_admin, verification_status, verified_at)
-        VALUES (v_user_id, 'super_admin'::app_role, true, 'verified', NOW())
-        ON CONFLICT (user_id) DO UPDATE 
-        SET role = 'super_admin'::app_role, 
-            is_super_admin = true, 
-            verification_status = 'verified', 
-            verified_at = NOW();
+        -- Upsert role into user_roles safely without needing a unique constraint on user_id
+        IF EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = v_user_id) THEN
+            UPDATE public.user_roles 
+            SET role = 'super_admin'::app_role, 
+                is_super_admin = true, 
+                verification_status = 'verified', 
+                verified_at = NOW()
+            WHERE user_id = v_user_id;
+        ELSE
+            INSERT INTO public.user_roles (user_id, role, is_super_admin, verification_status, verified_at)
+            VALUES (v_user_id, 'super_admin'::app_role, true, 'verified', NOW());
+        END IF;
             
         RAISE NOTICE 'User testparent2@example.com promoted to super_admin';
     END IF;

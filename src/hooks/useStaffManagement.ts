@@ -69,15 +69,45 @@ export const useStaffManagement = () => {
         }
       );
 
-      if (error) throw error;
+      if (error) {
+        let errorDetails = error.message;
+        try {
+            if (error.context && typeof error.context.text === 'function') {
+                const text = await error.context.text();
+                const json = JSON.parse(text);
+                if (json.error) errorDetails = json.error;
+            } else if (error.context) {
+                if (error.context.error) errorDetails = error.context.error;
+            }
+        } catch (e) {}
+        console.error("Admin user management error:", errorDetails);
+        throw new Error(`User management failed: ${errorDetails}`);
+      }
+      
       if (!data?.success) throw new Error(data?.error ?? 'User creation failed');
+
+      // Send the setup email to the new staff/teacher
+      const { error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: staffData.email,
+          subject: "KiddoChecker - Staff Account Created!",
+          message: `Hello ${staffData.first_name},<br/><br/>An admin has created your staff account on KiddoChecker.<br/><br/>Your temporary login details are:<br/><strong>Email:</strong> ${staffData.email}<br/><strong>Password:</strong> ${tempPassword}<br/><br/>Please log in and proceed with your onboarding setup. You will be prompted to change your password immediately.`,
+          type: 'general',
+        }
+      });
+      
+      if (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+          // Don't throw the error, we already created the user! The admin can manually send them the password or we can just toast a warning.
+          toast({ title: 'Staff added, but failed to send email. Check Supabase logs.', variant: 'destructive' });
+      }
 
       return { user: data.user, tempPassword };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STAFF });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_USERS });
-      toast({ title: 'Staff member added successfully' });
+      toast({ title: 'Staff member added successfully. Email sent!' });
     },
     onError: (error: Error) => {
       toast({

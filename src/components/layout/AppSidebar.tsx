@@ -38,7 +38,8 @@ export function AppSidebar() {
     { title: "Device Enrollment", url: "/devices", icon: Zap },
     { title: "Calendar", url: "/calendar", icon: Calendar },
     { title: "Messages", url: "/messages", icon: MessageSquare },
-    { title: "Check-In Kiosk", url: "/check-in", icon: Monitor },
+    { title: "Check-In", url: "/check-in", icon: Monitor },
+    { title: "Check-Out", url: "/check-out", icon: ClipboardCheck },
     { title: "Audit Log", url: "/audit-log", icon: Activity },
     { title: "Settings", url: "/settings", icon: Settings },
   ];
@@ -69,7 +70,6 @@ export function AppSidebar() {
     { title: "Attendance", url: "/parent/attendance", icon: Calendar },
     { title: "Messages", url: "/parent/messages", icon: MessageSquare },
     { title: "Profile", url: "/parent/profile", icon: Users },
-    { title: "Quick Check-In", url: "/check-in", icon: QrCode },
   ];
 
   const isStaffRole = isStaff || isTeacher || isTeacherAssistant || userRole === "volunteer";

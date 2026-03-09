@@ -20,11 +20,13 @@ const ROLE_HOME: Record<AppRole, string> = {
   staff: '/staff-dashboard',
   teacher: '/staff-dashboard',
   teacher_assistant: '/staff-dashboard',
+  volunteer: '/staff-dashboard',
+  kiosk: '/check-in',
   parent: '/parent-dashboard',
 };
 
 const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRouteProps) => {
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, loading, isVerifiedStaff } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -46,6 +48,18 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRoutePr
   const hasAccess = userRole === 'super_admin' || (userRole ? allowedRoles.includes(userRole) : false);
 
   if (hasAccess) {
+    // SECURITY UPGRADE: Force onboarding for unverified staff
+    // If the user is staff/teacher, check if they are verified before granting strict access.
+    // They are only allowed to see their base dashboard (which renders the onboarding UI) or profile.
+    
+    const isStaffType = userRole === 'staff' || userRole === 'teacher' || userRole === 'teacher_assistant';
+    const isAllowedUnverifiedPath = ['/staff-dashboard', '/dashboard', '/', '/parent-dashboard'].includes(location.pathname);
+    
+    if (isStaffType && !isVerifiedStaff && !isAllowedUnverifiedPath) {
+      console.warn("RoleBasedRoute: Blocking unverified staff from accessing", location.pathname);
+      return <Navigate to="/staff-dashboard" replace />;
+    }
+
     return <>{children}</>;
   }
 

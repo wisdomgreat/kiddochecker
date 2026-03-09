@@ -95,6 +95,8 @@ serve(async (req) => {
       case 'create_user': {
         const { email, password, firstName, lastName, phone, role } = data as CreateUserRequest;
 
+        console.log(`Creating user: ${email} with role: ${role}`);
+
         // Create user with admin client
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
           email,
@@ -109,16 +111,31 @@ serve(async (req) => {
 
         if (authError) {
           console.error('Auth user creation error:', authError);
-          throw new Error(`Failed to create user: ${authError.message}`);
+          // Return as success: false so it's not a 500
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: `Auth Error: ${authError.message}` 
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
         if (!authData.user) {
-          throw new Error('User creation failed - no user data returned');
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'User creation failed - no user data returned' 
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
-        console.log('User created successfully:', authData.user.id);
+        console.log('User created successfully in Auth:', authData.user.id);
 
-        // Create profile
+        // We use upsert for profile and role to handle potential race conditions with handle_new_user trigger
+        
+        // 1. Profile
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
           .upsert({
@@ -126,13 +143,14 @@ serve(async (req) => {
             first_name: firstName,
             last_name: lastName,
             phone: phone || null
-          });
+          }, { onConflict: 'id' });
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          // Non-fatal, we continue
         }
 
-        // Assign role with volunteer status
+        // 2. Role
         const { error: roleError } = await supabaseAdmin
           .from('user_roles')
           .upsert({
@@ -140,14 +158,18 @@ serve(async (req) => {
             role: role as any,
             is_super_admin: role === 'super_admin',
             is_volunteer: (data as CreateUserRequest).isVolunteer ?? false,
-            verification_status: 'verified' // Auto-verify users created by admins
-          }, {
-            onConflict: 'user_id'
-          });
+            verification_status: 'verified'
+          }, { onConflict: 'user_id' });
 
         if (roleError) {
           console.error('Role assignment error:', roleError);
-          throw new Error(`Failed to assign role: ${roleError.message}`);
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: `Failed to set role: ${roleError.message}` 
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
         return new Response(JSON.stringify({
@@ -158,7 +180,6 @@ serve(async (req) => {
             first_name: firstName,
             last_name: lastName,
             role: role,
-            is_super_admin: role === 'super_admin',
             is_active: true
           },
           message: 'User created successfully'
@@ -170,7 +191,6 @@ serve(async (req) => {
       case 'update_user': {
         const { userId, updates } = data as UpdateUserRequest;
 
-        // Update profile if needed
         if (updates.firstName || updates.lastName || updates.phone) {
           const { error: profileError } = await supabaseAdmin
             .from('profiles')
@@ -183,11 +203,10 @@ serve(async (req) => {
 
           if (profileError) {
             console.error('Profile update error:', profileError);
-            throw new Error(`Failed to update profile: ${profileError.message}`);
+            throw profileError;
           }
         }
 
-        // Update role / volunteer status if needed
         if (updates.role !== undefined || updates.isVolunteer !== undefined) {
           const roleUpdate: Record<string, any> = {};
           if (updates.role !== undefined) {
@@ -205,7 +224,7 @@ serve(async (req) => {
 
           if (roleError) {
             console.error('Role update error:', roleError);
-            throw new Error(`Failed to update role: ${roleError.message}`);
+            throw roleError;
           }
         }
 
@@ -219,12 +238,8 @@ serve(async (req) => {
 
       case 'delete_user': {
         const { userId } = data;
-
         const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-        if (error) {
-          console.error('User deletion error:', error);
-          throw new Error(`Failed to delete user: ${error.message}`);
-        }
+        if (error) throw error;
 
         return new Response(JSON.stringify({
           success: true,
@@ -236,11 +251,7 @@ serve(async (req) => {
 
       case 'get_users': {
         const { data: users, error } = await supabaseAdmin.rpc('get_users_with_roles');
-
-        if (error) {
-          console.error('Error fetching users:', error);
-          throw new Error(`Failed to fetch users: ${error.message}`);
-        }
+        if (error) throw error;
 
         return new Response(JSON.stringify({
           success: true,
@@ -255,12 +266,12 @@ serve(async (req) => {
     }
 
   } catch (error: any) {
-    console.error('Error in admin-user-management function:', error);
+    console.error('Unexpected error in admin-user-management:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message || 'An unexpected error occurred'
     }), {
-      status: 500,
+      status: 200, // Return 200 even for errors to simplify client handling
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

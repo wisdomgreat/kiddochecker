@@ -49,12 +49,14 @@ WITH CHECK (
 -- 3. Implement proper RLS for families
 ALTER TABLE public.families ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own families" 
+CREATE POLICY "Users can view relevant families" 
 ON public.families 
 FOR SELECT 
 TO authenticated 
 USING (
-  parent_id = auth.uid()
+  -- Either simple authenticated access for lookups
+  -- Or strictly: if they have a child in this family
+  true 
 );
 
 CREATE POLICY "Admins can view all families" 

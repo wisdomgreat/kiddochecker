@@ -89,9 +89,17 @@ function App() {
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/landing" element={<LandingPage />} />
-                  <Route path="/check-in" element={<CheckInPage />} />
-                  <Route path="/check-out" element={<CheckOutPage />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/check-in" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'kiosk']}>
+                      <CheckInPage />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/check-out" element={
+                    <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'kiosk']}>
+                      <CheckOutPage />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
                   {/* Dashboard Routes */}
                   <Route path="/admin-dashboard" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />

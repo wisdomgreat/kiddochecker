@@ -1,12 +1,13 @@
 import React from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import AdminDashboardNew from "./AdminDashboardNew";
 import StaffTeacherDashboard from "./StaffTeacherDashboard";
 import ParentDashboardNew from "./ParentDashboardNew";
+import DocumentUploadSystem from "@/components/staff/DocumentUploadSystem";
 
 const UnifiedDashboard = () => {
-  const { user, userRole, loading, isAdmin, isStaff, isParent } = useAuth();
+  const { user, userRole, loading, isAdmin, isSuperAdmin, isStaff, isParent, isVerifiedStaff } = useAuth();
 
   if (loading) {
     return (
@@ -20,26 +21,44 @@ const UnifiedDashboard = () => {
   }
 
   // Super admin or admin
-  if (isAdmin || userRole === "super_admin" || userRole === "admin") {
+  if (isSuperAdmin || isAdmin || userRole === "super_admin" || userRole === "admin") {
     return <AdminDashboardNew />;
   }
 
-  // Teacher or Teacher Assistant — use Staff/Teacher dashboard
-  if (userRole === "teacher" || userRole === "teacher_assistant") {
+  // Staff and teachers
+  if (isStaff || userRole === "staff" || userRole === "teacher" || userRole === "teacher_assistant") {
+    // If not verified and they are a staff role, show the Document Upload (Onboarding) Dashboard
+    if (!isVerifiedStaff && userRole !== 'volunteer') {
+      return (
+        <div className="space-y-6 max-w-5xl mx-auto pb-12">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-4">
+            <div className="bg-amber-100 p-3 rounded-xl mt-1 text-amber-600">
+              <ShieldAlert className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-amber-900 mb-1">Action Required: Complete Your Onboarding</h1>
+              <p className="text-amber-800">
+                Welcome to KiddoChecker! Before you can access your dashboard and specific features, you must complete your staff verification profile.
+              </p>
+            </div>
+          </div>
+          
+          <DocumentUploadSystem />
+        </div>
+      );
+    }
+    
     return <StaffTeacherDashboard />;
   }
 
-  // General staff
-  if (isStaff) {
-    return <StaffTeacherDashboard />;
-  }
 
-  // Parent
-  if (isParent) {
+  // Parent 
+  if (isParent || userRole === "parent") {
     return <ParentDashboardNew />;
   }
 
-  // Fallback
+  // Final absolute fallback - log mismatch
+  console.warn("UnifiedDashboard: No explicit role matched for user", user?.id, "Role:", userRole);
   return <ParentDashboardNew />;
 };
 

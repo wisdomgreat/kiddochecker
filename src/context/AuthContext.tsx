@@ -37,9 +37,12 @@ export interface AuthContextType {
   isStaff: boolean;
   isTeacher: boolean;
   isTeacherAssistant: boolean;
+  isVolunteer: boolean;
+  isKiosk: boolean;
   verificationStatus: string | null;
   isVerifiedStaff: boolean;
   hasRole: (role: AppRole) => boolean;
+  hasPermission: (permissionName: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -101,103 +104,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Check network status first
-    if (!navigator.onLine) {
-      console.log('Offline - skipping role fetch');
-      const backup = localStorage.getItem('session_backup');
-      if (backup) {
-        try {
-          const { userId } = JSON.parse(backup);
-          if (userId === user.id) {
-            setUserRole('parent'); // Default role for offline
-            return;
-          }
-        } catch (e) {
-          console.error('Failed to parse session backup:', e);
-        }
-      }
-      return;
-    }
-
     try {
-      console.log('Fetching user role for:', user.id);
+      console.log('Fetching user role for:', user.id, 'at', window.location.href);
 
-      // Use fetchWithRetry with increased timeout to 30s
-      const { data, error } = await fetchWithRetry(
-        async () => {
-          const result = await Promise.race([
-            supabase
-              .from('user_roles')
-              .select('role, is_super_admin, verification_status')
-              .eq('user_id', user.id)
-              .single(),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Role fetch timeout')), 30000)
-            )
-          ]);
-          return result as any;
-        },
-        3,
-        1000
-      );
+      // We add a tiny delay to ensure Auth state is fully established on the backend before querying RLS
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
       if (error) {
-        console.error("Error fetching user role:", error);
-
-        // If user doesn't exist in user_roles, create a default parent role
-        if (error.code === 'PGRST116') {
-          console.log('User not found in user_roles, creating default parent role');
-          const { error: insertError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: user.id,
-              role: 'parent' as AppRole,
-              is_super_admin: false
-            });
-
-          if (!insertError) {
-            setUserRole('parent');
-            console.log('Created default parent role for user');
-          } else {
-            console.error('Error creating default role:', insertError);
-            setUserRole('parent'); // Fallback
-          }
-        } else {
-          // For other errors, default to parent
-          setUserRole('parent');
-        }
+        console.error("Error fetching user role (Supabase):", error);
+        toast({
+          title: "Role Connection Error",
+          description: `Error: ${error.message} (Code: ${error.code}). Please refresh your page.`,
+          variant: "destructive",
+        });
+        // We do NOT set offline fallback here anymore, just let it fail so they see the issue
+        setUserRole('parent');
         return;
       }
 
-      const finalRole = (data?.is_super_admin ? 'super_admin' : data?.role) || 'parent';
-      const finalStatus = data?.verification_status || 'unverified';
-      setUserRole(finalRole as AppRole);
-      setVerificationStatus(finalStatus);
-    } catch (error: any) {
-      console.error("Exception refreshing user role:", error);
-
-      // Provide specific error messages based on error type
-      if (!navigator.onLine) {
+      if (!data) {
+        console.warn('No role found in DB for user record:', user.id);
         toast({
-          title: "Connection Lost",
-          description: "You're offline. The app will reconnect when your connection is restored.",
+          title: "Role Missing",
+          description: "Your account is missing role permissions in our database. Contact support.",
           variant: "destructive",
         });
-      } else if (error.message?.includes('timeout')) {
-        toast({
-          title: "Slow Connection",
-          description: "Taking longer than usual. Retrying automatically...",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Role Loading Issue",
-          description: "Defaulted to parent access. Please refresh if this seems incorrect.",
-          variant: "destructive",
-        });
+        setUserRole('parent');
+        return;
       }
 
-      // Default to parent role to prevent infinite loading
+      console.log('Raw DB Role data received:', data);
+      
+      const roleData = data as any;
+      let finalRole = roleData.role || 'parent';
+      
+      // Explicitly override if super_admin string or boolean is found
+      if (roleData.is_super_admin === true || roleData.role === 'super_admin') {
+         finalRole = 'super_admin';
+      }
+      
+      const finalStatus = roleData.verification_status || 'unverified';
+      
+      console.log('Final Determined Role:', finalRole);
+      
+      setUserRole(finalRole as AppRole);
+      setVerificationStatus(finalStatus);
+    } catch (err: any) {
+      console.error("Exception in refreshUserRole:", err);
+      toast({
+          title: "Critical Fetch Error",
+          description: err.message || "Unknown error occurred.",
+          variant: "destructive",
+      });
       setUserRole('parent');
     }
   }, [user?.id, toast]);
@@ -340,10 +304,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isStaff = userRole === 'staff';
   const isTeacher = userRole === 'teacher';
   const isTeacherAssistant = userRole === 'teacher_assistant';
+  const isVolunteer = userRole === 'volunteer';
+  const isKiosk = userRole === 'kiosk';
 
   const isVerifiedStaff =
     (isStaff || isTeacher || isTeacherAssistant || isAdmin) &&
     verificationStatus === 'verified';
+
+  // Granular permission check
+  const hasPermission = useCallback((permissionName: string): boolean => {
+    if (isSuperAdmin) return true;
+    
+    // Basic mapping for now until we fetch full permission set
+    const permissionMap: Record<string, string[]> = {
+      'access_kiosk': ['admin', 'super_admin', 'staff', 'teacher', 'kiosk'],
+      'manage_users': ['admin', 'super_admin'],
+      'view_audit_logs': ['admin', 'super_admin'],
+    };
+
+    if (permissionMap[permissionName]) {
+      return permissionMap[permissionName].includes(userRole || '');
+    }
+    
+    return false;
+  }, [isSuperAdmin, userRole]);
 
   const value = {
     user,
@@ -358,9 +342,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isStaff,
     isTeacher,
     isTeacherAssistant,
+    isVolunteer,
+    isKiosk,
     verificationStatus,
     isVerifiedStaff,
     hasRole,
+    hasPermission,
   };
 
   return (

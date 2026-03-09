@@ -10,7 +10,8 @@
 -- BUT only for the 'parent' role and only for their own user_id.
 
 -- Only applies on INSERT; users cannot change their own role via this path.
-CREATE POLICY IF NOT EXISTS "Users can insert their own initial role"
+DROP POLICY IF EXISTS "Users can insert their own initial role" ON public.user_roles;
+CREATE POLICY "Users can insert their own initial role"
 ON public.user_roles
 FOR INSERT
 TO authenticated

@@ -53,7 +53,7 @@ export const useStaffVerification = () => {
         queryKey: ["staff-verification-status", user?.id],
         queryFn: async () => {
             if (!user?.id) return null;
-            const { data, error } = await supabase.rpc('get_staff_verification_status', {
+            const { data, error } = await supabase.rpc('get_staff_verification_status' as any, {
                 p_user_id: user.id
             });
             if (error) {
@@ -104,7 +104,7 @@ export const useStaffVerification = () => {
     const pendingVerificationsQuery = useQuery({
         queryKey: ["pending-staff-verifications"],
         queryFn: async () => {
-            const { data, error } = await supabase.rpc('get_pending_staff_verifications');
+            const { data, error } = await supabase.rpc('get_pending_staff_verifications' as any);
             if (error) {
                 console.error("Error fetching pending verifications:", error);
                 return [];
@@ -192,14 +192,20 @@ export const useStaffVerification = () => {
 
     // Admin: approve a document
     const approveDocumentMutation = useMutation({
-        mutationFn: async (documentId: string) => {
+        mutationFn: async ({ documentId, expiresAt }: { documentId: string; expiresAt?: string }) => {
+            const updatePayload: any = {
+                status: 'approved',
+                reviewed_at: new Date().toISOString(),
+                reviewed_by: user?.id,
+            };
+            
+            if (expiresAt) {
+                updatePayload.expires_at = expiresAt;
+            }
+
             const { error } = await (supabase
                 .from('staff_documents' as any) as any)
-                .update({
-                    status: 'approved',
-                    reviewed_at: new Date().toISOString(),
-                    reviewed_by: user?.id,
-                } as any)
+                .update(updatePayload)
                 .eq('id', documentId);
             if (error) throw error;
         },
@@ -239,12 +245,14 @@ export const useStaffVerification = () => {
 
     // Admin: approve or reject a staff member's overall verification
     const verifyStaffMutation = useMutation({
-        mutationFn: async ({ userId, action, notes }: {
+        mutationFn: async ({ userId, action, notes, email, name }: {
             userId: string;
             action: 'approve' | 'reject';
             notes?: string;
+            email: string;
+            name: string;
         }) => {
-            const { data, error } = await supabase.rpc('admin_verify_staff', {
+            const { data, error } = await supabase.rpc('admin_verify_staff' as any, {
                 p_user_id: userId,
                 p_action: action,
                 p_notes: notes || null,
@@ -252,6 +260,25 @@ export const useStaffVerification = () => {
             if (error) throw error;
             const res = data as any;
             if (!res?.success) throw new Error(res?.error || 'Verification failed');
+            
+            // Send email notification dynamically based on action
+            const subject = action === 'approve' 
+              ? "KiddoChecker - Staff Account Approved" 
+              : "KiddoChecker - Staff Account Verification Issue";
+            
+            const message = action === 'approve'
+              ? `Hello ${name},<br/><br/>Good news! Your staff documentation has been approved by an administrator. You now have full access to your staff portal and features.<br/><br/>You can log in to your dashboard anytime to begin.`
+              : `Hello ${name},<br/><br/>There is an issue with your staff verification documents.<br/><br/><strong>Administrator Feedback:</strong><br/>${notes || "Please log in to review your specific document notifications and upload a new copy."}<br/><br/>Please rectify this as soon as possible.`;
+
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: email,
+                subject,
+                message,
+                type: 'general',
+              }
+            });
+
             return res;
         },
         onSuccess: (_, variables) => {
@@ -261,7 +288,7 @@ export const useStaffVerification = () => {
             toast({
                 title: variables.action === 'approve' ? "Staff Verified" : "Staff Rejected",
                 description: variables.action === 'approve'
-                    ? "The staff member now has full access to the platform."
+                    ? "The staff member now has full access. Email sent."
                     : "The staff member has been notified of the rejection.",
             });
         },

@@ -120,20 +120,22 @@ const AttendancePage = () => {
       <UnifiedDashboardLayout>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Attendance Tracking</h1>
-              <p className="text-muted-foreground flex items-center gap-2">
-                Monitor attendance and check-in history
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                Attendance Tracking
                 {isConnected && (
-                  <Badge variant="outline" className="text-green-600 border-green-600">
-                    <span className="w-2 h-2 bg-green-600 rounded-full mr-1 animate-pulse" />
+                  <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
+                    <span className="w-2 h-2 bg-green-600 rounded-full mr-1.5 animate-pulse" />
                     Live
                   </Badge>
                 )}
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Monitor attendance and check-in history
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap lg:justify-end">
               <Button onClick={() => setShowCheckInDialog(true)}>
                 <CheckSquare className="h-4 w-4 mr-2" />
                 Manual Check-In

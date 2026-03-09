@@ -13,6 +13,7 @@ import {
   Users, Loader2, ExternalLink, Search
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useStaffVerification, StaffDocument, PendingVerification } from '@/hooks/useStaffVerification';
 import { format } from 'date-fns';
 
@@ -38,6 +39,10 @@ const AdminDocumentVerificationSystem = () => {
     requirements,
   } = useStaffVerification();
 
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [approvingDocId, setApprovingDocId] = useState<string | null>(null);
+  const [issuanceDate, setIssuanceDate] = useState('');
+
   // Load documents when a staff member is selected
   useEffect(() => {
     if (selectedStaff) {
@@ -57,14 +62,46 @@ const AdminDocumentVerificationSystem = () => {
     if (url) window.open(url, '_blank');
   };
 
-  const handleApproveDoc = (docId: string) => {
-    approveDocument(docId, {
-      onSuccess: () => {
-        setStaffDocuments(prev => prev.map(d =>
-          d.id === docId ? { ...d, status: 'approved' as const } : d
-        ));
-      },
-    });
+  const handleApproveClick = (docId: string, docType: string) => {
+    const req = requirements.find(r => r.document_type === docType);
+    if (req?.has_expiry) {
+      setApprovingDocId(docId);
+      setIssuanceDate(new Date().toISOString().split('T')[0]); // Default to today
+      setShowApproveDialog(true);
+    } else {
+      executeApprove(docId);
+    }
+  };
+
+  const executeApprove = (docId: string, expiryDate?: string) => {
+    approveDocument(
+      { documentId: docId, expiresAt: expiryDate },
+      {
+        onSuccess: () => {
+          setStaffDocuments(prev => prev.map(d =>
+            d.id === docId ? { ...d, status: 'approved' as const, expires_at: expiryDate || undefined } : d
+          ));
+          setShowApproveDialog(false);
+          setApprovingDocId(null);
+          setIssuanceDate('');
+        },
+      }
+    );
+  };
+
+  const submitExpiryApproval = () => {
+    if (!approvingDocId || !issuanceDate) return;
+    const doc = staffDocuments.find(d => d.id === approvingDocId);
+    if (!doc) return;
+    const req = requirements.find(r => r.document_type === doc.document_type);
+    
+    // Default to 12 months if not specified, 36 (3 years) specifically for police check if configured differently later
+    const months = req?.expiry_months || (doc.document_type === 'police_check' ? 36 : 12); 
+    
+    const issueDateObj = new Date(issuanceDate);
+    issueDateObj.setMonth(issueDateObj.getMonth() + months);
+
+    executeApprove(approvingDocId, issueDateObj.toISOString());
   };
 
   const handleRejectDoc = () => {
@@ -87,7 +124,13 @@ const AdminDocumentVerificationSystem = () => {
   const handleVerifyStaff = (action: 'approve' | 'reject') => {
     if (!selectedStaff) return;
     verifyStaff(
-      { userId: selectedStaff.user_id, action, notes: verificationNotes || undefined },
+      { 
+        userId: selectedStaff.user_id, 
+        action, 
+        notes: verificationNotes || undefined,
+        email: selectedStaff.email,
+        name: selectedStaff.first_name || 'Staff'
+      },
       {
         onSuccess: () => {
           setSelectedStaff(null);
@@ -318,7 +361,7 @@ const AdminDocumentVerificationSystem = () => {
                                   <Button
                                     size="sm"
                                     className="bg-emerald-600 hover:bg-emerald-700 h-8"
-                                    onClick={() => handleApproveDoc(doc.id)}
+                                    onClick={() => handleApproveClick(doc.id, doc.document_type)}
                                   >
                                     <CheckCircle className="h-3.5 w-3.5 mr-1" />
                                     Approve
@@ -435,6 +478,39 @@ const AdminDocumentVerificationSystem = () => {
             >
               <XCircle className="h-4 w-4 mr-2" />
               Reject Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve Document with Expiry Dialog */}
+      <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-emerald-600" /> 
+              Approve Expected Document
+            </DialogTitle>
+            <DialogDescription>
+              This document expires periodically. Please enter the Date of Issuance (or last renewal date) so the system can calculate when it expires next.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label>Date of Issuance <span className="text-red-500">*</span></Label>
+              <Input
+                type="date"
+                value={issuanceDate}
+                onChange={(e) => setIssuanceDate(e.target.value)}
+                className="mt-2"
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowApproveDialog(false)}>Cancel</Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={submitExpiryApproval} disabled={!issuanceDate}>
+              Approve Document
             </Button>
           </DialogFooter>
         </DialogContent>
