@@ -59,7 +59,7 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
     resolver: zodResolver(roleSchema),
     defaultValues: {
       userId: selectedUser?.id || "",
-      role: (selectedUser?.role as AppRole) || "parent",
+      role: (selectedUser?.role as any) || "parent",
       isSuperAdmin: selectedUser?.roleData?.is_super_admin || false,
       isVolunteer: selectedUser?.roleData?.is_volunteer || false,
     },
