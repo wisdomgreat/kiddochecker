@@ -6,11 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, UserCheck, CheckCircle, AlertCircle, Maximize, Loader2,
   Info, MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Camera, Baby, Phone, User, ArrowRight, Printer,
+  Camera, Baby, Phone, User, ArrowRight, Printer, Mail,
 } from 'lucide-react';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import QRCodeScanner from '@/components/qr/QRCodeScanner';
 import ClassSelectionDialog from './ClassSelectionDialog';
 import NameTagPrintDialog from './NameTagPrintDialog';
@@ -69,6 +70,7 @@ const KioskCheckInSystem = () => {
 
   const phoneRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { sendCheckInNotification, sendCheckOutNotification } = useEmailNotifications();
 
   // ─── Boot ───
   useEffect(() => {
@@ -152,17 +154,45 @@ const KioskCheckInSystem = () => {
       const searchVal = parentPhone.trim();
       const { data: profiles, error } = await (supabase
         .from('profiles')
-        .select('id, first_name, last_name, phone, security_pin')
+        .select('id, first_name, last_name, phone, security_pin, email')
         .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`) as any);
 
       if (error || !profiles || profiles.length === 0) {
-        setParentLoginError('No account found. Please check your details.');
-        setIsLoading(false);
-        return;
+        // Fallback: try searching in auth_users_emails_view if no profile with email found?
+        // Actually, we'll try to find any profile and then get email from the view
+        const { data: profilesNoEmail, error: errorNoEmail } = await (supabase
+          .from('profiles')
+          .select('id, first_name, last_name, phone, security_pin')
+          .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`) as any);
+        
+        if (errorNoEmail || !profilesNoEmail || profilesNoEmail.length === 0) {
+          setParentLoginError('No account found. Please check your details.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Find matching PIN in the list of profiles
+        const matchedProfile = profilesNoEmail.find((p: any) => p.security_pin === parentPin);
+        if (!matchedProfile) {
+          setParentLoginError('Incorrect PIN. Please try again.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Try to get email from the view
+        const { data: emailData } = await (supabase
+          .from('auth_users_emails_view' as any)
+          .select('email' as any)
+          .eq('id', matchedProfile.id)
+          .single() as any);
+        
+        (matchedProfile as any).email = emailData?.email;
+        (profiles as any[])[0] = matchedProfile; // Use this as the profiles array for subsequent logic
+      } else {
+        // We have profiles with (potentially) email
       }
 
-      // Find matching PIN
-      const matched = profiles.find((p: any) => p.security_pin === parentPin);
+      const matched: any = (profiles as any[]).find((p: any) => p.security_pin === parentPin);
       if (!matched) {
         setParentLoginError('Incorrect PIN. Please try again.');
         setIsLoading(false);
@@ -181,7 +211,7 @@ const KioskCheckInSystem = () => {
       setParentChildren(kids || []);
       setParentLoggedIn(true);
 
-      await logActivity('parent_login', { parent_id: matched.id, parent_name: `${matched.first_name} ${matched.last_name}` });
+      await logActivity('parent_login', { parent_id: matched.id, parent_name: `${matched.first_name} ${matched.last_name}`, email: matched.email });
     } catch (e: any) {
       setParentLoginError(e.message || 'Login failed');
     } finally {
@@ -331,6 +361,37 @@ const KioskCheckInSystem = () => {
         await logActivity('check_out', {
           child_id: record.child_id, child_name: `${record.child?.first_name} ${record.child?.last_name}`,
         });
+        
+        // Notify Parent
+        try {
+          const parentId = record.child?.parent_id;
+          if (parentId) {
+            let email = '';
+            const { data: profileData } = await (supabase
+              .from('profiles')
+              .select('email' as any)
+              .eq('id', parentId)
+              .single() as any);
+            
+            email = profileData?.email;
+            
+            if (!email) {
+              const { data: viewData } = await (supabase
+                .from('auth_users_emails_view' as any)
+                .select('email' as any)
+                .eq('id', parentId)
+                .single() as any);
+              email = viewData?.email || '';
+            }
+
+            if (email) {
+              sendCheckOutNotification(email, `${record.child?.first_name} ${record.child?.last_name}`, record.class?.name || 'Class');
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to send check-out notification:', err);
+        }
+
         showSuccess(`${record.child?.first_name} checked out`);
         await loadTodayData();
         toast({ title: "✅ Checked Out", description: `${record.child?.first_name} ${record.child?.last_name}` });
