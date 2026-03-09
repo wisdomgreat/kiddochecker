@@ -8,28 +8,40 @@ import { Html5Qrcode } from 'html5-qrcode';
 
 interface QRCodeScannerProps {
   onScanComplete: (data: string) => void;
-  isScanning?: boolean;
-  /** If true, automatically start scanning on mount */
-  autoStart?: boolean;
   /** Dark mode styling for kiosk */
   darkMode?: boolean;
 }
 
 const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
   onScanComplete,
-  isScanning = false,
-  autoStart = false,
   darkMode = false,
 }) => {
   const [isActive, setIsActive] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
   const [manualInput, setManualInput] = useState('');
-  const [lastScanned, setLastScanned] = useState<string>('');
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [lastScanned, setLastScanned] = useState('');
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const readerDivRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
   const { toast } = useToast();
+
+  // Always keep this ref true while mounted
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const stopScanning = useCallback(async () => {
+    if (scannerRef.current) {
+      try { await scannerRef.current.stop(); } catch {}
+      try { scannerRef.current.clear(); } catch {}
+      scannerRef.current = null;
+    }
+    if (mountedRef.current) {
+      setIsActive(false);
+      setLastScanned('');
+    }
+  }, []);
 
   const startScanning = useCallback(async () => {
     if (isActive || isStarting) return;
@@ -37,117 +49,70 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     setErrorMessage('');
 
     try {
-      // Wait for next frame to ensure the div is rendered
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      
-      // Double-check the element exists
-      const element = document.getElementById('qr-reader-container');
-      if (!element) {
-        throw new Error('Scanner container not found in DOM');
-      }
+      // Ensure previous instance is cleaned up
+      await stopScanning();
 
-      // Clean up any previous instance
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.stop();
-          scannerRef.current.clear();
-        } catch {}
-        scannerRef.current = null;
-      }
+      // Wait for DOM to settle
+      await new Promise(r => setTimeout(r, 200));
 
-      const html5QrCode = new Html5Qrcode("qr-reader-container");
+      const el = document.getElementById('kiosk-qr-reader');
+      if (!el) throw new Error('Scanner container not found');
+
+      const html5QrCode = new Html5Qrcode('kiosk-qr-reader');
       scannerRef.current = html5QrCode;
 
-      // Try to get available cameras first
-      const devices = await Html5Qrcode.getCameras();
-      console.log('[QR Scanner] Available cameras:', devices.length, devices);
-
-      if (devices.length === 0) {
-        throw new Error('No cameras found on this device. Try connecting an external camera or using a Bluetooth scanner instead.');
+      // Enumerate cameras
+      let devices: any[] = [];
+      try {
+        devices = await Html5Qrcode.getCameras();
+      } catch (e) {
+        console.warn('[QR] getCameras failed, trying facingMode fallback');
       }
 
-      // Prefer back camera, fallback to first available
-      const backCamera = devices.find(d =>
-        d.label.toLowerCase().includes('back') ||
-        d.label.toLowerCase().includes('rear') ||
-        d.label.toLowerCase().includes('environment')
-      );
-
-      const cameraConfig = backCamera
-        ? { deviceId: { exact: backCamera.id } }
-        : { facingMode: "environment" };
+      let cameraConfig: any = { facingMode: 'environment' };
+      if (devices.length > 0) {
+        const back = devices.find((d: any) =>
+          /back|rear|environment/i.test(d.label || '')
+        );
+        if (back) cameraConfig = { deviceId: { exact: back.id } };
+      }
 
       await html5QrCode.start(
-        cameraConfig as any,
+        cameraConfig,
         {
           fps: 15,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-            const minDim = Math.min(viewfinderWidth, viewfinderHeight);
-            const size = Math.floor(minDim * 0.7);
-            return { width: size, height: size };
+          qrbox: (w: number, h: number) => {
+            const s = Math.floor(Math.min(w, h) * 0.65);
+            return { width: s, height: s };
           },
-          aspectRatio: 1.0,
         },
-        (decodedText) => {
+        (decodedText: string) => {
           if (decodedText !== lastScanned) {
             setLastScanned(decodedText);
-            // Vibrate on successful scan
             if ('vibrate' in navigator) navigator.vibrate(200);
             onScanComplete(decodedText);
-            toast({
-              title: "✅ QR Code Scanned",
-              description: "Processing check-in...",
-            });
           }
         },
         undefined
       );
 
-      setIsActive(true);
-      setHasPermission(true);
-      console.log('[QR Scanner] Camera started successfully');
+      if (mountedRef.current) {
+        setIsActive(true);
+      }
     } catch (error: any) {
-      console.error('[QR Scanner] Camera error:', error);
-      setHasPermission(false);
+      console.error('[QR] Camera error:', error);
       const msg = error?.message || String(error);
-      
-      let userMessage = 'Camera access failed.';
-      if (msg.includes('NotAllowedError') || msg.includes('Permission')) {
-        userMessage = 'Camera permission denied. Please allow camera access in your browser settings, then reload.';
-      } else if (msg.includes('NotFoundError') || msg.includes('No cameras')) {
-        userMessage = msg;
-      } else if (msg.includes('NotReadableError') || msg.includes('in use')) {
-        userMessage = 'Camera is being used by another application. Close other apps and try again.';
-      } else if (msg.includes('OverconstrainedError')) {
-        userMessage = 'Camera configuration error. Try a different camera.';
-      } else {
-        userMessage = msg;
-      }
-      
-      setErrorMessage(userMessage);
-      toast({
-        title: "Camera Access Failed",
-        description: userMessage,
-        variant: "destructive",
-      });
+      let userMsg = 'Camera failed to start.';
+      if (/NotAllowed|Permission/i.test(msg)) userMsg = 'Camera permission denied. Allow camera access in your browser settings, then reload.';
+      else if (/NotFound|No cameras/i.test(msg)) userMsg = 'No camera found on this device.';
+      else if (/NotReadable|in use/i.test(msg)) userMsg = 'Camera in use by another app. Close it and retry.';
+      else if (/Overconstrained/i.test(msg)) userMsg = 'Camera config error. Try a different device.';
+      else userMsg = msg.substring(0, 120);
+      if (mountedRef.current) setErrorMessage(userMsg);
     } finally {
-      setIsStarting(false);
+      if (mountedRef.current) setIsStarting(false);
     }
-  }, [isActive, isStarting, lastScanned, onScanComplete, toast]);
-
-  const stopScanning = useCallback(async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-      } catch (error) {
-        console.error('[QR Scanner] Error stopping:', error);
-      }
-      scannerRef.current = null;
-    }
-    setIsActive(false);
-    setLastScanned('');
-  }, []);
+  }, [isActive, isStarting, lastScanned, onScanComplete, stopScanning]);
 
   const handleManualSubmit = () => {
     if (manualInput.trim()) {
@@ -156,100 +121,73 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({
     }
   };
 
-  // Auto-start if requested
-  useEffect(() => {
-    if (autoStart) {
-      // Small delay to ensure DOM is ready
-      const timer = setTimeout(() => startScanning(), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [autoStart]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
-        try {
-          scannerRef.current.stop();
-          scannerRef.current.clear();
-        } catch {}
+        try { scannerRef.current.stop(); } catch {}
+        try { scannerRef.current.clear(); } catch {}
         scannerRef.current = null;
       }
     };
   }, []);
 
-  const bgClass = darkMode ? 'bg-white/[0.05] border-white/10' : 'bg-white border-slate-200';
-  const textClass = darkMode ? 'text-white' : 'text-slate-900';
-  const mutedClass = darkMode ? 'text-white/50' : 'text-muted-foreground';
-
   return (
-    <div className={`rounded-2xl border ${bgClass} overflow-hidden`}>
-      {/* The scanner div MUST always be in the DOM, we use hidden to control visibility */}
-      <div className={isActive ? 'block' : 'hidden'}>
-        <div id="qr-reader-container" ref={readerDivRef} className="w-full" />
-        <div className="p-3 flex gap-2">
-          <Button
-            onClick={stopScanning}
-            variant="outline"
-            className={`flex-1 ${darkMode ? 'border-white/20 text-white/70 hover:bg-white/10' : ''}`}
-          >
-            <X className="h-4 w-4 mr-2" />
-            Stop Camera
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-3">
+      {/* Scanner container — MUST always be in DOM */}
+      <div
+        id="kiosk-qr-reader"
+        className={`w-full rounded-2xl overflow-hidden ${isActive ? 'block' : 'hidden'}`}
+      />
+
+      {isActive && (
+        <Button
+          onClick={stopScanning}
+          variant="outline"
+          size="sm"
+          className={`w-full rounded-xl ${darkMode ? 'border-white/15 text-white/60 hover:bg-white/5' : ''}`}
+        >
+          <X className="h-4 w-4 mr-1.5" /> Stop Camera
+        </Button>
+      )}
 
       {!isActive && (
-        <div className="p-4 space-y-4">
-          {/* Error state */}
-          {errorMessage && (
-            <div className={`flex items-start gap-3 p-3 rounded-xl ${darkMode ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'}`}>
-              <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
-              <div>
-                <p className={`text-sm font-medium ${darkMode ? 'text-red-300' : 'text-red-800'}`}>{errorMessage}</p>
-                <Button size="sm" variant="outline" onClick={() => { setErrorMessage(''); setHasPermission(null); }} className="mt-2 text-xs">
-                  Try Again
+        <>
+          {errorMessage ? (
+            <div className={`flex items-start gap-2.5 p-3 rounded-xl ${darkMode ? 'bg-red-500/10 border border-red-500/15' : 'bg-red-50 border border-red-200'}`}>
+              <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${darkMode ? 'text-red-400' : 'text-red-600'}`} />
+              <div className="flex-1">
+                <p className={`text-xs ${darkMode ? 'text-red-300' : 'text-red-700'}`}>{errorMessage}</p>
+                <Button size="sm" variant="ghost" onClick={() => { setErrorMessage(''); startScanning(); }} className="mt-1.5 text-xs h-7 px-2">
+                  Retry
                 </Button>
               </div>
             </div>
+          ) : (
+            <Button
+              onClick={startScanning}
+              disabled={isStarting}
+              className={`w-full h-14 rounded-xl text-base font-semibold ${darkMode ? 'bg-indigo-600 hover:bg-indigo-500 text-white' : 'bg-primary text-primary-foreground'}`}
+            >
+              {isStarting ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Starting Camera...</> : <><Camera className="h-5 w-5 mr-2" />Start Camera</>}
+            </Button>
           )}
-
-          {/* Start camera button */}
-          {!errorMessage && (
-            <div className="text-center py-4">
-              <Button
-                onClick={startScanning}
-                disabled={isStarting}
-                size="lg"
-                className={`h-12 px-6 rounded-xl ${darkMode ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}`}
-              >
-                {isStarting ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Starting Camera...</>
-                ) : (
-                  <><Camera className="h-4 w-4 mr-2" /> Start Camera</>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Manual input always available */}
-          <div className="space-y-1.5">
-            <label className={`text-xs font-medium ${mutedClass}`}>Manual / Bluetooth Scanner Entry</label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Scan or type QR code..."
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleManualSubmit()}
-                className={`${darkMode ? 'bg-white/10 border-white/20 text-white placeholder:text-white/30' : ''}`}
-              />
-              <Button onClick={handleManualSubmit} variant="outline" className={darkMode ? 'border-white/20 text-white/70' : ''}>
-                <Scan className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        </>
       )}
+
+      {/* Manual / Bluetooth entry */}
+      <div className="flex gap-2">
+        <Input
+          placeholder="Manual / Bluetooth scan entry..."
+          value={manualInput}
+          onChange={e => setManualInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
+          className={`text-sm rounded-xl ${darkMode ? 'bg-white/[0.06] border-white/10 text-white placeholder:text-white/25' : ''}`}
+        />
+        <Button onClick={handleManualSubmit} variant="outline" size="icon" className={`rounded-xl shrink-0 ${darkMode ? 'border-white/10 text-white/50' : ''}`}>
+          <Scan className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };
