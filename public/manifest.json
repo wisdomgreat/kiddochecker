@@ -1,38 +1,21 @@
-
 {
-  "name": "KiddoChecker - Child Check-In System",
-  "short_name": "KiddoChecker",
-  "description": "Safe and secure child check-in and check-out management system",
-  "start_url": "/",
+  "name": "KiddoChecker Kiosk",
+  "short_name": "KiddoCheck",
+  "description": "Children's ministry check-in kiosk terminal",
+  "start_url": "/device-login",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
     }
   ],
-  "categories": ["education", "productivity", "utilities"],
-  "screenshots": [
-    {
-      "src": "/screenshot-wide.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshot-narrow.png",
-      "sizes": "640x1136",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ]
+  "categories": ["utilities", "productivity"],
+  "scope": "/",
+  "lang": "en",
+  "prefer_related_applications": false
 }

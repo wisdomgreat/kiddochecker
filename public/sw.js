@@ -1,29 +1,57 @@
+// KiddoChecker Kiosk Service Worker
+// Enables PWA install and offline capability for kiosk terminals
 
-const CACHE_NAME = 'kiddochecker-v1';
-const urlsToCache = [
+const CACHE_NAME = 'kiddochecker-kiosk-v1';
+const URLS_TO_CACHE = [
   '/',
-  '/login',
-  '/parent-registration',
-  '/check-in-kiosk',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json'
+  '/device-login',
+  '/check-in',
+  '/check-out',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(URLS_TO_CACHE);
+    })
   );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      );
+    })
+  );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
+  // Network-first strategy for API calls, cache-first for assets
+  if (event.request.url.includes('/functions/') || event.request.url.includes('/rest/') || event.request.url.includes('/auth/')) {
+    // Network only for API calls
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
+    fetch(event.request)
       .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      }
-    )
+        // Cache successful responses
+        if (response.ok) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
   );
 });

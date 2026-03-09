@@ -1,7 +1,10 @@
 
+-- Enable uuid-ossp extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Create email_templates table
 CREATE TABLE IF NOT EXISTS public.email_templates (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL,
     subject TEXT NOT NULL,
     body_html TEXT NOT NULL,
@@ -15,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.email_templates (
 ALTER TABLE public.email_templates ENABLE ROW LEVEL SECURITY;
 
 -- Policies
+DROP POLICY IF EXISTS "Super admins can manage email templates" ON public.email_templates;
 CREATE POLICY "Super admins can manage email templates" 
     ON public.email_templates 
     FOR ALL 
@@ -27,6 +31,7 @@ CREATE POLICY "Super admins can manage email templates"
         )
     );
 
+DROP POLICY IF EXISTS "Authenticated users can view email templates" ON public.email_templates;
 CREATE POLICY "Authenticated users can view email templates" 
     ON public.email_templates 
     FOR SELECT 

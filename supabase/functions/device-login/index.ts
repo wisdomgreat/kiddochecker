@@ -16,7 +16,7 @@ serve(async (req) => {
 
     if (!code) {
       return new Response(JSON.stringify({ error: 'Device code is required' }), {
-        status: 400,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -33,6 +33,7 @@ serve(async (req) => {
     });
 
     // 1. Verify Device Code
+    console.log(`[Device Login] Verifying code: ${code}`);
     const { data: device, error: deviceError } = await supabaseAdmin
       .from('enrolled_devices')
       .select('*')
@@ -41,11 +42,13 @@ serve(async (req) => {
       .single();
 
     if (deviceError || !device) {
+      console.error(`[Device Login Error] Code: ${code}, Error:`, deviceError, 'Device:', device);
       return new Response(JSON.stringify({ error: 'Invalid or inactive device code' }), {
-        status: 401,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    console.log(`[Device Login] Device found:`, device.id, device.name);
 
     // 2. Verify PIN Security Settings
     const { data: requirePinSetting } = await supabaseAdmin
@@ -59,7 +62,7 @@ serve(async (req) => {
     if (requirePin) {
       if (!pin) {
         return new Response(JSON.stringify({ error: 'Master PIN required' }), {
-          status: 401,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -72,7 +75,7 @@ serve(async (req) => {
 
       if (pinSetting?.setting_value !== pin) {
         return new Response(JSON.stringify({ error: 'Invalid Master PIN' }), {
-          status: 401,
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }

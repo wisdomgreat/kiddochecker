@@ -1,8 +1,16 @@
 import React from 'react';
 import KioskCheckInSystem from '@/components/kiosk/KioskCheckInSystem';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
+import { useAuth } from '@/context/AuthContext';
 
 const CheckInPage = () => {
+  const { userRole } = useAuth();
+
+  // Kiosk devices get a full-screen immersive experience without the sidebar
+  if (userRole === 'kiosk') {
+    return <KioskCheckInSystem />;
+  }
+
   return (
     <UnifiedDashboardLayout>
       <div className="space-y-6">

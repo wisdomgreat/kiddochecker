@@ -158,7 +158,7 @@ serve(async (req) => {
             role: role as any,
             is_super_admin: role === 'super_admin',
             is_volunteer: (data as CreateUserRequest).isVolunteer ?? false,
-            verification_status: 'verified'
+            verification_status: 'unverified'
           }, { onConflict: 'user_id' });
 
         if (roleError) {
