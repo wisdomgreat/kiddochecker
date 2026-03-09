@@ -88,11 +88,11 @@ const KioskCheckInSystem = () => {
 
   const loadEvents = async () => {
     try {
-      const { data } = await supabase
-        .from('events' as any)
+      const { data } = await (supabase
+        .from('events') as any)
         .select('*')
-        .eq('is_public' as any, true)
-        .gte('start_date' as any, new Date().toISOString())
+        .eq('is_public', true)
+        .gte('start_date', new Date().toISOString())
         .order('start_date', { ascending: true })
         .limit(3);
       setUpcomingEvents(data || []);
