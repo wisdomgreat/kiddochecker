@@ -192,7 +192,7 @@ const KioskCheckInSystem = () => {
       const searchVal = parentPhone.trim();
       const { data: profiles, error } = await (supabase
         .from('profiles')
-        .select('id, first_name, last_name, phone, security_pin, email')
+        .select('id, first_name, last_name, phone, security_pin')
         .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`) as any);
 
       if (error || !profiles || profiles.length === 0) {
