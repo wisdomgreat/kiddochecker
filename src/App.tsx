@@ -17,6 +17,7 @@ import { Loader2 } from "lucide-react";
 const Index = lazy(() => import("./pages/Index"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const DeviceLoginPage = lazy(() => import("./pages/DeviceLoginPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 // Dashboards
@@ -51,6 +52,7 @@ const ParentProfilePage = lazy(() => import("./pages/ParentProfilePage"));
 const ChildMedicalProfile = lazy(() => import("./pages/ChildMedicalProfile"));
 const QRManagementPage = lazy(() => import("./pages/QRManagementPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
+const EmailTemplatesPage = lazy(() => import("./pages/EmailTemplatesPage"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -87,6 +89,7 @@ function App() {
                   {/* Public Routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/device-login" element={<DeviceLoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/landing" element={<LandingPage />} />
                   <Route path="/check-in" element={
@@ -139,6 +142,7 @@ function App() {
                   <Route path="/staff/documents" element={<ProtectedRoute><StaffDocumentUpload /></ProtectedRoute>} />
                   <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
                   <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
+                  <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EmailTemplatesPage /></RoleBasedRoute>} />
 
                   {/* Catch all route */}
                   <Route path="*" element={<Navigate to="/" replace />} />

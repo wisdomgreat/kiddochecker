@@ -4,25 +4,52 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import {
-    Monitor, Plus, Trash2, RefreshCw, QrCode, Printer, Tablet,
-    Smartphone, CheckCircle2, Shield, Zap, Copy, Clock,
-    Activity, AlertTriangle, Database, ToggleRight
+  Monitor,
+  Plus,
+  Trash2,
+  RefreshCw,
+  QrCode,
+  Printer,
+  Tablet,
+  Smartphone,
+  CheckCircle2,
+  Shield,
+  Zap,
+  Copy,
+  Clock,
+  Activity,
+  AlertTriangle,
+  Database,
+  ToggleRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-    DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel,
-    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-    AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
@@ -34,563 +61,798 @@ import { v4 as uuidv4 } from "uuid";
 const LS_KEY = "kiddochecker_devices_fallback";
 
 const DEVICE_TYPES = [
-    { value: "kiosk", label: "Check-In Kiosk", icon: Monitor, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { value: "tablet", label: "Tablet", icon: Tablet, color: "text-blue-600", bg: "bg-blue-50" },
-    { value: "phone", label: "Mobile Phone", icon: Smartphone, color: "text-purple-600", bg: "bg-purple-50" },
-    { value: "printer", label: "Label Printer", icon: Printer, color: "text-emerald-600", bg: "bg-emerald-50" },
+  {
+    value: "kiosk",
+    label: "Check-In Kiosk",
+    icon: Monitor,
+    color: "text-indigo-600",
+    bg: "bg-indigo-50",
+  },
+  {
+    value: "tablet",
+    label: "Tablet",
+    icon: Tablet,
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+  },
+  {
+    value: "phone",
+    label: "Mobile Phone",
+    icon: Smartphone,
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+  },
+  {
+    value: "printer",
+    label: "Label Printer",
+    icon: Printer,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+  },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-    active: "badge-success",
-    pending: "badge-warning",
-    offline: "badge-danger",
-    revoked: "bg-slate-100 text-slate-500",
+  active: "badge-success",
+  pending: "badge-warning",
+  offline: "badge-danger",
+  revoked: "bg-slate-100 text-slate-500",
 };
 
 // ─── Utilities ────────────────────────────────────────────────
 const generateCode = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    return Array.from({ length: 8 }, (_, i) =>
-        (i === 3 ? "-" : "") + chars[Math.floor(Math.random() * chars.length)]
-    ).join("");
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from(
+    { length: 8 },
+    (_, i) =>
+      (i === 3 ? "-" : "") + chars[Math.floor(Math.random() * chars.length)],
+  ).join("");
 };
 
 // ─── Types ────────────────────────────────────────────────────
 interface DeviceRow {
-    id: string;
-    name: string;
-    type: string;
-    location?: string | null;
-    enrollment_code: string;
-    status: string;
-    enrolled_by?: string | null;
-    last_seen?: string | null;
-    device_info?: any;
-    enrolled_at: string;
-    revoked_at?: string | null;
-    notes?: string | null;
+  id: string;
+  name: string;
+  type: string;
+  location?: string | null;
+  enrollment_code: string;
+  status: string;
+  enrolled_by?: string | null;
+  last_seen?: string | null;
+  device_info?: any;
+  enrolled_at: string;
+  revoked_at?: string | null;
+  notes?: string | null;
 }
 
 interface FormState {
-    name: string;
-    type: string;
-    location: string;
-    notes: string;
+  name: string;
+  type: string;
+  location: string;
+  notes: string;
 }
 
 // ─── Helpers: localStorage fallback
 const lsLoad = (): DeviceRow[] => {
-    try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); }
-    catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+  } catch {
+    return [];
+  }
 };
-const lsSave = (d: DeviceRow[]) => localStorage.setItem(LS_KEY, JSON.stringify(d));
+const lsSave = (d: DeviceRow[]) =>
+  localStorage.setItem(LS_KEY, JSON.stringify(d));
 
 // ─── Component ────────────────────────────────────────────────
 const DeviceEnrollmentPage = () => {
-    const { user } = useAuth();
-    const { toast } = useToast();
-    const qc = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
-    const [dbAvailable, setDbAvailable] = useState<boolean | null>(null); // null = checking
-    const [showAdd, setShowAdd] = useState(false);
-    const [deleteId, setDeleteId] = useState<string | null>(null);
-    const [revokeId, setRevokeId] = useState<string | null>(null);
-    const [enrollCode, setEnrollCode] = useState(generateCode());
-    const [form, setForm] = useState<FormState>({ name: "", type: "kiosk", location: "", notes: "" });
-    // fallback local devices (when DB unavailable)
-    const [localDevices, setLocalDevices] = useState<DeviceRow[]>(lsLoad);
+  const [dbAvailable, setDbAvailable] = useState<boolean | null>(null); // null = checking
+  const [showAdd, setShowAdd] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [revokeId, setRevokeId] = useState<string | null>(null);
+  const [enrollCode, setEnrollCode] = useState(generateCode());
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    type: "kiosk",
+    location: "",
+    notes: "",
+  });
+  // fallback local devices (when DB unavailable)
+  const [localDevices, setLocalDevices] = useState<DeviceRow[]>(lsLoad);
 
-    // ── Probe DB availability ────────────────────────────────────────
-    useEffect(() => {
-        (async () => {
-            try {
-                const { error } = await supabase
-                    .from("enrolled_devices" as any)
-                    .select("id")
-                    .limit(1);
-                setDbAvailable(!error || error.code !== "42P01"); // 42P01 = table_not_found
-            } catch {
-                setDbAvailable(false);
-            }
-        })();
-    }, []);
+  // ── Probe DB availability ────────────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      try {
+        const { error } = await supabase
+          .from("enrolled_devices" as any)
+          .select("id")
+          .limit(1);
+        setDbAvailable(!error || error.code !== "42P01"); // 42P01 = table_not_found
+      } catch {
+        setDbAvailable(false);
+      }
+    })();
+  }, []);
 
-    // ── Query ────────────────────────────────────────────────────────
-    const { data: dbDevices = [], isLoading } = useQuery<DeviceRow[]>({
-        queryKey: ["enrolled_devices"],
-        enabled: dbAvailable === true,
-        refetchInterval: 30000,
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from("enrolled_devices" as any)
-                .select("*")
-                .order("enrolled_at", { ascending: false });
-            if (error) throw error;
-            return (data || []) as DeviceRow[];
+  // ── Query ────────────────────────────────────────────────────────
+  const { data: dbDevices = [], isLoading } = useQuery<DeviceRow[]>({
+    queryKey: ["enrolled_devices"],
+    enabled: dbAvailable === true,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("enrolled_devices" as any)
+        .select("*")
+        .order("enrolled_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as DeviceRow[];
+    },
+  });
+
+  const devices = dbAvailable ? dbDevices : localDevices;
+
+  // ── Mutations ────────────────────────────────────────────────────
+  const addMutation = useMutation({
+    mutationFn: async (payload: Omit<DeviceRow, "id">) => {
+      if (!dbAvailable) {
+        const rec: DeviceRow = { id: uuidv4(), ...payload };
+        const updated = [rec, ...localDevices];
+        setLocalDevices(updated);
+        lsSave(updated);
+        return rec;
+      }
+      const { data, error } = await supabase
+        .from("enrolled_devices" as any)
+        .insert([{ ...payload, enrolled_by: user?.id }])
+        .select()
+        .single();
+      if (error) throw error;
+      // Log activity
+      await supabase.from("device_activity_log" as any).insert([
+        {
+          device_id: (data as any).id,
+          action: "enrolled",
+          performed_by: user?.id,
+          metadata: { type: payload.type, name: payload.name },
         },
+      ]);
+      return data as unknown as DeviceRow;
+    },
+    onSuccess: (dev) => {
+      qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
+      setShowAdd(false);
+      setForm({ name: "", type: "kiosk", location: "", notes: "" });
+      setEnrollCode(generateCode());
+      toast({
+        title: "Device enrolled!",
+        description: `${dev.name} is now active.`,
+      });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Enrollment failed",
+        description: e.message,
+        variant: "destructive",
+      }),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!dbAvailable) {
+        const updated = localDevices.map((d) =>
+          d.id === id
+            ? { ...d, status: "revoked", revoked_at: new Date().toISOString() }
+            : d,
+        );
+        setLocalDevices(updated);
+        lsSave(updated);
+        return;
+      }
+      const { error } = await supabase
+        .from("enrolled_devices" as any)
+        .update({
+          status: "revoked",
+          revoked_at: new Date().toISOString(),
+          revoked_by: user?.id,
+        })
+        .eq("id", id);
+      if (error) throw error;
+      await supabase.from("device_activity_log" as any).insert([
+        {
+          device_id: id,
+          action: "revoked",
+          performed_by: user?.id,
+        },
+      ]);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
+      setRevokeId(null);
+      toast({
+        title: "Device revoked",
+        description: "Access has been revoked permanently.",
+      });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Error revoking device",
+        description: e.message,
+        variant: "destructive",
+      }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!dbAvailable) {
+        const updated = localDevices.filter((d) => d.id !== id);
+        setLocalDevices(updated);
+        lsSave(updated);
+        return;
+      }
+      const { error } = await supabase
+        .from("enrolled_devices" as any)
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
+      setDeleteId(null);
+      toast({ title: "Device removed" });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Error removing device",
+        description: e.message,
+        variant: "destructive",
+      }),
+  });
+
+  const handleEnroll = () => {
+    if (!form.name.trim()) {
+      toast({ title: "Device name required", variant: "destructive" });
+      return;
+    }
+    addMutation.mutate({
+      name: form.name,
+      type: form.type,
+      location: form.location || null,
+      enrollment_code: enrollCode,
+      status: "active",
+      enrolled_by: user?.id || null,
+      enrolled_at: new Date().toISOString(),
+      notes: form.notes || null,
     });
+  };
 
-    const devices = dbAvailable ? dbDevices : localDevices;
+  const copyCode = () => {
+    navigator.clipboard.writeText(enrollCode);
+    toast({ title: "Code copied to clipboard" });
+  };
 
-    // ── Mutations ────────────────────────────────────────────────────
-    const addMutation = useMutation({
-        mutationFn: async (payload: Omit<DeviceRow, "id">) => {
-            if (!dbAvailable) {
-                const rec: DeviceRow = { id: uuidv4(), ...payload };
-                const updated = [rec, ...localDevices];
-                setLocalDevices(updated);
-                lsSave(updated);
-                return rec;
-            }
-            const { data, error } = await supabase
-                .from("enrolled_devices" as any)
-                .insert([{ ...payload, enrolled_by: user?.id }])
-                .select()
-                .single();
-            if (error) throw error;
-            // Log activity
-            await supabase.from("device_activity_log" as any).insert([{
-                device_id: (data as any).id,
-                action: "enrolled",
-                performed_by: user?.id,
-                metadata: { type: payload.type, name: payload.name },
-            }]);
-            return data as DeviceRow;
-        },
-        onSuccess: (dev) => {
-            qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
-            setShowAdd(false);
-            setForm({ name: "", type: "kiosk", location: "", notes: "" });
-            setEnrollCode(generateCode());
-            toast({ title: "Device enrolled!", description: `${dev.name} is now active.` });
-        },
-        onError: (e: any) => toast({ title: "Enrollment failed", description: e.message, variant: "destructive" }),
-    });
+  // ── Derived ────────────────────────────────────────────────────
+  const devicesByType = DEVICE_TYPES.map((dt) => ({
+    ...dt,
+    devices: devices.filter((d) => d.type === dt.value),
+    count: devices.filter((d) => d.type === dt.value).length,
+  }));
 
-    const revokeMutation = useMutation({
-        mutationFn: async (id: string) => {
-            if (!dbAvailable) {
-                const updated = localDevices.map((d) =>
-                    d.id === id ? { ...d, status: "revoked", revoked_at: new Date().toISOString() } : d
-                );
-                setLocalDevices(updated);
-                lsSave(updated);
-                return;
-            }
-            const { error } = await supabase
-                .from("enrolled_devices" as any)
-                .update({ status: "revoked", revoked_at: new Date().toISOString(), revoked_by: user?.id })
-                .eq("id", id);
-            if (error) throw error;
-            await supabase.from("device_activity_log" as any).insert([{
-                device_id: id, action: "revoked", performed_by: user?.id,
-            }]);
-        },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
-            setRevokeId(null);
-            toast({ title: "Device revoked", description: "Access has been revoked permanently." });
-        },
-        onError: (e: any) => toast({ title: "Error revoking device", description: e.message, variant: "destructive" }),
-    });
+  const activeCount = devices.filter((d) => d.status === "active").length;
+  const revokedCount = devices.filter((d) => d.status === "revoked").length;
 
-    const deleteMutation = useMutation({
-        mutationFn: async (id: string) => {
-            if (!dbAvailable) {
-                const updated = localDevices.filter((d) => d.id !== id);
-                setLocalDevices(updated);
-                lsSave(updated);
-                return;
-            }
-            const { error } = await supabase
-                .from("enrolled_devices" as any)
-                .delete()
-                .eq("id", id);
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
-            setDeleteId(null);
-            toast({ title: "Device removed" });
-        },
-        onError: (e: any) => toast({ title: "Error removing device", description: e.message, variant: "destructive" }),
-    });
-
-    const handleEnroll = () => {
-        if (!form.name.trim()) { toast({ title: "Device name required", variant: "destructive" }); return; }
-        addMutation.mutate({
-            name: form.name,
-            type: form.type,
-            location: form.location || null,
-            enrollment_code: enrollCode,
-            status: "active",
-            enrolled_by: user?.id || null,
-            enrolled_at: new Date().toISOString(),
-            notes: form.notes || null,
-        });
-    };
-
-    const copyCode = () => {
-        navigator.clipboard.writeText(enrollCode);
-        toast({ title: "Code copied to clipboard" });
-    };
-
-    // ── Derived ────────────────────────────────────────────────────
-    const devicesByType = DEVICE_TYPES.map((dt) => ({
-        ...dt,
-        devices: devices.filter((d) => d.type === dt.value),
-        count: devices.filter((d) => d.type === dt.value).length,
-    }));
-
-    const activeCount = devices.filter((d) => d.status === "active").length;
-    const revokedCount = devices.filter((d) => d.status === "revoked").length;
-
-    // ── Render ────────────────────────────────────────────────────
-    return (
-        <UnifiedDashboardLayout>
-            <div className="space-y-6">
-
-                {/* Header */}
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div>
-                            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                                <Zap className="h-8 w-8 text-indigo-600" />
-                                Device Enrollment
-                            </h1>
-                            <p className="text-slate-500 mt-1">Securely manage kiosks, tablets, phones, and printers</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            {/* DB status indicator */}
-                            {dbAvailable === true && (
-                                <Badge className="badge-success gap-1.5 px-3 py-1.5">
-                                    <Database className="h-3 w-3" /> DB Secured
-                                </Badge>
-                            )}
-                            {dbAvailable === false && (
-                                <Badge className="badge-warning gap-1.5 px-3 py-1.5" title="Run the Supabase migration to enable DB storage">
-                                    <AlertTriangle className="h-3 w-3" /> Local Fallback
-                                </Badge>
-                            )}
-                            <Button
-                                onClick={() => { setEnrollCode(generateCode()); setShowAdd(true); }}
-                                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2"
-                            >
-                                <Plus className="h-4 w-4" /> Enroll Device
-                            </Button>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Migration notice */}
-                {dbAvailable === false && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-                            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <div>
-                                <p className="font-semibold text-amber-800 text-sm">Database migration required for full security</p>
-                                <p className="text-amber-700 text-xs mt-0.5">
-                                    Device data is currently in your browser's localStorage. Run the Supabase migration to store devices in the database with full audit logging.
-                                </p>
-                                <code className="text-[11px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded mt-2 inline-block font-mono">
-                                    supabase/migrations/20260224_create_devices_table.sql
-                                </code>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* KPI Stats */}
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[
-                            { label: "Total Devices", value: devices.length, icon: Monitor, c: "text-indigo-600", bg: "bg-indigo-50" },
-                            { label: "Active Now", value: activeCount, icon: CheckCircle2, c: "text-emerald-600", bg: "bg-emerald-50" },
-                            { label: "Kiosks", value: devices.filter((d) => d.type === "kiosk").length, icon: QrCode, c: "text-blue-600", bg: "bg-blue-50" },
-                            { label: "Revoked", value: revokedCount, icon: Shield, c: "text-red-600", bg: "bg-red-50" },
-                        ].map((s) => (
-                            <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-                                        <p className="text-xs text-slate-500 font-medium mt-0.5">{s.label}</p>
-                                    </div>
-                                    <div className={`${s.bg} rounded-xl p-2.5`}>
-                                        <s.icon className={`h-5 w-5 ${s.c}`} />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </motion.div>
-
-                {/* Enrollment Guide */}
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-6">
-                        <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-indigo-600" /> Enrollment Guide
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {[
-                                { step: "1", title: "Generate Code", desc: "Click 'Enroll Device' to create a unique, one-time enrollment code" },
-                                { step: "2", title: "Configure Device", desc: "Open KiddoChecker on the device, go to Settings and enter the code" },
-                                { step: "3", title: "Track & Audit", desc: "Device appears in the list with full audit trail and activity logging" },
-                            ].map((s) => (
-                                <div key={s.step} className="flex items-start gap-3 bg-white/60 rounded-xl p-4">
-                                    <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
-                                        {s.step}
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-slate-800 text-sm">{s.title}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Device list (tabs by type) */}
-                {isLoading && dbAvailable ? (
-                    <div className="flex items-center justify-center py-20">
-                        <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
-                    </div>
-                ) : devices.length === 0 ? (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
-                            <Monitor className="h-16 w-16 mx-auto text-slate-300 mb-4" />
-                            <h3 className="text-xl font-bold text-slate-600 mb-2">No devices enrolled yet</h3>
-                            <p className="text-slate-500 mb-6">Get started by enrolling your first device</p>
-                            <Button
-                                onClick={() => { setEnrollCode(generateCode()); setShowAdd(true); }}
-                                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2"
-                            >
-                                <Plus className="h-4 w-4" /> Enroll First Device
-                            </Button>
-                        </div>
-                    </motion.div>
-                ) : (
-                    <div className="space-y-6">
-                        {devicesByType.map((typeGroup, gi) => {
-                            if (typeGroup.count === 0) return null;
-                            const Icon = typeGroup.icon;
-                            return (
-                                <motion.div
-                                    key={typeGroup.value}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: gi * 0.08 }}
-                                >
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className={`${typeGroup.bg} rounded-xl p-2`}>
-                                            <Icon className={`h-4 w-4 ${typeGroup.color}`} />
-                                        </div>
-                                        <h3 className="font-bold text-slate-800">{typeGroup.label}s</h3>
-                                        <Badge variant="outline" className="text-xs">{typeGroup.count}</Badge>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {typeGroup.devices.map((device) => (
-                                            <motion.div key={device.id} whileHover={{ y: -2 }} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`${typeGroup.bg} rounded-xl p-2.5`}>
-                                                            <Icon className={`h-5 w-5 ${typeGroup.color}`} />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-bold text-slate-800 text-sm">{device.name}</p>
-                                                            {device.location && <p className="text-xs text-slate-500">{device.location}</p>}
-                                                        </div>
-                                                    </div>
-                                                    <Badge variant="outline" className={`text-xs ${STATUS_COLORS[device.status] || ""}`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 inline-block ${device.status === "active" ? "bg-emerald-500" : device.status === "pending" ? "bg-amber-500" : "bg-red-500"}`} />
-                                                        {device.status}
-                                                    </Badge>
-                                                </div>
-
-                                                <div className="space-y-1.5 text-xs text-slate-500 mb-4 bg-slate-50 rounded-xl p-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <Shield className="h-3 w-3 text-indigo-400" />
-                                                        <span className="font-mono font-bold tracking-widest text-slate-700">{device.enrollment_code}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock className="h-3 w-3" />
-                                                        <span>Enrolled: {format(new Date(device.enrolled_at), "MMM dd, yyyy 'at' HH:mm")}</span>
-                                                    </div>
-                                                    {device.last_seen && (
-                                                        <div className="flex items-center gap-2">
-                                                            <Activity className="h-3 w-3" />
-                                                            <span>Last seen: {format(new Date(device.last_seen), "MMM dd, HH:mm")}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="flex gap-2">
-                                                    {device.status !== "revoked" && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="flex-1 rounded-xl text-xs text-amber-600 border-amber-200 hover:bg-amber-50"
-                                                            onClick={() => setRevokeId(device.id)}
-                                                        >
-                                                            <ToggleRight className="h-3 w-3 mr-1" />Revoke
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="flex-1 rounded-xl text-xs text-red-600 border-red-200 hover:bg-red-50"
-                                                        onClick={() => setDeleteId(device.id)}
-                                                    >
-                                                        <Trash2 className="h-3 w-3 mr-1" />Delete
-                                                    </Button>
-                                                </div>
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {/* ── Enroll Dialog ───────────────────────────────────────────── */}
-                <Dialog open={showAdd} onOpenChange={setShowAdd}>
-                    <DialogContent className="max-w-md rounded-3xl">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <Zap className="h-5 w-5 text-indigo-600" /> Enroll New Device
-                            </DialogTitle>
-                            <DialogDescription>
-                                Generate a one-time code and configure the device to connect it securely.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="space-y-4">
-                            {/* Code display */}
-                            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-4 text-center border border-indigo-100">
-                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">One-Time Enrollment Code</p>
-                                <p className="text-4xl font-black tracking-[0.18em] text-indigo-700 font-mono">{enrollCode}</p>
-                                <div className="flex gap-2 mt-3 justify-center">
-                                    <Button size="sm" variant="outline" onClick={() => setEnrollCode(generateCode())} className="rounded-xl text-xs gap-1">
-                                        <RefreshCw className="h-3 w-3" /> Regenerate
-                                    </Button>
-                                    <Button size="sm" variant="outline" onClick={copyCode} className="rounded-xl text-xs gap-1">
-                                        <Copy className="h-3 w-3" /> Copy
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-slate-400 mt-2">Enter this on the device to complete enrollment</p>
-                            </div>
-
-                            <div className="space-y-3">
-                                <div>
-                                    <Label className="text-sm font-semibold text-slate-700">Device Name *</Label>
-                                    <Input
-                                        placeholder="e.g. Main Lobby Kiosk"
-                                        value={form.name}
-                                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                        className="mt-1 rounded-xl"
-                                        onKeyDown={(e) => e.key === "Enter" && handleEnroll()}
-                                    />
-                                </div>
-
-                                <div>
-                                    <Label className="text-sm font-semibold text-slate-700">Device Type</Label>
-                                    <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                                        <SelectTrigger className="mt-1 rounded-xl">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {DEVICE_TYPES.map((dt) => (
-                                                <SelectItem key={dt.value} value={dt.value}>
-                                                    <div className="flex items-center gap-2">
-                                                        <dt.icon className="h-4 w-4" /> {dt.label}
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div>
-                                    <Label className="text-sm font-semibold text-slate-700">Location (optional)</Label>
-                                    <Input
-                                        placeholder="e.g. Nursery, Room 1, Lobby"
-                                        value={form.location}
-                                        onChange={(e) => setForm({ ...form, location: e.target.value })}
-                                        className="mt-1 rounded-xl"
-                                    />
-                                </div>
-
-                                <div>
-                                    <Label className="text-sm font-semibold text-slate-700">Notes (optional)</Label>
-                                    <Input
-                                        placeholder="e.g. iPad model, responsible staff, etc."
-                                        value={form.notes}
-                                        onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                                        className="mt-1 rounded-xl"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <DialogFooter className="gap-2 mt-2">
-                            <Button variant="outline" onClick={() => setShowAdd(false)} className="rounded-xl flex-1">Cancel</Button>
-                            <Button
-                                onClick={handleEnroll}
-                                disabled={addMutation.isPending}
-                                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl flex-1 gap-2"
-                            >
-                                {addMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                                Enroll Device
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {/* ── Revoke Confirm ─────────────────────────────────────────── */}
-                <AlertDialog open={!!revokeId} onOpenChange={() => setRevokeId(null)}>
-                    <AlertDialogContent className="rounded-3xl">
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Revoke Device Access?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                The device will immediately lose access to the system. This action is logged for accountability. The device record will remain in the audit trail.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                                className="bg-amber-600 hover:bg-amber-700 rounded-xl"
-                                onClick={() => revokeId && revokeMutation.mutate(revokeId)}
-                            >
-                                Revoke Access
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-
-                {/* ── Delete Confirm ─────────────────────────────────────────── */}
-                <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-                    <AlertDialogContent className="rounded-3xl">
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Permanently Remove Device?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This will permanently delete the device record and all associated audit logs. This cannot be undone.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                                className="bg-red-600 hover:bg-red-700 rounded-xl"
-                                onClick={() => deleteId && deleteMutation.mutate(deleteId)}
-                            >
-                                Delete Permanently
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+  // ── Render ────────────────────────────────────────────────────
+  return (
+    <UnifiedDashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                <Zap className="h-8 w-8 text-indigo-600" />
+                Device Enrollment
+              </h1>
+              <p className="text-slate-500 mt-1">
+                Securely manage kiosks, tablets, phones, and printers
+              </p>
             </div>
-        </UnifiedDashboardLayout>
-    );
+            <div className="flex items-center gap-3">
+              {/* DB status indicator */}
+              {dbAvailable === true && (
+                <Badge className="badge-success gap-1.5 px-3 py-1.5">
+                  <Database className="h-3 w-3" /> DB Secured
+                </Badge>
+              )}
+              {dbAvailable === false && (
+                <Badge
+                  className="badge-warning gap-1.5 px-3 py-1.5"
+                  title="Run the Supabase migration to enable DB storage"
+                >
+                  <AlertTriangle className="h-3 w-3" /> Local Fallback
+                </Badge>
+              )}
+              <Button
+                onClick={() => {
+                  setEnrollCode(generateCode());
+                  setShowAdd(true);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2"
+              >
+                <Plus className="h-4 w-4" /> Enroll Device
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Migration notice */}
+        {dbAvailable === false && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-800 text-sm">
+                  Database migration required for full security
+                </p>
+                <p className="text-amber-700 text-xs mt-0.5">
+                  Device data is currently in your browser's localStorage. Run
+                  the Supabase migration to store devices in the database with
+                  full audit logging.
+                </p>
+                <code className="text-[11px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded mt-2 inline-block font-mono">
+                  supabase/migrations/20260224_create_devices_table.sql
+                </code>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* KPI Stats */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              {
+                label: "Total Devices",
+                value: devices.length,
+                icon: Monitor,
+                c: "text-indigo-600",
+                bg: "bg-indigo-50",
+              },
+              {
+                label: "Active Now",
+                value: activeCount,
+                icon: CheckCircle2,
+                c: "text-emerald-600",
+                bg: "bg-emerald-50",
+              },
+              {
+                label: "Kiosks",
+                value: devices.filter((d) => d.type === "kiosk").length,
+                icon: QrCode,
+                c: "text-blue-600",
+                bg: "bg-blue-50",
+              },
+              {
+                label: "Revoked",
+                value: revokedCount,
+                icon: Shield,
+                c: "text-red-600",
+                bg: "bg-red-50",
+              },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-3xl font-bold text-slate-800">
+                      {s.value}
+                    </p>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      {s.label}
+                    </p>
+                  </div>
+                  <div className={`${s.bg} rounded-xl p-2.5`}>
+                    <s.icon className={`h-5 w-5 ${s.c}`} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Enrollment Guide */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-6">
+            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <Shield className="h-5 w-5 text-indigo-600" /> Enrollment Guide
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                {
+                  step: "1",
+                  title: "Register Device",
+                  desc: "Click 'Enroll Device' to add an authorized device along with a generated code to your system.",
+                },
+                {
+                  step: "2",
+                  title: "Apply to Device",
+                  desc: "Keep track of this code; it securely identifies the device within your organization.",
+                },
+                {
+                  step: "3",
+                  title: "Track & Audit",
+                  desc: "Device appears in the list with its active status and full activity logging.",
+                },
+              ].map((s) => (
+                <div
+                  key={s.step}
+                  className="flex items-start gap-3 bg-white/60 rounded-xl p-4"
+                >
+                  <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
+                    {s.step}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-800 text-sm">
+                      {s.title}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Device list (tabs by type) */}
+        {isLoading && dbAvailable ? (
+          <div className="flex items-center justify-center py-20">
+            <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
+          </div>
+        ) : devices.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+              <Monitor className="h-16 w-16 mx-auto text-slate-300 mb-4" />
+              <h3 className="text-xl font-bold text-slate-600 mb-2">
+                No devices enrolled yet
+              </h3>
+              <p className="text-slate-500 mb-6">
+                Get started by enrolling your first device
+              </p>
+              <Button
+                onClick={() => {
+                  setEnrollCode(generateCode());
+                  setShowAdd(true);
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2"
+              >
+                <Plus className="h-4 w-4" /> Enroll First Device
+              </Button>
+            </div>
+          </motion.div>
+        ) : (
+          <div className="space-y-6">
+            {devicesByType.map((typeGroup, gi) => {
+              if (typeGroup.count === 0) return null;
+              const Icon = typeGroup.icon;
+              return (
+                <motion.div
+                  key={typeGroup.value}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: gi * 0.08 }}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`${typeGroup.bg} rounded-xl p-2`}>
+                      <Icon className={`h-4 w-4 ${typeGroup.color}`} />
+                    </div>
+                    <h3 className="font-bold text-slate-800">
+                      {typeGroup.label}s
+                    </h3>
+                    <Badge variant="outline" className="text-xs">
+                      {typeGroup.count}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {typeGroup.devices.map((device) => (
+                      <motion.div
+                        key={device.id}
+                        whileHover={{ y: -2 }}
+                        className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`${typeGroup.bg} rounded-xl p-2.5`}>
+                              <Icon className={`h-5 w-5 ${typeGroup.color}`} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800 text-sm">
+                                {device.name}
+                              </p>
+                              {device.location && (
+                                <p className="text-xs text-slate-500">
+                                  {device.location}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${STATUS_COLORS[device.status] || ""}`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full mr-1.5 inline-block ${device.status === "active" ? "bg-emerald-500" : device.status === "pending" ? "bg-amber-500" : "bg-red-500"}`}
+                            />
+                            {device.status}
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-1.5 text-xs text-slate-500 mb-4 bg-slate-50 rounded-xl p-3">
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-3 w-3 text-indigo-400" />
+                            <span className="font-mono font-bold tracking-widest text-slate-700">
+                              {device.enrollment_code}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3" />
+                            <span>
+                              Enrolled:{" "}
+                              {format(
+                                new Date(device.enrolled_at),
+                                "MMM dd, yyyy 'at' HH:mm",
+                              )}
+                            </span>
+                          </div>
+                          {device.last_seen && (
+                            <div className="flex items-center gap-2">
+                              <Activity className="h-3 w-3" />
+                              <span>
+                                Last seen:{" "}
+                                {format(
+                                  new Date(device.last_seen),
+                                  "MMM dd, HH:mm",
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          {device.status !== "revoked" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 rounded-xl text-xs text-amber-600 border-amber-200 hover:bg-amber-50"
+                              onClick={() => setRevokeId(device.id)}
+                            >
+                              <ToggleRight className="h-3 w-3 mr-1" />
+                              Revoke
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 rounded-xl text-xs text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => setDeleteId(device.id)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Enroll Dialog ───────────────────────────────────────────── */}
+        <Dialog open={showAdd} onOpenChange={setShowAdd}>
+          <DialogContent className="max-w-md rounded-3xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-indigo-600" /> Enroll New Device
+              </DialogTitle>
+              <DialogDescription>
+                Add a new authorized device to your organization records with a
+                secure reference code.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Code display */}
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-4 text-center border border-indigo-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
+                  Secure Device Reference Code
+                </p>
+                <p className="text-4xl font-black tracking-[0.18em] text-indigo-700 font-mono">
+                  {enrollCode}
+                </p>
+                <div className="flex gap-2 mt-3 justify-center">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setEnrollCode(generateCode())}
+                    className="rounded-xl text-xs gap-1"
+                  >
+                    <RefreshCw className="h-3 w-3" /> Regenerate
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={copyCode}
+                    className="rounded-xl text-xs gap-1"
+                  >
+                    <Copy className="h-3 w-3" /> Copy
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  Store this code securely to identify the device
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-sm font-semibold text-slate-700">
+                    Device Name *
+                  </Label>
+                  <Input
+                    placeholder="e.g. Main Lobby Kiosk"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="mt-1 rounded-xl"
+                    onKeyDown={(e) => e.key === "Enter" && handleEnroll()}
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm font-semibold text-slate-700">
+                    Device Type
+                  </Label>
+                  <Select
+                    value={form.type}
+                    onValueChange={(v) => setForm({ ...form, type: v })}
+                  >
+                    <SelectTrigger className="mt-1 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEVICE_TYPES.map((dt) => (
+                        <SelectItem key={dt.value} value={dt.value}>
+                          <div className="flex items-center gap-2">
+                            <dt.icon className="h-4 w-4" /> {dt.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-semibold text-slate-700">
+                    Location (optional)
+                  </Label>
+                  <Input
+                    placeholder="e.g. Nursery, Room 1, Lobby"
+                    value={form.location}
+                    onChange={(e) =>
+                      setForm({ ...form, location: e.target.value })
+                    }
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm font-semibold text-slate-700">
+                    Notes (optional)
+                  </Label>
+                  <Input
+                    placeholder="e.g. iPad model, responsible staff, etc."
+                    value={form.notes}
+                    onChange={(e) =>
+                      setForm({ ...form, notes: e.target.value })
+                    }
+                    className="mt-1 rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 mt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAdd(false)}
+                className="rounded-xl flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEnroll}
+                disabled={addMutation.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl flex-1 gap-2"
+              >
+                {addMutation.isPending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Enroll Device
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Revoke Confirm ─────────────────────────────────────────── */}
+        <AlertDialog open={!!revokeId} onOpenChange={() => setRevokeId(null)}>
+          <AlertDialogContent className="rounded-3xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Revoke Device Access?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The device will immediately lose access to the system. This
+                action is logged for accountability. The device record will
+                remain in the audit trail.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-amber-600 hover:bg-amber-700 rounded-xl"
+                onClick={() => revokeId && revokeMutation.mutate(revokeId)}
+              >
+                Revoke Access
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* ── Delete Confirm ─────────────────────────────────────────── */}
+        <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+          <AlertDialogContent className="rounded-3xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Permanently Remove Device?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the device record and all
+                associated audit logs. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700 rounded-xl"
+                onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              >
+                Delete Permanently
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </UnifiedDashboardLayout>
+  );
 };
 
 export default DeviceEnrollmentPage;

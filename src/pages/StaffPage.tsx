@@ -3,8 +3,7 @@ import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Users, Mail, Phone, Edit, Trash2, Loader2, Shield } from 'lucide-react';
-import { useStaff } from '@/hooks/useStaff';
+import { Mail, Phone, Edit, Trash2, Loader2, Shield, UserPlus, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -15,20 +14,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
-interface StaffMember {
-  user_id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  role: string;
-  is_super_admin: boolean;
-  is_volunteer: boolean;
-  is_active: boolean;
-}
+import { useStaff, type StaffMember } from '@/hooks/useStaff';
 
 const StaffPage = () => {
-  const { staff, isLoading, addStaff, isAddingStaff, updateStaff, isUpdatingStaff } = useStaff();
+  const { staff, isLoading, addStaff, isAddingStaff, updateStaff, isUpdatingStaff, resendWelcomeEmail, isResendingEmail } = useStaff();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -92,7 +81,7 @@ const StaffPage = () => {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
-        role: formData.role,
+        role: formData.role as any,
         is_volunteer: formData.is_volunteer,
       }
     });
@@ -202,7 +191,7 @@ const StaffPage = () => {
           <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
+                <CardTitle className="text-sm font-medium">Verified Staff</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -278,6 +267,15 @@ const StaffPage = () => {
                         {member.is_volunteer && (
                           <Badge variant="outline">Volunteer</Badge>
                         )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => resendWelcomeEmail(member)}
+                          disabled={isResendingEmail}
+                          title="Resend Welcome Email"
+                        >
+                          <Mail className={`h-4 w-4 ${isResendingEmail ? 'animate-pulse' : ''}`} />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(member)}>
                           <Edit className="h-4 w-4" />
                         </Button>

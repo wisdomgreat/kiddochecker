@@ -3,14 +3,14 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Trash2, Edit } from 'lucide-react';
+import { Loader2, Trash2, Edit, Mail } from 'lucide-react';
 import { useAdminUserManagement } from '@/hooks/useAdminUserManagement';
 import { CleanUserCreationModal } from './CleanUserCreationModal';
 import { EditUserDialog } from '@/components/users/EditUserDialog';
 import { UserFiltersBar } from '@/components/users/UserFiltersBar';
 
 const AdminUserManagement = () => {
-  const { users, isLoading, error, deleteUser, isDeleting, refetch } = useAdminUserManagement();
+  const { users, isLoading, error, deleteUser, isDeleting, refetch, resendWelcomeEmail, isResending } = useAdminUserManagement();
   const [editingUser, setEditingUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -105,11 +105,20 @@ const AdminUserManagement = () => {
                       <Badge className="bg-red-100 text-red-800">Super Admin</Badge>
                     )}
                     <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+                      {user.is_active ? 'Verified' : 'Unverified'}
                     </Badge>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => resendWelcomeEmail(user)}
+                    disabled={isResending}
+                    title="Resend Welcome Email"
+                  >
+                    {isResending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                  </Button>
                   <Button 
                     variant="outline" 
                     size="sm"

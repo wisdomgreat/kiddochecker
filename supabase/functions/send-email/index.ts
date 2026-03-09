@@ -13,9 +13,11 @@ const corsHeaders = {
 
 interface EmailRequest {
   to: string;
-  subject: string;
-  message: string;
-  type: string;
+  subject?: string;
+  message?: string;
+  templateName?: string;
+  templateData?: Record<string, string>;
+  type?: string;
   childName?: string;
   className?: string;
 }
@@ -51,6 +53,14 @@ const handler = async (req: Request): Promise<Response> => {
       global: { headers: { Authorization: authHeader } },
     });
 
+    // Create an admin client for querying templates if needed, or just use the user client
+    const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -59,46 +69,106 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // 2. Validate input and sanitize
+    // 2. Validate input
     const body: EmailRequest = await req.json();
-    const { to, subject, message, type, childName, className } = body;
+    const { to, subject, message, templateName, templateData, childName, className } = body;
 
-    if (!to || !subject || !message) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+    if (!to) {
+      return new Response(JSON.stringify({ error: 'Missing "to" field' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const safeMessage = escapeHtml(message);
-    const safeSubject = escapeHtml(subject);
-    const safeChildName = childName ? escapeHtml(childName) : '';
-    const safeClassName = className ? escapeHtml(className) : '';
+    let finalSubject = subject || '';
+    let finalHtml = '';
 
-    // 3. Create HTML email template
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333; border-bottom: 2px solid #4F46E5; padding-bottom: 10px;">
-          Children's Ministry Notification
-        </h2>
-        <div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-          <p style="font-size: 16px; line-height: 1.5; color: #333;">${safeMessage}</p>
-          ${safeChildName ? `<p><strong>Child:</strong> ${safeChildName}</p>` : ''}
-          ${safeClassName ? `<p><strong>Class:</strong> ${safeClassName}</p>` : ''}
-          <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+    // 3. Handle Template vs Custom Message
+    if (templateName) {
+      console.log(`Using template: ${templateName}`);
+      const { data: template, error: templateError } = await supabaseAdmin
+        .from('email_templates')
+        .select('*')
+        .eq('name', templateName)
+        .single();
+
+      if (templateError || !template) {
+        console.error(`Template ${templateName} not found:`, templateError);
+        // Fallback to custom message if possible
+        if (!message) {
+          return new Response(JSON.stringify({ error: `Template ${templateName} not found` }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        finalSubject = template.subject;
+        finalHtml = template.body_html;
+
+        // Replace placeholders
+        const data = { 
+          ...templateData, 
+          childName: childName || templateData?.childName || '',
+          className: className || templateData?.className || '',
+          time: new Date().toLocaleString()
+        };
+
+        for (const [key, value] of Object.entries(data)) {
+          const placeholder = `{{${key}}}`;
+          finalSubject = finalSubject.replace(new RegExp(placeholder, 'g'), value || '');
+          finalHtml = finalHtml.replace(new RegExp(placeholder, 'g'), value || '');
+        }
+      }
+    }
+
+    if (!finalHtml && message) {
+      const safeMessage = escapeHtml(message);
+      const safeChildName = childName ? escapeHtml(childName) : '';
+      const safeClassName = className ? escapeHtml(className) : '';
+      
+      finalSubject = subject || "Notification from Children's Ministry";
+      finalHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="color: #4F46E5;">Children's Ministry</h1>
+          </div>
+          <div style="padding: 24px; background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">${safeMessage.replace(/\n/g, '<br/>')}</p>
+            
+            ${safeChildName || safeClassName ? `
+              <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #d1d5db;">
+                ${safeChildName ? `<p><strong>Child:</strong> ${safeChildName}</p>` : ''}
+                ${safeClassName ? `<p><strong>Class:</strong> ${safeClassName}</p>` : ''}
+              </div>
+            ` : ''}
+            
+            <p style="font-size: 14px; color: #6b7280; margin-top: 24px;">
+              <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/>
+              <strong>Time:</strong> ${new Date().toLocaleTimeString()}
+            </p>
+          </div>
+          <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #9ca3af;">
+            <p>This is an automated notification from the KiddoChecker system.</p>
+            <p>© ${new Date().getFullYear()} KiddoChecker. All rights reserved.</p>
+          </div>
         </div>
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
-          <p>This is an automated notification from the Children's Ministry Check-in System.</p>
-        </div>
-      </div>
-    `;
+      `;
+    }
+
+    if (!finalHtml) {
+      return new Response(JSON.stringify({ error: 'No email content provided' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // 4. Send email via Resend
+    const sendingDomain = Deno.env.get("SENDING_DOMAIN") || "yourdomain.com";
     const emailResponse = await resend.emails.send({
-      from: "Children's Ministry <noreply@yourdomain.com>",
+      from: `KiddoChecker <noreply@${sendingDomain}>`,
       to: [to],
-      subject: safeSubject,
-      html: htmlContent,
+      subject: finalSubject,
+      html: finalHtml,
     });
 
     console.log("Email sent successfully by user:", user.id);

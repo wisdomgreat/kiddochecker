@@ -158,6 +158,55 @@ export const useAdminUserManagement = () => {
     },
   });
 
+  const resendWelcomeEmailMutation = useMutation({
+    mutationFn: async (user: AdminUser) => {
+      // 1. Reset password and get new temp password
+      const { data, error } = await supabase.functions.invoke('admin-user-management', {
+        body: { 
+          action: 'resend_welcome_email',
+          userId: user.id,
+          email: user.email,
+          firstName: user.first_name
+        }
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      // 2. Send the email via send-email function
+      const { error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: user.email,
+          templateName: 'staff_onboarding',
+          templateData: {
+            firstName: user.first_name,
+            email: user.email,
+            tempPassword: data.tempPassword,
+            loginUrl: `${window.location.origin}/login`,
+          },
+          type: 'staff_onboarding',
+        }
+      });
+
+      if (emailError) throw emailError;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Welcome email resent successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error resending welcome email:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend welcome email",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     users,
     isLoading,
@@ -166,8 +215,10 @@ export const useAdminUserManagement = () => {
     createUser: createUserMutation.mutate,
     updateUser: updateUserMutation.mutate,
     deleteUser: deleteUserMutation.mutate,
+    resendWelcomeEmail: resendWelcomeEmailMutation.mutate,
     isCreating: createUserMutation.isPending,
     isUpdating: updateUserMutation.isPending,
     isDeleting: deleteUserMutation.isPending,
+    isResending: resendWelcomeEmailMutation.isPending,
   };
 };

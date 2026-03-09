@@ -90,9 +90,14 @@ export const useStaffManagement = () => {
       const { error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
           to: staffData.email,
-          subject: "KiddoChecker - Staff Account Created!",
-          message: `Hello ${staffData.first_name},<br/><br/>An admin has created your staff account on KiddoChecker.<br/><br/>Your temporary login details are:<br/><strong>Email:</strong> ${staffData.email}<br/><strong>Password:</strong> ${tempPassword}<br/><br/>Please log in and proceed with your onboarding setup. You will be prompted to change your password immediately.`,
-          type: 'general',
+          templateName: 'staff_onboarding',
+          templateData: {
+            firstName: staffData.first_name,
+            email: staffData.email,
+            tempPassword: tempPassword,
+            loginUrl: `${window.location.origin}/login`,
+          },
+          type: 'staff_onboarding',
         }
       });
       
@@ -183,6 +188,54 @@ export const useStaffManagement = () => {
     },
   });
 
+  // ── RESEND WELCOME ──────────────────────────────────────────────────────────
+  const resendWelcomeEmailMutation = useMutation({
+    mutationFn: async (member: StaffMember) => {
+      const { data, error } = await supabase.functions.invoke(
+        'admin-user-management',
+        {
+          body: { 
+            action: 'resend_welcome_email', 
+            userId: member.user_id,
+            email: member.email,
+            firstName: member.first_name
+          },
+        }
+      );
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error ?? 'Request failed');
+
+      // Now send the email with the new temp password
+      const { error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: member.email,
+          templateName: 'staff_onboarding',
+          templateData: {
+            firstName: member.first_name,
+            email: member.email,
+            tempPassword: data.tempPassword,
+            loginUrl: `${window.location.origin}/login`,
+          },
+          type: 'staff_onboarding',
+        }
+      });
+
+      if (emailError) throw emailError;
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: 'Welcome email resent successfully with a new temporary password.' });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to resend welcome email',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   return {
     staffMembers,
     isLoading,
@@ -198,6 +251,8 @@ export const useStaffManagement = () => {
     isUpdatingStaff: updateStaffMutation.isPending,
     deleteStaff: deleteStaffMutation.mutate,
     isDeletingStaff: deleteStaffMutation.isPending,
+    resendWelcomeEmail: resendWelcomeEmailMutation.mutate,
+    isResendingEmail: resendWelcomeEmailMutation.isPending,
   };
 };
 

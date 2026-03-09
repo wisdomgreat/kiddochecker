@@ -249,6 +249,41 @@ serve(async (req) => {
         });
       }
 
+      case 'resend_welcome_email': {
+        const { userId, email, firstName } = data;
+        
+        // Generate a new temporary password
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+        const array = new Uint8Array(16);
+        crypto.getRandomValues(array);
+        const tempPassword = Array.from(array, (byte) => chars[byte % chars.length]).join('');
+
+        // Update user password in Auth
+        const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: tempPassword
+        });
+
+        if (authError) {
+          console.error('Error updating user password for resend:', authError);
+          throw authError;
+        }
+
+        // Trigger the send-email function
+        // Note: Edge functions can't easily call other edge functions via supabaseClient.functions.invoke 
+        // without passing the auth context manually or using a fetch.
+        // We will return the tempPassword and let the frontend call send-email for now, 
+        // to stay consistent with how addStaff does it.
+        // POSSIBLY BETTER: Just do the fetch here.
+        
+        return new Response(JSON.stringify({
+          success: true,
+          tempPassword,
+          message: 'Password reset and ready for resend'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       case 'get_users': {
         const { data: users, error } = await supabaseAdmin.rpc('get_users_with_roles');
         if (error) throw error;

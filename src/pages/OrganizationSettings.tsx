@@ -10,10 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/hooks/useSettings';
-import { Settings, Building, Palette, Shield, Clock, Users, Mail } from 'lucide-react';
+import { Settings, Building, Palette, Shield, Clock, Users, Mail, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const OrganizationSettings = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { settings, updateSettings } = useSettings();
   const [formData, setFormData] = useState({
     name: 'ChurchCheck',
@@ -264,6 +266,20 @@ const OrganizationSettings = () => {
                     checked={formData.sms_notifications}
                     onCheckedChange={(checked) => setFormData({ ...formData, sms_notifications: checked })}
                   />
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-between"
+                    onClick={() => navigate('/admin/email-templates')}
+                  >
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Manage Email Templates
+                    </div>
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>

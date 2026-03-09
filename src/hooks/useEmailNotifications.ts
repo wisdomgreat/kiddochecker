@@ -5,9 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 
 interface EmailNotificationData {
   to: string;
-  subject: string;
-  message: string;
-  type: 'check_in' | 'check_out' | 'general' | 'weekly_report';
+  subject?: string;
+  message?: string;
+  templateName?: string;
+  templateData?: Record<string, string>;
+  type?: 'check_in' | 'check_out' | 'general' | 'weekly_report' | 'staff_onboarding';
   childName?: string;
   className?: string;
 }
@@ -44,8 +46,11 @@ export const useEmailNotifications = () => {
   const sendCheckInNotification = (parentEmail: string, childName: string, className: string) => {
     sendEmailMutation.mutate({
       to: parentEmail,
-      subject: `${childName} checked in successfully`,
-      message: `Your child ${childName} has been checked in to ${className} at ${new Date().toLocaleTimeString()}.`,
+      templateName: 'check_in_notification',
+      templateData: {
+        childName,
+        className,
+      },
       type: 'check_in',
       childName,
       className,
@@ -55,8 +60,11 @@ export const useEmailNotifications = () => {
   const sendCheckOutNotification = (parentEmail: string, childName: string, className: string) => {
     sendEmailMutation.mutate({
       to: parentEmail,
-      subject: `${childName} checked out successfully`,
-      message: `Your child ${childName} has been checked out from ${className} at ${new Date().toLocaleTimeString()}.`,
+      templateName: 'check_out_notification',
+      templateData: {
+        childName,
+        className,
+      },
       type: 'check_out',
       childName,
       className,
