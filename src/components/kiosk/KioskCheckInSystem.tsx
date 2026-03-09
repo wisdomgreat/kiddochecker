@@ -190,45 +190,40 @@ const KioskCheckInSystem = () => {
     try {
       const searchVal = parentPhone.trim();
       
-      // 1. Search for profiles by name or phone
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, phone, security_pin')
-        .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`);
+      // 1. Search for parent using secure RPC (bypasses RLS safely)
+      const { data: matched, error } = await (supabase.rpc('get_parent_for_kiosk', {
+        p_search_val: searchVal,
+        p_pin: parentPin
+      }) as any);
 
       if (error) {
-        console.error("Kiosk search error:", error);
+        console.error("Kiosk secure search error:", error);
         throw new Error("Search failed. Please try again or contact staff.");
       }
 
-      if (!profiles || profiles.length === 0) {
-        setParentLoginError('No account found. Please check your details.');
+      if (!matched || (matched as any[]).length === 0) {
+        setParentLoginError('Invalid details or PIN. Please check and try again.');
         setIsLoading(false);
         return;
       }
 
-      // 2. Match the security PIN
-      const matched = (profiles as any[]).find((p: any) => p.security_pin === parentPin);
-      if (!matched) {
-        setParentLoginError('Incorrect PIN. Please try again.');
-        setIsLoading(false);
-        return;
-      }
+      // If multiple parents match (rare case), take the first one or we could show a selection
+      const parent = (matched as any[])[0];
 
-      // 3. Load children for this parent
-      const { data: kids, error: kidsError } = await supabase
-        .from('children')
-        .select('*')
-        .eq('parent_id', matched.id);
+      // 3. Load children for this parent using secure RPC
+      const { data: kids, error: kidsError } = await (supabase.rpc('get_children_for_kiosk', {
+        p_parent_id: parent.id,
+        p_pin: parentPin
+      }) as any);
 
       if (kidsError) {
-        console.error("Kids fetch error:", kidsError);
+        console.error("Kids fetch secure error:", kidsError);
         throw new Error("Could not load children data.");
       }
 
       // 4. Update UI State
-      setParentName(`${matched.first_name} ${matched.last_name}`);
-      setParentChildren(kids || []);
+      setParentName(`${parent.first_name} ${parent.last_name}`);
+      setParentChildren((kids as any[]) || []);
       setParentLoggedIn(true);
 
       // 5. Success Logging (Async)
@@ -236,12 +231,12 @@ const KioskCheckInSystem = () => {
         const { data: emailData } = await (supabase
           .from('auth_users_emails_view' as any)
           .select('email' as any)
-          .eq('id', matched.id)
+          .eq('id', parent.id)
           .maybeSingle() as any);
         
         await logActivity('parent_login', { 
-          parent_id: matched.id, 
-          parent_name: `${matched.first_name} ${matched.last_name}`, 
+          parent_id: parent.id, 
+          parent_name: `${parent.first_name} ${parent.last_name}`, 
           email: emailData?.email 
         });
       } catch (logErr) {
