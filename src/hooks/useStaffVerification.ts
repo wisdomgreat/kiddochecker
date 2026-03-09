@@ -164,12 +164,16 @@ export const useStaffVerification = () => {
 
             if (error) throw error;
 
-            // Update user verification status to 'pending' if currently 'unverified'
-            await (supabase
-                .from('user_roles' as any) as any)
-                .update({ verification_status: 'pending' } as any)
-                .eq('user_id', user.id)
-                .eq('verification_status', 'unverified');
+            // Update user verification status to 'pending' if currently 'unverified' (non-blocking)
+            try {
+                await (supabase
+                    .from('user_roles' as any) as any)
+                    .update({ verification_status: 'pending' } as any)
+                    .eq('user_id', user.id)
+                    .eq('verification_status', 'unverified');
+            } catch (statusError) {
+                console.warn("Could not update verification status (non-blocking):", statusError);
+            }
 
             return data;
         },
