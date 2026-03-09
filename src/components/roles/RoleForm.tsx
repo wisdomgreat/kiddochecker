@@ -59,7 +59,7 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
     resolver: zodResolver(roleSchema),
     defaultValues: {
       userId: selectedUser?.id || "",
-      role: ((selectedUser?.role || "parent") as any),
+      role: ((selectedUser?.role || "parent") as any)s any),
       isSuperAdmin: selectedUser?.roleData?.is_super_admin || false,
       isVolunteer: selectedUser?.roleData?.is_volunteer || false,
     },
@@ -70,7 +70,7 @@ const RoleForm = ({ isOpen, onOpenChange, selectedUser, onSubmit }: RoleFormProp
     if (selectedUser) {
       form.reset({
         userId: selectedUser.id,
-        role: (selectedUser.role as AppRany "parent",
+        r(selectedUser.role || "parent") as any)arent",
         isSuperAdmin: !!selectedUser.roleData?.is_super_admin,
         isVolunteer: !!selectedUser.roleData?.is_volunteer,
       });
