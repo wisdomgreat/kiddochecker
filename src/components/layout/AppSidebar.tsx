@@ -42,6 +42,7 @@ export function AppSidebar() {
     { title: "Check-Out", url: "/check-out", icon: ClipboardCheck },
     { title: "Audit Log", url: "/audit-log", icon: Activity },
     { title: "Settings", url: "/settings", icon: Settings },
+    { title: "My Profile", url: "/profile", icon: Users },
   ];
 
   const staffItems = [
@@ -55,12 +56,14 @@ export function AppSidebar() {
     { title: "Calendar", url: "/calendar", icon: Calendar },
     { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "My Documents", url: "/staff/documents", icon: Shield },
+    { title: "My Profile", url: "/profile", icon: Users },
   ];
 
   const unverifiedStaffItems = [
     { title: "Dashboard", url: "/staff-dashboard", icon: Home },
     { title: "My Documents", url: "/staff/documents", icon: Shield },
     { title: "Messages", url: "/messages", icon: MessageSquare },
+    { title: "My Profile", url: "/profile", icon: Users },
   ];
 
   const parentItems = [

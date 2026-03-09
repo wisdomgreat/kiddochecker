@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, UserCheck, CheckCircle, AlertCircle, Maximize, Loader2,
   Info, MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Camera, Baby, Phone, User, ArrowRight, Printer, Mail,
+  Camera, Baby, Phone, User, ArrowRight, Printer, Mail, Calendar, Clock,
 } from 'lucide-react';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,6 +67,7 @@ const KioskCheckInSystem = () => {
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [checkInQRData, setCheckInQRData] = useState('');
   const [selectedClassName, setSelectedClassName] = useState('');
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
 
   const phoneRef = useRef<HTMLInputElement>(null);
   const logoutTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,7 +83,21 @@ const KioskCheckInSystem = () => {
   useEffect(() => {
     loadTodayData();
     requestGeo();
+    loadEvents();
   }, []);
+
+  const loadEvents = async () => {
+    try {
+      const { data } = await supabase
+        .from('events' as any)
+        .select('*')
+        .eq('is_public' as any, true)
+        .gte('start_date' as any, new Date().toISOString())
+        .order('start_date', { ascending: true })
+        .limit(3);
+      setUpcomingEvents(data || []);
+    } catch {}
+  };
 
   useEffect(() => {
     let wl: any = null;
@@ -267,24 +282,29 @@ const KioskCheckInSystem = () => {
   // STAFF AUTH
   // ═══════════════════════════════════════════════════════
   const handleStaffAuth = async () => {
-    if (staffPinInput.length < 4) { setStaffPinError('PIN must be at least 4 digits'); return; }
-    setIsLoading(true);
     try {
-      const { data } = await (supabase.from('profiles').select('id, first_name, last_name').eq('security_pin', staffPinInput) as any);
-      if (!data || data.length === 0) {
-        setStaffPinError('Invalid staff PIN');
+      const { data, error } = await (supabase
+        .from('profiles')
+        .select('id, first_name, last_name, staff_pin')
+        .eq('staff_pin', staffPinInput.toUpperCase().trim())
+        .single() as any);
+
+      if (error || !data) {
+        setStaffPinError('Invalid Staff ID / PIN');
         setStaffPinInput('');
       } else {
         setStaffAuthed(true);
-        setStaffName(`${data[0].first_name} ${data[0].last_name}`);
+        setStaffName(`${data.first_name} ${data.last_name}`);
         setShowStaffPin(false);
-        toast({ title: "Staff Authorized", description: `Welcome, ${data[0].first_name}` });
-        await logActivity('staff_login', { staff_id: data[0].id, staff_name: `${data[0].first_name} ${data[0].last_name}` });
+        toast({ title: "Staff Authorized", description: `Welcome, ${data.first_name}` });
+        await logActivity('staff_login', { staff_id: data.id, staff_name: `${data.first_name} ${data.last_name}`, method: 'staff_pin' });
         
-        // Auto-logout staff if they do nothing for 120s (staff needs more time)
+        // Auto-logout staff if they do nothing for 120s
         startAutoLogoutTimer(120);
       }
-    } catch { setStaffPinError('Verification failed'); }
+    } catch (err: any) { 
+      setStaffPinError('Verification failed'); 
+    }
     finally { setIsLoading(false); }
   };
 
@@ -505,10 +525,64 @@ const KioskCheckInSystem = () => {
         </div>
       </div>
 
-      {/* ═══ Main Content ═══ */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
+      {/* ─── Main Content Area ─── */}
+      <div className="flex-1 overflow-y-auto px-4 pb-12 custom-scrollbar">
 
-        {/* ────── PARENT TAB ────── */}
+        {/* ────── IDLE HERO (BIG CLOCK + EVENTS) ────── */}
+        {activeTab === 'parent' && !parentLoggedIn && !parentPhone && (
+          <div className="pt-8 pb-10 space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            {/* Big Clock */}
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/[0.03] border border-white/[0.05] rounded-full text-[10px] text-white/40 tracking-[0.2em] font-bold uppercase mb-4">
+                <Clock className="w-3 h-3 text-emerald-400/50" /> Live System Time
+              </div>
+              <h1 className="text-8xl font-black text-white tracking-tighter tabular-nums drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              </h1>
+              <div className="text-xl text-white/40 font-medium tracking-tight">
+                {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </div>
+            </div>
+
+            {/* Events Ticker/Card */}
+            {upcomingEvents.length > 0 && (
+              <div className="max-w-md mx-auto">
+                <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-white/[0.08] rounded-3xl p-6 backdrop-blur-xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Calendar className="w-20 h-20 -rotate-12" />
+                  </div>
+                  <div className="relative space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-500 text-white border-0 text-[10px] font-bold px-2 py-0.5">LATEST EVENT</Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-white text-xl font-bold leading-tight line-clamp-2">
+                        {upcomingEvents[0].title}
+                      </h3>
+                      <p className="text-white/40 text-sm mt-1 flex items-center gap-2">
+                        <MapPin className="w-3 h-3" /> {upcomingEvents[0].location || 'At the center'}
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-between">
+                      <div className="text-xs text-white/60 font-medium">
+                        {new Date(upcomingEvents[0].start_date).toLocaleDateString([], { month: 'short', day: 'numeric' })} • {new Date(upcomingEvents[0].start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="text-center">
+              <p className="text-white/20 text-xs font-semibold tracking-widest uppercase animate-pulse">
+                Please enter your credentials below to start
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ────── PARENT CHECK-IN TAB ────── */}
         {activeTab === 'parent' && !parentLoggedIn && (
           <div className="max-w-sm mx-auto pt-6 space-y-5">
             <div className="text-center">
@@ -621,15 +695,14 @@ const KioskCheckInSystem = () => {
 
             <div className="space-y-3">
               <Input
-                type="password"
-                inputMode="numeric"
-                pattern="[0-9]*"
+                type="text"
+                autoCapitalize="characters"
                 value={staffPinInput}
-                onChange={e => { setStaffPinInput(e.target.value.replace(/\D/g, '')); setStaffPinError(''); }}
+                onChange={e => { setStaffPinInput(e.target.value.toUpperCase()); setStaffPinError(''); }}
                 onKeyDown={e => e.key === 'Enter' && handleStaffAuth()}
-                placeholder="Staff PIN..."
+                placeholder="STAFF ID / PIN..."
                 className="h-14 text-center text-xl tracking-[0.5em] bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl"
-                maxLength={8}
+                maxLength={12}
                 autoFocus
               />
               {staffPinError && <p className="text-red-400 text-xs text-center">{staffPinError}</p>}

@@ -53,6 +53,7 @@ const ChildMedicalProfile = lazy(() => import("./pages/ChildMedicalProfile"));
 const QRManagementPage = lazy(() => import("./pages/QRManagementPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 const EmailTemplatesPage = lazy(() => import("./pages/EmailTemplatesPage"));
+const UserProfile = lazy(() => import("./pages/UserProfile"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -140,6 +141,7 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   <Route path="/staff/documents" element={<ProtectedRoute><StaffDocumentUpload /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
                   <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
                   <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
                   <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EmailTemplatesPage /></RoleBasedRoute>} />
