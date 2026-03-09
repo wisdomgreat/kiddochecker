@@ -152,6 +152,17 @@ const CheckOutStation = () => {
         } else {
           toast({ title: "Invalid QR Code", description: "QR code format not recognized.", variant: "destructive" });
         }
+      } else if (typeof qrData === 'string' && qrData.startsWith('child:')) {
+        const parts = qrData.split(':');
+        if (parts.length >= 2) {
+          const childId = parts[1];
+          const attendanceRecord = presentChildren.find((r: any) => r.child_id === childId);
+          if (attendanceRecord) {
+            handleCheckOut(attendanceRecord.id);
+          } else {
+            toast({ title: "Child Not Found", description: "This child is not currently checked in.", variant: "destructive" });
+          }
+        }
       } else {
         // Fallback: direct ID match
         const attendanceRecord = presentChildren.find((r: any) =>

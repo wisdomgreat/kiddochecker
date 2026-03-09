@@ -358,7 +358,25 @@ const KioskCheckInSystem = () => {
         // Not JSON, continue to DB lookup
       }
 
-      // 2. Fallback to DB Lookup (Legacy/Database tags)
+      // 2. Try parsing Parent-generated QR code (format: child:id:firstName:lastName)
+      if (typeof qrData === 'string' && qrData.startsWith('child:')) {
+        const parts = qrData.split(':');
+        if (parts.length >= 2) {
+          const childId = parts[1];
+          const { data: child, error: childError } = await supabase
+            .from('children')
+            .select('*')
+            .eq('id', childId)
+            .single();
+            
+          if (!childError && child) {
+            handleStaffCheckIn(child as any);
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback to DB Lookup (Legacy/Database tags)
       const { data: rec, error } = await supabase
         .from('qr_codes')
         .select('*, child:children(*)')

@@ -182,11 +182,23 @@ const EnhancedCheckInSystem = () => {
 
   const handleQRCodeScan = (data: string) => {
     try {
-      const parts = data.split('|');
-      const childIdPart = parts.find(part => part.startsWith('CHILD:'));
+      // Handle the parent's generated QR format directly: "child:id:firstname:lastname"
+      let childId = null;
+      if (typeof data === 'string' && data.startsWith('child:')) {
+        const parts = data.split(':');
+        if (parts.length >= 2) {
+          childId = parts[1];
+        }
+      } else {
+        // Legacy CHILD:... format
+        const parts = data.split('|');
+        const childIdPart = parts.find(part => part.startsWith('CHILD:'));
+        if (childIdPart) {
+          childId = childIdPart.split(':')[1];
+        }
+      }
       
-      if (childIdPart) {
-        const childId = childIdPart.split(':')[1];
+      if (childId) {
         const child = children.find(c => c.id === childId);
         
         if (child) {

@@ -61,53 +61,53 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // 2. Authenticate the requester
+    // Extract body early
+    const body: EmailRequest = await req.json();
+    const { to, subject, message, templateName, templateData, type, childName, className } = body;
+
+    // 2. Authenticate the requester OR check if it's a allowed unauthenticated action
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const isAllowedUnauth = type === 'check_in' || type === 'check_out';
+
+    if (!authHeader && !isAllowedUnauth) {
       console.error('Missing Authorization header');
       return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    
+
     // Create a regular client to verify the user's identity
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { 
         headers: { 
-          Authorization: authHeader,
+          Authorization: authHeader || `Bearer ${supabaseAnonKey}`,
           apikey: supabaseAnonKey
         } 
       },
-      auth: {
-        persistSession: false
-      }
+      auth: { persistSession: false }
     });
 
     // Create an admin client for querying templates
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      console.error('User verification failed:', userError?.message || 'No user found');
-      return new Response(JSON.stringify({ 
-        error: 'Unauthorized', 
-        details: userError?.message,
-        header_present: !!authHeader
-      }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Verify user unless it's a kiosk action
+    if (!isAllowedUnauth) {
+      const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+      if (userError || !user) {
+        console.error('User verification failed:', userError?.message || 'No user found');
+        return new Response(JSON.stringify({ 
+          error: 'Unauthorized', 
+          details: userError?.message || 'Valid session required for this notification type',
+          header_present: !!authHeader
+        }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
-
-    // 2. Validate input
-    const body: EmailRequest = await req.json();
-    const { to, subject, message, templateName, templateData, childName, className } = body;
 
     if (!to) {
       return new Response(JSON.stringify({ error: 'Missing "to" field' }), {

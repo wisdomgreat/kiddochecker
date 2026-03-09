@@ -23,10 +23,7 @@ export const useEmailNotifications = () => {
     mutationFn: async (emailData: EmailNotificationData) => {
       // Call the edge function for sending emails
       const { data, error } = await supabase.functions.invoke('send-email', {
-        body: emailData,
-        headers: {
-          'apikey': (supabase as any).supabaseKey // Most supabase clients store the key here
-        }
+        body: emailData
       });
 
       if (error) throw error;
