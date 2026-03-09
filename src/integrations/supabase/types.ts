@@ -141,6 +141,68 @@ export type Database = {
         }
         Relationships: []
       }
+      child_medical_profiles: {
+        Row: {
+          allergies: Json | null
+          blood_type: string | null
+          child_id: string
+          conditions: Json | null
+          created_at: string | null
+          dietary_restrictions: string | null
+          doctor_name: string | null
+          doctor_phone: string | null
+          emergency_notes: string | null
+          id: string
+          insurance_number: string | null
+          insurance_provider: string | null
+          last_physical_date: string | null
+          medications: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          allergies?: Json | null
+          blood_type?: string | null
+          child_id: string
+          conditions?: Json | null
+          created_at?: string | null
+          dietary_restrictions?: string | null
+          doctor_name?: string | null
+          doctor_phone?: string | null
+          emergency_notes?: string | null
+          id?: string
+          insurance_number?: string | null
+          insurance_provider?: string | null
+          last_physical_date?: string | null
+          medications?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          allergies?: Json | null
+          blood_type?: string | null
+          child_id?: string
+          conditions?: Json | null
+          created_at?: string | null
+          dietary_restrictions?: string | null
+          doctor_name?: string | null
+          doctor_phone?: string | null
+          emergency_notes?: string | null
+          id?: string
+          insurance_number?: string | null
+          insurance_provider?: string | null
+          last_physical_date?: string | null
+          medications?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_medical_profiles_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: true
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       child_notes: {
         Row: {
           child_id: string
@@ -295,6 +357,68 @@ export type Database = {
         }
         Relationships: []
       }
+      debug_users: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string | null
+          is_super_admin: boolean | null
+          role: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          is_super_admin?: boolean | null
+          role?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          is_super_admin?: boolean | null
+          role?: string | null
+        }
+        Relationships: []
+      }
+      device_activity_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          device_id: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          performed_by: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          performed_by?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          performed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_activity_log_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "enrolled_devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_profiles: {
         Row: {
           created_at: string | null
@@ -320,6 +444,135 @@ export type Database = {
           id?: string
           location?: string | null
           name?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      document_requirements: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_name: string
+          document_type: string
+          expiry_months: number | null
+          has_expiry: boolean | null
+          id: string
+          is_mandatory: boolean | null
+          required_for_roles: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          document_type: string
+          expiry_months?: number | null
+          has_expiry?: boolean | null
+          id?: string
+          is_mandatory?: boolean | null
+          required_for_roles?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          document_type?: string
+          expiry_months?: number | null
+          has_expiry?: boolean | null
+          id?: string
+          is_mandatory?: boolean | null
+          required_for_roles?: string[] | null
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          body_html: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          placeholders: Json | null
+          subject: string
+          updated_at: string | null
+        }
+        Insert: {
+          body_html: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          placeholders?: Json | null
+          subject: string
+          updated_at?: string | null
+        }
+        Update: {
+          body_html?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          placeholders?: Json | null
+          subject?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      enrolled_devices: {
+        Row: {
+          created_at: string | null
+          device_info: Json | null
+          enrolled_at: string | null
+          enrolled_by: string | null
+          enrollment_code: string
+          id: string
+          last_ip: string | null
+          last_seen: string | null
+          location: string | null
+          name: string
+          notes: string | null
+          organization_id: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          status: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_info?: Json | null
+          enrolled_at?: string | null
+          enrolled_by?: string | null
+          enrollment_code: string
+          id?: string
+          last_ip?: string | null
+          last_seen?: string | null
+          location?: string | null
+          name: string
+          notes?: string | null
+          organization_id?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_info?: Json | null
+          enrolled_at?: string | null
+          enrolled_by?: string | null
+          enrollment_code?: string
+          id?: string
+          last_ip?: string | null
+          last_seen?: string | null
+          location?: string | null
+          name?: string
+          notes?: string | null
+          organization_id?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
           type?: string
           updated_at?: string | null
         }
@@ -382,6 +635,33 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      kiosk_settings: {
+        Row: {
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -524,7 +804,9 @@ export type Database = {
           qr_code_data: string | null
           security_answer: string | null
           security_answer_hash: string | null
+          security_pin: string | null
           security_question: string | null
+          staff_pin: string | null
           updated_at: string
         }
         Insert: {
@@ -537,7 +819,9 @@ export type Database = {
           qr_code_data?: string | null
           security_answer?: string | null
           security_answer_hash?: string | null
+          security_pin?: string | null
           security_question?: string | null
+          staff_pin?: string | null
           updated_at?: string
         }
         Update: {
@@ -550,7 +834,9 @@ export type Database = {
           qr_code_data?: string | null
           security_answer?: string | null
           security_answer_hash?: string | null
+          security_pin?: string | null
           security_question?: string | null
+          staff_pin?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -625,6 +911,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      staff_documents: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          document_name: string
+          document_type: string
+          expires_at: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          updated_at: string | null
+          uploaded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          document_name: string
+          document_type: string
+          expires_at?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          document_name?: string
+          document_type?: string
+          expires_at?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       staff_invitations: {
         Row: {
@@ -750,6 +1090,10 @@ export type Database = {
           is_volunteer: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
+          verification_notes: string | null
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           created_at?: string
@@ -758,6 +1102,10 @@ export type Database = {
           is_volunteer?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id: string
+          verification_notes?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           created_at?: string
@@ -766,6 +1114,10 @@ export type Database = {
           is_volunteer?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+          verification_notes?: string | null
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: []
       }
@@ -785,23 +1137,46 @@ export type Database = {
       }
     }
     Functions: {
+      admin_verify_staff: {
+        Args: { p_action: string; p_notes?: string; p_user_id: string }
+        Returns: Json
+      }
       assign_organization_creator_role: {
         Args: { p_org_id: string; p_user_id: string }
         Returns: boolean
       }
-      check_sql_query_safety: { Args: { query: string }; Returns: boolean }
-      checkin_child: {
-        Args: {
-          p_checked_in_by?: string
-          p_child_id: string
-          p_class_id?: string
-        }
-        Returns: string
-      }
-      checkout_child: {
-        Args: { p_attendance_id: string; p_checked_out_by?: string }
-        Returns: boolean
-      }
+      can_access_kiosk: { Args: { p_user_id: string }; Returns: boolean }
+      checkin_child:
+        | {
+            Args: {
+              p_checked_in_by?: string
+              p_child_id: string
+              p_class_id?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_checked_in_by?: string
+              p_child_id: string
+              p_class_id?: string
+              p_qr_token?: string
+            }
+            Returns: string
+          }
+      checkout_child:
+        | {
+            Args: { p_attendance_id: string; p_checked_out_by?: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_attendance_id: string
+              p_checked_out_by?: string
+              p_qr_token?: string
+            }
+            Returns: boolean
+          }
       create_class_teacher_assignment: {
         Args: {
           p_age_range: string
@@ -840,6 +1215,33 @@ export type Database = {
             }
             Returns: string
           }
+      debug_check_user_roles: {
+        Args: { p_user_id: string }
+        Returns: {
+          is_super_admin: boolean
+          role: string
+          user_id: string
+        }[]
+      }
+      debug_user_info: {
+        Args: { p_email: string }
+        Returns: {
+          has_profile: boolean
+          user_exists: boolean
+          user_role: string
+        }[]
+      }
+      debug_user_info_v2: {
+        Args: { p_email: string }
+        Returns: {
+          email_confirmed: boolean
+          has_profile: boolean
+          user_exists: boolean
+          user_role: string
+        }[]
+      }
+      generate_random_alphanumeric: { Args: { len?: number }; Returns: string }
+      generate_staff_pin_rpc: { Args: { p_user_id: string }; Returns: string }
       get_all_events: {
         Args: never
         Returns: {
@@ -861,6 +1263,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_all_user_roles: { Args: never; Returns: Json }
       get_attendance_report: {
         Args: { end_date: string; start_date: string }
         Returns: {
@@ -929,6 +1332,21 @@ export type Database = {
           last_name: string
         }[]
       }
+      get_pending_staff_verifications: {
+        Args: never
+        Returns: {
+          created_at: string
+          documents_approved: number
+          documents_pending: number
+          documents_submitted: number
+          email: string
+          first_name: string
+          last_name: string
+          role: string
+          user_id: string
+          verification_status: string
+        }[]
+      }
       get_staff_members: {
         Args: never
         Returns: {
@@ -941,8 +1359,24 @@ export type Database = {
           phone: string
           role: string
           user_id: string
+          verification_status: string
         }[]
       }
+      get_staff_verification_status: {
+        Args: { p_user_id: string }
+        Returns: {
+          is_fully_verified: boolean
+          total_approved: number
+          total_pending: number
+          total_rejected: number
+          total_required: number
+          total_submitted: number
+          verification_status: string
+          verified_at: string
+        }[]
+      }
+      get_table_policies_json: { Args: { p_tablename: string }; Returns: Json }
+      get_table_schema: { Args: { p_tablename: string }; Returns: Json }
       get_todays_attendance: {
         Args: never
         Returns: {
@@ -1024,6 +1458,10 @@ export type Database = {
         }
         Returns: Json
       }
+      update_organization_logo: {
+        Args: { logo_url: string; org_id: string }
+        Returns: undefined
+      }
       verify_security_answer: {
         Args: { answer: string; user_id: string }
         Returns: boolean
@@ -1037,6 +1475,8 @@ export type Database = {
         | "super_admin"
         | "teacher"
         | "teacher_assistant"
+        | "kiosk"
+        | "volunteer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1171,6 +1611,8 @@ export const Constants = {
         "super_admin",
         "teacher",
         "teacher_assistant",
+        "kiosk",
+        "volunteer",
       ],
     },
   },
