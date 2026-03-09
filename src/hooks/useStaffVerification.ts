@@ -140,7 +140,10 @@ export const useStaffVerification = () => {
             const filePath = `${user.id}/${Date.now()}_${file.name}`;
             const { error: uploadError } = await supabase.storage
                 .from('staff-documents')
-                .upload(filePath, file);
+                .upload(filePath, file, {
+                    contentType: file.type,
+                    upsert: true
+                });
 
             if (uploadError) {
                 console.error("Storage upload error:", uploadError);

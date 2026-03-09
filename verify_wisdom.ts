@@ -6,7 +6,7 @@ const anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const supabase = createClient(supabaseUrl, anonKey);
 
 async function verify() {
-  const emails = ['wisdom_borntobegreat@yahoo.com', 'wisdom.borntobegreat@yahoo.com'];
+  const emails = ['wisdom_borntobegreat@yahoo.com', 'wisdom.borntobegreat@yahoo.com', 'wisejobana.ja@gmail.com'];
   
   for (const email of emails) {
     console.log(`Checking ${email}...`);
