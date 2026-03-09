@@ -292,8 +292,8 @@ const KioskCheckInSystem = () => {
         toast({ title: "Staff Authorized", description: `Welcome, ${data.first_name}` });
         await logActivity('staff_login', { staff_id: data.id, staff_name: `${data.first_name} ${data.last_name}`, method: 'staff_pin' });
         
-        // Auto-logout staff if they do nothing for 120s
-        startAutoLogoutTimer(120);
+        // Auto-logout staff if they do nothing for 45 minutes (2700s)
+        startAutoLogoutTimer(2700);
       }
     } catch (err: any) { 
       setStaffPinError('Verification failed'); 
