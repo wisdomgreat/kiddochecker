@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-  QrCode, Search, UserCheck, Users, CheckCircle, AlertCircle,
-  Printer, Camera, Maximize, Loader2, Info, MapPin, Shield,
-  ShieldCheck, KeyRound, UserCog,
+  Search, UserCheck, CheckCircle, AlertCircle, Maximize, Loader2,
+  Info, MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
+  Camera, Baby, Phone, User, ArrowRight, Printer,
 } from 'lucide-react';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import QRCodeScanner from '@/components/qr/QRCodeScanner';
 import ClassSelectionDialog from './ClassSelectionDialog';
 import NameTagPrintDialog from './NameTagPrintDialog';
-import PINDialog from './PINDialog';
 
 interface Child {
   id: string;
@@ -25,49 +24,63 @@ interface Child {
   allergies?: string;
 }
 
-type KioskView = 'search' | 'scan' | 'help';
-type CheckInRole = 'parent' | 'staff';
-
 interface GeoLocation { latitude: number; longitude: number; accuracy: number; }
 
+type KioskTab = 'parent' | 'staff' | 'checkout';
+
 const KioskCheckInSystem = () => {
-  // ─── State ───
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredChildren, setFilteredChildren] = useState<Child[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [todayCount, setTodayCount] = useState(0);
+  // ─── Core State ───
+  const [activeTab, setActiveTab] = useState<KioskTab>('parent');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [todayCount, setTodayCount] = useState(0);
+  const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // ─── Parent Login ───
+  const [parentPhone, setParentPhone] = useState('');
+  const [parentPin, setParentPin] = useState('');
+  const [parentLoggedIn, setParentLoggedIn] = useState(false);
+  const [parentName, setParentName] = useState('');
+  const [parentChildren, setParentChildren] = useState<Child[]>([]);
+  const [parentLoginError, setParentLoginError] = useState('');
+  const [checkedInChildIds, setCheckedInChildIds] = useState<Set<string>>(new Set());
+
+  // ─── Staff Search ───
+  const [staffSearchTerm, setStaffSearchTerm] = useState('');
+  const [staffSearchResults, setStaffSearchResults] = useState<Child[]>([]);
+  const [staffAuthed, setStaffAuthed] = useState(false);
+  const [staffName, setStaffName] = useState('');
+  const [showStaffPin, setShowStaffPin] = useState(false);
+  const [staffPinInput, setStaffPinInput] = useState('');
+  const [staffPinError, setStaffPinError] = useState('');
+
+  // ─── Check-Out ───
+  const [checkoutSearch, setCheckoutSearch] = useState('');
+  const [checkedInChildren, setCheckedInChildren] = useState<any[]>([]);
+  const [checkoutFilteredChildren, setCheckoutFilteredChildren] = useState<any[]>([]);
+
+  // ─── Class & Print ───
   const [showClassDialog, setShowClassDialog] = useState(false);
   const [showNameTagDialog, setShowNameTagDialog] = useState(false);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [checkInQRData, setCheckInQRData] = useState('');
   const [selectedClassName, setSelectedClassName] = useState('');
-  const [showPinDialog, setShowPinDialog] = useState(false);
-  const [pendingChild, setPendingChild] = useState<Child | null>(null);
-  const [scannedQRToken, setScannedQRToken] = useState<string | null>(null);
-  const [activePin, setActivePin] = useState('');
-  const [activeView, setActiveView] = useState<KioskView>('search');
-  const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [checkedInRole, setCheckedInRole] = useState<CheckInRole>('parent');
-  const [showRoleChoice, setShowRoleChoice] = useState(false);
-  const [checkedInChildIds, setCheckedInChildIds] = useState<Set<string>>(new Set());
-  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const phoneRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // ─── Clock ───
+  // ─── Boot ───
   useEffect(() => {
     const i = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(i);
   }, []);
 
-  // ─── Boot ───
   useEffect(() => {
-    loadTodayCount();
+    loadTodayData();
     requestGeo();
   }, []);
 
-  // ─── Wake Lock ───
   useEffect(() => {
     let wl: any = null;
     const req = async () => { try { if ('wakeLock' in navigator) wl = await (navigator as any).wakeLock.request('screen'); } catch {} };
@@ -91,470 +104,538 @@ const KioskCheckInSystem = () => {
     else document.exitFullscreen().catch(() => {});
   };
 
-  const loadTodayCount = async () => {
+  const loadTodayData = async () => {
     try {
       const data = await AttendanceService.getTodaysAttendance();
       setTodayCount(data.length);
-      // Build set of already-checked-in child IDs
       const ids = new Set<string>();
-      data.forEach((r: any) => { if (!r.checked_out_at) ids.add(r.child_id); });
+      const checkedIn: any[] = [];
+      data.forEach((r: any) => { if (!r.checked_out_at) { ids.add(r.child_id); checkedIn.push(r); } });
       setCheckedInChildIds(ids);
+      setCheckedInChildren(checkedIn);
+      setCheckoutFilteredChildren(checkedIn);
     } catch { setTodayCount(0); }
   };
 
-  // ─── Search (3 char minimum, no initial load) ───
-  useEffect(() => {
-    if (searchTerm.trim().length < 3) { setFilteredChildren([]); return; }
-    const timer = setTimeout(async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('children')
-          .select('id, first_name, last_name, parent_id, age, allergies')
-          .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
-          .limit(8);
-        if (error) throw error;
-        setFilteredChildren(data || []);
-      } catch (err) { console.error('Search error:', err); }
-      finally { setIsLoading(false); }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  // ─── Check-In Flow ───
-  const initiateCheckIn = (child: Child) => {
-    // Block duplicate check-in
-    if (checkedInChildIds.has(child.id)) {
-      toast({ title: "Already Checked In", description: `${child.first_name} is already checked in today. Check out first before checking in again.`, variant: "destructive" });
-      return;
-    }
-    setPendingChild(child);
-    setShowRoleChoice(true);
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(''), 6000);
   };
 
-  const handleRoleSelected = async (role: CheckInRole) => {
-    if (!pendingChild) return;
-    setShowRoleChoice(false);
-    setCheckedInRole(role);
+  const logActivity = async (action: string, metadata: any) => {
+    if (geoLocation) {
+      metadata.lat = geoLocation.latitude;
+      metadata.lon = geoLocation.longitude;
+      metadata.acc = geoLocation.accuracy;
+    }
+    metadata.ts = new Date().toISOString();
+    try { await (supabase.from('device_activity_log' as any) as any).insert({ action, metadata }); } catch {}
+  };
+
+  // ═══════════════════════════════════════════════════════
+  // PARENT LOGIN
+  // ═══════════════════════════════════════════════════════
+  const handleParentLogin = async () => {
+    if (!parentPhone.trim() || !parentPin.trim()) {
+      setParentLoginError('Please enter your phone/name and PIN');
+      return;
+    }
+    if (parentPin.length < 4) {
+      setParentLoginError('PIN must be at least 4 digits');
+      return;
+    }
     setIsLoading(true);
+    setParentLoginError('');
 
     try {
-      if (role === 'parent') {
-        // Fetch parent's personal PIN
-        const { data } = await (supabase.from('profiles').select('security_pin').eq('id', pendingChild.parent_id).single() as any);
-        if (data?.security_pin) {
-          setActivePin(data.security_pin);
-        } else {
-          toast({ title: "No PIN Set", description: "This parent hasn't set a security PIN yet. Please ask a staff member for help.", variant: "destructive" });
-          setPendingChild(null);
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        // Staff: use a special flow — staff enters their OWN PIN
-        // We'll prompt for staff PIN. Staff must have set their PIN during onboarding.
-        // For now we ask for any valid staff PIN from the profiles table
-        // The PIN dialog will validate against the entered staff member's PIN
-        setActivePin('STAFF_MODE');
+      // Search for parent by phone OR name
+      const searchVal = parentPhone.trim();
+      const { data: profiles, error } = await (supabase
+        .from('profiles')
+        .select('id, first_name, last_name, phone, security_pin')
+        .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`) as any);
+
+      if (error || !profiles || profiles.length === 0) {
+        setParentLoginError('No account found. Please check your details.');
+        setIsLoading(false);
+        return;
       }
-    } catch {
-      toast({ title: "Error", description: "Could not load PIN data", variant: "destructive" });
-      setPendingChild(null);
+
+      // Find matching PIN
+      const matched = profiles.find((p: any) => p.security_pin === parentPin);
+      if (!matched) {
+        setParentLoginError('Incorrect PIN. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Load children for this parent
+      const { data: kids, error: kidsError } = await supabase
+        .from('children')
+        .select('*')
+        .eq('parent_id', matched.id);
+
+      if (kidsError) throw kidsError;
+
+      setParentName(`${matched.first_name} ${matched.last_name}`);
+      setParentChildren(kids || []);
+      setParentLoggedIn(true);
+
+      await logActivity('parent_login', { parent_id: matched.id, parent_name: `${matched.first_name} ${matched.last_name}` });
+    } catch (e: any) {
+      setParentLoginError(e.message || 'Login failed');
+    } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleParentLogout = () => {
+    setParentLoggedIn(false);
+    setParentName('');
+    setParentChildren([]);
+    setParentPhone('');
+    setParentPin('');
+    setParentLoginError('');
+  };
+
+  const handleParentCheckIn = (child: Child) => {
+    if (checkedInChildIds.has(child.id)) {
+      toast({ title: "Already Checked In", description: `${child.first_name} is already checked in today.`, variant: "destructive" });
       return;
     }
-    setIsLoading(false);
-    setShowPinDialog(true);
+    setSelectedChild(child);
+    setShowClassDialog(true);
   };
 
-  const handlePinSuccess = () => {
-    setShowPinDialog(false);
-    if (pendingChild) {
-      setSelectedChild(pendingChild);
-      setShowClassDialog(true);
-      setPendingChild(null);
+  // ═══════════════════════════════════════════════════════
+  // STAFF AUTH
+  // ═══════════════════════════════════════════════════════
+  const handleStaffAuth = async () => {
+    if (staffPinInput.length < 4) { setStaffPinError('PIN must be at least 4 digits'); return; }
+    setIsLoading(true);
+    try {
+      const { data } = await (supabase.from('profiles').select('id, first_name, last_name').eq('security_pin', staffPinInput) as any);
+      if (!data || data.length === 0) {
+        setStaffPinError('Invalid staff PIN');
+        setStaffPinInput('');
+      } else {
+        setStaffAuthed(true);
+        setStaffName(`${data[0].first_name} ${data[0].last_name}`);
+        setShowStaffPin(false);
+        toast({ title: "Staff Authorized", description: `Welcome, ${data[0].first_name}` });
+        await logActivity('staff_login', { staff_id: data[0].id, staff_name: `${data[0].first_name} ${data[0].last_name}` });
+      }
+    } catch { setStaffPinError('Verification failed'); }
+    finally { setIsLoading(false); }
+  };
+
+  const handleStaffLogout = () => {
+    setStaffAuthed(false);
+    setStaffName('');
+    setStaffPinInput('');
+    setStaffSearchTerm('');
+    setStaffSearchResults([]);
+  };
+
+  // Staff search
+  useEffect(() => {
+    if (!staffAuthed || staffSearchTerm.length < 3) { setStaffSearchResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.from('children').select('*')
+          .or(`first_name.ilike.%${staffSearchTerm}%,last_name.ilike.%${staffSearchTerm}%`).limit(8);
+        setStaffSearchResults(data || []);
+      } catch {}
+    }, 400);
+    return () => clearTimeout(t);
+  }, [staffSearchTerm, staffAuthed]);
+
+  const handleStaffCheckIn = (child: Child) => {
+    if (checkedInChildIds.has(child.id)) {
+      toast({ title: "Already Checked In", description: `${child.first_name} is already checked in.`, variant: "destructive" });
+      return;
     }
+    setSelectedChild(child);
+    setShowClassDialog(true);
   };
 
+  const handleQRScan = async (qrData: string) => {
+    if (!staffAuthed) { toast({ title: "Staff PIN Required", description: "Please enter your staff PIN first.", variant: "destructive" }); return; }
+    setIsLoading(true);
+    try {
+      const { data: rec, error } = await supabase.from('qr_codes').select('*, child:children(*)').eq('qr_data', qrData).eq('is_active', true).single();
+      if (error || !rec) { toast({ title: "Invalid QR", description: "Code not recognized", variant: "destructive" }); return; }
+      handleStaffCheckIn(rec.child as any);
+    } catch { toast({ title: "Error", description: "Failed to process QR", variant: "destructive" }); }
+    finally { setIsLoading(false); }
+  };
+
+  // ═══════════════════════════════════════════════════════
+  // CLASS SELECTED → ACTUAL CHECK-IN
+  // ═══════════════════════════════════════════════════════
   const handleClassSelected = async (classId: string) => {
     if (!selectedChild) return;
     setShowClassDialog(false);
     setIsLoading(true);
     try {
       const { data: classData } = await supabase.from('classes').select('name').eq('id', classId).single();
-      const result = await AttendanceService.checkInChild({
-        childId: selectedChild.id, classId, checkedInBy: undefined, qrToken: scannedQRToken || undefined
-      });
+      const result = await AttendanceService.checkInChild({ childId: selectedChild.id, classId });
 
       if (result.success) {
-        // Log geo
-        if (geoLocation) {
-          try {
-            await (supabase.from('device_activity_log' as any) as any).insert({
-              action: 'check_in',
-              metadata: {
-                child_id: selectedChild.id,
-                child_name: `${selectedChild.first_name} ${selectedChild.last_name}`,
-                class_name: classData?.name,
-                checked_in_by: checkedInRole,
-                lat: geoLocation.latitude, lon: geoLocation.longitude, acc: geoLocation.accuracy,
-                ts: new Date().toISOString(),
-              },
-            });
-          } catch {}
-        }
+        await logActivity('check_in', {
+          child_id: selectedChild.id, child_name: `${selectedChild.first_name} ${selectedChild.last_name}`,
+          class_name: classData?.name, by: activeTab === 'parent' ? `parent:${parentName}` : `staff:${staffName}`,
+        });
 
         const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', selectedChild.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).single();
         setCheckInQRData(qrCodeData?.qr_data || '');
         setSelectedClassName(classData?.name || '');
-        setSuccessMsg(`${selectedChild.first_name} → ${classData?.name || 'class'}`);
-        setTimeout(() => setSuccessMsg(''), 8000);
-
-        // Update local set
         setCheckedInChildIds(prev => new Set([...prev, selectedChild.id]));
-        await loadTodayCount();
-        setSearchTerm('');
-        setFilteredChildren([]);
+        showSuccess(`${selectedChild.first_name} → ${classData?.name || 'class'}`);
+        await loadTodayData();
 
         if (selectedChild.allergies) {
           toast({ title: "⚠️ ALLERGY ALERT", description: `${selectedChild.first_name}: ${selectedChild.allergies}`, variant: "destructive", duration: 10000 });
         }
-        toast({ title: "✅ Check-in Successful!", description: `${selectedChild.first_name} ${selectedChild.last_name}` });
         setShowNameTagDialog(true);
       } else {
-        // Handle "already checked in" from the database
         if (result.error?.includes('already checked in')) {
           setCheckedInChildIds(prev => new Set([...prev, selectedChild.id]));
           toast({ title: "Already Checked In", description: `${selectedChild.first_name} is already checked in today.`, variant: "destructive" });
         } else {
-          toast({ title: "Check-in Failed", description: result.error || "Could not check in", variant: "destructive" });
+          toast({ title: "Failed", description: result.error || "Could not check in", variant: "destructive" });
         }
       }
     } catch (e: any) {
-      if (e.message?.includes('already checked in')) {
-        setCheckedInChildIds(prev => new Set([...prev, selectedChild!.id]));
-        toast({ title: "Already Checked In", description: `${selectedChild.first_name} is already checked in.`, variant: "destructive" });
-      } else {
-        toast({ title: "Error", description: e.message || "An error occurred", variant: "destructive" });
-      }
+      toast({ title: "Error", description: e.message || "Check-in failed", variant: "destructive" });
     } finally { setIsLoading(false); }
   };
 
-  const handleQRScan = async (qrData: string) => {
+  // ═══════════════════════════════════════════════════════
+  // CHECK-OUT
+  // ═══════════════════════════════════════════════════════
+  useEffect(() => {
+    if (!checkoutSearch.trim()) { setCheckoutFilteredChildren(checkedInChildren); return; }
+    const filtered = checkedInChildren.filter((r: any) => {
+      const name = `${r.child?.first_name || ''} ${r.child?.last_name || ''}`.toLowerCase();
+      return name.includes(checkoutSearch.toLowerCase());
+    });
+    setCheckoutFilteredChildren(filtered);
+  }, [checkoutSearch, checkedInChildren]);
+
+  const handleCheckOut = async (record: any) => {
     setIsLoading(true);
     try {
-      const { data: rec, error } = await supabase.from('qr_codes').select('*, child:children(*)').eq('qr_data', qrData).eq('is_active', true).single();
-      if (error || !rec) { toast({ title: "Invalid QR Code", description: "Not recognized or expired", variant: "destructive" }); return; }
-      setScannedQRToken(qrData);
-      setActiveView('search');
-      initiateCheckIn(rec.child as any);
-    } catch { toast({ title: "Error", description: "Failed to process QR code", variant: "destructive" }); }
-    finally { setIsLoading(false); }
-  };
-
-  // ─── PIN Dialog with staff mode ───
-  const StaffPINDialog = () => {
-    const [staffPin, setStaffPin] = useState('');
-    const [staffError, setStaffError] = useState('');
-    const [verifying, setVerifying] = useState(false);
-
-    const verifyStaffPin = async () => {
-      if (staffPin.length < 4) { setStaffError('PIN must be at least 4 digits'); return; }
-      setVerifying(true);
-      setStaffError('');
-      try {
-        // Look up any staff member with this PIN
-        const { data, error } = await (supabase.from('profiles').select('id, first_name, last_name').eq('security_pin', staffPin) as any);
-        if (error || !data || data.length === 0) {
-          setStaffError('Invalid staff PIN. No staff member found with this PIN.');
-          setStaffPin('');
-        } else {
-          toast({ title: "Staff Verified", description: `Authorized by ${data[0].first_name} ${data[0].last_name}` });
-          handlePinSuccess();
-        }
-      } catch { setStaffError('Verification failed'); }
-      finally { setVerifying(false); }
-    };
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="bg-slate-900 border border-white/10 rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-5">
-          <div className="text-center">
-            <div className="w-14 h-14 mx-auto bg-indigo-500/20 rounded-2xl flex items-center justify-center mb-3">
-              <UserCog className="h-7 w-7 text-indigo-400" />
-            </div>
-            <h2 className="text-xl font-bold text-white">Staff Authorization</h2>
-            <p className="text-white/40 text-sm mt-1">Enter your personal staff PIN</p>
-          </div>
-
-          <Input
-            type="password"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="Enter your PIN..."
-            value={staffPin}
-            onChange={e => { setStaffPin(e.target.value.replace(/\D/g, '')); setStaffError(''); }}
-            onKeyDown={e => e.key === 'Enter' && verifyStaffPin()}
-            className="h-14 text-center text-2xl tracking-[0.5em] bg-white/5 border-white/15 text-white rounded-xl"
-            maxLength={8}
-            autoFocus
-          />
-
-          {staffError && <p className="text-red-400 text-xs text-center">{staffError}</p>}
-
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setShowPinDialog(false); setPendingChild(null); }} className="flex-1 border-white/10 text-white/50 hover:bg-white/5 rounded-xl">Cancel</Button>
-            <Button onClick={verifyStaffPin} disabled={verifying || staffPin.length < 4} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl">
-              {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ─── Role Choice Dialog ───
-  const RoleChoiceDialog = () => {
-    if (!showRoleChoice || !pendingChild) return null;
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-        <div className="bg-slate-900 border border-white/10 rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-          <div className="text-center">
-            <h2 className="text-lg font-bold text-white">Who is checking in?</h2>
-            <p className="text-white/40 text-sm mt-1">
-              Checking in <span className="text-indigo-400 font-semibold">{pendingChild.first_name} {pendingChild.last_name}</span>
-            </p>
-          </div>
-
-          <button
-            onClick={() => handleRoleSelected('parent')}
-            className="w-full flex items-center gap-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl hover:bg-emerald-500/15 active:scale-[0.98] transition-all text-left"
-          >
-            <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-              <KeyRound className="w-6 h-6 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-white font-semibold">I'm the Parent</p>
-              <p className="text-white/40 text-xs">Enter your personal parent PIN</p>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleRoleSelected('staff')}
-            className="w-full flex items-center gap-4 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/15 active:scale-[0.98] transition-all text-left"
-          >
-            <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center">
-              <UserCog className="w-6 h-6 text-indigo-400" />
-            </div>
-            <div>
-              <p className="text-white font-semibold">I'm a Staff Member</p>
-              <p className="text-white/40 text-xs">Enter your personal staff PIN</p>
-            </div>
-          </button>
-
-          <Button variant="ghost" onClick={() => { setShowRoleChoice(false); setPendingChild(null); }} className="w-full text-white/30 hover:text-white/50 text-xs">
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
+      const result = await AttendanceService.checkOutChild({ attendanceId: record.id });
+      if (result.success) {
+        await logActivity('check_out', {
+          child_id: record.child_id, child_name: `${record.child?.first_name} ${record.child?.last_name}`,
+        });
+        showSuccess(`${record.child?.first_name} checked out`);
+        await loadTodayData();
+        toast({ title: "✅ Checked Out", description: `${record.child?.first_name} ${record.child?.last_name}` });
+      } else {
+        toast({ title: "Failed", description: result.error || "Could not check out", variant: "destructive" });
+      }
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally { setIsLoading(false); }
   };
 
   // ═══════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════
-  return (
-    <div className="fixed inset-0 bg-gradient-to-b from-[#0a0e27] via-[#0d1333] to-[#0a0e27] flex flex-col select-none overflow-hidden">
-      {/* ─── Status Bar ─── */}
-      <div className="flex items-center justify-between px-5 py-2.5 text-white/50 text-[11px] font-medium shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-semibold tracking-wide">KIDDOCHECKER</span>
-          {geoLocation && <MapPin className="w-2.5 h-2.5 text-emerald-400/50" />}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="tabular-nums font-semibold">{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-          <button onClick={toggleFs} className="p-1 hover:bg-white/5 rounded transition">
-            <Maximize className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
+  const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
-      {/* ─── Header ─── */}
-      <div className="px-5 pt-2 pb-3 shrink-0">
-        <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-none">Check-In</h1>
-        <div className="flex items-center justify-between mt-1">
-          <p className="text-indigo-400/50 text-xs font-medium">
-            {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-          </p>
-          <Badge className="bg-emerald-500/10 text-emerald-400/70 border-emerald-500/15 text-[10px] px-2 py-0.5 font-semibold">
-            {todayCount} checked in
-          </Badge>
+  return (
+    <div className="fixed inset-0 bg-[#080c1f] flex flex-col overflow-hidden">
+      {/* ─── Top Bar ─── */}
+      <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/[0.04] shrink-0">
+        <div className="flex items-center gap-2 text-white/40 text-[10px] font-semibold tracking-widest uppercase">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          KiddoChecker
+          {geoLocation && <MapPin className="w-2.5 h-2.5 text-emerald-400/40" />}
+        </div>
+        <div className="flex items-center gap-2 text-white/40 text-[10px] font-semibold">
+          <Badge className="bg-indigo-500/10 text-indigo-300/60 border-indigo-500/10 text-[10px] px-2 py-0 font-semibold">{todayCount} today</Badge>
+          <span className="tabular-nums">{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+          <button onClick={toggleFs} className="p-1 hover:bg-white/5 rounded"><Maximize className="w-3 h-3 text-white/30" /></button>
         </div>
       </div>
 
       {/* ─── Success Flash ─── */}
       {successMsg && (
-        <div className="mx-5 mb-2 flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/15 rounded-xl shrink-0 animate-in fade-in slide-in-from-top-1 duration-300">
-          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-          <p className="text-emerald-300/80 text-xs font-medium truncate">{successMsg}</p>
+        <div className="mx-4 mt-2 flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/10 rounded-lg shrink-0">
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+          <p className="text-emerald-300/70 text-xs font-medium">{successMsg}</p>
         </div>
       )}
 
-      {/* ─── View Switcher ─── */}
-      <div className="px-5 pb-3 shrink-0">
-        <div className="flex bg-white/[0.03] rounded-xl p-0.5 border border-white/[0.05]">
+      {/* ─── Tab Bar ─── */}
+      <div className="px-4 pt-3 pb-2 shrink-0">
+        <div className="flex bg-white/[0.02] rounded-lg p-0.5 border border-white/[0.04]">
           {([
-            { id: 'search' as KioskView, label: 'Search', icon: Search },
-            { id: 'scan' as KioskView, label: 'QR Scan', icon: QrCode },
-            { id: 'help' as KioskView, label: 'Help', icon: Info },
-          ]).map(v => (
+            { id: 'parent' as KioskTab, label: 'Parent', icon: KeyRound },
+            { id: 'staff' as KioskTab, label: 'Staff', icon: UserCog },
+            { id: 'checkout' as KioskTab, label: 'Check Out', icon: LogOut },
+          ]).map(t => (
             <button
-              key={v.id}
-              onClick={() => { setActiveView(v.id); if (v.id === 'search') setTimeout(() => searchInputRef.current?.focus(), 150); }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeView === v.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-white/30 hover:text-white/50'
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs font-semibold transition-all ${
+                activeTab === t.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-white/25 hover:text-white/40'
               }`}
             >
-              <v.icon className="w-3.5 h-3.5" />
-              {v.label}
+              <t.icon className="w-3.5 h-3.5" />
+              {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ─── Main Content ─── */}
-      <div className="flex-1 overflow-y-auto px-5 pb-8">
-        {/* SEARCH */}
-        {activeView === 'search' && (
-          <div className="space-y-3">
-            <div className="relative">
-              <Input
-                ref={searchInputRef}
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Type child's name (min 3 letters)..."
-                className="h-13 text-sm pl-10 bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl focus:bg-white/[0.08] focus:border-indigo-500/30"
-                autoFocus
-              />
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
-              {isLoading && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400 animate-spin" />}
+      {/* ═══ Main Content ═══ */}
+      <div className="flex-1 overflow-y-auto px-4 pb-6">
+
+        {/* ────── PARENT TAB ────── */}
+        {activeTab === 'parent' && !parentLoggedIn && (
+          <div className="max-w-sm mx-auto pt-6 space-y-5">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-3">
+                <LogIn className="w-7 h-7 text-indigo-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Parent Check-In</h2>
+              <p className="text-white/30 text-xs mt-1">Enter your phone number or name, and your PIN</p>
             </div>
 
-            {searchTerm.length > 0 && searchTerm.length < 3 && (
-              <p className="text-amber-400/50 text-[11px] flex items-center gap-1.5 px-1">
-                <Shield className="w-3 h-3" /> Type at least 3 characters
-              </p>
-            )}
+            <div className="space-y-3">
+              <div className="relative">
+                <Input
+                  ref={phoneRef}
+                  value={parentPhone}
+                  onChange={e => { setParentPhone(e.target.value); setParentLoginError(''); }}
+                  placeholder="Phone number or your name..."
+                  className="h-12 pl-10 bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl text-sm"
+                  autoFocus
+                />
+                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+              </div>
+              <div className="relative">
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={parentPin}
+                  onChange={e => { setParentPin(e.target.value.replace(/\D/g, '')); setParentLoginError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && handleParentLogin()}
+                  placeholder="Your security PIN..."
+                  className="h-12 pl-10 bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl text-sm tracking-[0.3em]"
+                  maxLength={8}
+                />
+                <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+              </div>
+              {parentLoginError && <p className="text-red-400 text-xs text-center">{parentLoginError}</p>}
+              <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold">
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4 mr-1.5" />Sign In</>}
+              </Button>
+            </div>
 
-            {searchTerm.length >= 3 && filteredChildren.length === 0 && !isLoading && (
-              <div className="text-center py-10">
-                <AlertCircle className="h-8 w-8 mx-auto mb-2 text-white/10" />
-                <p className="text-white/30 text-xs">No children found. Check spelling.</p>
+            <p className="text-white/15 text-[10px] text-center flex items-center justify-center gap-1">
+              <Shield className="w-2.5 h-2.5" /> Your PIN was set during registration
+            </p>
+          </div>
+        )}
+
+        {activeTab === 'parent' && parentLoggedIn && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/50 text-[10px] uppercase tracking-wider font-semibold">Welcome</p>
+                <h2 className="text-white text-lg font-bold">{parentName}</h2>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleParentLogout} className="text-white/30 hover:text-white/60 text-xs">
+                <LogOut className="w-3 h-3 mr-1" /> Sign Out
+              </Button>
+            </div>
+
+            {parentChildren.length === 0 ? (
+              <div className="text-center py-8">
+                <Baby className="w-8 h-8 mx-auto text-white/10 mb-2" />
+                <p className="text-white/25 text-xs">No children linked to your account</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-white/30 text-[10px] uppercase tracking-wider font-semibold">Your Children</p>
+                {parentChildren.map(child => {
+                  const checked = alreadyIn(child.id);
+                  return (
+                    <button
+                      key={child.id}
+                      onClick={() => handleParentCheckIn(child)}
+                      disabled={checked || isLoading}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left active:scale-[0.98] ${
+                        checked ? 'bg-emerald-500/[0.04] border-emerald-500/10' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${checked ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-indigo-500 to-purple-600'}`}>
+                        {checked ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <span className="text-white font-bold text-sm">{child.first_name[0]}{child.last_name[0]}</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-semibold text-sm">{child.first_name} {child.last_name}</h3>
+                        <div className="flex gap-2 mt-0.5">
+                          {child.age && <span className="text-white/20 text-[10px]">Age {child.age}</span>}
+                          {child.allergies && <Badge className="bg-red-500/10 text-red-400/60 border-0 text-[9px] px-1 py-0">⚠ Allergy</Badge>}
+                          {checked && <span className="text-emerald-400/50 text-[10px]">✓ Checked in</span>}
+                        </div>
+                      </div>
+                      {!checked && <ArrowRight className="w-4 h-4 text-white/15" />}
+                    </button>
+                  );
+                })}
               </div>
             )}
+          </div>
+        )}
 
-            {filteredChildren.map(child => {
-              const alreadyIn = checkedInChildIds.has(child.id);
+        {/* ────── STAFF TAB ────── */}
+        {activeTab === 'staff' && !staffAuthed && (
+          <div className="max-w-sm mx-auto pt-6 space-y-5">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-3">
+                <UserCog className="w-7 h-7 text-indigo-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Staff Check-In</h2>
+              <p className="text-white/30 text-xs mt-1">Enter your personal staff PIN to begin</p>
+            </div>
+
+            <div className="space-y-3">
+              <Input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={staffPinInput}
+                onChange={e => { setStaffPinInput(e.target.value.replace(/\D/g, '')); setStaffPinError(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleStaffAuth()}
+                placeholder="Staff PIN..."
+                className="h-14 text-center text-xl tracking-[0.5em] bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl"
+                maxLength={8}
+                autoFocus
+              />
+              {staffPinError && <p className="text-red-400 text-xs text-center">{staffPinError}</p>}
+              <Button onClick={handleStaffAuth} disabled={isLoading || staffPinInput.length < 4} className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold">
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Authorize'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'staff' && staffAuthed && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white/50 text-[10px] uppercase tracking-wider font-semibold">Staff</p>
+                <h2 className="text-white text-base font-bold">{staffName}</h2>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleStaffLogout} className="text-white/30 hover:text-white/60 text-xs">
+                <LogOut className="w-3 h-3 mr-1" /> Sign Out
+              </Button>
+            </div>
+
+            {/* QR Scanner */}
+            <div className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3">
+              <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <QrCode className="w-3 h-3" /> QR / Camera Scanner
+              </p>
+              <QRCodeScanner onScanComplete={handleQRScan} darkMode={true} />
+            </div>
+
+            {/* Name Search */}
+            <div className="relative">
+              <Input
+                value={staffSearchTerm}
+                onChange={e => setStaffSearchTerm(e.target.value)}
+                placeholder="Or search child by name (3+ chars)..."
+                className="h-11 pl-9 text-sm bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
+            </div>
+
+            {staffSearchResults.map(child => {
+              const checked = alreadyIn(child.id);
               return (
                 <button
                   key={child.id}
-                  onClick={() => initiateCheckIn(child)}
-                  disabled={isLoading}
-                  className={`w-full flex items-center gap-3 p-3.5 border rounded-xl active:scale-[0.98] transition-all text-left ${
-                    alreadyIn
-                      ? 'bg-emerald-500/[0.04] border-emerald-500/10 opacity-60'
-                      : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-indigo-500/15'
+                  onClick={() => handleStaffCheckIn(child)}
+                  disabled={checked || isLoading}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left active:scale-[0.98] ${
+                    checked ? 'bg-emerald-500/[0.04] border-emerald-500/10 opacity-50' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
                   }`}
                 >
-                  <div className={`w-11 h-11 rounded-lg flex items-center justify-center shrink-0 ${
-                    alreadyIn ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/10'
-                  }`}>
-                    {alreadyIn ? (
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    ) : (
-                      <span className="text-white font-bold text-sm">{child.first_name[0]}{child.last_name[0]}</span>
-                    )}
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${checked ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-indigo-500 to-purple-600'}`}>
+                    {checked ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <span className="text-white font-bold text-xs">{child.first_name[0]}{child.last_name[0]}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-white font-semibold text-sm truncate">{child.first_name} {child.last_name}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {child.age && <span className="text-white/25 text-[11px]">Age {child.age}</span>}
-                      {child.allergies && <Badge className="bg-red-500/10 text-red-400/70 border-red-500/15 text-[9px] px-1 py-0">⚠ Allergy</Badge>}
-                      {alreadyIn && <span className="text-emerald-400/60 text-[10px] font-medium">✓ Checked in</span>}
-                    </div>
+                    {checked && <span className="text-emerald-400/50 text-[10px]">✓ Already in</span>}
                   </div>
-                  {!alreadyIn && (
-                    <div className="shrink-0 w-9 h-9 bg-white/[0.04] rounded-lg flex items-center justify-center">
-                      <UserCheck className="w-4 h-4 text-emerald-400/60" />
-                    </div>
-                  )}
+                  {!checked && <UserCheck className="w-4 h-4 text-white/15" />}
                 </button>
               );
             })}
+          </div>
+        )}
 
-            {!searchTerm && (
-              <div className="text-center pt-8 pb-4">
-                <div className="w-16 h-16 mx-auto bg-white/[0.02] rounded-2xl flex items-center justify-center border border-dashed border-white/[0.06] mb-4">
-                  <Search className="w-6 h-6 text-white/10" />
-                </div>
-                <p className="text-white/25 text-xs">Search for a child to begin</p>
-                <p className="text-white/15 text-[10px] mt-1 flex items-center justify-center gap-1">
-                  <Shield className="w-2.5 h-2.5" /> PIN verification required for every check-in
-                </p>
+        {/* ────── CHECK-OUT TAB ────── */}
+        {activeTab === 'checkout' && (
+          <div className="space-y-3 pt-2">
+            <div>
+              <h2 className="text-white text-lg font-bold">Check Out</h2>
+              <p className="text-white/25 text-xs">Search for a child to check them out</p>
+            </div>
+
+            <div className="relative">
+              <Input
+                value={checkoutSearch}
+                onChange={e => setCheckoutSearch(e.target.value)}
+                placeholder="Search checked-in children..."
+                className="h-11 pl-9 text-sm bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl"
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
+            </div>
+
+            {checkoutFilteredChildren.length === 0 ? (
+              <div className="text-center py-8">
+                <LogOut className="w-8 h-8 mx-auto text-white/10 mb-2" />
+                <p className="text-white/25 text-xs">No children currently checked in</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-white/30 text-[10px] uppercase tracking-wider font-semibold">{checkoutFilteredChildren.length} currently checked in</p>
+                {checkoutFilteredChildren.map((record: any) => (
+                  <div key={record.id} className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl">
+                    <div className="w-10 h-10 bg-amber-500/15 rounded-lg flex items-center justify-center">
+                      <span className="text-amber-400 font-bold text-xs">{record.child?.first_name?.[0]}{record.child?.last_name?.[0]}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white font-semibold text-sm truncate">{record.child?.first_name} {record.child?.last_name}</h3>
+                      <span className="text-white/20 text-[10px]">In since {new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleCheckOut(record)}
+                      disabled={isLoading}
+                      className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border-0 text-xs rounded-lg h-8 px-3"
+                    >
+                      <LogOut className="w-3 h-3 mr-1" /> Check Out
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* QR SCAN */}
-        {activeView === 'scan' && (
-          <div className="space-y-4 pt-2">
-            <div className="text-center mb-4">
-              <QrCode className="w-8 h-8 mx-auto text-indigo-400/40 mb-2" />
-              <h3 className="text-white text-base font-bold">Scan QR Code</h3>
-              <p className="text-white/25 text-[11px] mt-0.5">Start the camera or use a Bluetooth scanner below</p>
-            </div>
-            <QRCodeScanner onScanComplete={handleQRScan} darkMode={true} />
-          </div>
-        )}
-
-        {/* HELP */}
-        {activeView === 'help' && (
-          <div className="space-y-2 pt-1">
-            {[
-              { icon: Shield, title: 'Security', body: 'Every check-in requires PIN verification. Parents use their PIN, staff use their own. Location & time are logged automatically.', c: 'emerald' },
-              { icon: UserCheck, title: 'Check-In Steps', body: '1. Search child\'s name (3+ characters)\n2. Tap child → choose Parent or Staff\n3. Enter your PIN\n4. Select class → Print name tag', c: 'indigo' },
-              { icon: QrCode, title: 'QR / Bluetooth Scanners', body: 'Connect any USB/Bluetooth scanner. Focus the search box and scan — it types and enters automatically.', c: 'indigo' },
-              { icon: Printer, title: 'Label Printers', body: 'Install your label printer and set as default. After check-in, use the print dialog. Set paper size to match labels, margins to None.', c: 'indigo' },
-              { icon: Camera, title: 'Camera Issues', body: 'Allow Camera Permissions in browser settings. HTTPS is required on mobile. Install as an app for best results.', c: 'amber' },
-              { icon: Maximize, title: 'Install as App', body: 'Chrome: Menu → Install app\nSafari: Share → Add to Home Screen\nThis enables fullscreen, keeps screen on, and improves hardware access.', c: 'indigo' },
-            ].map((item, i) => (
-              <div key={i} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3.5">
-                <h4 className="text-white/80 font-semibold text-[11px] mb-1 flex items-center gap-1.5">
-                  <item.icon className={`w-3 h-3 text-${item.c}-400/60`} /> {item.title}
-                </h4>
-                <p className="text-white/30 text-[10px] leading-relaxed whitespace-pre-line">{item.body}</p>
-              </div>
-            ))}
           </div>
         )}
       </div>
 
-      {/* ─── Dialogs ─── */}
-      <RoleChoiceDialog />
-
-      {showPinDialog && activePin === 'STAFF_MODE' && <StaffPINDialog />}
-
-      {showPinDialog && activePin !== 'STAFF_MODE' && (
-        <PINDialog
-          open={true}
-          correctPin={activePin}
-          onClose={() => { setShowPinDialog(false); setPendingChild(null); setActivePin(''); }}
-          onSuccess={handlePinSuccess}
-        />
-      )}
-
+      {/* ═══ Dialogs ═══ */}
       {selectedChild && (
         <ClassSelectionDialog
           open={showClassDialog}
@@ -563,11 +644,10 @@ const KioskCheckInSystem = () => {
           childName={`${selectedChild.first_name} ${selectedChild.last_name}`}
         />
       )}
-
       {selectedChild && (
         <NameTagPrintDialog
           open={showNameTagDialog}
-          onClose={() => { setShowNameTagDialog(false); setSelectedChild(null); setCheckInQRData(''); setSelectedClassName(''); setScannedQRToken(null); }}
+          onClose={() => { setShowNameTagDialog(false); setSelectedChild(null); setCheckInQRData(''); setSelectedClassName(''); }}
           child={selectedChild}
           qrData={checkInQRData}
           className={selectedClassName}
