@@ -339,14 +339,51 @@ const KioskCheckInSystem = () => {
   };
 
   const handleQRScan = async (qrData: string) => {
-    if (!staffAuthed) { toast({ title: "Staff PIN Required", description: "Please enter your staff PIN first.", variant: "destructive" }); return; }
+    if (!staffAuthed) {
+      toast({ title: "Staff PIN Required", description: "Please enter your staff PIN first.", variant: "destructive" });
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      const { data: rec, error } = await supabase.from('qr_codes').select('*, child:children(*)').eq('qr_data', qrData).eq('is_active', true).single();
-      if (error || !rec) { toast({ title: "Invalid QR", description: "Code not recognized", variant: "destructive" }); return; }
+      // 1. Try parsing as JSON (New format from QR Management)
+      try {
+        const parsed = JSON.parse(qrData);
+        if (parsed.type === 'CHILD_CHECKIN' && parsed.id) {
+          const { data: child, error: childError } = await supabase
+            .from('children')
+            .select('*')
+            .eq('id', parsed.id)
+            .single();
+          
+          if (!childError && child) {
+            handleStaffCheckIn(child as any);
+            return;
+          }
+        }
+      } catch (jsonErr) {
+        // Not JSON, continue to DB lookup
+      }
+
+      // 2. Fallback to DB Lookup (Legacy/Database tags)
+      const { data: rec, error } = await supabase
+        .from('qr_codes')
+        .select('*, child:children(*)')
+        .eq('qr_data', qrData)
+        .eq('is_active', true)
+        .single();
+      
+      if (error || !rec) {
+        toast({ title: "Invalid QR", description: "Code not recognized. Please regenerate labels if needed.", variant: "destructive" });
+        return;
+      }
+      
       handleStaffCheckIn(rec.child as any);
-    } catch { toast({ title: "Error", description: "Failed to process QR", variant: "destructive" }); }
-    finally { setIsLoading(false); }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to process QR code scan results.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // ═══════════════════════════════════════════════════════

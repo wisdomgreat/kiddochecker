@@ -38,17 +38,38 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // 1. Authenticate the requester
+    // 1. Validate Environment
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!resendKey || !supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      const missing = [];
+      if (!resendKey) missing.push('RESEND_API_KEY');
+      if (!supabaseUrl) missing.push('SUPABASE_URL');
+      if (!supabaseAnonKey) missing.push('SUPABASE_ANON_KEY');
+      if (!supabaseServiceKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+      
+      console.error(`Missing critical environment variables: ${missing.join(', ')}`);
+      return new Response(JSON.stringify({ 
+        error: 'Server configuration error', 
+        missing: missing 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 2. Authenticate the requester
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('Missing Authorization header');
       return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     
     // Create a regular client to verify the user's identity
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -63,8 +84,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     });
 
-    // Create an admin client for querying templates if needed, or just use the user client
-    const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', {
+    // Create an admin client for querying templates
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
@@ -73,11 +94,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      console.error('User verification failed in Edge Function:', userError?.message || 'No user found');
+      console.error('User verification failed:', userError?.message || 'No user found');
       return new Response(JSON.stringify({ 
         error: 'Unauthorized', 
         details: userError?.message,
-        hint: 'Verify the Authorization header is a valid JWT' 
+        header_present: !!authHeader
       }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
