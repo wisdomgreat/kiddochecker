@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { assignUserRole } from '@/utils/roleUtils';
 import { Loader2, Key, ShieldCheck, RefreshCw } from 'lucide-react';
@@ -38,6 +39,7 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
   });
 
   const { user: currentUser } = useAuth();
+  const { sendStaffPinNotification } = useEmailNotifications();
   const [staffPin, setStaffPin] = useState<string | null>(null);
   const [isGeneratingPin, setIsGeneratingPin] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<any>(null);
@@ -73,7 +75,14 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
       const { data, error } = await supabase.rpc('generate_staff_pin_rpc' as any, { p_user_id: user.id });
       if (error) throw error;
       setStaffPin(data as string);
-      toast({ title: "PIN Generated", description: `Staff PIN: ${data}` });
+      
+      // Auto-Distribute securely via email
+      if (user.email) {
+        sendStaffPinNotification(user.email, `${user.first_name} ${user.last_name}`, data as string);
+        toast({ title: "PIN Distributed", description: `PIN has been sent to ${user.email}` });
+      } else {
+        toast({ title: "PIN Generated", description: `Staff PIN: ${data}. (No email found to notify)` });
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {

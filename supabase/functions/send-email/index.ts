@@ -49,8 +49,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    
+    // Create a regular client to verify the user's identity
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+      global: { 
+        headers: { 
+          Authorization: authHeader,
+          apikey: supabaseAnonKey
+        } 
+      },
+      auth: {
+        persistSession: false
+      }
     });
 
     // Create an admin client for querying templates if needed, or just use the user client
@@ -63,7 +73,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('User verification failed in Edge Function:', userError?.message || 'No user found');
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized', 
+        details: userError?.message,
+        hint: 'Verify the Authorization header is a valid JWT' 
+      }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -94,13 +109,6 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (templateError || !template) {
         console.error(`Template ${templateName} not found:`, templateError);
-        // Fallback to custom message if possible
-        if (!message) {
-          return new Response(JSON.stringify({ error: `Template ${templateName} not found` }), {
-            status: 404,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
       } else {
         finalSubject = template.subject;
         finalHtml = template.body_html;
@@ -115,10 +123,31 @@ const handler = async (req: Request): Promise<Response> => {
 
         for (const [key, value] of Object.entries(data)) {
           const placeholder = `{{${key}}}`;
-          finalSubject = finalSubject.replace(new RegExp(placeholder, 'g'), value || '');
-          finalHtml = finalHtml.replace(new RegExp(placeholder, 'g'), value || '');
+          finalSubject = finalSubject.replace(new RegExp(placeholder, 'g'), String(value || ''));
+          finalHtml = finalHtml.replace(new RegExp(placeholder, 'g'), String(value || ''));
         }
       }
+    }
+
+    // Special case for staff_pin_reset if template not in DB yet
+    if (templateName === 'staff_pin_reset' && !finalHtml) {
+      finalSubject = "Secret Staff Identity PIN - DO NOT SHARE";
+      const staffName = templateData?.staffName || "Staff Member";
+      const pin = templateData?.pin || "N/A";
+      
+      finalHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #4F46E5;">Identity PIN Assigned</h1>
+          <p>Hello <strong>${escapeHtml(staffName)}</strong>,</p>
+          <p>A new secure Identity PIN has been assigned to your profile for Kiosk authorization.</p>
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <p style="font-size: 12px; color: #6b7280; margin: 0;">YOUR IDENTITY PIN</p>
+            <p style="font-size: 32px; font-weight: bold; color: #4F46E5; letter-spacing: 4px; margin: 10px 0;">${escapeHtml(pin)}</p>
+          </div>
+          <p style="color: #ef4444; font-size: 14px;"><strong>Important:</strong> Never share this code with anyone. It is uniquely tied to your identity.</p>
+          <p>You can also view this PIN anytime by visiting your profile in the dashboard.</p>
+        </div>
+      `;
     }
 
     if (!finalHtml && message) {

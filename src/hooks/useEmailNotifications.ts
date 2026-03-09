@@ -9,9 +9,11 @@ interface EmailNotificationData {
   message?: string;
   templateName?: string;
   templateData?: Record<string, string>;
-  type?: 'check_in' | 'check_out' | 'general' | 'weekly_report' | 'staff_onboarding';
+  type?: 'check_in' | 'check_out' | 'general' | 'weekly_report' | 'staff_onboarding' | 'staff_pin';
   childName?: string;
   className?: string;
+  staffName?: string;
+  pin?: string;
 }
 
 export const useEmailNotifications = () => {
@@ -71,10 +73,25 @@ export const useEmailNotifications = () => {
     });
   };
 
+  const sendStaffPinNotification = (email: string, staffName: string, pin: string) => {
+    sendEmailMutation.mutate({
+      to: email,
+      templateName: 'staff_pin_reset',
+      templateData: {
+        staffName,
+        pin,
+      },
+      type: 'staff_pin',
+      staffName,
+      pin,
+    });
+  };
+
   return {
     sendEmail: sendEmailMutation.mutate,
     sendCheckInNotification,
     sendCheckOutNotification,
+    sendStaffPinNotification,
     isLoading: sendEmailMutation.isPending,
   };
 };

@@ -10,7 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/CleanAuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Mail, Phone, MapPin, Save, Loader2 } from "lucide-react";
+import { User, Mail, Phone, MapPin, Save, Loader2, Key } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const profileSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
@@ -176,6 +177,30 @@ const UserProfile = () => {
             </div>
           </CardContent>
         </Card>
+        
+        {userProfile?.staff_pin && (
+          <Card className="border-indigo-100 bg-indigo-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2 text-indigo-900">
+                <Key className="h-5 w-5 text-indigo-500" />
+                <span>Kiosk Staff Identity</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+                <div>
+                  <p className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1">Your Identity PIN</p>
+                  <p className="text-2xl font-black text-indigo-700 font-mono tracking-widest">{userProfile.staff_pin}</p>
+                </div>
+                <Badge className="bg-indigo-600 text-white border-0 px-3 py-1">Active</Badge>
+              </div>
+              <p className="text-[11px] text-indigo-400 mt-3 leading-relaxed">
+                Use this unique alphanumeric code to authorize administrative actions at the kiosk station.
+                Only a Super-Admin can reset this identity code.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
