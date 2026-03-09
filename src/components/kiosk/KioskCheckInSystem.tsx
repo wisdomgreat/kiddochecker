@@ -188,72 +188,70 @@ const KioskCheckInSystem = () => {
     setParentLoginError('');
 
     try {
-      // Search for parent by phone OR name
       const searchVal = parentPhone.trim();
-      const { data: profiles, error } = await (supabase
+      
+      // 1. Search for profiles by name or phone
+      const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, phone, security_pin')
-        .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`) as any);
+        .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`);
 
-      if (error || !profiles || profiles.length === 0) {
-        // Fallback: try searching in auth_users_emails_view if no profile with email found?
-        // Actually, we'll try to find any profile and then get email from the view
-        const { data: profilesNoEmail, error: errorNoEmail } = await (supabase
-          .from('profiles')
-          .select('id, first_name, last_name, phone, security_pin')
-          .or(`phone.ilike.%${searchVal}%,first_name.ilike.%${searchVal}%,last_name.ilike.%${searchVal}%`) as any);
-        
-        if (errorNoEmail || !profilesNoEmail || profilesNoEmail.length === 0) {
-          setParentLoginError('No account found. Please check your details.');
-          setIsLoading(false);
-          return;
-        }
-
-        // Find matching PIN in the list of profiles
-        const matchedProfile = profilesNoEmail.find((p: any) => p.security_pin === parentPin);
-        if (!matchedProfile) {
-          setParentLoginError('Incorrect PIN. Please try again.');
-          setIsLoading(false);
-          return;
-        }
-
-        // Try to get email from the view
-        const { data: emailData } = await (supabase
-          .from('auth_users_emails_view' as any)
-          .select('email' as any)
-          .eq('id', matchedProfile.id)
-          .single() as any);
-        
-        (matchedProfile as any).email = emailData?.email;
-        (profiles as any[])[0] = matchedProfile; // Use this as the profiles array for subsequent logic
-      } else {
-        // We have profiles with (potentially) email
+      if (error) {
+        console.error("Kiosk search error:", error);
+        throw new Error("Search failed. Please try again or contact staff.");
       }
 
-      const matched: any = (profiles as any[]).find((p: any) => p.security_pin === parentPin);
+      if (!profiles || profiles.length === 0) {
+        setParentLoginError('No account found. Please check your details.');
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Match the security PIN
+      const matched = (profiles as any[]).find((p: any) => p.security_pin === parentPin);
       if (!matched) {
         setParentLoginError('Incorrect PIN. Please try again.');
         setIsLoading(false);
         return;
       }
 
-      // Load children for this parent
+      // 3. Load children for this parent
       const { data: kids, error: kidsError } = await supabase
         .from('children')
         .select('*')
         .eq('parent_id', matched.id);
 
-      if (kidsError) throw kidsError;
+      if (kidsError) {
+        console.error("Kids fetch error:", kidsError);
+        throw new Error("Could not load children data.");
+      }
 
+      // 4. Update UI State
       setParentName(`${matched.first_name} ${matched.last_name}`);
       setParentChildren(kids || []);
       setParentLoggedIn(true);
 
-      await logActivity('parent_login', { parent_id: matched.id, parent_name: `${matched.first_name} ${matched.last_name}`, email: matched.email });
+      // 5. Success Logging (Async)
+      try {
+        const { data: emailData } = await (supabase
+          .from('auth_users_emails_view' as any)
+          .select('email' as any)
+          .eq('id', matched.id)
+          .maybeSingle() as any);
+        
+        await logActivity('parent_login', { 
+          parent_id: matched.id, 
+          parent_name: `${matched.first_name} ${matched.last_name}`, 
+          email: emailData?.email 
+        });
+      } catch (logErr) {
+        console.warn("Soft error logging activity:", logErr);
+      }
       
       // Auto-logout parent if they do nothing for 60s
       startAutoLogoutTimer(60); 
     } catch (e: any) {
+      console.error("Parent login exception:", e);
       setParentLoginError(e.message || 'Login failed');
     } finally {
       setIsLoading(false);
