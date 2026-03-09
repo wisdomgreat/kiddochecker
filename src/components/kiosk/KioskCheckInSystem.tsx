@@ -69,6 +69,7 @@ const KioskCheckInSystem = () => {
   const [selectedClassName, setSelectedClassName] = useState('');
 
   const phoneRef = useRef<HTMLInputElement>(null);
+  const logoutTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const { sendCheckInNotification, sendCheckOutNotification } = useEmailNotifications();
 
@@ -131,7 +132,29 @@ const KioskCheckInSystem = () => {
       metadata.acc = geoLocation.accuracy;
     }
     metadata.ts = new Date().toISOString();
+    // Add actor info
+    if (parentLoggedIn) {
+      metadata.actor = `parent:${parentName}`;
+    } else if (staffAuthed) {
+      metadata.actor = `staff:${staffName}`;
+    } else {
+      metadata.actor = 'system/anonymous';
+    }
     try { await (supabase.from('device_activity_log' as any) as any).insert({ action, metadata }); } catch {}
+  };
+
+  const startAutoLogoutTimer = (seconds: number = 7) => {
+    if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+    logoutTimerRef.current = setTimeout(() => {
+      handleGlobalLogout();
+      toast({ title: "Auto Sign-Out", description: "You have been signed out for security." });
+    }, seconds * 1000);
+  };
+
+  const handleGlobalLogout = () => {
+    handleParentLogout();
+    handleStaffLogout();
+    if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
   };
 
   // ═══════════════════════════════════════════════════════
@@ -212,6 +235,9 @@ const KioskCheckInSystem = () => {
       setParentLoggedIn(true);
 
       await logActivity('parent_login', { parent_id: matched.id, parent_name: `${matched.first_name} ${matched.last_name}`, email: matched.email });
+      
+      // Auto-logout parent if they do nothing for 60s
+      startAutoLogoutTimer(60); 
     } catch (e: any) {
       setParentLoginError(e.message || 'Login failed');
     } finally {
@@ -254,6 +280,9 @@ const KioskCheckInSystem = () => {
         setShowStaffPin(false);
         toast({ title: "Staff Authorized", description: `Welcome, ${data[0].first_name}` });
         await logActivity('staff_login', { staff_id: data[0].id, staff_name: `${data[0].first_name} ${data[0].last_name}` });
+        
+        // Auto-logout staff if they do nothing for 120s (staff needs more time)
+        startAutoLogoutTimer(120);
       }
     } catch { setStaffPinError('Verification failed'); }
     finally { setIsLoading(false); }
@@ -328,6 +357,9 @@ const KioskCheckInSystem = () => {
           toast({ title: "⚠️ ALLERGY ALERT", description: `${selectedChild.first_name}: ${selectedChild.allergies}`, variant: "destructive", duration: 10000 });
         }
         setShowNameTagDialog(true);
+        
+        // Strict requirement: Auto sign out 7s after success
+        startAutoLogoutTimer(7);
       } else {
         if (result.error?.includes('already checked in')) {
           setCheckedInChildIds(prev => new Set([...prev, selectedChild.id]));
@@ -345,13 +377,25 @@ const KioskCheckInSystem = () => {
   // CHECK-OUT
   // ═══════════════════════════════════════════════════════
   useEffect(() => {
-    if (!checkoutSearch.trim()) { setCheckoutFilteredChildren(checkedInChildren); return; }
-    const filtered = checkedInChildren.filter((r: any) => {
+    let baseList = checkedInChildren;
+    
+    // Privacy Scoping: 
+    // If parent is logged in, they only see their own kids in checkout.
+    // If staff is logged in, they see everyone.
+    // If no one is logged in, they see NO ONE.
+    if (parentLoggedIn) {
+      baseList = checkedInChildren.filter((r: any) => r.child?.parent_id === (parentChildren[0]?.parent_id || ''));
+    } else if (!staffAuthed) {
+      baseList = [];
+    }
+
+    if (!checkoutSearch.trim()) { setCheckoutFilteredChildren(baseList); return; }
+    const filtered = baseList.filter((r: any) => {
       const name = `${r.child?.first_name || ''} ${r.child?.last_name || ''}`.toLowerCase();
       return name.includes(checkoutSearch.toLowerCase());
     });
     setCheckoutFilteredChildren(filtered);
-  }, [checkoutSearch, checkedInChildren]);
+  }, [checkoutSearch, checkedInChildren, parentLoggedIn, staffAuthed, parentChildren]);
 
   const handleCheckOut = async (record: any) => {
     setIsLoading(true);
@@ -395,6 +439,9 @@ const KioskCheckInSystem = () => {
         showSuccess(`${record.child?.first_name} checked out`);
         await loadTodayData();
         toast({ title: "✅ Checked Out", description: `${record.child?.first_name} ${record.child?.last_name}` });
+        
+        // Strict requirement: Auto sign out 7s after success
+        startAutoLogoutTimer(7);
       } else {
         toast({ title: "Failed", description: result.error || "Could not check out", variant: "destructive" });
       }
@@ -436,13 +483,17 @@ const KioskCheckInSystem = () => {
       <div className="px-4 pt-3 pb-2 shrink-0">
         <div className="flex bg-white/[0.02] rounded-lg p-0.5 border border-white/[0.04]">
           {([
-            { id: 'parent' as KioskTab, label: 'Parent', icon: KeyRound },
-            { id: 'staff' as KioskTab, label: 'Staff', icon: UserCog },
+            { id: 'parent' as KioskTab, label: 'Check In', icon: KeyRound },
             { id: 'checkout' as KioskTab, label: 'Check Out', icon: LogOut },
+            { id: 'staff' as KioskTab, label: 'Staff Tool', icon: UserCog },
           ]).map(t => (
             <button
               key={t.id}
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => {
+                setActiveTab(t.id);
+                // Clear any pending logout timer if they switch tabs and are still active
+                if (parentLoggedIn || staffAuthed) startAutoLogoutTimer(t.id === 'staff' ? 120 : 60);
+              }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs font-semibold transition-all ${
                 activeTab === t.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-white/25 hover:text-white/40'
               }`}
@@ -646,17 +697,46 @@ const KioskCheckInSystem = () => {
         )}
 
         {/* ────── CHECK-OUT TAB ────── */}
-        {activeTab === 'checkout' && (
-          <div className="space-y-3 pt-2">
+        {activeTab === 'checkout' && !parentLoggedIn && !staffAuthed && (
+          <div className="max-w-sm mx-auto pt-8 space-y-6 text-center">
+            <div className="w-20 h-20 mx-auto bg-amber-500/10 rounded-full flex items-center justify-center">
+              <Shield className="w-10 h-10 text-amber-500/50" />
+            </div>
             <div>
-              <h2 className="text-white text-lg font-bold">Check Out</h2>
-              <p className="text-white/25 text-xs">Search for a child to check them out</p>
+              <h2 className="text-xl font-bold text-white">Authorization Required</h2>
+              <p className="text-white/30 text-sm mt-2 leading-relaxed">
+                To check out a child, please sign in as a parent or staff member first.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Button onClick={() => setActiveTab('parent')} className="h-12 bg-white/5 border border-white/10 text-white hover:bg-white/10 rounded-xl">
+                Sign in as Parent
+              </Button>
+              <Button onClick={() => setActiveTab('staff')} className="h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl">
+                Staff Authorization
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'checkout' && (parentLoggedIn || staffAuthed) && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-white text-lg font-bold">Check Out</h2>
+                <p className="text-white/25 text-xs">
+                  {staffAuthed ? "Searching all children..." : `Logged in: ${parentName}`}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleGlobalLogout} className="text-white/30 hover:text-white/60 text-xs">
+                <LogOut className="w-3 h-3 mr-1" /> Finish Session
+              </Button>
             </div>
 
             <div className="relative">
               <Input
                 value={checkoutSearch}
-                onChange={e => setCheckoutSearch(e.target.value)}
+                onChange={e => { setCheckoutSearch(e.target.value); startAutoLogoutTimer(60); }}
                 placeholder="Search checked-in children..."
                 className="h-11 pl-9 text-sm bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/20 rounded-xl"
               />
@@ -664,34 +744,54 @@ const KioskCheckInSystem = () => {
             </div>
 
             {checkoutFilteredChildren.length === 0 ? (
-              <div className="text-center py-8">
-                <LogOut className="w-8 h-8 mx-auto text-white/10 mb-2" />
-                <p className="text-white/25 text-xs">No children currently checked in</p>
+              <div className="text-center py-12 bg-white/[0.01] border border-dashed border-white/[0.05] rounded-2xl">
+                <Baby className="w-10 h-10 mx-auto text-white/5 mb-3" />
+                <p className="text-white/20 text-xs px-6">
+                  {staffAuthed 
+                    ? "No children found matching your search." 
+                    : "No children from your account are currently checked in."}
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-white/30 text-[10px] uppercase tracking-wider font-semibold">{checkoutFilteredChildren.length} currently checked in</p>
+                <p className="text-white/30 text-[10px] uppercase tracking-wider font-semibold">
+                  {checkoutFilteredChildren.length} children found
+                </p>
                 {checkoutFilteredChildren.map((record: any) => (
-                  <div key={record.id} className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl">
-                    <div className="w-10 h-10 bg-amber-500/15 rounded-lg flex items-center justify-center">
-                      <span className="text-amber-400 font-bold text-xs">{record.child?.first_name?.[0]}{record.child?.last_name?.[0]}</span>
+                  <div key={record.id} className="flex items-center gap-3 p-3.5 bg-white/[0.03] border border-white/[0.06] rounded-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="w-11 h-11 bg-amber-500/10 rounded-lg flex items-center justify-center shrink-0">
+                      <span className="text-amber-400 font-bold text-sm tracking-tighter">
+                        {record.child?.first_name?.[0]}{record.child?.last_name?.[0]}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold text-sm truncate">{record.child?.first_name} {record.child?.last_name}</h3>
-                      <span className="text-white/20 text-[10px]">In since {new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <h3 className="text-white font-semibold text-sm truncate">
+                        {record.child?.first_name} {record.child?.last_name}
+                      </h3>
+                      <div className="flex items-center gap-2 text-white/20 text-[10px]">
+                        <Badge className="bg-white/5 text-white/40 border-0 p-0 px-1.5 h-4 font-normal">
+                          {record.class?.name || 'Class'}
+                        </Badge>
+                        <span>Checked in at {new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </div>
                     <Button
                       size="sm"
                       onClick={() => handleCheckOut(record)}
                       disabled={isLoading}
-                      className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border-0 text-xs rounded-lg h-8 px-3"
+                      className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border-amber-500/20 text-[11px] font-bold rounded-lg h-9 px-4 active:scale-95 transition-all"
                     >
-                      <LogOut className="w-3 h-3 mr-1" /> Check Out
+                      Check Out
                     </Button>
                   </div>
                 ))}
               </div>
             )}
+            
+            <p className="text-center text-white/10 text-[10px] pt-4">
+              <Shield className="w-3 h-3 inline mr-1 opacity-50" />
+              This kiosk will auto-logout in a few moments for security.
+            </p>
           </div>
         )}
       </div>
