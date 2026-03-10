@@ -82,18 +82,25 @@ const EnhancedReportsPage = () => {
   const { data: stats } = useQuery({
     queryKey: ['report-stats', dateRange],
     queryFn: async () => {
+      // Get all attendance for the period PLUS anything currently present (null checkout)
       const { data: attendance } = await supabase
         .from('attendance')
-        .select('*', { count: 'exact' })
-        .gte('attendance_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('attendance_date', format(dateRange.to, 'yyyy-MM-dd'));
+        .select('*');
 
       const { data: children } = await supabase
         .from('children')
         .select('*', { count: 'exact' });
 
-      const totalCheckIns = attendance?.filter(a => a.checked_in_at).length || 0;
-      const totalCheckOuts = attendance?.filter(a => a.checked_out_at).length || 0;
+      // Period-specific stats
+      const periodAttendance = attendance?.filter(a => 
+        a.attendance_date >= format(dateRange.from, 'yyyy-MM-dd') && 
+        a.attendance_date <= format(dateRange.to, 'yyyy-MM-dd')
+      ) || [];
+
+      const totalCheckIns = periodAttendance.filter(a => a.checked_in_at).length;
+      const totalCheckOuts = periodAttendance.filter(a => a.checked_out_at).length;
+      
+      // Currently Present is ALWAYS global (anyone in center right now)
       const currentlyPresent = attendance?.filter(a => a.checked_in_at && !a.checked_out_at).length || 0;
 
       return {
@@ -115,6 +122,8 @@ const EnhancedReportsPage = () => {
           id,
           first_name,
           last_name,
+          allergies,
+          medical_info,
           child_medical_profiles (
             allergies,
             medications,
@@ -128,8 +137,8 @@ const EnhancedReportsPage = () => {
       // Filter only children with medical data
       return (data || []).filter((c: any) =>
         (c.child_medical_profiles?.length > 0) ||
-        (c.allergies) ||
-        (c.medical_info)
+        (c.allergies && c.allergies !== '') ||
+        (c.medical_info && c.medical_info !== '')
       );
     },
   });
@@ -319,16 +328,23 @@ const EnhancedReportsPage = () => {
           </motion.div>
 
           <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-            <Card>
+            <Card className="bg-gradient-to-br from-purple-500/5 to-indigo-500/5 border-purple-200">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-purple-500" />
+                  <BarChart3 className="h-4 w-4 text-purple-600" />
                   Currently Present
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.currentlyPresent || 0}</div>
-                <p className="text-xs text-muted-foreground">Right now</p>
+                <div className="flex items-baseline gap-2">
+                  <div className="text-2xl font-bold text-purple-700">{stats?.currentlyPresent || 0}</div>
+                  {stats?.currentlyPresent > 0 && (
+                    <Badge variant="outline" className="text-[10px] bg-purple-50 font-bold uppercase py-0 px-1.5 h-4">Active</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ready for check-out
+                </p>
               </CardContent>
             </Card>
           </motion.div>
@@ -706,13 +722,27 @@ const EnhancedReportsPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="max-h-[300px] overflow-y-auto space-y-2">
-                      {medicalProfiles?.filter((c: any) => c.child_medical_profiles?.[0]?.allergies?.some((a: any) => a.severity === 'high')).map((c: any, i: number) => (
+                      {medicalProfiles?.filter((c: any) => {
+                        // Must be in center right now
+                        const isPresent = liabilityAudit?.some((log: any) => log.child_name === `${c.first_name} ${c.last_name}` && !log.checked_out_at);
+                        if (!isPresent) return false;
+
+                        // Must have high severity medical info
+                        const hasHighAllergy = c.child_medical_profiles?.[0]?.allergies?.some((a: any) => a.severity === 'high');
+                        const hasLegacyAllergy = c.allergies && c.allergies.toLowerCase().includes('high');
+                        const hasMedicalInfo = c.medical_info && c.medical_info.length > 0;
+                        
+                        return hasHighAllergy || hasLegacyAllergy || hasMedicalInfo;
+                      }).map((c: any, i: number) => (
                         <div key={i} className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-center justify-between">
-                          <span className="font-bold text-red-700">{c.first_name} {c.last_name}</span>
-                          <Badge variant="destructive">High Allergy</Badge>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-red-700">{c.first_name} {c.last_name}</span>
+                            <span className="text-[10px] text-red-600/70">{c.allergies || c.child_medical_profiles?.[0]?.allergies?.map((a: any) => a.allergen).join(', ')}</span>
+                          </div>
+                          <Badge variant="destructive">Alert</Badge>
                         </div>
                       ))}
-                      {(medicalProfiles as any[])?.filter((c: any) => c.child_medical_profiles?.[0]?.allergies?.some((a: any) => a.severity === 'high')).length === 0 && (
+                      {(!medicalProfiles || medicalProfiles.filter((c: any) => liabilityAudit?.some((log: any) => log.child_name === `${c.first_name} ${c.last_name}` && !log.checked_out_at)).length === 0) && (
                         <p className="text-center text-slate-400 py-8 italic text-sm">No critical medical alerts for present children.</p>
                       )}
                     </div>

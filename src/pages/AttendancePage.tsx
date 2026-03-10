@@ -31,24 +31,30 @@ const AttendancePage = () => {
     if (!attendance) return { todayCheckins: 0, currentlyPresent: 0, checkedOut: 0, lateCheckouts: 0 };
 
     const today = new Date().toDateString();
-    const todayRecords = attendance.filter(r =>
-      new Date(r.attendance_date).toDateString() === today
-    );
+    
+    // Check-ins for TODAY specifically
+    const todayCheckins = attendance.filter(r => 
+      new Date(r.attendance_date).toDateString() === today && r.checked_in_at
+    ).length;
 
-    const checkedIn = todayRecords.filter(r => r.checked_in_at).length;
-    const present = todayRecords.filter(r => r.checked_in_at && !r.checked_out_at).length;
-    const checkedOut = todayRecords.filter(r => r.checked_out_at).length;
+    // Currently Present (Anyone with null check-out, regardless of date)
+    const currentlyPresent = attendance.filter(r => r.checked_in_at && !r.checked_out_at).length;
+    
+    // Checked out TODAY
+    const checkedOut = attendance.filter(r => 
+      new Date(r.attendance_date).toDateString() === today && r.checked_out_at
+    ).length;
 
-    // Late checkouts: checked out after 6 PM
-    const lateCheckouts = todayRecords.filter(r => {
-      if (!r.checked_out_at) return false;
+    // Late checkouts (today)
+    const lateCheckouts = attendance.filter(r => {
+      if (!r.checked_out_at || new Date(r.attendance_date).toDateString() !== today) return false;
       const checkoutHour = new Date(r.checked_out_at).getHours();
       return checkoutHour >= 18;
     }).length;
 
     return {
-      todayCheckins: checkedIn,
-      currentlyPresent: present,
+      todayCheckins,
+      currentlyPresent,
       checkedOut,
       lateCheckouts
     };

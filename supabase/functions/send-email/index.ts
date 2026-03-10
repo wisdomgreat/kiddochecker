@@ -221,7 +221,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: finalHtml,
     });
 
-    console.log("Email sent successfully by user:", user.id);
+    console.log(`Email sent successfully. Unauth: ${isAllowedUnauth}, To: ${to}`);
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,

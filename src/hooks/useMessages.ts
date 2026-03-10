@@ -32,7 +32,7 @@ export const useMessages = () => {
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select('*')
-          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id},recipient_role.not.is.null`)
           .order('created_at', { ascending: false });
 
         if (messagesError) {
@@ -43,6 +43,11 @@ export const useMessages = () => {
         if (!messagesData || messagesData.length === 0) {
           return [];
         }
+
+        // Filter messages based on user role for broadcasts
+        // Since Supabase RLS handles this, we only need to filter if there's any ambiguity,
+        // but it's cleaner to let the DB handle it via the select. 
+        // We've updated RLS, so 'messagesData' already contains only allowed messages.
 
         const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
         
@@ -70,6 +75,7 @@ export const useMessages = () => {
       subject?: string;
       content: string;
       recipient_id?: string;
+      recipient_role?: string;
     }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
@@ -80,6 +86,8 @@ export const useMessages = () => {
           subject: messageData.subject,
           content: messageData.content,
           recipient_id: messageData.recipient_id || null,
+          recipient_role: messageData.recipient_role || null,
+          is_broadcast: !!messageData.recipient_role
         })
         .select()
         .single();

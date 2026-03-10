@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 
 interface CheckInDialogProps {
   open: boolean;
@@ -54,6 +55,8 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
     enabled: open,
   });
 
+  const { sendCheckInNotification } = useEmailNotifications();
+
   const handleCheckIn = async () => {
     if (!selectedChild) {
       toast({
@@ -66,6 +69,13 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
 
     setIsLoading(true);
     try {
+      // Fetch child and parent data for notification
+      const { data: childData } = await supabase
+        .from('children')
+        .select('*, parent_id')
+        .eq('id', selectedChild)
+        .single();
+
       const result = await AttendanceService.checkInChild({
         childId: selectedChild,
         classId: selectedClass || undefined,
@@ -76,6 +86,35 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
 
       if (!result.success) {
         throw new Error(result.error || "Failed to check in child");
+      }
+
+      // Notify parent
+      if (childData?.parent_id) {
+        try {
+          let email = '';
+          const { data: profile } = await (supabase
+            .from('profiles')
+            .select('email' as any)
+            .eq('id', childData.parent_id)
+            .single() as any);
+          
+          email = profile?.email;
+          if (!email) {
+            const { data: q } = await (supabase
+              .from('auth_users_emails_view' as any)
+              .select('email' as any)
+              .eq('id', childData.parent_id)
+              .single() as any);
+            email = q?.email || '';
+          }
+
+          if (email) {
+            const className = classes.find((c: any) => c.id === selectedClass)?.name || 'Class';
+            sendCheckInNotification(email, `${childData.first_name} ${childData.last_name}`, className);
+          }
+        } catch (e) {
+          console.warn('Notification failed:', e);
+        }
       }
 
       toast({

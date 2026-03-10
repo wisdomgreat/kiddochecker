@@ -14,7 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/context/AuthContext";
+import { useMessages } from "@/hooks/useMessages";
 import {
   MessageSquare,
   Send,
@@ -62,47 +63,7 @@ const MessageSystem = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const { data: messages, isLoading, error, refetch } = useQuery({
-    queryKey: ["messages", user?.id],
-    queryFn: async (): Promise<Message[]> => {
-      if (!user?.id) return [];
-
-      try {
-        const { data: messagesData, error: messagesError } = await supabase
-          .from('messages')
-          .select('*')
-          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-          .order('created_at', { ascending: false });
-
-        if (messagesError) {
-          console.error("Error fetching messages:", messagesError);
-          return [];
-        }
-
-        if (!messagesData || messagesData.length === 0) {
-          return [];
-        }
-
-        const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
-
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .in('id', senderIds);
-
-        const messagesWithSenders = messagesData.map(message => ({
-          ...message,
-          sender: profiles?.find(profile => profile.id === message.sender_id) || undefined
-        }));
-
-        return messagesWithSenders;
-      } catch (error: any) {
-        console.error("Error in useMessages:", error);
-        return [];
-      }
-    },
-    enabled: !!user?.id,
-  });
+  const { messages, isLoading, error, refetch, sendMessage, isSending } = useMessages();
 
   // Fetch staff and teachers for recipient selection
   useEffect(() => {
@@ -188,39 +149,7 @@ const MessageSystem = () => {
     return filtered;
   }, [messages, searchQuery]);
 
-  const sendMessageMutation = useMutation({
-    mutationFn: async (messageData: { subject: string; content: string; recipientId?: string }) => {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: user?.id,
-          subject: messageData.subject,
-          content: messageData.content,
-          recipient_id: messageData.recipientId || null,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-      toast({
-        title: "Success",
-        description: "Message sent successfully",
-      });
-      setIsComposeOpen(false);
-      setNewMessage({ subject: "", content: "", recipientId: "" });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send message",
-        variant: "destructive",
-      });
-    },
-  });
+  // Mutation moved to hook
 
   const markAsRead = async (messageId: string) => {
     try {
@@ -289,7 +218,7 @@ const MessageSystem = () => {
           <TabsContent value="inbox" className="space-y-2">
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">Loading messages...</div>
-            ) : filteredMessages?.filter(message => message.recipient_id === user?.id).length === 0 ? (
+            ) : filteredMessages?.length === 0 ? (
               <div className="text-center py-12">
                 <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="font-semibold mb-2">No messages yet</h3>
@@ -311,7 +240,6 @@ const MessageSystem = () => {
                 animate="show"
               >
                 {filteredMessages
-                  ?.filter(message => message.recipient_id === user?.id)
                   .map(message => (
                     <motion.div
                       key={message.id}
@@ -513,18 +441,26 @@ const MessageSystem = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  onClick={() => sendMessageMutation.mutate(newMessage)}
-                  disabled={
-                    sendMessageMutation.isPending ||
-                    !newMessage.recipientId ||
-                    !newMessage.subject ||
-                    !newMessage.content
-                  }
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
-                </Button>
+                  <Button
+                    onClick={() => {
+                        sendMessage({
+                            subject: newMessage.subject,
+                            content: newMessage.content,
+                            recipient_id: newMessage.recipientId
+                        });
+                        setIsComposeOpen(false);
+                        setNewMessage({ subject: "", content: "", recipientId: "" });
+                    }}
+                    disabled={
+                      isSending ||
+                      !newMessage.recipientId ||
+                      !newMessage.subject ||
+                      !newMessage.content
+                    }
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {isSending ? 'Sending...' : 'Send Message'}
+                  </Button>
               </div>
             </div>
           </DialogContent>

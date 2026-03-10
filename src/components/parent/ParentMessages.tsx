@@ -61,6 +61,9 @@ const ParentMessages = () => {
         .insert({
           sender_id: user.id,
           content: content,
+          subject: `Message from Parent: ${user.email}`,
+          recipient_role: 'staff', // This ensures it shows up in staff dashboard inbox
+          is_broadcast: false
         })
         .select()
         .single();

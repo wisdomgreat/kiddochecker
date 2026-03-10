@@ -25,10 +25,14 @@ const MessagesManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await sendMessage(formData);
+      await sendMessage({
+        subject: formData.subject,
+        content: formData.content,
+        recipient_role: formData.recipient_type !== 'all' ? formData.recipient_type : 'all'
+      });
       toast({
         title: "Message Sent",
-        description: "Your message has been sent successfully.",
+        description: "Your broadcast has been sent successfully.",
       });
       setIsDialogOpen(false);
       setFormData({ subject: '', content: '', recipient_type: 'all' });

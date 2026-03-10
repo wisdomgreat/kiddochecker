@@ -448,6 +448,39 @@ const KioskCheckInSystem = () => {
         }
         setShowNameTagDialog(true);
         
+        // Notify Parent on Check-In
+        try {
+          const parentId = selectedChild.parent_id;
+          if (parentId) {
+            let email = '';
+            // Try profiles first
+            const { data: profileData } = await (supabase
+              .from('profiles')
+              .select('email' as any)
+              .eq('id', parentId)
+              .single() as any);
+            
+            email = profileData?.email;
+            
+            // Try safe view if profile email is missing/null
+            if (!email) {
+              const { data: viewData } = await (supabase
+                .from('auth_users_emails_view' as any)
+                .select('email' as any)
+                .eq('id', parentId)
+                .single() as any);
+              email = viewData?.email || '';
+            }
+
+            if (email) {
+              console.log(`Sending check-in notification to parent: ${email}`);
+              sendCheckInNotification(email, `${selectedChild.first_name} ${selectedChild.last_name}`, classData?.name || 'Class');
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to send check-in notification:', err);
+        }
+
         // Strict requirement: Auto sign out 7s after success
         startAutoLogoutTimer(7);
       } else {
@@ -944,11 +977,12 @@ const KioskCheckInSystem = () => {
             {checkoutFilteredChildren.length === 0 ? (
               <div className="text-center py-12 bg-white/[0.01] border border-dashed border-white/[0.05] rounded-2xl">
                 <Baby className="w-10 h-10 mx-auto text-white/5 mb-3" />
-                <p className="text-white/20 text-xs px-6">
+                <p className="text-white/50 text-sm px-6 font-semibold">
                   {staffAuthed 
                     ? "No children found matching your search." 
                     : "No children from your account are currently checked in."}
                 </p>
+                <p className="text-white/20 text-[10px] mt-2 font-medium">Please check the Check-In tab if you think a child should be here.</p>
               </div>
             ) : (
               <div className="space-y-2">
