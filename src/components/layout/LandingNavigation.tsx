@@ -1,101 +1,104 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/CleanAuthContext";
 import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Shield, ArrowRight } from "lucide-react";
 
-const LandingNavigation = ({ className }: { className?: string }) => {
+const LandingNavigation = () => {
   const { user, userRole } = useAuth();
   const { navigateToDashboard } = useDashboardNavigation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   
-  // Get the right dashboard name based on user role
   const getDashboardName = () => {
-    if (userRole === "admin" || userRole === "super_admin") {
-      return "Admin Dashboard";
-    } else if (userRole === "teacher" || userRole === "teacher_assistant" || userRole === "staff") {
-      return "Teacher Dashboard";
-    } else {
-      return "Parent Dashboard";
-    }
+    if (userRole === "admin" || userRole === "super_admin") return "Admin Dashboard";
+    if (userRole === "teacher" || userRole === "teacher_assistant" || userRole === "staff") return "Staff Dashboard";
+    return "Parent Dashboard";
   };
   
   return (
-    <nav className={cn("flex items-center justify-between p-4 bg-white shadow-sm", className)}>
-      <div className="flex items-center">
-        <Link to="/" className="flex items-center">
-          <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">K</span>
-          </div>
-          <span className="font-bold text-xl ml-2">KidCheck</span>
-        </Link>
-      </div>
-      
-      {/* Desktop navigation */}
-      <div className="hidden md:flex space-x-6">
-        <Link to="/about-us" className="text-gray-700 hover:text-blue-700 font-medium">About</Link>
-        <Link to="/faq" className="text-gray-700 hover:text-blue-700 font-medium">FAQ</Link>
-        <Link to="/contact-us" className="text-gray-700 hover:text-blue-700 font-medium">Contact</Link>
-      </div>
-      
-      {/* Mobile menu button */}
-      <div className="md:hidden">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="text-gray-700"
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </Button>
-      </div>
-      
-      {/* Authentication buttons */}
-      <div className="hidden md:flex items-center space-x-3">
-        {user ? (
-          <Button onClick={navigateToDashboard} variant="default">
-            Go to {getDashboardName()}
+    <nav className={cn(
+      "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4",
+      isScrolled ? "bg-white/80 backdrop-blur-md shadow-sm" : "bg-transparent"
+    )}>
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center">
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="h-10 w-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+            <span className="font-black text-2xl tracking-tighter text-slate-900">KiddoChecker</span>
+          </Link>
+        </div>
+        
+        {/* Desktop navigation */}
+        <div className="hidden md:flex items-center space-x-8">
+          <Link to="/#features" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">Features</Link>
+          <Link to="/#security" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">Security</Link>
+          <Link to="/#pricing" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">Pricing</Link>
+          <div className="h-4 w-px bg-slate-200 ml-4" />
+          {user ? (
+            <Button onClick={navigateToDashboard} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black shadow-lg shadow-indigo-100">
+              {getDashboardName()}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <div className="flex items-center space-x-4">
+              <Link to="/login" className="text-slate-900 font-black text-sm hover:text-indigo-600 transition-colors">
+                Log In
+              </Link>
+              <Link to="/parent-registration">
+                <Button className="rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black px-6 shadow-xl shadow-slate-200">
+                  Get Started
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+        
+        {/* Mobile menu button */}
+        <div className="md:hidden">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="rounded-xl"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </Button>
-        ) : (
-          <>
-            <Link to="/login">
-              <Button variant="ghost">Log in</Button>
-            </Link>
-            <Link to="/parent-registration">
-              <Button>Register</Button>
-            </Link>
-          </>
-        )}
+        </div>
       </div>
       
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-16 left-0 right-0 bg-white shadow-md z-50 py-4 px-6 flex flex-col space-y-4">
-          <Link to="/about-us" className="text-gray-700 hover:text-blue-700 font-medium py-2">About</Link>
-          <Link to="/faq" className="text-gray-700 hover:text-blue-700 font-medium py-2">FAQ</Link>
-          <Link to="/contact-us" className="text-gray-700 hover:text-blue-700 font-medium py-2">Contact</Link>
-          <div className="border-t border-gray-200 pt-4">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-white border-t border-slate-100 shadow-2xl z-50 py-8 px-8 flex flex-col space-y-6 animate-in slide-in-from-top duration-300">
+          <Link to="/#features" onClick={() => setMobileMenuOpen(false)} className="text-slate-900 font-black text-lg">Features</Link>
+          <Link to="/#security" onClick={() => setMobileMenuOpen(false)} className="text-slate-900 font-black text-lg">Security</Link>
+          <Link to="/#pricing" onClick={() => setMobileMenuOpen(false)} className="text-slate-900 font-black text-lg">Pricing</Link>
+          
+          <div className="pt-6 border-t border-slate-100">
             {user ? (
-              <Button 
-                onClick={() => {
-                  navigateToDashboard();
-                  setMobileMenuOpen(false);
-                }} 
-                variant="default" 
-                className="w-full"
-              >
-                Go to {getDashboardName()}
+              <Button onClick={() => { navigateToDashboard(); setMobileMenuOpen(false); }} className="w-full h-14 rounded-2xl bg-indigo-600 font-black text-lg shadow-xl shadow-indigo-100">
+                Go to Dashboard
               </Button>
             ) : (
-              <div className="flex flex-col space-y-3">
+              <div className="flex flex-col space-y-4">
                 <Link to="/login" className="w-full">
-                  <Button variant="outline" className="w-full">Log in</Button>
+                  <Button variant="outline" className="w-full h-14 rounded-2xl border-slate-200 font-black text-lg">Log In</Button>
                 </Link>
                 <Link to="/parent-registration" className="w-full">
-                  <Button className="w-full">Register</Button>
+                  <Button className="w-full h-14 rounded-2xl bg-indigo-600 font-black text-lg shadow-xl shadow-indigo-100">Create Free Account</Button>
                 </Link>
               </div>
             )}

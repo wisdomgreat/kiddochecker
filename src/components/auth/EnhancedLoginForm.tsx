@@ -187,40 +187,41 @@ const EnhancedLoginForm = () => {
         </div>
       </div>
 
+
       {/* ━━━ RIGHT FORM PANEL ━━━ */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-white lg:rounded-l-[2.5rem] lg:shadow-2xl relative z-10">
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-white lg:rounded-l-[3rem] shadow-2xl relative z-10 transition-all">
         <div className="w-full max-w-md">
 
           {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-2 mb-8">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
-              <Shield className="h-5 w-5 text-white" />
+          <div className="flex lg:hidden items-center gap-3 mb-10">
+            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+              <Shield className="h-6 w-6 text-white" />
             </div>
-            <span className="font-bold text-slate-900 text-lg">KiddoChecker</span>
+            <span className="font-black text-slate-900 text-2xl tracking-tighter">KiddoChecker</span>
           </div>
 
-          <div className="mb-8">
-            <h2 className="text-3xl font-black text-slate-900">
+          <div className="mb-10">
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
               {mode === 'login' ? 'Welcome back' : 'Create account'}
             </h2>
-            <p className="text-slate-500 mt-2 text-sm">
+            <p className="text-slate-500 mt-3 text-lg font-medium leading-relaxed">
               {mode === 'login'
-                ? 'Sign in to your KiddoChecker dashboard'
-                : 'Get started with your free account today'}
+                ? 'Sign in to access your secure dashboard'
+                : 'Join our safe community for free today'}
             </p>
           </div>
 
           {/* Tab switcher */}
-          <div className="flex bg-slate-100 rounded-2xl p-1 mb-8">
+          <div className="flex bg-slate-100 rounded-[1.5rem] p-1.5 mb-10">
             {(['login', 'signup'] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => { setMode(tab); setError(''); }}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                className={`flex-1 py-3.5 rounded-2xl text-sm font-black transition-all duration-300 ${
                   mode === tab
-                    ? 'bg-white text-indigo-700 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'bg-white text-indigo-600 shadow-md'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {tab === 'login' ? 'Sign In' : 'Sign Up'}
@@ -230,21 +231,21 @@ const EnhancedLoginForm = () => {
 
           {/* Error banner */}
           {error && (
-            <div className="mb-5 p-3.5 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
-              <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-red-600 text-xs font-bold">!</span>
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-red-700 text-xs font-black">!</span>
               </div>
-              <p className="text-red-700 text-sm">{error}</p>
+              <p className="text-red-800 text-sm font-bold leading-relaxed">{error}</p>
             </div>
           )}
 
           {/* ── SIGN IN FORM ── */}
           {mode === 'login' && (
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="space-y-1.5">
-                <Label htmlFor="login-email" className="text-slate-700 font-semibold text-sm">Email address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="login-email" className="text-slate-900 font-black text-sm ml-1">Email Address</Label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   <Input
                     id="login-email"
                     type="email"
@@ -252,16 +253,19 @@ const EnhancedLoginForm = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all text-sm"
-                    placeholder="you@example.com"
+                    className="pl-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-base font-medium"
+                    placeholder="name@organization.com"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="login-password" className="text-slate-700 font-semibold text-sm">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <div className="space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                  <Label htmlFor="login-password" className="text-slate-900 font-black text-sm">Password</Label>
+                  <button type="button" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot?</button>
+                </div>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   <Input
                     id="login-password"
                     type={showPassword ? 'text' : 'password'}
@@ -269,12 +273,12 @@ const EnhancedLoginForm = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-11 pr-11 h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all text-sm"
-                    placeholder="Enter your password"
+                    className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-base font-medium"
+                    placeholder="Enter password"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors">
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
@@ -282,107 +286,102 @@ const EnhancedLoginForm = () => {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 rounded-xl font-bold text-sm text-white shadow-lg shadow-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
+                className="w-full h-16 rounded-[1.5rem] font-black text-lg text-white shadow-2xl shadow-indigo-100 bg-indigo-600 hover:bg-indigo-700 transition-all active:scale-95"
               >
-                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in…</> : 'Sign In →'}
+                {isLoading ? <><Loader2 className="mr-3 h-5 w-5 animate-spin" />Signing in…</> : 'Start Exploring →'}
               </Button>
 
-              <div className="flex items-center gap-3 my-1">
+              <div className="flex items-center gap-4 my-2">
                 <div className="flex-1 h-px bg-slate-100" />
-                <span className="text-xs text-slate-400 font-medium">Secure sign-in</span>
+                <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Verified Secure</span>
                 <div className="flex-1 h-px bg-slate-100" />
               </div>
 
-              <div className="flex items-center justify-center gap-6 text-xs text-slate-400">
-                <div className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />256-bit SSL</div>
-                <div className="flex items-center gap-1.5"><Shield className="h-3.5 w-3.5 text-indigo-500" />Data Protected</div>
+              <div className="flex items-center justify-center gap-8 text-[11px] text-slate-400 font-bold">
+                <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-500" /> AES-256</div>
+                <div className="flex items-center gap-2"><Lock className="h-4 w-4 text-indigo-500" /> SSL Encrypted</div>
               </div>
             </form>
           )}
 
           {/* ── SIGN UP FORM ── */}
           {mode === 'signup' && (
-            <form onSubmit={handleSignup} className="space-y-5">
+            <form onSubmit={handleSignup} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="signup-first" className="text-slate-700 font-semibold text-sm">First Name</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-first" className="text-slate-900 font-black text-sm ml-1">First Name</Label>
                   <Input
                     id="signup-first"
                     type="text"
-                    autoComplete="given-name"
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all text-sm"
-                    placeholder="John"
+                    className="h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+                    placeholder="Jane"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="signup-last" className="text-slate-700 font-semibold text-sm">Last Name</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-last" className="text-slate-900 font-black text-sm ml-1">Last Name</Label>
                   <Input
                     id="signup-last"
                     type="text"
-                    autoComplete="family-name"
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all text-sm"
-                    placeholder="Doe"
+                    className="h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+                    placeholder="Smith"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-email" className="text-slate-700 font-semibold text-sm">Email address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <div className="space-y-2">
+                <Label htmlFor="signup-email" className="text-slate-900 font-black text-sm ml-1">Work Email</Label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   <Input
                     id="signup-email"
                     type="email"
-                    autoComplete="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-11 h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all text-sm"
-                    placeholder="you@example.com"
+                    className="pl-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+                    placeholder="jane@organization.com"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-password" className="text-slate-700 font-semibold text-sm">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <div className="space-y-2">
+                <Label htmlFor="signup-password" className="text-slate-900 font-black text-sm ml-1">Create Password</Label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   <Input
                     id="signup-password"
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-11 pr-11 h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all text-sm"
+                    className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
                     placeholder="Min. 6 characters"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors">
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="signup-confirm" className="text-slate-700 font-semibold text-sm">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <div className="space-y-2">
+                <Label htmlFor="signup-confirm" className="text-slate-900 font-black text-sm ml-1">Confirm Password</Label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   <Input
                     id="signup-confirm"
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-11 h-12 rounded-xl border-slate-200 bg-slate-50 focus:bg-white transition-all text-sm"
-                    placeholder="Repeat your password"
+                    className="pl-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+                    placeholder="Repeat password"
                   />
                 </div>
               </div>
@@ -390,9 +389,9 @@ const EnhancedLoginForm = () => {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-12 rounded-xl font-bold text-sm text-white shadow-lg shadow-indigo-200 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all"
+                className="w-full h-16 rounded-[1.5rem] font-black text-lg text-white shadow-2xl shadow-indigo-100 bg-indigo-600 hover:bg-indigo-700 transition-all active:scale-95"
               >
-                {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating account…</> : 'Create Account →'}
+                {isLoading ? <><Loader2 className="mr-3 h-5 w-5 animate-spin" />Creating... </> : 'Join KiddoChecker →'}
               </Button>
             </form>
           )}
