@@ -78,7 +78,9 @@ const QRManagementPage = () => {
     const { data: children = [], isLoading } = useQuery({
         queryKey: ["qr-children"],
         queryFn: async () => {
-            const { data } = await supabase
+            // RLS on the server already enforces the filter — just request all.
+            // For admin: gets everything. For teacher/staff: only their class children.
+            const { data } = await (supabase as any)
                 .from("children")
                 .select("*")
                 .order("first_name");

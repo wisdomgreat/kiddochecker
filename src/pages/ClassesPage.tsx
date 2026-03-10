@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
-import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,9 +12,11 @@ import { AssignTeacherDialog } from '@/components/classes/AssignTeacherDialog';
 import { ClassRosterDialog } from '@/components/classes/ClassRosterDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Class } from '@/types/classes';
+import { useAuth } from '@/context/AuthContext';
 
 const ClassesPage = () => {
   const { classes, isLoading, error, refetch, addClass, updateClass, deleteClass, isAddingClass, isUpdatingClass } = useClasses();
+  const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
@@ -58,19 +59,20 @@ const ClassesPage = () => {
   };
 
   return (
-    <RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher']}>
-      <UnifiedDashboardLayout>
-        <div className="space-y-6">
+    <UnifiedDashboardLayout>
+      <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-foreground">Class Management</h1>
               <p className="text-muted-foreground">Manage classes and schedules</p>
             </div>
-            <Button className="flex items-center gap-2" onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Add Class
-            </Button>
+            {isAdmin && (
+              <Button className="flex items-center gap-2" onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Add Class
+              </Button>
+            )}
           </div>
 
           {/* Statistics Cards */}
@@ -188,7 +190,7 @@ const ClassesPage = () => {
                           variant="ghost"
                           size="icon"
                           onClick={() => setAssigningTeacher({ id: classItem.id, name: classItem.name })}
-                          title="Assign Teacher"
+                          title="Manage Staff & Children"
                         >
                           <Users className="h-4 w-4" />
                         </Button>
@@ -200,23 +202,27 @@ const ClassesPage = () => {
                         >
                           <BookOpen className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setEditingClass(classItem)}
-                          title="Edit Class"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeletingClass(classItem)}
-                          className="text-destructive hover:text-destructive"
-                          title="Delete Class"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingClass(classItem)}
+                              title="Edit Class"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingClass(classItem)}
+                              className="text-destructive hover:text-destructive"
+                              title="Delete Class"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -299,7 +305,6 @@ const ClassesPage = () => {
           onOpenChange={(open) => !open && setViewingRoster(null)}
         />
       </UnifiedDashboardLayout>
-    </RoleBasedRoute>
   );
 };
 

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import AddEditChildDialog from '@/components/children/AddEditChildDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 interface ChildData {
   id: string;
@@ -25,6 +26,8 @@ interface ChildData {
 const ChildrenPage = () => {
   const navigate = useNavigate();
   const { children, isLoading, deleteChild, isDeletingChild, refetch } = useChildren();
+  const { isAdmin, isParent } = useAuth();
+  const canManage = isAdmin || isParent;  // only admin/parent can add/edit/delete
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -75,12 +78,14 @@ const ChildrenPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Children</h1>
-            <p className="text-muted-foreground">Manage children information</p>
-          </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Child
-          </Button>
+              <p className="text-muted-foreground">Manage children information</p>
+            </div>
+            {canManage && (
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Child
+              </Button>
+            )}
         </div>
 
         {/* Search and Stats */}
@@ -166,16 +171,20 @@ const ChildrenPage = () => {
                         </div>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/children/${child.id}/medical`)} title="Medical Profile">
-                          <Heart className="h-4 w-4 text-rose-500" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(child)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(child)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/children/${child.id}/medical`)} title="Medical Profile">
+                            <Heart className="h-4 w-4 text-rose-500" />
+                          </Button>
+                          {canManage && (
+                            <>
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(child)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(child)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
