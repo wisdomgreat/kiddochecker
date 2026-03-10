@@ -201,7 +201,7 @@ const EnhancedReportsPage = () => {
     const csv = [
       ['Date', 'Child Name', 'Class', 'Check-In Time', 'Check-Out Time', 'Duration (hours)'],
       ...detailedAttendance.map((row: any) => [
-        format(new Date(row.attendance_date), 'yyyy-MM-dd'),
+        row.attendance_date ? format(new Date(row.attendance_date), 'yyyy-MM-dd') : 'N/A',
         row.child_name,
         row.class_name || 'N/A',
         row.check_in_time ? format(new Date(row.check_in_time), 'HH:mm') : 'N/A',
@@ -432,12 +432,12 @@ const EnhancedReportsPage = () => {
                           >
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
-                              dataKey="date"
-                              tickFormatter={(value) => format(new Date(value), 'MMM dd')}
+                              dataKey="attendance_date"
+                              tickFormatter={(value) => value ? format(new Date(value), 'MMM dd') : ''}
                             />
                             <YAxis />
                             <Tooltip
-                              labelFormatter={(value) => format(new Date(value), 'MMM dd, yyyy')}
+                              labelFormatter={(value) => value ? format(new Date(value), 'MMM dd, yyyy') : ''}
                             />
                             <Legend />
                             <Bar dataKey="total_checked_in" name="Check-Ins" fill="#3b82f6" />
@@ -457,7 +457,7 @@ const EnhancedReportsPage = () => {
                         <TableBody>
                           {(attendanceReport as any[]).map((row: any, index: number) => (
                             <TableRow key={index}>
-                              <TableCell>{format(new Date(row.attendance_date), 'MMM dd, yyyy')}</TableCell>
+                              <TableCell>{row.attendance_date ? format(new Date(row.attendance_date), 'MMM dd, yyyy') : 'N/A'}</TableCell>
                               <TableCell className="font-medium">{row.class_name || 'N/A'}</TableCell>
                               <TableCell className="text-right">{row.total_checked_in}</TableCell>
                               <TableCell className="text-right">{row.total_checked_out}</TableCell>
@@ -503,7 +503,7 @@ const EnhancedReportsPage = () => {
                         <TableBody>
                           {(detailedAttendance as any[]).map((row: any, index: number) => (
                             <TableRow key={index}>
-                              <TableCell>{format(new Date(row.attendance_date), 'MMM dd')}</TableCell>
+                              <TableCell>{row.attendance_date ? format(new Date(row.attendance_date), 'MMM dd') : 'N/A'}</TableCell>
                               <TableCell className="font-medium">{row.child_name}</TableCell>
                               <TableCell>{row.class_name || 'N/A'}</TableCell>
                               <TableCell>
