@@ -7,11 +7,26 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Child } from '@/hooks/useChildren';
 
 export const childrenService = {
-  /** Fetch all children (admin/staff view). */
+  /** Fetch all children (admin view — RLS enforces admin-only). */
   async getAll(): Promise<Child[]> {
     const { data, error } = await supabase
       .from('children')
-      .select('*')
+      .select('*, classes(id, name, age_range)')
+      .order('first_name');
+    if (error) throw error;
+    return data ?? [];
+  },
+
+  /**
+   * Fetch children for the current staff/teacher user.
+   * RLS on the server enforces the class restriction; this query
+   * simply requests all children — the DB will only return rows
+   * the caller is permitted to see.
+   */
+  async getByAssignedClasses(): Promise<Child[]> {
+    const { data, error } = await supabase
+      .from('children')
+      .select('*, classes(id, name, age_range)')
       .order('first_name');
     if (error) throw error;
     return data ?? [];

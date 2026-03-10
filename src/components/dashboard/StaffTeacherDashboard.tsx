@@ -57,12 +57,31 @@ const StaffTeacherDashboard = () => {
         refetchInterval: 20000,
     });
 
-    const { data: children = [] } = useQuery({
-        queryKey: ["staff-all-children"],
+    const { data: myClassIds = [] } = useQuery({
+        queryKey: ["staff-my-class-ids", user?.id],
         queryFn: async () => {
-            const { data } = await supabase.from("children").select("*");
+            if (!user?.id) return [];
+            const { data } = await supabase
+                .from("teachers")
+                .select("class_id")
+                .eq("user_id", user.id);
+            return (data || []).map((r: any) => r.class_id).filter(Boolean);
+        },
+        enabled: !!user?.id,
+    });
+
+    const { data: children = [] } = useQuery({
+        queryKey: ["staff-my-children", myClassIds],
+        queryFn: async () => {
+            if (myClassIds.length === 0) return [];
+            const { data } = await (supabase as any)
+                .from("children")
+                .select("*")
+                .in("class_id", myClassIds)
+                .order("first_name");
             return data || [];
         },
+        enabled: myClassIds.length > 0,
     });
 
     const { data: messages = [] } = useQuery({

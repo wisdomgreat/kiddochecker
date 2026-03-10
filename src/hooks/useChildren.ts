@@ -24,13 +24,15 @@ export const useChildren = () => {
   const queryClient = useQueryClient();
   const { user, userRole } = useAuth();
 
+  const isStaffRole = ['staff', 'teacher', 'teacher_assistant', 'volunteer'].includes(userRole || '');
+
   const { data: children = [], isLoading, error, refetch } = useQuery({
     queryKey: QUERY_KEYS.CHILDREN(user?.id),
     queryFn: (): Promise<Child[]> => {
       if (!user) return Promise.resolve([]);
-      return userRole === 'parent'
-        ? childrenService.getByParent(user.id)
-        : childrenService.getAll();
+      if (userRole === 'parent') return childrenService.getByParent(user.id);
+      if (isStaffRole) return childrenService.getByAssignedClasses();
+      return childrenService.getAll(); // admin / super_admin
     },
     enabled: !!user,
   });
