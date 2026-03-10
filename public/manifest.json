@@ -1,20 +1,29 @@
 {
   "name": "KiddoChecker Kiosk",
   "short_name": "KiddoCheck",
-  "description": "Children's ministry check-in kiosk terminal",
+  "description": "Premium Child Check-In & Safety Terminal",
   "start_url": "/device-login",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#0f172a",
+  "display_override": [
+    "window-controls-overlay",
+    "minimal-ui"
+  ],
+  "orientation": "landscape",
+  "background_color": "#020617",
   "theme_color": "#4f46e5",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ],
-  "categories": ["utilities", "productivity"],
+  "categories": [
+    "utilities",
+    "productivity",
+    "management"
+  ],
   "scope": "/",
   "lang": "en",
   "prefer_related_applications": false

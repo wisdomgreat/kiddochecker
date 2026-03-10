@@ -11,6 +11,7 @@ import {
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import QRCodeScanner from '@/components/qr/QRCodeScanner';
 import ClassSelectionDialog from './ClassSelectionDialog';
@@ -72,6 +73,7 @@ const KioskCheckInSystem = () => {
   const phoneRef = useRef<HTMLInputElement>(null);
   const logoutTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const { user, userRole } = useAuth();
   const { sendCheckInNotification, sendCheckOutNotification } = useEmailNotifications();
 
   // ─── Boot ───
@@ -96,12 +98,12 @@ const KioskCheckInSystem = () => {
         .order('start_date', { ascending: true })
         .limit(3);
       setUpcomingEvents(data || []);
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
     let wl: any = null;
-    const req = async () => { try { if ('wakeLock' in navigator) wl = await (navigator as any).wakeLock.request('screen'); } catch {} };
+    const req = async () => { try { if ('wakeLock' in navigator) wl = await (navigator as any).wakeLock.request('screen'); } catch { } };
     req();
     const vis = () => { if (document.visibilityState === 'visible') req(); };
     document.addEventListener('visibilitychange', vis);
@@ -112,14 +114,14 @@ const KioskCheckInSystem = () => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         p => setGeoLocation({ latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy }),
-        () => {}, { enableHighAccuracy: true, timeout: 10000 }
+        () => { }, { enableHighAccuracy: true, timeout: 10000 }
       );
     }
   };
 
   const toggleFs = () => {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-    else document.exitFullscreen().catch(() => {});
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
+    else document.exitFullscreen().catch(() => { });
   };
 
   const loadTodayData = async () => {
@@ -127,20 +129,48 @@ const KioskCheckInSystem = () => {
       // 1. Get stats for today (checked in + checked out today)
       const todayData = await AttendanceService.getTodaysAttendance();
       setTodayCount(todayData.length);
-      
+
       // 2. Get EVERYONE currently present (for checkout list, regardless of date)
       const presentData = await AttendanceService.getCheckedInChildren();
       const ids = new Set<string>();
       presentData.forEach((r: any) => ids.add(r.child_id));
-      
+
       setCheckedInChildIds(ids);
       setCheckedInChildren(presentData);
       setCheckoutFilteredChildren(presentData);
-    } catch (err) { 
+    } catch (err) {
       console.error("Kiosk data load error:", err);
-      setTodayCount(0); 
+      setTodayCount(0);
     }
   };
+
+  // ─── Heartbeat Mechanism ──────────────────────────────────────────
+  useEffect(() => {
+    const updateHeartbeat = async () => {
+      if (!user?.id || userRole !== 'kiosk') return;
+
+      try {
+        const deviceId = (user as any).user_metadata?.device_id;
+        if (!deviceId) return;
+
+        await supabase
+          .from('enrolled_devices')
+          .update({
+            last_seen: new Date().toISOString(),
+          })
+          .eq('id', deviceId);
+
+        console.log('[Kiosk] Heartbeat transmitted.');
+      } catch (err) {
+        console.error('[Kiosk] Heartbeat failed:', err);
+      }
+    };
+
+    const interval = setInterval(updateHeartbeat, 1000 * 60 * 5); // 5 minutes
+    updateHeartbeat(); // Initial beat
+
+    return () => clearInterval(interval);
+  }, [user, userRole]);
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -162,7 +192,7 @@ const KioskCheckInSystem = () => {
     } else {
       metadata.actor = 'system/anonymous';
     }
-    try { await (supabase.from('device_activity_log' as any) as any).insert({ action, metadata }); } catch {}
+    try { await (supabase.from('device_activity_log' as any) as any).insert({ action, metadata }); } catch { }
   };
 
   const startAutoLogoutTimer = (seconds: number = 7) => {
@@ -196,7 +226,7 @@ const KioskCheckInSystem = () => {
 
     try {
       const searchVal = parentPhone.trim();
-      
+
       // 1. Search for parent using secure RPC (bypasses RLS safely)
       const { data: matched, error } = await ((supabase.rpc as any)('get_parent_for_kiosk', {
         p_search_val: searchVal,
@@ -240,18 +270,18 @@ const KioskCheckInSystem = () => {
           .select('email' as any)
           .eq('id', parent.id)
           .maybeSingle() as any);
-        
-        await logActivity('parent_login', { 
-          parent_id: parent.id, 
-          parent_name: `${parent.first_name} ${parent.last_name}`, 
-          email: emailData?.email 
+
+        await logActivity('parent_login', {
+          parent_id: parent.id,
+          parent_name: `${parent.first_name} ${parent.last_name}`,
+          email: emailData?.email
         });
       } catch (logErr) {
         console.warn("Soft error logging activity:", logErr);
       }
-      
+
       // Auto-logout parent if they do nothing for 60s
-      startAutoLogoutTimer(60); 
+      startAutoLogoutTimer(60);
     } catch (e: any) {
       console.error("Parent login exception:", e);
       setParentLoginError(e.message || 'Login failed');
@@ -298,12 +328,12 @@ const KioskCheckInSystem = () => {
         setShowStaffPin(false);
         toast({ title: "Staff Authorized", description: `Welcome, ${data.first_name}` });
         await logActivity('staff_login', { staff_id: data.id, staff_name: `${data.first_name} ${data.last_name}`, method: 'staff_pin' });
-        
+
         // Auto-logout staff if they do nothing for 45 minutes (2700s)
         startAutoLogoutTimer(2700);
       }
-    } catch (err: any) { 
-      setStaffPinError('Verification failed'); 
+    } catch (err: any) {
+      setStaffPinError('Verification failed');
     }
     finally { setIsLoading(false); }
   };
@@ -324,7 +354,7 @@ const KioskCheckInSystem = () => {
         const { data } = await supabase.from('children').select('*')
           .or(`first_name.ilike.%${staffSearchTerm}%,last_name.ilike.%${staffSearchTerm}%`).limit(8);
         setStaffSearchResults(data || []);
-      } catch {}
+      } catch { }
     }, 400);
     return () => clearTimeout(t);
   }, [staffSearchTerm, staffAuthed]);
@@ -343,7 +373,7 @@ const KioskCheckInSystem = () => {
       toast({ title: "Staff PIN Required", description: "Please enter your staff PIN first.", variant: "destructive" });
       return;
     }
-    
+
     setIsLoading(true);
     try {
       // 1. Try parsing as JSON (New format from QR Management)
@@ -355,7 +385,7 @@ const KioskCheckInSystem = () => {
             .select('*')
             .eq('id', parsed.id)
             .single();
-          
+
           if (!childError && child) {
             handleStaffCheckIn(child as any);
             return;
@@ -375,7 +405,7 @@ const KioskCheckInSystem = () => {
             .select('*')
             .eq('id', childId)
             .single();
-            
+
           if (!childError && child) {
             handleStaffCheckIn(child as any);
             return;
@@ -390,12 +420,12 @@ const KioskCheckInSystem = () => {
         .eq('qr_data', qrData)
         .eq('is_active', true)
         .single();
-      
+
       if (error || !rec) {
         toast({ title: "Invalid QR", description: "Code not recognized. Please regenerate labels if needed.", variant: "destructive" });
         return;
       }
-      
+
       handleStaffCheckIn(rec.child as any);
     } catch (err) {
       toast({ title: "Error", description: "Failed to process QR code scan results.", variant: "destructive" });
@@ -413,17 +443,17 @@ const KioskCheckInSystem = () => {
     setIsLoading(true);
     try {
       const { data: classData } = await supabase.from('classes').select('name').eq('id', classId).single();
-      
+
       // Determine actor ID for liability tracking
       let actorId = (await supabase.auth.getUser()).data.user?.id; // Current session user (usually the kiosk owner)
-      
+
       // If parent is logged in, their ID is the primary accountability ID
       if (parentLoggedIn && parentChildren.length > 0) {
         actorId = parentChildren[0].parent_id;
       }
-      
-      const result = await AttendanceService.checkInChild({ 
-        childId: selectedChild.id, 
+
+      const result = await AttendanceService.checkInChild({
+        childId: selectedChild.id,
         classId,
         checkedInBy: actorId,
         method: 'kiosk',
@@ -447,7 +477,7 @@ const KioskCheckInSystem = () => {
           toast({ title: "⚠️ ALLERGY ALERT", description: `${selectedChild.first_name}: ${selectedChild.allergies}`, variant: "destructive", duration: 10000 });
         }
         setShowNameTagDialog(true);
-        
+
         // Notify Parent on Check-In
         try {
           const parentId = selectedChild.parent_id;
@@ -459,9 +489,9 @@ const KioskCheckInSystem = () => {
               .select('email' as any)
               .eq('id', parentId)
               .single() as any);
-            
+
             email = profileData?.email;
-            
+
             // Try safe view if profile email is missing/null
             if (!email) {
               const { data: viewData } = await (supabase
@@ -501,7 +531,7 @@ const KioskCheckInSystem = () => {
   // ═══════════════════════════════════════════════════════
   useEffect(() => {
     let baseList = checkedInChildren;
-    
+
     // Privacy Scoping: 
     // If parent is logged in, they only see their own kids in checkout.
     // If staff is logged in, they see everyone.
@@ -529,7 +559,7 @@ const KioskCheckInSystem = () => {
         actorId = parentChildren[0].parent_id;
       }
 
-      const result = await AttendanceService.checkOutChild({ 
+      const result = await AttendanceService.checkOutChild({
         attendanceId: record.id,
         checkedOutBy: actorId,
         method: 'kiosk',
@@ -540,7 +570,7 @@ const KioskCheckInSystem = () => {
           child_id: record.child_id, child_name: `${record.child?.first_name} ${record.child?.last_name}`,
           actor: `staff:${staffName}`
         });
-        
+
         // Notify Parent
         try {
           const parentId = record.child?.parent_id;
@@ -551,9 +581,9 @@ const KioskCheckInSystem = () => {
               .select('email' as any)
               .eq('id', parentId)
               .single() as any);
-            
+
             email = profileData?.email;
-            
+
             if (!email) {
               const { data: viewData } = await (supabase
                 .from('auth_users_emails_view' as any)
@@ -574,7 +604,7 @@ const KioskCheckInSystem = () => {
         showSuccess(`${record.child?.first_name} checked out`);
         await loadTodayData();
         toast({ title: "✅ Checked Out", description: `${record.child?.first_name} ${record.child?.last_name}` });
-        
+
         // Strict requirement: Auto sign out 7s after success
         startAutoLogoutTimer(7);
       } else {
@@ -587,7 +617,7 @@ const KioskCheckInSystem = () => {
 
   const handleEmergencySignOut = async () => {
     if (!window.confirm(`Are you sure you want to sign out ALL ${checkedInChildren.length} children? This action will be logged.`)) return;
-    
+
     setIsLoading(true);
     let successCount = 0;
     let failCount = 0;
@@ -595,7 +625,7 @@ const KioskCheckInSystem = () => {
     for (const record of checkedInChildren) {
       try {
         const actorId = (await supabase.auth.getUser()).data.user?.id;
-        const result = await AttendanceService.checkOutChild({ 
+        const result = await AttendanceService.checkOutChild({
           attendanceId: record.id,
           checkedOutBy: actorId,
           method: 'emergency_bulk',
@@ -608,7 +638,7 @@ const KioskCheckInSystem = () => {
 
     await loadTodayData();
     setIsLoading(false);
-    
+
     toast({
       title: "Bulk Sign-Out Complete",
       description: `Successfully signed out ${successCount} children. ${failCount} failures.`,
@@ -660,9 +690,8 @@ const KioskCheckInSystem = () => {
                 // Clear any pending logout timer if they switch tabs and are still active
                 if (parentLoggedIn || staffAuthed) startAutoLogoutTimer(t.id === 'staff' ? 120 : 60);
               }}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs font-semibold transition-all ${
-                activeTab === t.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-white/25 hover:text-white/40'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-md text-xs font-semibold transition-all ${activeTab === t.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'text-white/25 hover:text-white/40'
+                }`}
             >
               <t.icon className="w-3.5 h-3.5" />
               {t.label}
@@ -804,9 +833,8 @@ const KioskCheckInSystem = () => {
                       key={child.id}
                       onClick={() => handleParentCheckIn(child)}
                       disabled={checked || isLoading}
-                      className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left active:scale-[0.98] ${
-                        checked ? 'bg-emerald-500/[0.04] border-emerald-500/10' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
-                      }`}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left active:scale-[0.98] ${checked ? 'bg-emerald-500/[0.04] border-emerald-500/10' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
+                        }`}
                     >
                       <div className={`w-11 h-11 rounded-lg flex items-center justify-center ${checked ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-indigo-500 to-purple-600'}`}>
                         {checked ? <CheckCircle className="w-5 h-5 text-emerald-400" /> : <span className="text-white font-bold text-sm">{child.first_name[0]}{child.last_name[0]}</span>}
@@ -897,9 +925,8 @@ const KioskCheckInSystem = () => {
                   key={child.id}
                   onClick={() => handleStaffCheckIn(child)}
                   disabled={checked || isLoading}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left active:scale-[0.98] ${
-                    checked ? 'bg-emerald-500/[0.04] border-emerald-500/10 opacity-50' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
-                  }`}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left active:scale-[0.98] ${checked ? 'bg-emerald-500/[0.04] border-emerald-500/10 opacity-50' : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06]'
+                    }`}
                 >
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${checked ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-indigo-500 to-purple-600'}`}>
                     {checked ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <span className="text-white font-bold text-xs">{child.first_name[0]}{child.last_name[0]}</span>}
@@ -948,9 +975,9 @@ const KioskCheckInSystem = () => {
                     {staffAuthed ? "Searching all children..." : `Logged in: ${parentName}`}
                   </p>
                   {staffAuthed && checkedInChildren.length > 0 && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="h-6 text-[9px] bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
                       onClick={handleEmergencySignOut}
                     >
@@ -978,8 +1005,8 @@ const KioskCheckInSystem = () => {
               <div className="text-center py-12 bg-white/[0.01] border border-dashed border-white/[0.05] rounded-2xl">
                 <Baby className="w-10 h-10 mx-auto text-white/5 mb-3" />
                 <p className="text-white/50 text-sm px-6 font-semibold">
-                  {staffAuthed 
-                    ? "No children found matching your search." 
+                  {staffAuthed
+                    ? "No children found matching your search."
                     : "No children from your account are currently checked in."}
                 </p>
                 <p className="text-white/20 text-[10px] mt-2 font-medium">Please check the Check-In tab if you think a child should be here.</p>
@@ -1019,7 +1046,7 @@ const KioskCheckInSystem = () => {
                 ))}
               </div>
             )}
-            
+
             <p className="text-center text-white/10 text-[10px] pt-4">
               <Shield className="w-3 h-3 inline mr-1 opacity-50" />
               This kiosk will auto-logout in a few moments for security.
