@@ -11,12 +11,14 @@ import {
   SidebarMenuButton, SidebarMenuItem, SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { useMessages } from "@/hooks/useMessages";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 export function AppSidebar() {
   const { user, userRole, isAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, verificationStatus, isVerifiedStaff, signOut } = useAuth();
+  const { unreadCount } = useMessages();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -145,7 +147,12 @@ export function AppSidebar() {
                       >
                         <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
                         <span className="truncate">{item.title}</span>
-                        {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        {item.title === "Messages" && unreadCount > 0 && (
+                          <Badge className="ml-auto bg-indigo-600 text-[10px] px-1.5 h-4 min-w-[16px] flex items-center justify-center">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </Badge>
+                        )}
+                        {isActive && item.title !== "Messages" && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

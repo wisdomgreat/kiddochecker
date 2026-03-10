@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useMessages } from "@/hooks/useMessages";
 import {
     QrCode, CheckCircle2, XCircle, Users, Clock, ChevronRight,
     LogIn, LogOut, Baby, AlertTriangle, MessageSquare, Zap
@@ -14,6 +15,7 @@ import { format, startOfDay, endOfDay } from "date-fns";
 
 const VolunteerDashboardNew = () => {
     const { user } = useAuth();
+    const { unreadCount } = useMessages();
     const navigate = useNavigate();
     const today = format(new Date(), "EEEE, MMMM dd");
 
@@ -118,8 +120,13 @@ const VolunteerDashboardNew = () => {
                     <div className="bg-purple-50 rounded-xl p-3">
                         <MessageSquare className="h-5 w-5 text-purple-600" />
                     </div>
-                    <div className="text-left">
-                        <p className="font-bold text-slate-800 text-sm">Messages</p>
+                    <div className="text-left flex-1">
+                        <div className="flex items-center justify-between">
+                            <p className="font-bold text-slate-800 text-sm">Messages</p>
+                            {unreadCount > 0 && (
+                                <Badge className="bg-purple-600 text-[10px] h-4 px-1">{unreadCount}</Badge>
+                            )}
+                        </div>
                         <p className="text-xs text-slate-500">Staff communication</p>
                     </div>
                 </button>

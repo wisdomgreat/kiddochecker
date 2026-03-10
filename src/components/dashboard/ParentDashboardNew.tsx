@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useMessages } from "@/hooks/useMessages";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
     Baby, Clock, Calendar, MessageSquare, AlertTriangle, Phone,
@@ -25,6 +26,7 @@ const cardVariants = {
 
 const ParentDashboardNew = () => {
     const { user } = useAuth();
+    const { messages, unreadCount, isLoading: messagesLoading } = useMessages();
     const navigate = useNavigate();
 
     const { data: myChildren = [], isLoading } = useQuery({
@@ -56,19 +58,7 @@ const ParentDashboardNew = () => {
         enabled: !!user?.id && myChildren.length > 0,
     });
 
-    const { data: messages = [], isLoading: messagesLoading } = useQuery({
-        queryKey: ["parent-messages-unread", user?.id],
-        queryFn: async () => {
-            if (!user?.id) return [];
-            const { data } = await supabase
-                .from("messages")
-                .select("*")
-                .eq("recipient_id", user.id)
-                .eq("is_read", false);
-            return data || [];
-        },
-        enabled: !!user?.id,
-    });
+
 
     // Build attendance trend for graph (last 7 days)
     const attendanceTrend = Array.from({ length: 7 }, (_, i) => {
@@ -79,7 +69,7 @@ const ParentDashboardNew = () => {
     });
 
     const today = format(new Date(), "EEEE, MMMM dd");
-    const unreadMessages = messages.filter((m: any) => !m.is_read).length;
+    const unreadMessages = unreadCount;
     const childrenWithAllergies = myChildren.filter((c: any) => c.allergies);
     const presentToday = recentAttendance.filter((a: any) =>
         a.attendance_date === format(new Date(), "yyyy-MM-dd") && a.checked_in_at && !a.checked_out_at

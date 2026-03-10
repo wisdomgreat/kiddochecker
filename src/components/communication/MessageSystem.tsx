@@ -23,7 +23,8 @@ import {
   Users,
   Plus,
   Search,
-  Filter
+  Filter,
+  Clock
 } from "lucide-react";
 
 interface User {
@@ -54,7 +55,6 @@ const MessageSystem = () => {
   const [activeTab, setActiveTab] = useState("inbox");
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterRole, setFilterRole] = useState("all");
   const [users, setUsers] = useState<User[]>([]);
   const [newMessage, setNewMessage] = useState({
     subject: "",
@@ -82,8 +82,8 @@ const MessageSystem = () => {
               last_name
             )
           `)
-          .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant'])
-          .limit(100);
+          .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant', 'parent'])
+          .limit(200);
 
         if (staffError) {
           console.error("Error fetching staff:", staffError);
@@ -96,7 +96,7 @@ const MessageSystem = () => {
             id: item.user_id,
             first_name: (item.profiles as any)?.first_name || '',
             last_name: (item.profiles as any)?.last_name || '',
-            email: '', // Not needed for display
+            email: '', 
             role: item.role
           }));
 
@@ -120,8 +120,7 @@ const MessageSystem = () => {
         {
           event: '*',
           schema: 'public',
-          table: 'messages',
-          filter: `recipient_id=eq.${user.id}`
+          table: 'messages'
         },
         () => {
           refetch();
@@ -137,296 +136,287 @@ const MessageSystem = () => {
   const filteredMessages = React.useMemo(() => {
     if (!messages) return [];
 
-    let filtered = [...messages];
+    let filtered = messages;
+    
+    if (activeTab === "inbox") {
+      filtered = messages.filter(m => m.recipient_id === user?.id || (m.recipient_role && m.sender_id !== user?.id));
+    } else {
+      filtered = messages.filter(m => m.sender_id === user?.id);
+    }
 
     if (searchQuery) {
       filtered = filtered.filter(message =>
         message.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         message.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
         message.sender?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        message.sender?.last_name?.toLowerCase().includes(searchQuery.toLowerCase())
+        message.sender?.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.recipient?.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        message.recipient?.last_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     return filtered;
-  }, [messages, searchQuery]);
-
-  // Mutation moved to hook
-
-  // Local markAsRead removed in favor of useMessages hook implementation
+  }, [messages, searchQuery, activeTab, user?.id]);
 
   const unreadCount = React.useMemo(() => {
-    return messages?.filter(m => !m.is_read).length || 0;
-  }, [messages]);
+    return messages?.filter(m => !m.is_read && (m.recipient_id === user?.id || m.recipient_role)).length || 0;
+  }, [messages, user?.id]);
+
+  const handleReply = (message: any) => {
+    setNewMessage({
+      recipientId: message.sender_id,
+      subject: message.subject?.startsWith("Re:") ? message.subject : `Re: ${message.subject || "Message"}`,
+      content: `\n\n--- Original Message ---\n${message.content}`
+    });
+    setIsComposeOpen(true);
+  };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
-            Messages
+    <Card className="shadow-lg border-primary/10">
+      <CardHeader className="border-b bg-muted/30">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <CardTitle className="flex items-center gap-2 text-2xl font-bold text-primary">
+            <MessageSquare className="h-6 w-6" />
+            Message Center
             {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {unreadCount} unread
+              <Badge variant="destructive" className="ml-2 px-2 py-0.5 text-xs animate-pulse">
+                {unreadCount} New
               </Badge>
             )}
           </CardTitle>
-          <Button onClick={() => setIsComposeOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Message
-          </Button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="text"
+                    placeholder="Search messages..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 w-full sm:w-[250px] bg-background"
+                />
+            </div>
+            <Button onClick={() => setIsComposeOpen(true)} className="flex-shrink-0">
+                <Plus className="mr-2 h-4 w-4" />
+                Compose
+            </Button>
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="inbox" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="inbox" onClick={() => setActiveTab("inbox")}>
+      <CardContent className="pt-6">
+        <Tabs defaultValue="inbox" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+            <TabsTrigger value="inbox" className="gap-2">
+              <Mail className="h-4 w-4" />
               Inbox {unreadCount > 0 && `(${unreadCount})`}
             </TabsTrigger>
-            <TabsTrigger value="sent" onClick={() => setActiveTab("sent")}>
+            <TabsTrigger value="sent" className="gap-2">
+              <Send className="h-4 w-4" />
               Sent
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-sm"
-            />
-          </div>
-
-          <TabsContent value="inbox" className="space-y-2">
+          <TabsContent value={activeTab} className="mt-0">
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading messages...</div>
-            ) : filteredMessages?.length === 0 ? (
-              <div className="text-center py-12">
-                <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">No messages yet</h3>
-                <p className="text-sm text-muted-foreground">
-                  Your inbox is empty
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                <p className="text-muted-foreground">Loading your messages...</p>
+              </div>
+            ) : filteredMessages.length === 0 ? (
+              <div className="text-center py-20 border-2 border-dashed rounded-xl bg-muted/10">
+                <div className="bg-muted rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    {activeTab === "inbox" ? <Mail className="h-8 w-8 text-muted-foreground" /> : <Send className="h-8 w-8 text-muted-foreground" />}
+                </div>
+                <h3 className="font-semibold text-xl mb-2">No messages found</h3>
+                <p className="text-muted-foreground max-w-sm mx-auto">
+                  {searchQuery ? "Try adjusting your search query." : activeTab === "inbox" ? "Your inbox is empty. When you receive messages, they will appear here." : "You haven't sent any messages yet."}
                 </p>
               </div>
             ) : (
-              <motion.div
-                className="space-y-2"
-                variants={{
-                  hidden: { opacity: 0 },
-                  show: {
-                    opacity: 1,
-                    transition: { staggerChildren: 0.05 }
-                  }
-                }}
-                initial="hidden"
-                animate="show"
-              >
-                {filteredMessages
-                  .map(message => (
+              <AnimatePresence mode="popLayout">
+                <div className="space-y-4">
+                  {filteredMessages.map((message, idx) => (
                     <motion.div
                       key={message.id}
-                      variants={{
-                        hidden: { opacity: 0, x: -10 },
-                        show: { opacity: 1, x: 0 }
-                      }}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2, delay: idx * 0.03 }}
                     >
-                      <div
-                        key={message.id}
-                        className={`p-4 rounded-lg border transition-colors ${!message.is_read
-                            ? 'bg-primary/5 border-primary/20 hover:bg-primary/10'
-                            : 'bg-card hover:bg-accent'
-                          }`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2">
-                              {!message.is_read && (
-                                <Badge variant="default" className="text-xs">New</Badge>
-                              )}
-                              <span className="font-semibold">
-                                {message.subject || 'No Subject'}
-                              </span>
+                      <Card className={`overflow-hidden transition-all hover:shadow-md ${!message.is_read && activeTab === "inbox" ? 'border-primary/30 bg-primary/5' : 'bg-card border-muted'}`}>
+                        <div className="p-5">
+                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                            <div className="flex-1 space-y-3">
+                              <div className="flex items-center flex-wrap gap-2">
+                                {!message.is_read && activeTab === "inbox" && (
+                                  <Badge variant="default" className="text-[10px] uppercase font-bold px-1.5 py-0">New</Badge>
+                                )}
+                                <h3 className="font-bold text-lg leading-tight">
+                                  {message.subject || 'No Subject'}
+                                </h3>
+                                {message.recipient_role && (
+                                    <Badge variant="secondary" className="text-[10px] uppercase font-bold">
+                                        Broadcast: {message.recipient_role}
+                                    </Badge>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="text-muted-foreground">
+                                  {activeTab === "inbox" ? "From:" : "To:"}
+                                </span>
+                                <span className="font-semibold text-foreground">
+                                  {activeTab === "inbox" 
+                                    ? `${message.sender?.first_name} ${message.sender?.last_name}`
+                                    : message.recipient 
+                                        ? `${message.recipient.first_name} ${message.recipient.last_name}`
+                                        : message.recipient_role ? `All ${message.recipient_role}` : "Anonymous"}
+                                </span>
+                                {(activeTab === "inbox" ? message.sender?.role : message.recipient?.role) && (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                        {activeTab === "inbox" ? message.sender?.role : message.recipient?.role}
+                                    </Badge>
+                                )}
+                              </div>
+
+                              <div className="relative mt-2 p-3 bg-muted/40 rounded-md">
+                                <p className="text-sm whitespace-pre-wrap text-foreground/90 italic">
+                                  "{message.content}"
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-2">
+                                <Clock className="h-3 w-3" />
+                                {new Date(message.created_at).toLocaleString('en-US', { 
+                                    weekday: 'short', 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                              </div>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                              From: <span className="font-medium text-foreground">
-                                {message.sender?.first_name} {message.sender?.last_name}
-                              </span>
+                            
+                            <div className="flex md:flex-col items-center justify-end gap-2 shrink-0">
+                                {activeTab === "inbox" && (
+                                    <>
+                                        {!message.is_read && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => markAsRead(message)}
+                                                className="bg-background hover:bg-primary/10 hover:text-primary transition-colors h-8"
+                                            >
+                                                Mark Read
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => handleReply(message)}
+                                            className="h-8 gap-1"
+                                        >
+                                            <Send className="h-3.5 w-3.5 rotate-45 mr-1" />
+                                            Reply
+                                        </Button>
+                                    </>
+                                )}
                             </div>
-                            <p className="text-sm">
-                              {message.content.length > 150
-                                ? message.content.substring(0, 150) + '...'
-                                : message.content}
-                            </p>
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(message.created_at).toLocaleString()}
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            {!message.is_read && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => markAsRead(message)}
-                              >
-                                Mark Read
-                              </Button>
-                            )}
                           </div>
                         </div>
-                      </div>
+                      </Card>
                     </motion.div>
                   ))}
-              </motion.div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="sent" className="space-y-2">
-            {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading messages...</div>
-            ) : filteredMessages?.filter(message => message.sender_id === user?.id).length === 0 ? (
-              <div className="text-center py-12">
-                <Send className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">No sent messages</h3>
-                <p className="text-sm text-muted-foreground">
-                  Messages you send will appear here
-                </p>
-              </div>
-            ) : (
-              <motion.div
-                className="space-y-2"
-                variants={{
-                  hidden: { opacity: 0 },
-                  show: {
-                    opacity: 1,
-                    transition: { staggerChildren: 0.05 }
-                  }
-                }}
-                initial="hidden"
-                animate="show"
-              >
-                {filteredMessages
-                  ?.filter(message => message.sender_id === user?.id)
-                  .map(message => {
-                    const recipient = users.find(u => u.id === message.recipient_id);
-                    return (
-                      <motion.div
-                        key={message.id}
-                        variants={{
-                          hidden: { opacity: 0, x: 10 },
-                          show: { opacity: 1, x: 0 }
-                        }}
-                        className="p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
-                      >
-                        <div className="space-y-2">
-                          <div className="font-semibold">
-                            {message.subject || 'No Subject'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            To: <span className="font-medium text-foreground">
-                              {message.recipient_role 
-                                ? `Broadcast: ${message.recipient_role.toUpperCase()}`
-                                : recipient
-                                  ? `${recipient.first_name} ${recipient.last_name} (${recipient.role})`
-                                  : 'Contact'}
-                            </span>
-                          </div>
-                          <p className="text-sm">
-                            {message.content.length > 150
-                              ? message.content.substring(0, 150) + '...'
-                              : message.content}
-                          </p>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(message.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-              </motion.div>
+                </div>
+              </AnimatePresence>
             )}
           </TabsContent>
         </Tabs>
 
         <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                New Message
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="recipient">
-                  To <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={newMessage.recipientId}
-                  onValueChange={(value) => setNewMessage({ ...newMessage, recipientId: value })}
-                >
-                  <SelectTrigger id="recipient">
-                    <SelectValue placeholder="Select a recipient" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        No staff available
-                      </div>
-                    ) : (
-                      users.map(recipient => (
-                        <SelectItem key={recipient.id} value={recipient.id}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {recipient.first_name} {recipient.last_name}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {recipient.role}
-                            </Badge>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+          <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
+            <div className="bg-primary px-6 py-4 flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-lg">
+                    <MessageSquare className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-white">
+                    <DialogTitle className="text-xl font-bold">Compose Message</DialogTitle>
+                    <p className="text-primary-foreground/70 text-xs">Send a new message or reply to an existing one</p>
+                </div>
+            </div>
+            
+            <div className="p-6 space-y-5 bg-background">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="recipient" className="text-sm font-semibold">
+                    To <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                    value={newMessage.recipientId}
+                    onValueChange={(value) => setNewMessage({ ...newMessage, recipientId: value })}
+                    >
+                    <SelectTrigger id="recipient" className="transition-all hover:border-primary/50">
+                        <SelectValue placeholder="Select a recipient" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {users.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                            Searching for people...
+                        </div>
+                        ) : (
+                        users.map(recipient => (
+                            <SelectItem key={recipient.id} value={recipient.id} className="cursor-pointer">
+                            <div className="flex items-center justify-between w-full gap-8">
+                                <span className="font-medium">
+                                {recipient.first_name} {recipient.last_name}
+                                </span>
+                                <Badge variant="outline" className="text-[10px] uppercase font-bold shrink-0">
+                                {recipient.role}
+                                </Badge>
+                            </div>
+                            </SelectItem>
+                        ))
+                        )}
+                    </SelectContent>
+                    </Select>
+                </div>
+                
+                <div className="space-y-2">
+                    <Label htmlFor="subject" className="text-sm font-semibold">
+                    Subject <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                    id="subject"
+                    placeholder="Enter message subject"
+                    value={newMessage.subject}
+                    onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+                    className="transition-all hover:border-primary/50"
+                    />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="subject">
-                  Subject <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="subject"
-                  placeholder="Enter subject"
-                  value={newMessage.subject}
-                  onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="content">
-                  Message <span className="text-destructive">*</span>
+                <Label htmlFor="content" className="text-sm font-semibold">
+                  Message Body <span className="text-destructive">*</span>
                 </Label>
                 <Textarea
                   id="content"
                   placeholder="Type your message here..."
                   value={newMessage.content}
                   onChange={(e) => setNewMessage({ ...newMessage, content: e.target.value })}
-                  className="min-h-[150px]"
+                  className="min-h-[180px] resize-none transition-all hover:border-primary/50 focus-visible:ring-primary"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end items-center gap-3 pt-4 border-t">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => {
                     setIsComposeOpen(false);
                     setNewMessage({ subject: "", content: "", recipientId: "" });
                   }}
+                  className="text-muted-foreground hover:text-foreground"
                 >
-                  Cancel
+                  Discard
                 </Button>
                   <Button
                     onClick={() => {
@@ -444,9 +434,19 @@ const MessageSystem = () => {
                       !newMessage.subject ||
                       !newMessage.content
                     }
+                    className="px-8 shadow-md"
                   >
-                    <Send className="mr-2 h-4 w-4" />
-                    {isSending ? 'Sending...' : 'Send Message'}
+                    {isSending ? (
+                        <>
+                            <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                            Sending...
+                        </>
+                    ) : (
+                        <>
+                            <Send className="mr-2 h-4 w-4" />
+                            Send Message
+                        </>
+                    )}
                   </Button>
               </div>
             </div>
@@ -456,5 +456,6 @@ const MessageSystem = () => {
     </Card>
   );
 };
+
 
 export default MessageSystem;

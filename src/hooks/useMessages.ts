@@ -17,6 +17,12 @@ export interface Message {
   sender?: {
     first_name?: string;
     last_name?: string;
+    role?: string;
+  };
+  recipient?: {
+    first_name?: string;
+    last_name?: string;
+    role?: string;
   };
 }
 
@@ -31,6 +37,7 @@ export const useMessages = () => {
       if (!user?.id) return [];
 
       try {
+        // Fetch base messages
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select('*')
@@ -46,30 +53,46 @@ export const useMessages = () => {
           return [];
         }
 
-        // Filter messages based on user role for broadcasts
-        // Since Supabase RLS handles this, we only need to filter if there's any ambiguity,
-        // but it's cleaner to let the DB handle it via the select. 
-        // We've updated RLS, so 'messagesData' already contains only allowed messages.
-
-        const senderIds = [...new Set(messagesData.map(msg => msg.sender_id))];
+        // Get all unique user IDs involved (senders and recipients)
+        const userIds = [...new Set([
+          ...messagesData.map(msg => msg.sender_id),
+          ...messagesData.filter(msg => msg.recipient_id).map(msg => msg.recipient_id!)
+        ])];
         
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name')
-          .in('id', senderIds);
+        // Fetch profiles and roles in parallel
+        const [profilesRes, rolesRes, receiptsRes] = await Promise.all([
+          supabase.from('profiles').select('id, first_name, last_name').in('id', userIds),
+          supabase.from('user_roles').select('user_id, role').in('user_id', userIds),
+          supabase.from('message_read_receipts' as any).select('message_id' as any).eq('user_id', user.id) as any
+        ]);
 
-        const { data: receipts } = await supabase
-          .from('message_read_receipts' as any)
-          .select('message_id' as any)
-          .eq('user_id', user.id) as any;
+        const profiles = profilesRes.data || [];
+        const roles = rolesRes.data || [];
+        const receipts = receiptsRes.data || [];
 
-        const messagesWithSenders = messagesData.map(message => ({
-          ...message,
-          is_read: message.is_read || receipts?.some((r: any) => r.message_id === message.id) || false,
-          sender: profiles?.find(profile => profile.id === message.sender_id) || undefined
-        }));
+        const messagesWithDetails = messagesData.map(message => {
+          const senderProfile = profiles.find(p => p.id === message.sender_id);
+          const senderRole = roles.find(r => r.user_id === message.sender_id);
+          const recipientProfile = profiles.find(p => p.id === message.recipient_id);
+          const recipientRoleDetail = roles.find(r => r.user_id === message.recipient_id);
 
-        return messagesWithSenders;
+          return {
+            ...message,
+            is_read: message.is_read || receipts?.some((r: any) => r.message_id === message.id) || false,
+            sender: senderProfile ? {
+              first_name: senderProfile.first_name,
+              last_name: senderProfile.last_name,
+              role: senderRole?.role
+            } : undefined,
+            recipient: recipientProfile ? {
+              first_name: recipientProfile.first_name,
+              last_name: recipientProfile.last_name,
+              role: recipientRoleDetail?.role
+            } : undefined
+          };
+        });
+
+        return messagesWithDetails;
       } catch (error: any) {
         console.error("Error in useMessages:", error);
         return [];
@@ -91,7 +114,7 @@ export const useMessages = () => {
         .from('messages')
         .insert({
           sender_id: user.id,
-          subject: messageData.subject,
+          subject: messageData.subject || "No Subject",
           content: messageData.content,
           recipient_id: messageData.recipient_id || null,
           recipient_role: messageData.recipient_role || null,
@@ -105,6 +128,7 @@ export const useMessages = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
+      queryClient.invalidateQueries({ queryKey: ["parent-messages"] });
       toast({
         title: "Success",
         description: "Message sent successfully",
@@ -148,15 +172,20 @@ export const useMessages = () => {
     },
   });
 
+  const unreadCount = messages.filter(m => !m.is_read && m.sender_id !== user?.id).length;
+
   return {
     messages,
     isLoading,
+    unreadCount,
     error,
     refetch,
     sendMessage: sendMessageMutation.mutate,
+    sendMessageAsync: sendMessageMutation.mutateAsync,
     isSending: sendMessageMutation.isPending,
     markAsRead: markAsReadMutation.mutate,
   };
 };
 
 export default useMessages;
+
