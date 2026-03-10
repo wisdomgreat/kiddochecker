@@ -1,4 +1,3 @@
-
 -- Migration: Add Message Read Receipts for individual tracking (Broadcasts)
 -- This allows each user to have their own 'read' status for broadcast messages.
 

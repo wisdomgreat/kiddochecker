@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { code, pin } = await req.json();
+    const { code, pin, forensics } = await req.json();
 
     if (!code) {
       return new Response(JSON.stringify({ error: 'Device code is required' }), {
@@ -20,6 +20,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const { hardwareId, os, browser, fingerprint, ip } = forensics || {};
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -48,7 +50,77 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log(`[Device Login] Device found:`, device.id, device.name);
+
+    // ── SECURITY CHECK ──────────────────
+    if (device.security_status === 'locked' || (device.locked_until && new Date(device.locked_until) > new Date())) {
+      return new Response(JSON.stringify({ error: 'This terminal has been temporarily locked for security reasons.' }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── STRICT ENFORCEMENT ──────────────────
+    const clientIp = ip || req.headers.get('x-forwarded-for') || 'unknown';
+
+    // If the device already has a hardware_id, the current hardwareId must match.
+    if (device.hardware_id && hardwareId && device.hardware_id !== hardwareId) {
+      console.warn(`[Security Alert] Hardware mismatch for code ${code}. Stored: ${device.hardware_id}, Received: ${hardwareId}`);
+
+      // Log Security Violation
+      await supabaseAdmin.rpc('log_device_security_event', {
+        p_device_id: device.id,
+        p_action: 'security_alert',
+        p_metadata: {
+          reason: 'Hardware ID mismatch',
+          attempted_hardware: hardwareId,
+          client_ip: clientIp,
+          forensics: forensics
+        },
+        p_is_failure: true
+      });
+
+      return new Response(JSON.stringify({
+        error: 'Security Alert: This code is registered to another physical unit. An incident report has been logged.'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // If it doesn't have a hardware_id yet, lock it now (First Login)
+    if (!device.hardware_id && hardwareId) {
+      console.log(`[Device Login] Initial lock for code ${code} to hardware ${hardwareId}`);
+      await supabaseAdmin
+        .from('enrolled_devices')
+        .update({
+          hardware_id: hardwareId,
+          os_info: os,
+          browser_info: browser,
+          device_fingerprint: fingerprint,
+          last_ip: clientIp,
+          last_seen: new Date().toISOString(),
+          security_status: 'secure'
+        })
+        .eq('id', device.id);
+
+      // Log successful initial activation
+      await supabaseAdmin.rpc('log_device_security_event', {
+        p_device_id: device.id,
+        p_action: 'terminal_activated',
+        p_metadata: { ip: clientIp, os: os, browser: browser }
+      });
+    } else {
+      // Just update last seen
+      await supabaseAdmin
+        .from('enrolled_devices')
+        .update({
+          last_ip: clientIp,
+          last_seen: new Date().toISOString()
+        })
+        .eq('id', device.id);
+    }
+
+    console.log(`[Device Login] Device authorized:`, device.id, device.name);
 
     // 2. Verify PIN Security Settings
     const { data: requirePinSetting } = await supabaseAdmin
@@ -83,7 +155,7 @@ serve(async (req) => {
 
     // 3. Generate hidden Supabase user credentials for this device
     const deviceEmail = `device_${device.id}@kiosk.kiddochecker.com`;
-    
+
     // Generate secure random password
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
     const array = new Uint8Array(24);
@@ -109,13 +181,14 @@ serve(async (req) => {
           first_name: device.name,
           last_name: '(Kiosk)',
           is_device: true,
-          device_id: device.id
+          device_id: device.id,
+          hardware_id: hardwareId
         }
       });
 
       if (createError) throw createError;
       authUser = newAuthData.user;
-      
+
       if (!authUser) throw new Error("User creation succeeded but returned null");
 
       // Create profile

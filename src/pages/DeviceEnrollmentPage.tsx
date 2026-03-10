@@ -96,6 +96,9 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "badge-warning",
   offline: "badge-danger",
   revoked: "bg-slate-100 text-slate-500",
+  secure: "badge-success",
+  flagged: "bg-amber-100 text-amber-700 border-amber-200",
+  locked: "bg-red-100 text-red-700 border-red-200",
 };
 
 // ─── Utilities ────────────────────────────────────────────────
@@ -116,12 +119,17 @@ interface DeviceRow {
   location?: string | null;
   enrollment_code: string;
   status: string;
+  security_status?: string;
   enrolled_by?: string | null;
   last_seen?: string | null;
+  last_ip?: string | null;
+  os_info?: string | null;
+  browser_info?: string | null;
   device_info?: any;
   enrolled_at: string;
   revoked_at?: string | null;
   notes?: string | null;
+  failure_count?: number;
 }
 
 interface FormState {
@@ -177,18 +185,32 @@ const DeviceEnrollmentPage = () => {
     })();
   }, []);
 
-  // ── Query ────────────────────────────────────────────────────────
+  // ── Queries ────────────────────────────────────────────────────────
   const { data: dbDevices = [], isLoading } = useQuery<DeviceRow[]>({
     queryKey: ["enrolled_devices"],
     enabled: dbAvailable === true,
     refetchInterval: 30000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("enrolled_devices" as any)
+        .from("enrolled_devices")
         .select("*")
         .order("enrolled_at", { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as DeviceRow[];
+    },
+  });
+
+  const { data: activityLogs = [], isLoading: logsLoading } = useQuery({
+    queryKey: ["device_activity_log"],
+    enabled: dbAvailable === true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("device_activity_log")
+        .select("*, enrolled_devices(name)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -252,7 +274,7 @@ const DeviceEnrollmentPage = () => {
         return;
       }
       const { error } = await supabase
-        .from("enrolled_devices" as any)
+        .from("enrolled_devices")
         .update({
           status: "revoked",
           revoked_at: new Date().toISOString(),
@@ -260,7 +282,7 @@ const DeviceEnrollmentPage = () => {
         })
         .eq("id", id);
       if (error) throw error;
-      await supabase.from("device_activity_log" as any).insert([
+      await supabase.from("device_activity_log").insert([
         {
           device_id: id,
           action: "revoked",
@@ -282,6 +304,33 @@ const DeviceEnrollmentPage = () => {
         description: e.message,
         variant: "destructive",
       }),
+  });
+
+  const unlockMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("enrolled_devices")
+        .update({
+          security_status: "secure",
+          failure_count: 0,
+          locked_until: null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+
+      await supabase.from("device_activity_log").insert([
+        {
+          device_id: id,
+          action: "unlocked",
+          performed_by: user?.id,
+          metadata: { reason: "Admin manual unlock" }
+        },
+      ]);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
+      toast({ title: "Device unlocked", description: "Security status reset to secure." });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -322,6 +371,7 @@ const DeviceEnrollmentPage = () => {
       location: form.location || null,
       enrollment_code: enrollCode,
       status: "active",
+      security_status: "secure",
       enrolled_by: user?.id || null,
       enrolled_at: new Date().toISOString(),
       notes: form.notes || null,
@@ -522,149 +572,144 @@ const DeviceEnrollmentPage = () => {
         </motion.div>
 
         {/* Device list (tabs by type) */}
-        {isLoading && dbAvailable ? (
-          <div className="flex items-center justify-center py-20">
-            <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
-          </div>
-        ) : devices.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
-              <Monitor className="h-16 w-16 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-xl font-bold text-slate-600 mb-2">
-                No devices enrolled yet
-              </h3>
-              <p className="text-slate-500 mb-6">
-                Get started by enrolling your first device
-              </p>
-              <Button
-                onClick={() => {
-                  setEnrollCode(generateCode());
-                  setShowAdd(true);
-                }}
-                className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2"
-              >
-                <Plus className="h-4 w-4" /> Enroll First Device
-              </Button>
-            </div>
-          </motion.div>
-        ) : (
-          <div className="space-y-6">
-            {devicesByType.map((typeGroup, gi) => {
-              if (typeGroup.count === 0) return null;
-              const Icon = typeGroup.icon;
-              return (
-                <motion.div
-                  key={typeGroup.value}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: gi * 0.08 }}
+        <Tabs defaultValue="inventory" className="w-full">
+          <TabsList className="mb-4 bg-slate-100 p-1 rounded-xl">
+            <TabsTrigger value="inventory" className="rounded-lg px-6">Device Inventory</TabsTrigger>
+            <TabsTrigger value="security" className="rounded-lg px-6 flex items-center gap-2">
+              <Shield className="h-4 w-4" /> Security Logs
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="inventory" className="space-y-6">
+            {isLoading && dbAvailable ? (
+              <div className="flex items-center justify-center py-20">
+                <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
+              </div>
+            ) : devices.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+                <Monitor className="h-16 w-16 mx-auto text-slate-300 mb-4" />
+                <h3 className="text-xl font-bold text-slate-600 mb-2">No devices enrolled yet</h3>
+                <Button
+                  onClick={() => { setEnrollCode(generateCode()); setShowAdd(true); }}
+                  className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2 mt-4"
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`${typeGroup.bg} rounded-xl p-2`}>
-                      <Icon className={`h-4 w-4 ${typeGroup.color}`} />
-                    </div>
-                    <h3 className="font-bold text-slate-800">
-                      {typeGroup.label}s
-                    </h3>
-                    <Badge variant="outline" className="text-xs">
-                      {typeGroup.count}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {typeGroup.devices.map((device) => (
-                      <motion.div
-                        key={device.id}
-                        whileHover={{ y: -2 }}
-                        className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`${typeGroup.bg} rounded-xl p-2.5`}>
-                              <Icon className={`h-5 w-5 ${typeGroup.color}`} />
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-800 text-sm">
-                                {device.name}
-                              </p>
-                              {device.location && (
-                                <p className="text-xs text-slate-500">
-                                  {device.location}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${STATUS_COLORS[device.status] || ""}`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full mr-1.5 inline-block ${device.status === "active" ? "bg-emerald-500" : device.status === "pending" ? "bg-amber-500" : "bg-red-500"}`}
-                            />
-                            {device.status}
-                          </Badge>
-                        </div>
-
-                        <div className="space-y-1.5 text-xs text-slate-500 mb-4 bg-slate-50 rounded-xl p-3">
-                          <div className="flex items-center gap-2">
-                            <Shield className="h-3 w-3 text-indigo-400" />
-                            <span className="font-mono font-bold tracking-widest text-slate-700">
-                              {device.enrollment_code}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              Enrolled:{" "}
-                              {format(
-                                new Date(device.enrolled_at),
-                                "MMM dd, yyyy 'at' HH:mm",
-                              )}
-                            </span>
-                          </div>
-                          {device.last_seen && (
-                            <div className="flex items-center gap-2">
-                              <Activity className="h-3 w-3" />
-                              <span>
-                                Last seen:{" "}
-                                {format(
-                                  new Date(device.last_seen),
-                                  "MMM dd, HH:mm",
+                  <Plus className="h-4 w-4" /> Enroll First Device
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {devicesByType.map((typeGroup, gi) => {
+                  if (typeGroup.count === 0) return null;
+                  const Icon = typeGroup.icon;
+                  return (
+                    <motion.div key={typeGroup.value}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={`${typeGroup.bg} rounded-xl p-2`}><Icon className={`h-4 w-4 ${typeGroup.color}`} /></div>
+                        <h3 className="font-bold text-slate-800 tracking-tight">{typeGroup.label}s</h3>
+                        <Badge variant="outline">{typeGroup.count}</Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {typeGroup.devices.map((device) => (
+                          <motion.div key={device.id} whileHover={{ y: -4 }} className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className={`${typeGroup.bg} rounded-2xl p-3`}><Icon className={`h-6 w-6 ${typeGroup.color}`} /></div>
+                                <div>
+                                  <p className="font-bold text-slate-900 leading-tight">{device.name}</p>
+                                  <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{device.location || "No Location"}</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5">
+                                <Badge variant="outline" className={`text-xs ${STATUS_COLORS[device.status] || ""}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${device.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                  {device.status}
+                                </Badge>
+                                {device.security_status && device.security_status !== 'secure' && (
+                                  <Badge className={STATUS_COLORS[device.security_status]}>
+                                    <AlertTriangle className="h-3 w-3 mr-1" /> {device.security_status}
+                                  </Badge>
                                 )}
-                              </span>
+                              </div>
                             </div>
-                          )}
-                        </div>
 
-                        <div className="flex gap-2">
-                          {device.status !== "revoked" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 rounded-xl text-xs text-amber-600 border-amber-200 hover:bg-amber-50"
-                              onClick={() => setRevokeId(device.id)}
-                            >
-                              <ToggleRight className="h-3 w-3 mr-1" />
-                              Revoke
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 rounded-xl text-xs text-red-600 border-red-200 hover:bg-red-50"
-                            onClick={() => setDeleteId(device.id)}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
-                      </motion.div>
-                    ))}
+                            <div className="space-y-2.5 text-[12px] bg-slate-50/50 rounded-2xl p-4 mb-5 border border-slate-50">
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400">Reference:</span>
+                                <span className="font-mono font-bold text-indigo-600">{device.enrollment_code}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400">Hardware:</span>
+                                <span className="text-slate-700 font-medium truncate max-w-[120px]">{device.os_info || "Scanning..."}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-400">Last IP:</span>
+                                <span className="text-slate-700 font-medium">{device.last_ip || "N/A"}</span>
+                              </div>
+                              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 mt-1">
+                                <span className="text-slate-400">Activity:</span>
+                                <span className="text-slate-500">{device.last_seen ? format(new Date(device.last_seen), 'MMM dd, HH:mm') : "Never"}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              {device.security_status !== 'secure' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => unlockMutation.mutate(device.id)}
+                                  className="flex-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200 rounded-xl text-xs h-9"
+                                >
+                                  Unlock
+                                </Button>
+                              )}
+                              {device.status !== "revoked" && (
+                                <Button size="sm" variant="outline" className="flex-1 rounded-xl text-xs h-9 text-amber-600 border-amber-200" onClick={() => setRevokeId(device.id)}>Revoke</Button>
+                              )}
+                              <Button size="sm" variant="outline" className="px-3 rounded-xl h-9 text-red-500 border-red-100 hover:bg-red-50" onClick={() => setDeleteId(device.id)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-4">
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-50">
+                <h3 className="font-bold text-slate-800">Recent Security Activity</h3>
+                <p className="text-xs text-slate-500">Full audit trail of terminal authorizations and alerts</p>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {activityLogs.length === 0 ? (
+                  <div className="p-10 text-center text-slate-400">No security events found.</div>
+                ) : activityLogs.map((log: any) => (
+                  <div key={log.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-xl ${log.action === 'security_alert' ? 'bg-red-50 text-red-600' : log.action === 'terminal_activated' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
+                        {log.action === 'security_alert' ? <AlertTriangle className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-700 capitalize">{log.action.replace(/_/g, ' ')}</p>
+                        <p className="text-[11px] text-slate-500">
+                          {log.enrolled_devices?.name || "System"} • {format(new Date(log.created_at), 'MMM dd, HH:mm:ss')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {log.metadata?.reason && (
+                        <Badge variant="outline" className="text-[10px] bg-red-50/50 text-red-500 border-red-100">{log.metadata.reason}</Badge>
+                      )}
+                      <p className="text-[10px] text-slate-400 mt-1 font-mono">{log.metadata?.client_ip || log.metadata?.ip || "unknown ip"}</p>
+                    </div>
                   </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* ── Enroll Dialog ───────────────────────────────────────────── */}
         <Dialog open={showAdd} onOpenChange={setShowAdd}>

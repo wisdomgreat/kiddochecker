@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 const DeviceLogin = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
-    
+
     // Form state
     const [code, setCode] = useState("");
     const [pin, setPin] = useState("");
@@ -40,10 +40,50 @@ const DeviceLogin = () => {
         await executeLogin(true);
     };
 
+    const getDeviceForensics = () => {
+        const ua = navigator.userAgent;
+        const platform = navigator.platform;
+        const screen = `${window.screen.width}x${window.screen.height}`;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const language = navigator.language;
+
+        // Generate a hardware ID fingerprint
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        let fingerprint = '';
+        if (ctx) {
+            ctx.fillText('KiddoChecker-Secure-Device-ID', 2, 2);
+            fingerprint = canvas.toDataURL();
+        }
+
+        const hardwareId = btoa(`${ua}|${platform}|${screen}|${timezone}|${language}|${fingerprint.slice(-50)}`).slice(0, 32);
+
+        return {
+            combined: hardwareId, // For logging
+            hardwareId,
+            os: platform,
+            browser: ua, // Full string for backend parsing
+            timezone,
+            language,
+            fingerprint: {
+                userAgent: ua,
+                resolution: screen,
+                language: language,
+                timezone,
+                cores: (navigator as any).hardwareConcurrency || 'unknown',
+                memory: (navigator as any).deviceMemory || 'unknown'
+            }
+        };
+    };
+
     const executeLogin = async (withPin: boolean) => {
         setLoading(true);
         try {
-            const body: any = { code: code.trim() };
+            const forensics = getDeviceForensics();
+            const body: any = {
+                code: code.trim(),
+                forensics
+            };
             if (withPin) body.pin = pin.trim();
 
             const { data, error } = await supabase.functions.invoke('device-login', {
@@ -85,7 +125,7 @@ const DeviceLogin = () => {
                 title: "Device Activated!",
                 description: `Successfully locked to ${data.device.name}.`,
             });
-            
+
             // Redirect to the kiosk check-in application
             navigate("/check-in", { replace: true });
 
@@ -103,7 +143,7 @@ const DeviceLogin = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md"
@@ -111,14 +151,14 @@ const DeviceLogin = () => {
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 overflow-hidden relative">
                     {/* Decorative Background Graphic */}
                     <div className="absolute top-0 right-0 p-8 opacity-5">
-                       <Zap className="w-64 h-64 text-indigo-600 transform translate-x-12 -translate-y-12" />
+                        <Zap className="w-64 h-64 text-indigo-600 transform translate-x-12 -translate-y-12" />
                     </div>
 
                     <div className="relative z-10">
                         <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
-                             <Shield className="w-8 h-8 text-indigo-600" />
+                            <Shield className="w-8 h-8 text-indigo-600" />
                         </div>
-                        
+
                         <h1 className="text-3xl font-black text-slate-800 tracking-tight">
                             Terminal Setup
                         </h1>
@@ -132,7 +172,7 @@ const DeviceLogin = () => {
                                     <label className="text-sm font-semibold text-slate-700 block mb-1">
                                         Device Reference Code
                                     </label>
-                                    <Input 
+                                    <Input
                                         type="text"
                                         placeholder="e.g. U57-XFR9C"
                                         value={code}
@@ -142,8 +182,8 @@ const DeviceLogin = () => {
                                         disabled={loading}
                                     />
                                 </div>
-                                <Button 
-                                    type="submit" 
+                                <Button
+                                    type="submit"
                                     disabled={loading || !code.trim()}
                                     className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-lg font-semibold flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-100"
                                 >
@@ -151,10 +191,10 @@ const DeviceLogin = () => {
                                 </Button>
                             </form>
                         ) : (
-                            <motion.form 
+                            <motion.form
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                onSubmit={handlePinSubmit} 
+                                onSubmit={handlePinSubmit}
                                 className="space-y-4"
                             >
                                 <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 mb-2">
@@ -164,7 +204,7 @@ const DeviceLogin = () => {
                                     <label className="text-sm font-semibold text-slate-700 block mb-1">
                                         Master Security PIN
                                     </label>
-                                    <Input 
+                                    <Input
                                         type="password"
                                         pattern="[0-9]*"
                                         inputMode="numeric"
@@ -178,8 +218,8 @@ const DeviceLogin = () => {
                                     />
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button 
-                                        type="button" 
+                                    <Button
+                                        type="button"
                                         variant="outline"
                                         onClick={() => setNeedPin(false)}
                                         disabled={loading}
@@ -187,8 +227,8 @@ const DeviceLogin = () => {
                                     >
                                         Back
                                     </Button>
-                                    <Button 
-                                        type="submit" 
+                                    <Button
+                                        type="submit"
                                         disabled={loading || !pin.trim()}
                                         className="h-14 flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-md"
                                     >
