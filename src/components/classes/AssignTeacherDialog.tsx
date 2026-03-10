@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +18,13 @@ interface AssignTeacherDialogProps {
   onSuccess: () => void;
 }
 
+// ── helpers ───────────────────────────────────────────────────────────
+function fullName(profiles: Record<string, any> | null | undefined, userId: string) {
+  if (!profiles) return userId.slice(0, 8);
+  return `${profiles.first_name ?? ''} ${profiles.last_name ?? ''}`.trim() || userId.slice(0, 8);
+}
+
+// ── component ─────────────────────────────────────────────────────────
 export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, onSuccess }: AssignTeacherDialogProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -26,49 +32,85 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
   const [selectedStaff, setSelectedStaff] = useState<string>('');
   const [selectedChild, setSelectedChild] = useState<string>('');
 
-  // Fetch all staff users
-  const { data: availableStaff = [] } = useQuery({
-    queryKey: ['available-staff'],
+  // 1. All staff-role users (just user_id + role, no join)
+  const { data: staffRoles = [] } = useQuery({
+    queryKey: ['all-staff-roles'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('user_id, role, profiles!inner(id, first_name, last_name)')
+        .select('user_id, role')
         .in('role', ['teacher', 'teacher_assistant', 'staff', 'volunteer']);
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: open,
   });
 
-  // Fetch current staff assigned to this class
-  const { data: assignedStaff = [], refetch: refetchStaff } = useQuery({
+  // 2. Profile lookup for those users
+  const staffUserIds = staffRoles.map((r: any) => r.user_id);
+  const { data: staffProfiles = [] } = useQuery({
+    queryKey: ['staff-profiles', staffUserIds.join(',')],
+    queryFn: async () => {
+      if (staffUserIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', staffUserIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: open && staffUserIds.length > 0,
+  });
+
+  // Merge role + profile for the dropdown
+  const profileMap = Object.fromEntries((staffProfiles as any[]).map((p: any) => [p.id, p]));
+  const availableStaff: Array<{ user_id: string; role: string; displayName: string }> =
+    staffRoles.map((r: any) => ({
+      user_id: r.user_id,
+      role: r.role,
+      displayName: fullName(profileMap[r.user_id], r.user_id),
+    }));
+
+  // 3. Current assignments for this class
+  const { data: assignedRaw = [], refetch: refetchStaff } = useQuery({
     queryKey: ['class-staff', classId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('teachers')
-        .select('user_id, role:user_roles!inner(role), profiles!inner(first_name, last_name)')
+        .select('user_id')
         .eq('class_id', classId);
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: open && !!classId,
   });
 
-  // Fetch all unassigned children (no class_id, or for re-assignment)
-  const { data: availableChildren = [] } = useQuery({
-    queryKey: ['unassigned-children'],
+  const assignedUserIds = new Set((assignedRaw as any[]).map((r: any) => r.user_id));
+  
+  // Build enriched assignedStaff list
+  const assignedStaff = (assignedRaw as any[]).map((r: any) => ({
+    user_id: r.user_id,
+    role: staffRoles.find((sr: any) => sr.user_id === r.user_id)?.role ?? 'staff',
+    displayName: fullName(profileMap[r.user_id], r.user_id),
+  }));
+
+  const unassignedStaff = availableStaff.filter((s) => !assignedUserIds.has(s.user_id));
+
+  // 4. All children
+  const { data: allChildren = [] } = useQuery({
+    queryKey: ['all-children-for-assign'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('children')
         .select('id, first_name, last_name, age, class_id')
         .order('first_name');
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: open,
   });
 
-  // Fetch children already assigned to this class
+  // 5. Children already in this class
   const { data: classChildren = [], refetch: refetchChildren } = useQuery({
     queryKey: ['class-children', classId],
     queryFn: async () => {
@@ -78,26 +120,26 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
         .eq('class_id', classId)
         .order('first_name');
       if (error) throw error;
-      return data || [];
+      return data ?? [];
     },
     enabled: open && !!classId,
   });
 
+  // ── handlers ──
   const handleAddStaff = async () => {
-    if (!selectedStaff) {
-      toast({ title: 'Error', description: 'Please select a staff member', variant: 'destructive' });
-      return;
-    }
+    if (!selectedStaff) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.from('teachers').insert({ user_id: selectedStaff, class_id: classId });
+      const { error } = await supabase
+        .from('teachers')
+        .insert({ user_id: selectedStaff, class_id: classId });
       if (error) throw error;
-      toast({ title: 'Success', description: 'Staff member added to class' });
+      toast({ title: 'Staff assigned', description: 'Staff member added to class.' });
       setSelectedStaff('');
       refetchStaff();
       queryClient.invalidateQueries({ queryKey: ['class-staff', classId] });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed to add staff', variant: 'destructive' });
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -105,9 +147,13 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
 
   const handleRemoveStaff = async (userId: string) => {
     try {
-      const { error } = await supabase.from('teachers').delete().eq('class_id', classId).eq('user_id', userId);
+      const { error } = await supabase
+        .from('teachers')
+        .delete()
+        .eq('class_id', classId)
+        .eq('user_id', userId);
       if (error) throw error;
-      toast({ title: 'Removed', description: 'Staff member removed from class' });
+      toast({ title: 'Removed', description: 'Staff removed from class.' });
       refetchStaff();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -115,10 +161,7 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
   };
 
   const handleAssignChild = async () => {
-    if (!selectedChild) {
-      toast({ title: 'Error', description: 'Please select a child', variant: 'destructive' });
-      return;
-    }
+    if (!selectedChild) return;
     setIsLoading(true);
     try {
       const { error } = await (supabase as any)
@@ -126,13 +169,13 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
         .update({ class_id: classId })
         .eq('id', selectedChild);
       if (error) throw error;
-      toast({ title: 'Success', description: 'Child assigned to class' });
+      toast({ title: 'Child assigned', description: 'Child added to class.' });
       setSelectedChild('');
       refetchChildren();
       queryClient.invalidateQueries({ queryKey: ['class-children', classId] });
-      queryClient.invalidateQueries({ queryKey: ['unassigned-children'] });
+      queryClient.invalidateQueries({ queryKey: ['all-children-for-assign'] });
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed to assign child', variant: 'destructive' });
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +188,7 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
         .update({ class_id: null })
         .eq('id', childId);
       if (error) throw error;
-      toast({ title: 'Removed', description: 'Child removed from class' });
+      toast({ title: 'Removed', description: 'Child removed from class.' });
       refetchChildren();
       queryClient.invalidateQueries({ queryKey: ['class-children', classId] });
     } catch (err: any) {
@@ -153,9 +196,8 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
     }
   };
 
-  // Assigned user IDs so we can exclude them from the dropdown
-  const assignedUserIds = new Set((assignedStaff as any[]).map((s: any) => s.user_id));
-  const unassignedStaff = (availableStaff as any[]).filter((s: any) => !assignedUserIds.has(s.user_id));
+  // Children not already in THIS class (can be re-assigned from another)
+  const childrenNotInClass = (allChildren as any[]).filter((c: any) => c.class_id !== classId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -180,7 +222,7 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
                 value="staff"
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none h-full px-0 font-semibold gap-2"
               >
-                <Users className="h-4 w-4" /> Staff ({(assignedStaff as any[]).length})
+                <Users className="h-4 w-4" /> Staff ({assignedStaff.length})
               </TabsTrigger>
               <TabsTrigger
                 value="children"
@@ -191,48 +233,59 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
             </TabsList>
           </div>
 
-          {/* STAFF TAB */}
+          {/* ── STAFF TAB ── */}
           <TabsContent value="staff" className="p-6 space-y-5 mt-0">
+            {/* Add staff row */}
             <div className="flex gap-3">
               <Select value={selectedStaff} onValueChange={setSelectedStaff}>
                 <SelectTrigger className="flex-1 rounded-xl bg-slate-50">
-                  <SelectValue placeholder="Select staff to add…" />
+                  <SelectValue placeholder={
+                    unassignedStaff.length === 0 ? 'No more staff to add' : 'Select staff member to add…'
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {unassignedStaff.map((s: any) => (
-                    <SelectItem key={s.user_id} value={s.user_id}>
-                      {s.profiles.first_name} {s.profiles.last_name}
-                      <span className="ml-2 text-xs text-slate-400 capitalize">({s.role})</span>
-                    </SelectItem>
-                  ))}
-                  {unassignedStaff.length === 0 && (
-                    <div className="px-3 py-4 text-sm text-slate-400 text-center">All staff already assigned</div>
+                  {unassignedStaff.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-400 text-center">
+                      {availableStaff.length === 0 ? 'No staff accounts found' : 'All staff already assigned'}
+                    </div>
+                  ) : (
+                    unassignedStaff.map((s) => (
+                      <SelectItem key={s.user_id} value={s.user_id}>
+                        {s.displayName}
+                        <span className="ml-2 text-xs text-slate-400 capitalize">({s.role.replace('_', ' ')})</span>
+                      </SelectItem>
+                    ))
                   )}
                 </SelectContent>
               </Select>
-              <Button onClick={handleAddStaff} disabled={isLoading || !selectedStaff} className="rounded-xl gap-2">
+              <Button
+                onClick={handleAddStaff}
+                disabled={isLoading || !selectedStaff}
+                className="rounded-xl gap-2 bg-indigo-600 hover:bg-indigo-700"
+              >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Add
               </Button>
             </div>
 
+            {/* Assigned list */}
             <ScrollArea className="max-h-56">
               <div className="space-y-2">
-                {(assignedStaff as any[]).length === 0 ? (
+                {assignedStaff.length === 0 ? (
                   <div className="py-8 text-center text-slate-400">
                     <UserCheck className="h-8 w-8 mx-auto mb-2 opacity-40" />
                     <p className="text-sm">No staff assigned yet</p>
                   </div>
                 ) : (
-                  (assignedStaff as any[]).map((s: any) => (
+                  assignedStaff.map((s) => (
                     <div key={s.user_id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
-                          {s.profiles?.first_name?.[0]}{s.profiles?.last_name?.[0]}
+                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs uppercase">
+                          {s.displayName.slice(0, 2)}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-800 text-sm">{s.profiles?.first_name} {s.profiles?.last_name}</p>
-                          <Badge variant="outline" className="text-[10px] capitalize">{s.role?.role ?? 'staff'}</Badge>
+                          <p className="font-semibold text-slate-800 text-sm">{s.displayName}</p>
+                          <Badge variant="outline" className="text-[10px] capitalize">{s.role.replace('_', ' ')}</Badge>
                         </div>
                       </div>
                       <button
@@ -248,26 +301,34 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
             </ScrollArea>
           </TabsContent>
 
-          {/* CHILDREN TAB */}
+          {/* ── CHILDREN TAB ── */}
           <TabsContent value="children" className="p-6 space-y-5 mt-0">
             <div className="flex gap-3">
               <Select value={selectedChild} onValueChange={setSelectedChild}>
                 <SelectTrigger className="flex-1 rounded-xl bg-slate-50">
-                  <SelectValue placeholder="Select child to assign…" />
+                  <SelectValue placeholder={
+                    childrenNotInClass.length === 0 ? 'All children already in this class' : 'Select child to assign…'
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {(availableChildren as any[]).filter((c: any) => c.class_id !== classId).map((c: any) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.first_name} {c.last_name}
-                      {c.age && <span className="ml-2 text-xs text-slate-400">(Age {c.age})</span>}
-                      {c.class_id && c.class_id !== classId && (
-                        <span className="ml-1 text-xs text-amber-500">⚡ Re-assign</span>
-                      )}
-                    </SelectItem>
-                  ))}
+                  {childrenNotInClass.length === 0 ? (
+                    <div className="px-3 py-4 text-sm text-slate-400 text-center">No children available</div>
+                  ) : (
+                    childrenNotInClass.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.first_name} {c.last_name}
+                        {c.age ? <span className="ml-2 text-xs text-slate-400">(Age {c.age})</span> : null}
+                        {c.class_id && c.class_id !== classId ? <span className="ml-1 text-xs text-amber-500"> ⚡ re-assign</span> : null}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
-              <Button onClick={handleAssignChild} disabled={isLoading || !selectedChild} className="rounded-xl gap-2">
+              <Button
+                onClick={handleAssignChild}
+                disabled={isLoading || !selectedChild}
+                className="rounded-xl gap-2 bg-indigo-600 hover:bg-indigo-700"
+              >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Assign
               </Button>
@@ -284,8 +345,8 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
                   (classChildren as any[]).map((c: any) => (
                     <div key={c.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs">
-                          {c.first_name?.[0]}{c.last_name?.[0]}
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs uppercase">
+                          {(c.first_name?.[0] ?? '')}{(c.last_name?.[0] ?? '')}
                         </div>
                         <div>
                           <p className="font-semibold text-slate-800 text-sm">{c.first_name} {c.last_name}</p>
@@ -311,8 +372,12 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
           </TabsContent>
         </Tabs>
 
-        <div className="px-6 pb-5 flex justify-end">
-          <Button variant="outline" className="rounded-xl" onClick={() => { onSuccess(); onOpenChange(false); }}>
+        <div className="px-6 pb-5 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => { onSuccess(); onOpenChange(false); }}
+          >
             Done
           </Button>
         </div>
