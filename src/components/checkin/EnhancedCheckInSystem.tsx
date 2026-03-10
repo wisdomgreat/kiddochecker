@@ -107,7 +107,8 @@ const EnhancedCheckInSystem = () => {
           class_id: classId || null,
           checked_in_at: new Date().toISOString(),
           attendance_date: new Date().toISOString().split('T')[0],
-          checked_in_by: (await supabase.auth.getUser()).data.user?.id
+          checked_in_by: (await supabase.auth.getUser()).data.user?.id,
+          checked_in_method: 'staff_dashboard'
         })
         .select()
         .single();
@@ -141,7 +142,8 @@ const EnhancedCheckInSystem = () => {
         .from('attendance')
         .update({
           checked_out_at: new Date().toISOString(),
-          checked_out_by: (await supabase.auth.getUser()).data.user?.id
+          checked_out_by: (await supabase.auth.getUser()).data.user?.id,
+          checked_out_method: 'staff_dashboard'
         })
         .eq('id', attendanceId)
         .select()

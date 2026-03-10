@@ -199,7 +199,7 @@ const EnhancedReportsPage = () => {
     if (!detailedAttendance) return;
 
     const csv = [
-      ['Date', 'Child Name', 'Age', 'Allergies', 'Class', 'Check-In Time', 'Checked-In By', 'Check-Out Time', 'Checked-Out By', 'Duration (hours)'],
+      ['Date', 'Child Name', 'Age', 'Allergies', 'Class', 'Check-In Time', 'In By', 'In Method/Station', 'Check-Out Time', 'Out By', 'Out Method/Station', 'Duration (hours)'],
       ...detailedAttendance.map((row: any) => [
         row.attendance_date ? format(new Date(row.attendance_date), 'yyyy-MM-dd') : 'N/A',
         row.child_name,
@@ -208,8 +208,10 @@ const EnhancedReportsPage = () => {
         row.class_name || 'N/A',
         row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A',
         row.checked_in_by_name || 'System/PIN',
+        `${row.checked_in_method || 'N/A'}${row.checked_in_station ? ` (${row.checked_in_station})` : ''}`,
         row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A',
         row.checked_out_by_name || 'N/A',
+        `${row.checked_out_method || 'N/A'}${row.checked_out_station ? ` (${row.checked_out_station})` : ''}`,
         row.duration_hours?.toFixed(2) || 'N/A',
       ]),
     ].map(row => row.join(',')).join('\n');
@@ -500,10 +502,8 @@ const EnhancedReportsPage = () => {
                             <TableHead>Child</TableHead>
                             <TableHead>Age</TableHead>
                             <TableHead>Class</TableHead>
-                            <TableHead>Check-In</TableHead>
-                            <TableHead>In By</TableHead>
-                            <TableHead>Check-Out</TableHead>
-                            <TableHead>Out By</TableHead>
+                            <TableHead>Check-In (By/Via)</TableHead>
+                            <TableHead>Check-Out (By/Via)</TableHead>
                             <TableHead className="text-right">Dur</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -521,17 +521,35 @@ const EnhancedReportsPage = () => {
                               </TableCell>
                               <TableCell className="text-xs text-slate-500">{row.child_age || '-'}</TableCell>
                               <TableCell className="text-xs font-medium text-slate-600 truncate max-w-[100px]">{row.class_name || 'N/A'}</TableCell>
-                              <TableCell className="text-xs font-mono">
-                                {row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A'}
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className="text-xs font-mono">{row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A'}</div>
+                                  <div className="text-[10px] text-slate-500 font-medium italic flex items-center gap-1">
+                                    {row.checked_in_by_name?.split(' ')[0]}
+                                    <Badge variant="outline" className={cn(
+                                      "text-[8px] px-1 h-3 leading-none",
+                                      row.checked_in_method === 'kiosk' ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
+                                    )}>
+                                      {row.checked_in_method || 'app'}
+                                    </Badge>
+                                  </div>
+                                </div>
                               </TableCell>
-                              <TableCell className="text-[10px] text-slate-500 font-medium italic">
-                                {row.checked_in_by_name?.split(' ')[0]}
-                              </TableCell>
-                              <TableCell className="text-xs font-mono">
-                                {row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A'}
-                              </TableCell>
-                              <TableCell className="text-[10px] text-slate-500 font-medium italic">
-                                {row.checked_out_by_name?.split(' ')[0]}
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className="text-xs font-mono">{row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A'}</div>
+                                  <div className="text-[10px] text-slate-500 font-medium italic flex items-center gap-1">
+                                    {row.checked_out_by_name?.split(' ')[0]}
+                                    {row.checked_out_method && (
+                                      <Badge variant="outline" className={cn(
+                                        "text-[8px] px-1 h-3 leading-none",
+                                        row.checked_out_method === 'kiosk' ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
+                                      )}>
+                                        {row.checked_out_method}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
                               </TableCell>
                               <TableCell className="text-right text-xs font-bold text-indigo-600">
                                 {row.duration_hours ? `${row.duration_hours.toFixed(1)}h` : '-'}

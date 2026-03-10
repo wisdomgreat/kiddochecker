@@ -6,12 +6,16 @@ export interface CheckInData {
   classId?: string;
   checkedInBy?: string;
   qrToken?: string;
+  method?: string;
+  station?: string;
 }
 
 export interface CheckOutData {
   attendanceId: string;
   checkedOutBy?: string;
   qrToken?: string;
+  method?: string;
+  station?: string;
 }
 
 export class AttendanceService {
@@ -20,11 +24,13 @@ export class AttendanceService {
       console.log("Checking in child:", data.childId);
 
       // Use direct RPC call with proper error handling
-      const { data: result, error } = await supabase.rpc('checkin_child' as any, {
+      const { data: result, error } = await (supabase.rpc as any)('checkin_child' as any, {
         p_child_id: data.childId,
         p_class_id: data.classId || null,
         p_checked_in_by: data.checkedInBy || null,
-        p_qr_token: data.qrToken || null
+        p_qr_token: data.qrToken || null,
+        p_method: data.method || 'app_dashboard',
+        p_station: data.station || null
       });
 
       if (error) {
@@ -45,10 +51,12 @@ export class AttendanceService {
       console.log("Checking out child with attendance ID:", data.attendanceId);
 
       // Use direct RPC call with proper error handling
-      const { data: result, error } = await supabase.rpc('checkout_child' as any, {
+      const { data: result, error } = await (supabase.rpc as any)('checkout_child' as any, {
         p_attendance_id: data.attendanceId,
         p_checked_out_by: data.checkedOutBy || null,
-        p_qr_token: data.qrToken || null
+        p_qr_token: data.qrToken || null,
+        p_method: data.method || 'app_dashboard',
+        p_station: data.station || null
       });
 
       if (error) {
@@ -79,7 +87,7 @@ export class AttendanceService {
           child:children(*),
           class:classes(*)
         `)
-        .eq('attendance_date', today)
+        .or(`attendance_date.eq.${today},checked_out_at.is.null`)
         .order('checked_in_at', { ascending: false });
 
       if (error) {
@@ -105,7 +113,6 @@ export class AttendanceService {
           child:children(*),
           class:classes(*)
         `)
-        .eq('attendance_date', today)
         .is('checked_out_at', null)
         .order('checked_in_at', { ascending: false });
 

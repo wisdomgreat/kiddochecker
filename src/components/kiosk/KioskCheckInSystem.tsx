@@ -418,7 +418,9 @@ const KioskCheckInSystem = () => {
       const result = await AttendanceService.checkInChild({ 
         childId: selectedChild.id, 
         classId,
-        checkedInBy: actorId
+        checkedInBy: actorId,
+        method: 'kiosk',
+        station: 'Main Kiosk' // Defaulting to Main Kiosk or we could fetch from settings
       });
 
       if (result.success) {
@@ -489,7 +491,9 @@ const KioskCheckInSystem = () => {
 
       const result = await AttendanceService.checkOutChild({ 
         attendanceId: record.id,
-        checkedOutBy: actorId
+        checkedOutBy: actorId,
+        method: 'kiosk',
+        station: 'Main Kiosk'
       });
       if (result.success) {
         await logActivity('check_out', {
