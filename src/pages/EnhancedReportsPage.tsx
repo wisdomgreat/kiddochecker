@@ -64,11 +64,11 @@ const EnhancedReportsPage = () => {
     },
   });
 
-  // Fetch detailed attendance report
+  // Swapping basic detailed report for enhanced liability audit data
   const { data: detailedAttendance, isLoading: loadingDetailed } = useQuery({
     queryKey: ['detailed-attendance', dateRange],
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_detailed_attendance_report', {
+      const { data, error } = await (supabase.rpc as any)('get_liability_audit_report', {
         start_date: format(dateRange.from, 'yyyy-MM-dd'),
         end_date: format(dateRange.to, 'yyyy-MM-dd'),
       });
@@ -199,13 +199,17 @@ const EnhancedReportsPage = () => {
     if (!detailedAttendance) return;
 
     const csv = [
-      ['Date', 'Child Name', 'Class', 'Check-In Time', 'Check-Out Time', 'Duration (hours)'],
+      ['Date', 'Child Name', 'Age', 'Allergies', 'Class', 'Check-In Time', 'Checked-In By', 'Check-Out Time', 'Checked-Out By', 'Duration (hours)'],
       ...detailedAttendance.map((row: any) => [
         row.attendance_date ? format(new Date(row.attendance_date), 'yyyy-MM-dd') : 'N/A',
         row.child_name,
+        row.child_age || 'N/A',
+        row.has_allergies ? 'YES' : 'NONE',
         row.class_name || 'N/A',
-        row.check_in_time ? format(new Date(row.check_in_time), 'HH:mm') : 'N/A',
-        row.check_out_time ? format(new Date(row.check_out_time), 'HH:mm') : 'N/A',
+        row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A',
+        row.checked_in_by_name || 'System/PIN',
+        row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A',
+        row.checked_out_by_name || 'N/A',
         row.duration_hours?.toFixed(2) || 'N/A',
       ]),
     ].map(row => row.join(',')).join('\n');
@@ -493,27 +497,44 @@ const EnhancedReportsPage = () => {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Date</TableHead>
-                            <TableHead>Child Name</TableHead>
+                            <TableHead>Child</TableHead>
+                            <TableHead>Age</TableHead>
                             <TableHead>Class</TableHead>
                             <TableHead>Check-In</TableHead>
+                            <TableHead>In By</TableHead>
                             <TableHead>Check-Out</TableHead>
-                            <TableHead className="text-right">Duration</TableHead>
+                            <TableHead>Out By</TableHead>
+                            <TableHead className="text-right">Dur</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {(detailedAttendance as any[]).map((row: any, index: number) => (
-                            <TableRow key={index}>
-                              <TableCell>{row.attendance_date ? format(new Date(row.attendance_date), 'MMM dd') : 'N/A'}</TableCell>
-                              <TableCell className="font-medium">{row.child_name}</TableCell>
-                              <TableCell>{row.class_name || 'N/A'}</TableCell>
-                              <TableCell>
-                                {row.check_in_time ? format(new Date(row.check_in_time), 'HH:mm') : 'N/A'}
+                            <TableRow key={index} className={cn(row.has_allergies && "bg-rose-50/30")}>
+                              <TableCell className="text-[10px] sm:text-xs">
+                                {row.attendance_date ? format(new Date(row.attendance_date), 'MMM dd') : 'N/A'}
                               </TableCell>
-                              <TableCell>
-                                {row.check_out_time ? format(new Date(row.check_out_time), 'HH:mm') : 'N/A'}
+                              <TableCell className="font-bold text-sm">
+                                <div className="flex items-center gap-1.5">
+                                  {row.child_name}
+                                  {row.has_allergies && <AlertTriangle className="h-3 w-3 text-rose-500 fill-rose-500/10" />}
+                                </div>
                               </TableCell>
-                              <TableCell className="text-right">
-                                {row.duration_hours ? `${row.duration_hours.toFixed(1)}h` : 'N/A'}
+                              <TableCell className="text-xs text-slate-500">{row.child_age || '-'}</TableCell>
+                              <TableCell className="text-xs font-medium text-slate-600 truncate max-w-[100px]">{row.class_name || 'N/A'}</TableCell>
+                              <TableCell className="text-xs font-mono">
+                                {row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A'}
+                              </TableCell>
+                              <TableCell className="text-[10px] text-slate-500 font-medium italic">
+                                {row.checked_in_by_name?.split(' ')[0]}
+                              </TableCell>
+                              <TableCell className="text-xs font-mono">
+                                {row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A'}
+                              </TableCell>
+                              <TableCell className="text-[10px] text-slate-500 font-medium italic">
+                                {row.checked_out_by_name?.split(' ')[0]}
+                              </TableCell>
+                              <TableCell className="text-right text-xs font-bold text-indigo-600">
+                                {row.duration_hours ? `${row.duration_hours.toFixed(1)}h` : '-'}
                               </TableCell>
                             </TableRow>
                           ))}
