@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AppRole } from "@/types/supabase";
-import { Loader2 } from "lucide-react";
+import { Loader2, UserPlus, Shield, Info } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 interface AddUserModalProps {
   open: boolean;
@@ -26,8 +26,20 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
     lastName: '',
     phone: '',
     role: 'parent' as AppRole,
+    customRoleId: null as string | null,
     isVolunteer: false,
     sendInvitation: true
+  });
+
+  // Fetch custom roles for selection
+  const { data: customRoles = [] } = useQuery({
+    queryKey: ["custom-roles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("custom_roles").select("*").order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: open
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,12 +47,8 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
     setIsLoading(true);
 
     try {
-      console.log('Creating user with data:', formData);
-
-      // Generate a temporary password for the user
       const tempPassword = Math.random().toString(36).slice(-12) + 'A1!';
       
-      // Create the user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: tempPassword,
@@ -54,69 +62,49 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
         }
       });
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw authError;
-      }
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Failed to create user account');
 
-      if (!authData.user) {
-        throw new Error('Failed to create user account');
-      }
-
-      console.log('User created successfully:', authData.user.id);
-
-      // Create user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone
-        });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Don't throw here, as the user was created successfully
-      }
-
-      // Assign user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          role: formData.role,
-          is_volunteer: formData.isVolunteer,
-          is_super_admin: formData.role === 'super_admin'
-        });
-
-      if (roleError) {
-        console.error('Role assignment error:', roleError);
-        // Don't throw here, as the user was created successfully
-      }
-
-      toast({
-        title: 'User Created Successfully',
-        description: `${formData.firstName} ${formData.lastName} has been created with email ${formData.email}`,
+      // Create profile
+      await supabase.from('profiles').insert({
+        id: authData.user.id,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone
       });
 
-      // Reset form
+      // Assign role (including custom_role_id)
+      const { error: roleError } = await supabase.from('user_roles').insert({
+        user_id: authData.user.id,
+        role: formData.role,
+        custom_role_id: formData.customRoleId,
+        is_volunteer: formData.isVolunteer,
+        is_super_admin: formData.role === 'super_admin'
+      });
+
+      if (roleError) throw roleError;
+
+      toast({
+        title: 'User Created',
+        description: `${formData.firstName} has been added to the system.`,
+      });
+
       setFormData({
         email: '',
         firstName: '',
         lastName: '',
         phone: '',
         role: 'parent' as AppRole,
+        customRoleId: null,
         isVolunteer: false,
         sendInvitation: true
       });
 
       onSuccess();
     } catch (error: any) {
-      console.error('Error creating user:', error);
       toast({
-        title: 'Error Creating User',
-        description: error.message || 'Failed to create user. Please try again.',
+        title: 'Creation Failed',
+        description: error.message || 'Failed to create user',
         variant: 'destructive',
       });
     } finally {
@@ -126,110 +114,116 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-left">Add New User</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="text-left">
-              <Label htmlFor="firstName">First Name *</Label>
+      <DialogContent className="sm:max-w-lg rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+        <div className="bg-indigo-600 p-6 text-white flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center">
+            <UserPlus className="h-6 w-6" />
+          </div>
+          <div>
+            <DialogTitle className="text-xl font-black">Register New User</DialogTitle>
+            <DialogDescription className="text-indigo-100 font-medium opacity-80">Add a new staff member or parent.</DialogDescription>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="firstName" className="font-bold text-slate-700">First Name</Label>
               <Input
                 id="firstName"
                 value={formData.firstName}
                 onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
                 required
-                disabled={isLoading}
               />
             </div>
-            <div className="text-left">
-              <Label htmlFor="lastName">Last Name *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="lastName" className="font-bold text-slate-700">Last Name</Label>
               <Input
                 id="lastName"
                 value={formData.lastName}
                 onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
                 required
-                disabled={isLoading}
               />
             </div>
           </div>
           
-          <div className="text-left">
-            <Label htmlFor="email">Email *</Label>
+          <div className="space-y-2">
+            <Label htmlFor="email" className="font-bold text-slate-700">Email Address</Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
               required
-              disabled={isLoading}
             />
           </div>
           
-          <div className="text-left">
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => setFormData({...formData, phone: e.target.value})}
-              disabled={isLoading}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="role" className="font-bold text-slate-700">Initial System Role</Label>
+              <Select 
+                value={formData.role} 
+                onValueChange={(value: AppRole) => setFormData({...formData, role: value})}
+              >
+                <SelectTrigger className="rounded-2xl h-12 border-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="teacher">Teacher</SelectItem>
+                  <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="customRole" className="font-bold text-slate-700">Custom Role Profile</Label>
+              <Select 
+                value={formData.customRoleId || "none"} 
+                onValueChange={(value) => setFormData({...formData, customRoleId: value === "none" ? null : value})}
+              >
+                <SelectTrigger className="rounded-2xl h-12 border-slate-200 bg-indigo-50/30">
+                  <SelectValue placeholder="No custom profile" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  <SelectItem value="none">No Custom Profile</SelectItem>
+                  {customRoles.map((role: any) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-3xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="addVolunteer" className="font-bold text-slate-900">Mark as Volunteer</Label>
+                <p className="text-xs text-slate-500">Enable volunteer tracking rules</p>
+              </div>
+              <Switch
+                id="addVolunteer"
+                checked={formData.isVolunteer}
+                onCheckedChange={(checked) => setFormData({...formData, isVolunteer: checked})}
+                className="data-[state=checked]:bg-indigo-600"
+              />
+            </div>
           </div>
           
-          <div className="text-left">
-            <Label htmlFor="role">Role *</Label>
-            <Select 
-              value={formData.role} 
-              onValueChange={(value: AppRole) => setFormData({...formData, role: value})}
-              disabled={isLoading}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="parent">Parent</SelectItem>
-                <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="teacher">Teacher</SelectItem>
-                <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="super_admin">Super Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center space-x-2 text-left">
-            <Switch
-              id="isVolunteer"
-              checked={formData.isVolunteer}
-              onCheckedChange={(checked) => setFormData({...formData, isVolunteer: checked})}
-              disabled={isLoading}
-            />
-            <Label htmlFor="isVolunteer">Volunteer</Label>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => onOpenChange(false)} 
-              className="w-full sm:w-auto"
-              disabled={isLoading}
-            >
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-2xl font-bold h-12 px-6">
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading} 
-              className="w-full sm:w-auto"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create User'
-              )}
+            <Button type="submit" disabled={isLoading} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black h-12 px-8 shadow-lg shadow-indigo-100">
+              {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Create Account'}
             </Button>
           </div>
         </form>

@@ -2,7 +2,7 @@
 import {
   Calendar, Home, Users, Settings, BarChart3, Building, LogOut,
   Baby, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare,
-  QrCode, Printer, Zap, Shield, Activity
+  QrCode, Printer, Zap, Shield, Activity, ShieldCheck
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -36,6 +36,7 @@ export function AppSidebar() {
     { title: "Reports", url: "/reports", icon: BarChart3 },
     { title: "QR Management", url: "/qr-management", icon: QrCode },
     { title: "Device Enrollment", url: "/devices", icon: Zap },
+    ...(userRole === 'super_admin' ? [{ title: "Roles & Permissions", url: "/roles", icon: ShieldCheck }] : []),
     { title: "Calendar", url: "/calendar", icon: Calendar },
     { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Check-In", url: "/check-in", icon: Monitor },
@@ -49,9 +50,7 @@ export function AppSidebar() {
     { title: "Dashboard", url: "/staff-dashboard", icon: Home },
     ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: "Attendance", url: "/attendance", icon: ClipboardCheck }] : []),
     ...(isTeacher || isTeacherAssistant ? [
-      { title: "Children", url: "/children", icon: Baby },
       { title: "Classes", url: "/classes", icon: BookOpen },
-      { title: "QR Labels", url: "/qr-management", icon: QrCode },
     ] : []),
     { title: "Calendar", url: "/calendar", icon: Calendar },
     { title: "Messages", url: "/messages", icon: MessageSquare },

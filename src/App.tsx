@@ -39,6 +39,7 @@ const DeviceEnrollmentPage = lazy(() => import("./pages/DeviceEnrollmentPage"));
 const ClassesPage = lazy(() => import("./pages/ClassesPage"));
 const EnhancedReportsPage = lazy(() => import("./pages/EnhancedReportsPage"));
 const UsersPage = lazy(() => import("./pages/UsersPage"));
+const RolesPage = lazy(() => import("./pages/RolesPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
@@ -112,12 +113,13 @@ function App() {
 
                   {/* Admin-Only Routes */}
                   <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><UsersPage /></RoleBasedRoute>} />
+                  <Route path="/roles" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><RolesPage /></RoleBasedRoute>} />
                   <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><StaffPage /></RoleBasedRoute>} />
                   <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EnhancedReportsPage /></RoleBasedRoute>} />
                   <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SettingsPage /></RoleBasedRoute>} />
                   <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
                   <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
-                  <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><QRManagementPage /></RoleBasedRoute>} />
+                  <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><QRManagementPage /></RoleBasedRoute>} />
 
                   {/* Staff & Admin Shared Routes */}
                   <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />

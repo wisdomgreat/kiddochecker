@@ -6,8 +6,9 @@ import { QRCodeSVG } from "qrcode.react";
 import {
     Printer, QrCode, Search, Download, Baby, Filter, Grid3X3,
     List, ChevronDown, AlertTriangle, CheckCircle2, Phone,
-    RefreshCw, Settings, X, Eye, BookOpen, Loader2
+    RefreshCw, Settings, X, Eye, BookOpen, Loader2, ShieldAlert
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +68,7 @@ const QRLabel = ({ child, orgName = "KiddoChecker" }: { child: Child; orgName?: 
 };
 
 const QRManagementPage = () => {
+    const { isAdmin, isSuperAdmin } = useAuth();
     const [search, setSearch] = useState("");
     const [filterClass, setFilterClass] = useState("all");
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -74,6 +76,22 @@ const QRManagementPage = () => {
     const [selectedChildren, setSelectedChildren] = useState<Set<string>>(new Set());
     const [isPrinting, setIsPrinting] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
+
+    if (!isAdmin && !isSuperAdmin) {
+        return (
+            <UnifiedDashboardLayout>
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-3xl border border-slate-100 shadow-sm m-6">
+                    <div className="h-20 w-20 rounded-full bg-rose-50 flex items-center justify-center mb-6">
+                        <ShieldAlert className="h-10 w-10 text-rose-500" />
+                    </div>
+                    <h1 className="text-3xl font-black text-slate-900 mb-2">Access Denied</h1>
+                    <p className="text-slate-500 max-w-md font-medium text-lg italic">
+                        "For the safety and confidentiality of our children, QR label generation is restricted to administrative accounts only."
+                    </p>
+                </div>
+            </UnifiedDashboardLayout>
+        );
+    }
 
     const { data: children = [], isLoading } = useQuery({
         queryKey: ["qr-children"],
