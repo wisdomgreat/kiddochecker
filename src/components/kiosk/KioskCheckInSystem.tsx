@@ -369,38 +369,37 @@ const KioskCheckInSystem = () => {
     setShowClassDialog(true);
   };
 
-  const handleQRScan = async (qrData: string) => {
+  const handleQRScan = async (rawQRData: string) => {
     if (!staffAuthed) {
       toast({ title: "Staff PIN Required", description: "Please enter your staff PIN first.", variant: "destructive" });
       return;
     }
 
+    const qrData = rawQRData.trim();
+    console.log("[Kiosk] Processing QR Data:", qrData);
     setIsLoading(true);
+
     try {
-      // 1. Try parsing as JSON (New format from QR Management)
+      // ─── 1. JSON FORMATS ──────────────────────────────────────────
       try {
         const parsed = JSON.parse(qrData);
-        if (parsed.type === 'CHILD_CHECKIN' && parsed.id) {
-          const { data: child, error: childError } = await supabase
-            .from('children')
-            .select('*')
-            .eq('id', parsed.id)
-            .single();
 
-          if (!childError && child) {
-            handleStaffCheckIn(child as any);
+        // A. Handle CHECKOUT JSON (Generated during check-in or from dashboard)
+        if (parsed.type === 'CHECKOUT' && parsed.attendanceId) {
+          console.log("[Kiosk] Found Attendance ID in CHECKOUT JSON:", parsed.attendanceId);
+          const { data: att } = await supabase.from('attendance').select('*, child:children(*)').eq('id', parsed.attendanceId).maybeSingle();
+          if (att) {
+            handleCheckOut(att);
             return;
+          } else {
+            console.warn("[Kiosk] Attendance record not found for ID:", parsed.attendanceId);
           }
         }
-      } catch (jsonErr) {
-        // Not JSON, continue to DB lookup
-      }
 
-      // 2. Try parsing Parent-generated QR code (format: child:id:firstName:lastName)
-      if (typeof qrData === 'string' && qrData.startsWith('child:')) {
-        const parts = qrData.split(':');
-        if (parts.length >= 2) {
-          const childId = parts[1];
+        // B. Handle CHILD/CHECKIN JSON
+        const childId = parsed.id || parsed.child_id;
+        if (childId && (parsed.type === 'CHILD_CHECKIN' || parsed.type === 'CHECKIN')) {
+          console.log("[Kiosk] Found child ID in JSON:", childId);
           const { data: child, error: childError } = await supabase
             .from('children')
             .select('*')
@@ -412,23 +411,62 @@ const KioskCheckInSystem = () => {
             return;
           }
         }
+      } catch (jsonErr) { /* Not JSON */ }
+
+      // ─── 2. STRING PREFIX FORMATS ─────────────────────────────────
+
+      // A. Handle Parent-app format (child:id:name...)
+      if (qrData.toLowerCase().startsWith('child:')) {
+        const parts = qrData.split(':');
+        if (parts.length >= 2) {
+          const childId = parts[1];
+          console.log("[Kiosk] Found child ID in prefix format:", childId);
+          const { data: child, error: childError } = await supabase.from('children').select('*').eq('id', childId).single();
+          if (!childError && child) {
+            handleStaffCheckIn(child as any);
+            return;
+          }
+        }
       }
 
-      // 3. Fallback to DB Lookup (Legacy/Database tags)
+      // B. Handle Legacy Attendance format (ATTENDANCE:id|CHILD:name...)
+      if (qrData.startsWith('ATTENDANCE:')) {
+        const attendanceId = qrData.split('|')[0].replace('ATTENDANCE:', '');
+        console.log("[Kiosk] Found Attendance ID in legacy format:", attendanceId);
+        // We could look up the attendance record to get the child info, or just perform checkout
+        const { data: att } = await supabase.from('attendance').select('*, child:children(*)').eq('id', attendanceId).maybeSingle();
+        if (att) {
+          handleCheckOut(att);
+          return;
+        }
+      }
+
+      // ─── 3. DATABASE LOOKUP (Tokens / UUIDs) ──────────────────────
+      console.log("[Kiosk] Falling back to DB lookup for token:", qrData);
       const { data: rec, error } = await supabase
         .from('qr_codes')
         .select('*, child:children(*)')
         .eq('qr_data', qrData)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (error || !rec) {
-        toast({ title: "Invalid QR", description: "Code not recognized. Please regenerate labels if needed.", variant: "destructive" });
+        console.error("[Kiosk] QR not recognized in DB:", qrData, error);
+        toast({
+          title: "Invalid QR",
+          description: `Code not recognized: "${qrData.substring(0, 10)}${qrData.length > 10 ? '...' : ''}". Please regenerate labels.`,
+          variant: "destructive"
+        });
         return;
       }
 
-      handleStaffCheckIn(rec.child as any);
+      if (rec.child) {
+        handleStaffCheckIn(rec.child as any);
+      } else {
+        toast({ title: "Broken Link", description: "This QR code is valid but points to a child that no longer exists.", variant: "destructive" });
+      }
     } catch (err) {
+      console.error("[Kiosk] QR processing error:", err);
       toast({ title: "Error", description: "Failed to process QR code scan results.", variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -467,8 +505,17 @@ const KioskCheckInSystem = () => {
           class_name: classData?.name, by: activeTab === 'parent' ? `parent:${parentName}` : `staff:${staffName}`,
         });
 
-        const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', selectedChild.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).single();
-        setCheckInQRData(qrCodeData?.qr_data || '');
+        const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', selectedChild.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+        // If no DB-stored QR exists, generate a JSON-fallback locally so the name tag still has a working scanner
+        const fallbackQR = JSON.stringify({
+          type: 'CHILD_CHECKIN',
+          id: selectedChild.id,
+          name: `${selectedChild.first_name} ${selectedChild.last_name}`,
+          v: 1
+        });
+
+        setCheckInQRData(qrCodeData?.qr_data || fallbackQR);
         setSelectedClassName(classData?.name || '');
         setCheckedInChildIds(prev => new Set([...prev, selectedChild.id]));
         showSuccess(`${selectedChild.first_name} → ${classData?.name || 'class'}`);
