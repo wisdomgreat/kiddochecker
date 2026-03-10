@@ -56,7 +56,15 @@ const DeviceLogin = () => {
             fingerprint = canvas.toDataURL();
         }
 
-        const hardwareId = btoa(`${ua}|${platform}|${screen}|${timezone}|${language}|${fingerprint.slice(-50)}`).slice(0, 32);
+        const rawId = `${ua}|${platform}|${screen}|${timezone}|${language}|${fingerprint.slice(-50)}`;
+        // Use a simple hash-like string instead of direct btoa which can fail on non-ASCII
+        let hardwareId = 'kc-id-';
+        for (let i = 0; i < rawId.length; i++) {
+            const char = rawId.charCodeAt(i);
+            const bit = (char.toString(16));
+            if (i % 8 === 0) hardwareId += bit;
+        }
+        hardwareId = hardwareId.slice(0, 32);
 
         return {
             combined: hardwareId, // For logging

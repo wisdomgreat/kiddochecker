@@ -56,6 +56,7 @@ import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
+import { cn } from "@/lib/utils";
 
 // ─── Constants ────────────────────────────────────────────────
 const LS_KEY = "kiddochecker_devices_fallback";
@@ -639,7 +640,9 @@ const DeviceEnrollmentPage = () => {
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-slate-400">Hardware:</span>
-                                <span className="text-slate-700 font-medium truncate max-w-[120px]">{device.os_info || "Scanning..."}</span>
+                                <span className={cn("text-slate-700 font-medium truncate max-w-[120px]", !device.os_info && "text-slate-400 italic font-normal")}>
+                                  {device.os_info || "Waiting for first login..."}
+                                </span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-slate-400">Last IP:</span>

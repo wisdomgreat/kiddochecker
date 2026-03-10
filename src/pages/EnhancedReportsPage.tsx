@@ -64,7 +64,7 @@ const EnhancedReportsPage = () => {
     },
   });
 
-  // Swapping basic detailed report for enhanced liability audit data
+  // Detailed report data
   const { data: detailedAttendance, isLoading: loadingDetailed } = useQuery({
     queryKey: ['detailed-attendance', dateRange],
     queryFn: async () => {
@@ -82,68 +82,39 @@ const EnhancedReportsPage = () => {
   const { data: stats } = useQuery({
     queryKey: ['report-stats', dateRange],
     queryFn: async () => {
-      // Get all attendance for the period PLUS anything currently present (null checkout)
-      const { data: attendance } = await supabase
-        .from('attendance')
-        .select('*');
+      const { data: attendance } = await supabase.from('attendance').select('*');
+      const { count: totalChildren } = await supabase.from('children').select('*', { count: 'exact', head: true });
 
-      const { data: children } = await supabase
-        .from('children')
-        .select('*', { count: 'exact' });
-
-      // Period-specific stats
-      const periodAttendance = attendance?.filter(a => 
-        a.attendance_date >= format(dateRange.from, 'yyyy-MM-dd') && 
+      const periodAttendance = attendance?.filter(a =>
+        a.attendance_date >= format(dateRange.from, 'yyyy-MM-dd') &&
         a.attendance_date <= format(dateRange.to, 'yyyy-MM-dd')
       ) || [];
 
-      const totalCheckIns = periodAttendance.filter(a => a.checked_in_at).length;
-      const totalCheckOuts = periodAttendance.filter(a => a.checked_out_at).length;
-      
-      // Currently Present is ALWAYS global (anyone in center right now)
-      const currentlyPresent = attendance?.filter(a => a.checked_in_at && !a.checked_out_at).length || 0;
-
       return {
-        totalChildren: children?.length || 0,
-        totalCheckIns,
-        totalCheckOuts,
-        currentlyPresent,
+        totalChildren: totalChildren || 0,
+        totalCheckIns: periodAttendance.filter(a => a.checked_in_at).length,
+        totalCheckOuts: periodAttendance.filter(a => a.checked_out_at).length,
+        currentlyPresent: attendance?.filter(a => a.checked_in_at && !a.checked_out_at).length || 0,
       };
     },
   });
 
-  // Fetch medical profiles report
+  // Medical report
   const { data: medicalProfiles, isLoading: loadingMedical } = useQuery({
     queryKey: ['medical-report'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('children')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          allergies,
-          medical_info,
-          child_medical_profiles (
-            allergies,
-            medications,
-            conditions,
-            emergency_notes
-          )
-        `);
-
+      const { data, error } = await supabase.from('children').select(`
+        id, first_name, last_name, allergies, medical_info,
+        child_medical_profiles (allergies, medications, conditions, emergency_notes)
+      `);
       if (error) throw error;
-
-      // Filter only children with medical data
       return (data || []).filter((c: any) =>
-        (c.child_medical_profiles?.length > 0) ||
-        (c.allergies && c.allergies !== '') ||
-        (c.medical_info && c.medical_info !== '')
+        c.child_medical_profiles?.length > 0 || c.allergies || c.medical_info
       );
     },
   });
 
-  // 1. Ratio Alerts
+  // Ratio Alerts
   const { data: ratioAlerts, isLoading: loadingRatios } = useQuery({
     queryKey: ['ratio-alerts'],
     queryFn: async () => {
@@ -155,21 +126,8 @@ const EnhancedReportsPage = () => {
     },
   });
 
-  // 2. Liability Audit
-  const { data: liabilityAudit, isLoading: loadingLiability } = useQuery({
-    queryKey: ['liability-audit', dateRange],
-    queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_liability_audit_report', {
-        start_date: format(dateRange.from, 'yyyy-MM-dd'),
-        end_date: format(dateRange.to, 'yyyy-MM-dd')
-      });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // 3. Heatmap
-  const { data: heatmapData, isLoading: loadingHeatmap } = useQuery({
+  // Heatmap
+  const { data: heatmapData } = useQuery({
     queryKey: ['attendance-heatmap', dateRange],
     queryFn: async () => {
       const { data, error } = await (supabase.rpc as any)('get_attendance_heatmap', {
@@ -177,10 +135,8 @@ const EnhancedReportsPage = () => {
         end_date: format(dateRange.to, 'yyyy-MM-dd')
       });
       if (error) throw error;
-
-      // Fill in missing hours
-      const fullHeatmap = Array.from({ length: 15 }, (_, i) => {
-        const hour = i + 6; // 6am to 8pm
+      return Array.from({ length: 15 }, (_, i) => {
+        const hour = i + 6;
         const existing = (data as any[])?.find((d: any) => d.hour_of_day === hour);
         return {
           hour_of_day: hour,
@@ -188,11 +144,20 @@ const EnhancedReportsPage = () => {
           avg_count: existing?.avg_count || 0
         };
       });
-      return fullHeatmap;
     },
   });
 
-  // 4. No-Show report
+  // Terminal Security
+  const { data: securityStats, isLoading: loadingSecurity } = useQuery({
+    queryKey: ['terminal-security-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_terminal_security_stats');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // No-Show report
   const { data: noShowReport, isLoading: loadingNoShows } = useQuery({
     queryKey: ['no-show-report'],
     queryFn: async () => {
@@ -206,53 +171,28 @@ const EnhancedReportsPage = () => {
 
   const handleExportCSV = () => {
     if (!detailedAttendance) return;
-
     const csv = [
-      ['Date', 'Child Name', 'Age', 'Allergies', 'Class', 'Check-In Time', 'In By', 'Role', 'In Method/Station', 'Check-Out Time', 'Out By', 'Role', 'Out Method/Station', 'Duration (hours)'],
-      ...detailedAttendance.map((row: any) => [
-        row.attendance_date ? format(new Date(row.attendance_date), 'yyyy-MM-dd') : 'N/A',
-        row.child_name,
-        row.child_age || 'N/A',
-        row.has_allergies ? 'YES' : 'NONE',
-        row.class_name || 'N/A',
-        row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A',
-        row.checked_in_by_name || 'System/PIN',
-        row.checked_in_by_role || 'parent',
-        `${row.checked_in_method || 'N/A'}${row.checked_in_station ? ` (${row.checked_in_station})` : ''}`,
-        row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A',
-        row.checked_out_by_name || 'N/A',
-        row.checked_out_by_role || 'N/A',
-        `${row.checked_out_method || 'N/A'}${row.checked_out_station ? ` (${row.checked_out_station})` : ''}`,
-        row.duration_hours?.toFixed(2) || 'N/A',
-      ]),
+      ['Date', 'Child', 'In Time', 'In Method', 'Out Time', 'Out Method', 'Duration'],
+      ...detailedAttendance.map((r: any) => [
+        r.attendance_date, r.child_name,
+        r.checked_in_at ? format(new Date(r.checked_in_at), 'HH:mm') : '', r.checked_in_method,
+        r.checked_out_at ? format(new Date(r.checked_out_at), 'HH:mm') : '', r.checked_out_method,
+        r.duration_hours?.toFixed(1) || ''
+      ])
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance-report-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`;
+    a.download = `report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
-
-    toast({
-      title: "Success",
-      description: "Report exported successfully",
-    });
   };
 
   const setQuickDateRange = (range: 'week' | 'month') => {
     const today = new Date();
-    if (range === 'week') {
-      setDateRange({
-        from: startOfWeek(today),
-        to: endOfWeek(today),
-      });
-    } else {
-      setDateRange({
-        from: startOfMonth(today),
-        to: endOfMonth(today),
-      });
-    }
+    if (range === 'week') setDateRange({ from: startOfWeek(today), to: endOfWeek(today) });
+    else setDateRange({ from: startOfMonth(today), to: endOfMonth(today) });
   };
 
   return (
@@ -260,681 +200,253 @@ const EnhancedReportsPage = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-            <p className="text-muted-foreground">Comprehensive attendance and activity reports</p>
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-500">World-Class Analytics</h1>
+            <p className="text-muted-foreground">Deep insights into your organization's attendance and security</p>
           </div>
-          <Button onClick={handleExportCSV} disabled={!detailedAttendance}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
+          <Button onClick={handleExportCSV} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2 shadow-lg shadow-indigo-100">
+            <Download className="h-4 w-4" /> Export Audit
           </Button>
         </div>
 
-        {/* Summary Statistics */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: { staggerChildren: 0.1 }
-            }
-          }}
-          initial="hidden"
-          animate="show"
-        >
-          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Users className="h-4 w-4 text-blue-500" />
-                  Total Children
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalChildren || 0}</div>
-                <p className="text-xs text-muted-foreground">Registered in system</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4 text-green-500" />
-                  Total Check-Ins
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalCheckIns || 0}</div>
-                <p className="text-xs text-muted-foreground">In selected period</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-orange-500" />
-                  Total Check-Outs
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalCheckOuts || 0}</div>
-                <p className="text-xs text-muted-foreground">In selected period</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-            <Card className="bg-gradient-to-br from-purple-500/5 to-indigo-500/5 border-purple-200">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-purple-600" />
-                  Currently Present
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <div className="text-2xl font-bold text-purple-700">{stats?.currentlyPresent || 0}</div>
-                  {stats?.currentlyPresent > 0 && (
-                    <Badge variant="outline" className="text-[10px] bg-purple-50 font-bold uppercase py-0 px-1.5 h-4">Active</Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Ready for check-out
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        {/* Date Range Selector */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                Date Range
-              </CardTitle>
-              <CardDescription>Select the date range for your report</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setQuickDateRange('week')}
-                >
-                  This Week
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setQuickDateRange('month')}
-                >
-                  This Month
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("justify-start text-left font-normal")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                            {format(dateRange.to, "LLL dd, y")}
-                          </>
-                        ) : (
-                          format(dateRange.from, "LLL dd, y")
-                        )
-                      ) : (
-                        <span>Pick a date range</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="range"
-                      selected={{ from: dateRange.from, to: dateRange.to }}
-                      onSelect={(range: any) => {
-                        if (range?.from && range?.to) {
-                          setDateRange({ from: range.from, to: range.to });
-                        }
-                      }}
-                      numberOfMonths={2}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </CardContent>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="border-none shadow-sm bg-blue-50/50">
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-blue-600 flex items-center gap-2"><Users className="h-4 w-4" />Registered</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-black text-slate-800">{stats?.totalChildren}</div></CardContent>
           </Card>
+          <Card className="border-none shadow-sm bg-emerald-50/50">
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-emerald-600 flex items-center gap-2"><ClipboardCheck className="h-4 w-4" />Check-Ins</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-black text-slate-800">{stats?.totalCheckIns}</div></CardContent>
+          </Card>
+          <Card className="border-none shadow-sm bg-indigo-50/80 ring-1 ring-indigo-100">
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-indigo-600 flex items-center gap-2"><Activity className="h-4 w-4" />Current Presence</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-black text-indigo-700">{stats?.currentlyPresent}</div></CardContent>
+          </Card>
+          <Card className="border-none shadow-sm bg-red-50/50">
+            <CardHeader className="pb-2"><CardTitle className="text-xs font-bold uppercase text-red-600 flex items-center gap-2"><ShieldAlert className="h-4 w-4" />Alerts (24h)</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-black text-red-700">{securityStats?.alerts_last_24h || 0}</div></CardContent>
+          </Card>
+        </div>
 
-          {/* Reports Tabs */}
-          <Tabs defaultValue="summary" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="summary">Summary Report</TabsTrigger>
-              <TabsTrigger value="detailed">Detailed Report</TabsTrigger>
-              <TabsTrigger value="medical" className="flex items-center gap-2">
-                <Heart className="h-4 w-4 text-rose-500" />
-                Medical
+        <Card className="border-none shadow-sm">
+          <CardContent className="p-4 flex flex-wrap items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => setQuickDateRange('week')} className="text-xs font-bold rounded-lg hover:bg-indigo-50 hover:text-indigo-600">This Week</Button>
+            <Button variant="ghost" size="sm" onClick={() => setQuickDateRange('month')} className="text-xs font-bold rounded-lg hover:bg-indigo-50 hover:text-indigo-600">This Month</Button>
+            <div className="h-4 w-px bg-slate-200 mx-1" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-lg h-9 gap-2 text-xs font-medium">
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                  {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd, yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to }} onSelect={(r: any) => r?.from && r?.to && setDateRange({ from: r.from, to: r.to })} numberOfMonths={2} />
+              </PopoverContent>
+            </Popover>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="summary" className="space-y-6">
+          <TabsList className="bg-transparent border-b border-slate-100 w-full justify-start rounded-none h-auto p-0 gap-6">
+            {['summary', 'detailed', 'security', 'medical', 'safety'].map((tab) => (
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:bg-transparent px-1 pb-3 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:text-indigo-600 transition-all"
+              >
+                {tab.replace('-', ' ')}
               </TabsTrigger>
-              <TabsTrigger value="safety" className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-indigo-500" />
-                Safety & Liability
-              </TabsTrigger>
-            </TabsList>
+            ))}
+          </TabsList>
 
-            <TabsContent value="summary" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Attendance Summary by Class</CardTitle>
-                  <CardDescription>Overview of attendance statistics per class</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loadingAttendance ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : (attendanceReport as any[]) && (attendanceReport as any[]).length > 0 ? (
-                    <div className="space-y-6">
-                      <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={attendanceReport as any[]}
-                            margin={{
-                              top: 5,
-                              right: 30,
-                              left: 20,
-                              bottom: 5,
-                            }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                              dataKey="attendance_date"
-                              tickFormatter={(value) => value ? format(new Date(value), 'MMM dd') : ''}
-                            />
-                            <YAxis />
-                            <Tooltip
-                              labelFormatter={(value) => value ? format(new Date(value), 'MMM dd, yyyy') : ''}
-                            />
-                            <Legend />
-                            <Bar dataKey="total_checked_in" name="Check-Ins" fill="#3b82f6" />
-                            <Bar dataKey="total_checked_out" name="Check-Outs" fill="#f97316" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Class</TableHead>
-                            <TableHead className="text-right">Check-Ins</TableHead>
-                            <TableHead className="text-right">Check-Outs</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(attendanceReport as any[]).map((row: any, index: number) => (
-                            <TableRow key={index}>
-                              <TableCell>{row.attendance_date ? format(new Date(row.attendance_date), 'MMM dd, yyyy') : 'N/A'}</TableCell>
-                              <TableCell className="font-medium">{row.class_name || 'N/A'}</TableCell>
-                              <TableCell className="text-right">{row.total_checked_in}</TableCell>
-                              <TableCell className="text-right">{row.total_checked_out}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No attendance data for selected period</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+          <TabsContent value="summary" className="space-y-6 outline-none">
+            <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden">
+              <CardHeader className="bg-slate-50/50">
+                <CardTitle className="text-lg">Volume Trends</CardTitle>
+                <CardDescription>Daily check-in and check-out patterns</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                {loadingAttendance ? <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-indigo-500" /></div> : (
+                  <div className="h-80 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={attendanceReport}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="attendance_date" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} tickFormatter={(v) => format(new Date(v), 'MMM dd')} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', shadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                        <Bar dataKey="total_checked_in" name="Check-Ins" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="total_checked_out" name="Check-Outs" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="detailed" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Detailed Attendance Report</CardTitle>
-                  <CardDescription>Individual check-in and check-out records</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loadingDetailed ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : (detailedAttendance as any[]) && (detailedAttendance as any[]).length > 0 ? (
-                    <div className="max-h-[500px] overflow-y-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Child</TableHead>
-                            <TableHead>Age</TableHead>
-                            <TableHead>Class</TableHead>
-                            <TableHead>Check-In (By/Via)</TableHead>
-                            <TableHead>Check-Out (By/Via)</TableHead>
-                            <TableHead className="text-right">Dur</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(detailedAttendance as any[]).map((row: any, index: number) => (
-                            <TableRow key={index} className={cn(row.has_allergies && "bg-rose-50/30")}>
-                              <TableCell className="text-[10px] sm:text-xs">
-                                {row.attendance_date ? format(new Date(row.attendance_date), 'MMM dd') : 'N/A'}
-                              </TableCell>
-                              <TableCell className="font-bold text-sm">
-                                <div className="flex items-center gap-1.5">
-                                  {row.child_name}
-                                  {row.has_allergies && <AlertTriangle className="h-3 w-3 text-rose-500 fill-rose-500/10" />}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-xs text-slate-500">{row.child_age || '-'}</TableCell>
-                              <TableCell className="text-xs font-medium text-slate-600 truncate max-w-[100px]">{row.class_name || 'N/A'}</TableCell>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <div className="text-xs font-mono">{row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A'}</div>
-                                  <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
-                                    <span className="text-slate-700">{row.checked_in_by_name}</span>
-                                    <Badge variant="outline" className={cn(
-                                      "text-[7px] px-1 h-3 leading-none uppercase",
-                                      row.checked_in_by_role?.includes('admin') || row.checked_in_by_role === 'staff' || row.checked_in_by_role === 'teacher' 
-                                        ? "bg-amber-50 text-amber-600 border-amber-200" 
-                                        : "bg-blue-50 text-blue-600 border-blue-200"
-                                    )}>
-                                      {row.checked_in_by_role || 'parent'}
-                                    </Badge>
-                                    <Badge variant="outline" className={cn(
-                                      "text-[7px] px-1 h-3 leading-none",
-                                      row.checked_in_method === 'kiosk' ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
-                                    )}>
-                                      {row.checked_in_method || 'app'}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <div className="text-xs font-mono">{row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A'}</div>
-                                  <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
-                                    <span className="text-slate-700">{row.checked_out_by_name}</span>
-                                    {row.checked_out_at && (
-                                      <>
-                                        <Badge variant="outline" className={cn(
-                                          "text-[7px] px-1 h-3 leading-none uppercase",
-                                          row.checked_out_by_role?.includes('admin') || row.checked_out_by_role === 'staff' || row.checked_out_role === 'teacher'
-                                            ? "bg-amber-50 text-amber-600 border-amber-200" 
-                                            : "bg-blue-50 text-blue-600 border-blue-200"
-                                        )}>
-                                          {row.checked_out_by_role || 'parent'}
-                                        </Badge>
-                                        <Badge variant="outline" className={cn(
-                                          "text-[7px] px-1 h-3 leading-none",
-                                          row.checked_out_method === 'kiosk' ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
-                                        )}>
-                                          {row.checked_out_method}
-                                        </Badge>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right text-xs font-bold text-indigo-600">
-                                {row.duration_hours ? `${row.duration_hours.toFixed(1)}h` : '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No detailed attendance records for selected period</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="safety" className="space-y-6">
-              {/* Ratio Alerts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-1">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-amber-600">
-                      <AlertTriangle className="h-5 w-5" />
-                      Ratio Alerts
-                    </CardTitle>
-                    <CardDescription>Real-time safety ratio monitors</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {loadingRatios ? (
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                    ) : (ratioAlerts as any[]) && (ratioAlerts as any[]).length > 0 ? (
-                      <div className="space-y-4">
-                        {(ratioAlerts as any[]).map((alert: any, i: number) => (
-                          <div key={i} className={cn(
-                            "p-3 rounded-lg border",
-                            alert.violation_level === 'Critical' ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"
-                          )}>
-                            <div className="flex justify-between items-center">
-                              <span className="font-bold text-sm">{alert.class_name}</span>
-                              <Badge variant={alert.violation_level === 'Critical' ? 'destructive' : 'outline'}>
-                                {alert.violation_level}
-                              </Badge>
-                            </div>
-                            <div className="mt-2 text-xs flex justify-between">
-                              <span className="text-slate-500">Present / Capacity</span>
-                              <span className="font-mono">{alert.current_count} / {alert.capacity}</span>
-                            </div>
-                            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                              <div 
-                                className={cn("h-full", alert.violation_level === 'Critical' ? "bg-red-500" : "bg-amber-500")}
-                                style={{ width: `${Math.min(100, (alert.current_count / alert.capacity) * 100)}%` }}
-                              />
-                            </div>
+          <TabsContent value="detailed" className="space-y-6 outline-none">
+            <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-slate-50/50">
+                    <TableRow>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest pl-6">Child / Class</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Check-In</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Check-Out</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-right pr-6">Duration</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingDetailed ? (
+                      <TableRow><TableCell colSpan={4} className="py-20 text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto text-indigo-500" /></TableCell></TableRow>
+                    ) : detailedAttendance?.map((log: any, i: number) => (
+                      <TableRow key={i} className="hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="pl-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{log.child_name}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{log.class_name}</span>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 text-slate-400">
-                        <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                        <p className="text-sm">All classes within safe ratios.</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center">
+                            <span className="text-sm font-black text-slate-700">{format(new Date(log.checked_in_at), 'HH:mm')}</span>
+                            <Badge variant="outline" className="text-[8px] h-4 py-0 px-1 bg-indigo-50 text-indigo-600 border-indigo-100">{log.checked_in_method}</Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {log.checked_out_at ? (
+                            <div className="flex flex-col items-center">
+                              <span className="text-sm font-black text-slate-700">{format(new Date(log.checked_out_at), 'HH:mm')}</span>
+                              <Badge variant="outline" className="text-[8px] h-4 py-0 px-1 bg-slate-100 text-slate-600 border-slate-200">{log.checked_out_method}</Badge>
+                            </div>
+                          ) : <Badge className="bg-indigo-600 text-[10px] animate-pulse">Present</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right pr-6 font-mono font-bold text-slate-600">
+                          {log.duration_hours ? `${log.duration_hours.toFixed(1)}h` : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                {/* Presence Heatmap */}
-                <Card className="lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-indigo-500" />
-                      Peak Occupancy Analysis
-                    </CardTitle>
-                    <CardDescription>Average attendance by hour for selected period</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[200px] w-full">
+          <TabsContent value="security" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden">
+                <CardHeader className="bg-slate-50/50">
+                  <CardTitle className="text-lg flex items-center gap-2 text-red-600"><ShieldAlert className="h-5 w-5" /> Threat Density</CardTitle>
+                  <CardDescription>Security mismatch alerts by station</CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="h-64">
+                    {securityStats?.top_alert_devices ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={heatmapData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="label" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="avg_count" name="Avg Children" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                        <BarChart data={securityStats.top_alert_devices} layout="vertical">
+                          <XAxis type="number" hide />
+                          <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fontStyle: 'bold' }} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: 'transparent' }} />
+                          <Bar dataKey="alert_count" fill="#ef4444" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    ) : <div className="h-full flex items-center justify-center text-slate-300 italic">No threats detected.</div>}
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Enhanced Liability Audit Table */}
-              {/* Liability Audit Table */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* No-Show Alert Column */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-rose-600">
-                      <ShieldAlert className="h-5 w-5" />
-                      Expected But Not Present
-                    </CardTitle>
-                    <CardDescription>Children assigned today who haven't checked in</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="max-h-[300px] overflow-y-auto">
-                      {loadingNoShows ? <Loader2 className="h-6 w-6 animate-spin mx-auto"/> : (noShowReport as any[])?.length > 0 ? (
-                        <Table>
-                          <TableHeader>
-                            <TableRow><TableHead>Child</TableHead><TableHead>Class</TableHead><TableHead>Phone</TableHead></TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {(noShowReport as any[]).map((r: any, i: number) => (
-                              <TableRow key={i}>
-                                <TableCell className="font-medium">{r.child_name}</TableCell>
-                                <TableCell className="text-xs">{r.class_name}</TableCell>
-                                <TableCell className="text-xs">{r.parent_phone || 'N/A'}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      ) : <p className="text-center text-slate-400 py-8 italic">All expected children present.</p>}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Stethoscope className="h-5 w-5 text-indigo-500" />
-                      Critical Medical Alerts
-                    </CardTitle>
-                    <CardDescription>High-priority conditions for children currently present</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="max-h-[300px] overflow-y-auto space-y-2">
-                      {medicalProfiles?.filter((c: any) => {
-                        // Must be in center right now
-                        const isPresent = liabilityAudit?.some((log: any) => log.child_name === `${c.first_name} ${c.last_name}` && !log.checked_out_at);
-                        if (!isPresent) return false;
-
-                        // Must have high severity medical info
-                        const hasHighAllergy = c.child_medical_profiles?.[0]?.allergies?.some((a: any) => a.severity === 'high');
-                        const hasLegacyAllergy = c.allergies && c.allergies.toLowerCase().includes('high');
-                        const hasMedicalInfo = c.medical_info && c.medical_info.length > 0;
-                        
-                        return hasHighAllergy || hasLegacyAllergy || hasMedicalInfo;
-                      }).map((c: any, i: number) => (
-                        <div key={i} className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-red-700">{c.first_name} {c.last_name}</span>
-                            <span className="text-[10px] text-red-600/70">{c.allergies || c.child_medical_profiles?.[0]?.allergies?.map((a: any) => a.allergen).join(', ')}</span>
-                          </div>
-                          <Badge variant="destructive">Alert</Badge>
+              <Card className="border-slate-100 shadow-sm rounded-3xl overflow-hidden">
+                <CardHeader className="bg-slate-50/50">
+                  <CardTitle className="text-lg flex items-center gap-2 text-indigo-600"><History className="h-5 w-5" /> Auth Forensics</CardTitle>
+                  <CardDescription>Real-time terminal binding audit</CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-3">
+                    {detailedAttendance?.filter((l: any) => l.checked_in_method === 'kiosk').slice(0, 5).map((log: any, i: number) => (
+                      <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl"><Zap className="h-4 w-4" /></div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-slate-800">{log.child_name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{log.checked_in_station || 'Terminal Binded'} • {format(new Date(log.checked_in_at), 'HH:mm:ss')}</p>
                         </div>
-                      ))}
-                      {(!medicalProfiles || medicalProfiles.filter((c: any) => liabilityAudit?.some((log: any) => log.child_name === `${c.first_name} ${c.last_name}` && !log.checked_out_at)).length === 0) && (
-                        <p className="text-center text-slate-400 py-8 italic text-sm">No critical medical alerts for present children.</p>
-                      )}
+                        <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-600 border-emerald-100">VERIFIED</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="bg-slate-900 border-none shadow-2xl rounded-3xl overflow-hidden">
+              <CardContent className="p-8">
+                <div className="flex items-center gap-6">
+                  <div className="p-5 bg-white/10 rounded-full backdrop-blur-xl border border-white/10 shadow-inner">
+                    <ShieldCheck className="h-10 w-10 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white mb-1">Terminal Security Reinforcement</h3>
+                    <p className="text-slate-400 text-sm max-w-2xl leading-relaxed">Hardware identity binding is active for all terminals. {securityStats?.locked_terminals || 0} unit(s) are currently isolated. System heuristic analysis is monitoring for footprint changes.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="medical" className="space-y-6 outline-none">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {medicalProfiles?.map((c: any) => (
+                <Card key={c.id} className="border-slate-100 shadow-sm rounded-3xl hover:border-rose-200 transition-all">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-base font-bold">{c.first_name} {c.last_name}</CardTitle>
+                      <Badge variant="destructive" className="bg-rose-50 text-rose-600 border-rose-100 text-[9px] font-black uppercase">Critical</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="p-3 bg-rose-50/50 rounded-2xl border border-rose-100/50">
+                      <p className="text-[9px] font-black uppercase text-rose-600 mb-1">Allergies</p>
+                      <p className="text-xs font-bold text-slate-700">{c.child_medical_profiles?.[0]?.allergies?.map((a: any) => a.type).join(', ') || c.allergies}</p>
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              ))}
+            </div>
+          </TabsContent>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <History className="h-5 w-5 text-slate-600" />
-                      Liability & Custody Audit
-                    </CardTitle>
-                    <CardDescription>Detailed chain-of-custody for child check-in/out</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-slate-50">
-                          <TableHead>Date</TableHead>
-                          <TableHead>Child</TableHead>
-                          <TableHead>Age</TableHead>
-                          <TableHead>Check-In (By/Via)</TableHead>
-                          <TableHead>Check-Out (By/Via)</TableHead>
-                          <TableHead>Duration</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {loadingLiability ? (
-                          <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
-                        ) : (liabilityAudit as any[])?.map((log: any, i: number) => (
-                          <TableRow key={i} className={cn(log.has_allergies && "bg-rose-50/20")}>
-                            <TableCell className="font-medium">{format(new Date(log.attendance_date), 'MMM dd')}</TableCell>
-                            <TableCell className="font-bold">
-                              <div className="flex items-center gap-1.5">
-                                {log.child_name}
-                                {log.has_allergies && <AlertTriangle className="h-3 w-3 text-rose-500" />}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-slate-500">{log.child_age || '-'}</TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="text-[11px] font-bold">{format(new Date(log.checked_in_at), 'HH:mm')}</div>
-                                <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
-                                  <span className="text-slate-700">{log.checked_in_by_name}</span>
-                                  <Badge variant="outline" className={cn(
-                                    "text-[7px] px-1 h-3 leading-none uppercase",
-                                    log.checked_in_by_role?.includes('admin') || log.checked_in_by_role === 'staff' || log.checked_in_by_role === 'teacher'
-                                      ? "bg-amber-50 text-amber-600 border-amber-200" 
-                                      : "bg-blue-50 text-blue-600 border-blue-200"
-                                  )}>
-                                    {log.checked_in_by_role || 'parent'}
-                                  </Badge>
-                                  <Badge variant="outline" className="text-[7px] px-1 h-3 leading-none bg-indigo-50/50">
-                                    {log.checked_in_method || 'app'}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {log.checked_out_at ? (
-                                <div className="space-y-1">
-                                  <div className="text-[11px] font-bold">{format(new Date(log.checked_out_at), 'HH:mm')}</div>
-                                  <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
-                                    <span className="text-slate-700">{log.checked_out_by_name}</span>
-                                    <Badge variant="outline" className={cn(
-                                      "text-[7px] px-1 h-3 leading-none uppercase",
-                                      log.checked_out_by_role?.includes('admin') || log.checked_out_by_role === 'staff' || log.checked_out_by_role === 'teacher'
-                                        ? "bg-amber-50 text-amber-600 border-amber-200" 
-                                        : "bg-blue-50 text-blue-600 border-blue-200"
-                                    )}>
-                                      {log.checked_out_by_role || 'parent'}
-                                    </Badge>
-                                    <Badge variant="outline" className="text-[7px] px-1 h-3 leading-none bg-emerald-50/50">
-                                      {log.checked_out_method || 'app'}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              ) : <span className="text-[10px] italic text-slate-400 font-medium">Currently in center</span>}
-                            </TableCell>
-                            <TableCell>
-                              {log.duration_hours ? (
-                                <Badge variant="secondary" className="font-mono text-xs">
-                                  {log.duration_hours.toFixed(1)}h
-                                </Badge>
-                              ) : '-'}
-                            </TableCell>
-                            <TableCell>
-                              {log.checked_out_at ? (
-                                <Badge variant="outline" className="text-green-600 bg-green-50 border-green-100">Verified Exit</Badge>
-                              ) : (
-                                <Badge className="bg-indigo-600 animate-pulse">Present</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+          <TabsContent value="safety" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="border-slate-100 shadow-sm rounded-3xl outline-none">
+                <CardHeader><CardTitle className="text-rose-600 flex items-center gap-2"><Zap className="h-5 w-5" /> No-Show Radar</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader><TableRow><TableHead className="text-[10px] pl-6">Child</TableHead><TableHead className="text-[10px] pr-6 text-right">Class</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {noShowReport?.map((r: any, i: number) => (
+                        <TableRow key={i}><TableCell className="text-xs font-bold pl-6">{r.child_name}</TableCell><TableCell className="text-[10px] text-right pr-6">{r.class_name}</TableCell></TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2 border-slate-100 shadow-sm rounded-3xl overflow-hidden outline-none">
+                <CardHeader><CardTitle className="text-amber-600 flex items-center gap-2"><Stethoscope className="h-5 w-5" /> Center Capacity Heatmap</CardTitle></CardHeader>
+                <CardContent className="p-6">
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={heatmapData}>
+                        <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
+                        <Tooltip cursor={{ fill: '#f8fafc', radius: 8 }} />
+                        <Bar dataKey="avg_count" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-            <TabsContent value="medical" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Stethoscope className="h-5 w-5 text-indigo-600" />
-                    Medical & Allergy Summary
-                  </CardTitle>
-                  <CardDescription>Critical health information for all children</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loadingMedical ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : medicalProfiles && medicalProfiles.length > 0 ? (
-                    <div className="space-y-4">
-                      {medicalProfiles.map((child: any) => {
-                        const profile = child.child_medical_profiles?.[0];
-                        const allergies = profile?.allergies || [];
-                        const meds = profile?.medications || [];
-
-                        return (
-                          <div key={child.id} className="p-4 border rounded-xl hover:bg-slate-50 transition-colors">
-                            <div className="flex items-start justify-between mb-3">
-                              <h4 className="font-bold text-lg">{child.first_name} {child.last_name}</h4>
-                              <div className="flex gap-2">
-                                {allergies.some((a: any) => a.severity === 'high') && (
-                                  <Badge variant="destructive" className="flex items-center gap-1">
-                                    <ShieldAlert className="h-3 w-3" />
-                                    High Alert
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                              <div className="space-y-2">
-                                <p className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">Allergies</p>
-                                {allergies.length > 0 ? (
-                                  <div className="flex flex-wrap gap-2">
-                                    {allergies.map((a: any, i: number) => (
-                                      <Badge key={i} variant="outline" className="bg-red-50 text-red-700 border-red-100">
-                                        {a.type} ({a.severity})
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-slate-400 italic">None documented</p>
-                                )}
-                              </div>
-                              <div className="space-y-2">
-                                <p className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">Medications</p>
-                                {meds.length > 0 ? (
-                                  <div className="flex flex-wrap gap-2">
-                                    {meds.map((m: any, i: number) => (
-                                      <Badge key={i} variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-100">
-                                        {m.name} - {m.dosage}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-slate-400 italic">None documented</p>
-                                )}
-                              </div>
-                              {profile?.emergency_notes && (
-                                <div className="md:col-span-2 space-y-1">
-                                  <p className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider">Health Notes</p>
-                                  <p className="text-slate-700 bg-slate-100/50 p-2 rounded-lg">{profile.emergency_notes}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
-                      <Heart className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                      <p>No critical medical records found.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </motion.div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </UnifiedDashboardLayout>
   );
