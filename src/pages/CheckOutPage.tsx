@@ -11,10 +11,12 @@ import { format } from "date-fns";
 import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import { AttendanceService } from "@/services/attendanceService";
+import { useAuth } from "@/context/AuthContext";
 
 const CheckOutPage = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [showScanner, setShowScanner] = useState(false);
 
@@ -145,10 +147,39 @@ const CheckOutPage = () => {
   return (
     <UnifiedDashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Child Check-Out</h1>
-          <p className="text-muted-foreground">Scan QR codes or search to check out children currently present</p>
-        </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Child Check-Out</h1>
+              <p className="text-muted-foreground">Scan QR codes or search to check out children currently present</p>
+            </div>
+            {presentChildren.length > 0 && (isAdmin || isSuperAdmin) && (
+              <Button 
+                variant="outline" 
+                className="text-rose-600 border-rose-200 hover:bg-rose-50"
+                onClick={async () => {
+                  if (!window.confirm(`Are you sure you want to sign out ALL ${presentChildren.length} children? This is an emergency action.`)) return;
+                  
+                  let successCount = 0;
+                  for (const record of presentChildren) {
+                    try {
+                      const res = await AttendanceService.checkOutChild({
+                        attendanceId: record.id,
+                        checkedOutBy: user?.id,
+                        method: 'emergency_admin_bulk',
+                        station: 'Check-Out Dashboard'
+                      });
+                      if (res.success) successCount++;
+                    } catch {}
+                  }
+                  toast({ title: "Bulk Sign-Out Complete", description: `Successfully signed out ${successCount} children.` });
+                  queryClient.invalidateQueries({ queryKey: ["present-children"] });
+                }}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign-Out All ({presentChildren.length})
+              </Button>
+            )}
+          </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1 space-y-6">

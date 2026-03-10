@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CheckSquare, TrendingUp, Calendar, Download, Loader2, Clock, RefreshCw } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';
+import { useAuth } from '@/context/AuthContext';
+import { AttendanceService } from '@/services/attendanceService';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CheckInDialog } from '@/components/attendance/CheckInDialog';
@@ -18,6 +20,7 @@ import { ClassAttendanceReport } from '@/components/attendance/ClassAttendanceRe
 const AttendancePage = () => {
   const { attendance, isLoading, error, refetch, checkOut, isCheckingOut } = useAttendance();
   const { isConnected } = useRealtimeAttendance();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
   const { toast } = useToast();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
@@ -140,6 +143,39 @@ const AttendancePage = () => {
                 <CheckSquare className="h-4 w-4 mr-2" />
                 Manual Check-In
               </Button>
+              {stats.currentlyPresent > 0 && (isAdmin || isSuperAdmin) && (
+                <Button 
+                  variant="outline" 
+                  className="text-rose-600 border-rose-200 hover:bg-rose-50"
+                  onClick={async () => {
+                    if (!window.confirm(`Are you sure you want to sign out ALL ${stats.currentlyPresent} children? This will be logged as an emergency action.`)) return;
+                    
+                    const actorId = user?.id;
+                    let successCount = 0;
+                    
+                    // Filter actually present children
+                    const presentRecords = todayAttendance.filter(r => !r.checked_out_at);
+                    
+                    for (const record of presentRecords) {
+                      try {
+                        const res = await AttendanceService.checkOutChild({
+                          attendanceId: record.id,
+                          checkedOutBy: actorId,
+                          method: 'emergency_admin_bulk',
+                          station: 'Staff Dashboard'
+                        });
+                        if (res.success) successCount++;
+                      } catch {}
+                    }
+                    
+                    toast({ title: "Bulk Sign-Out Complete", description: `Successfully signed out ${successCount} children.` });
+                    refetch();
+                  }}
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Sign-Out All ({stats.currentlyPresent})
+                </Button>
+              )}
               <Button variant="outline" onClick={() => refetch()}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh

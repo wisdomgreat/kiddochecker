@@ -14,8 +14,12 @@ interface CheckInDialogProps {
   onSuccess: () => void;
 }
 
+import { useAuth } from '@/context/AuthContext';
+import { AttendanceService } from '@/services/attendanceService';
+
 export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedChild, setSelectedChild] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -62,40 +66,17 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
 
     setIsLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Check if already checked in
-      const { data: existing } = await supabase
-        .from('attendance')
-        .select('id')
-        .eq('child_id', selectedChild)
-        .eq('attendance_date', today)
-        .is('checked_out_at', null)
-        .single();
+      const result = await AttendanceService.checkInChild({
+        childId: selectedChild,
+        classId: selectedClass || undefined,
+        checkedInBy: user?.id,
+        method: 'staff_dashboard',
+        station: 'Manual Dashboard'
+      });
 
-      if (existing) {
-        toast({
-          title: "Already Checked In",
-          description: "This child is already checked in today",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
+      if (!result.success) {
+        throw new Error(result.error || "Failed to check in child");
       }
-
-      const { data: user } = await supabase.auth.getUser();
-      
-      const { error } = await supabase
-        .from('attendance')
-        .insert({
-          child_id: selectedChild,
-          class_id: selectedClass || null,
-          checked_in_at: new Date().toISOString(),
-          checked_in_by: user.user?.id,
-          attendance_date: today,
-        });
-
-      if (error) throw error;
 
       toast({
         title: "Success",
