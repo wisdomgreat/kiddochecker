@@ -191,7 +191,7 @@ const KioskCheckInSystem = () => {
       const searchVal = parentPhone.trim();
       
       // 1. Search for parent using secure RPC (bypasses RLS safely)
-      const { data: matched, error } = await (supabase.rpc('get_parent_for_kiosk', {
+      const { data: matched, error } = await ((supabase.rpc as any)('get_parent_for_kiosk', {
         p_search_val: searchVal,
         p_pin: parentPin
       }) as any);
@@ -211,7 +211,7 @@ const KioskCheckInSystem = () => {
       const parent = (matched as any[])[0];
 
       // 3. Load children for this parent using secure RPC
-      const { data: kids, error: kidsError } = await (supabase.rpc('get_children_for_kiosk', {
+      const { data: kids, error: kidsError } = await ((supabase.rpc as any)('get_children_for_kiosk', {
         p_parent_id: parent.id,
         p_pin: parentPin
       }) as any);
@@ -406,7 +406,20 @@ const KioskCheckInSystem = () => {
     setIsLoading(true);
     try {
       const { data: classData } = await supabase.from('classes').select('name').eq('id', classId).single();
-      const result = await AttendanceService.checkInChild({ childId: selectedChild.id, classId });
+      
+      // Determine actor ID for liability tracking
+      let actorId = (await supabase.auth.getUser()).data.user?.id; // Current session user (usually the kiosk owner)
+      
+      // If parent is logged in, their ID is the primary accountability ID
+      if (parentLoggedIn && parentChildren.length > 0) {
+        actorId = parentChildren[0].parent_id;
+      }
+      
+      const result = await AttendanceService.checkInChild({ 
+        childId: selectedChild.id, 
+        classId,
+        checkedInBy: actorId
+      });
 
       if (result.success) {
         await logActivity('check_in', {
@@ -468,7 +481,16 @@ const KioskCheckInSystem = () => {
   const handleCheckOut = async (record: any) => {
     setIsLoading(true);
     try {
-      const result = await AttendanceService.checkOutChild({ attendanceId: record.id });
+      // Determine actor ID for liability tracking
+      let actorId = (await supabase.auth.getUser()).data.user?.id;
+      if (parentLoggedIn && parentChildren.length > 0) {
+        actorId = parentChildren[0].parent_id;
+      }
+
+      const result = await AttendanceService.checkOutChild({ 
+        attendanceId: record.id,
+        checkedOutBy: actorId
+      });
       if (result.success) {
         await logActivity('check_out', {
           child_id: record.child_id, child_name: `${record.child?.first_name} ${record.child?.last_name}`,

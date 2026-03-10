@@ -32,7 +32,13 @@ import {
   Loader2,
   Heart,
   Stethoscope,
-  ShieldAlert
+  ShieldAlert,
+  Activity,
+  Clock,
+  ShieldCheck,
+  AlertTriangle,
+  Zap,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +54,7 @@ const EnhancedReportsPage = () => {
   const { data: attendanceReport, isLoading: loadingAttendance } = useQuery({
     queryKey: ['attendance-report', dateRange],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_attendance_report', {
+      const { data, error } = await (supabase.rpc as any)('get_attendance_report', {
         start_date: format(dateRange.from, 'yyyy-MM-dd'),
         end_date: format(dateRange.to, 'yyyy-MM-dd'),
       });
@@ -62,7 +68,7 @@ const EnhancedReportsPage = () => {
   const { data: detailedAttendance, isLoading: loadingDetailed } = useQuery({
     queryKey: ['detailed-attendance', dateRange],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_detailed_attendance_report', {
+      const { data, error } = await (supabase.rpc as any)('get_detailed_attendance_report', {
         start_date: format(dateRange.from, 'yyyy-MM-dd'),
         end_date: format(dateRange.to, 'yyyy-MM-dd'),
       });
@@ -120,11 +126,72 @@ const EnhancedReportsPage = () => {
       if (error) throw error;
 
       // Filter only children with medical data
-      return (data || []).filter(c =>
-        ((c.child_medical_profiles as any)?.length > 0) ||
-        ((c as any).allergies) ||
-        ((c as any).medical_info)
+      return (data || []).filter((c: any) =>
+        (c.child_medical_profiles?.length > 0) ||
+        (c.allergies) ||
+        (c.medical_info)
       );
+    },
+  });
+
+  // 1. Ratio Alerts
+  const { data: ratioAlerts, isLoading: loadingRatios } = useQuery({
+    queryKey: ['ratio-alerts'],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('get_ratio_alerts', {
+        p_date: format(new Date(), 'yyyy-MM-dd')
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // 2. Liability Audit
+  const { data: liabilityAudit, isLoading: loadingLiability } = useQuery({
+    queryKey: ['liability-audit', dateRange],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('get_liability_audit_report', {
+        start_date: format(dateRange.from, 'yyyy-MM-dd'),
+        end_date: format(dateRange.to, 'yyyy-MM-dd')
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // 3. Heatmap
+  const { data: heatmapData, isLoading: loadingHeatmap } = useQuery({
+    queryKey: ['attendance-heatmap', dateRange],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('get_attendance_heatmap', {
+        start_date: format(dateRange.from, 'yyyy-MM-dd'),
+        end_date: format(dateRange.to, 'yyyy-MM-dd')
+      });
+      if (error) throw error;
+
+      // Fill in missing hours
+      const fullHeatmap = Array.from({ length: 15 }, (_, i) => {
+        const hour = i + 6; // 6am to 8pm
+        const existing = (data as any[])?.find((d: any) => d.hour_of_day === hour);
+        return {
+          hour_of_day: hour,
+          label: format(new Date().setHours(hour, 0, 0, 0), 'ha'),
+          avg_count: existing?.avg_count || 0
+        };
+      });
+      return fullHeatmap;
+    },
+  });
+
+  // 4. No-Show report
+  const { data: noShowReport, isLoading: loadingNoShows } = useQuery({
+    queryKey: ['no-show-report'],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)('get_no_show_report', {
+        p_date: format(new Date(), 'yyyy-MM-dd')
+      });
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -331,7 +398,11 @@ const EnhancedReportsPage = () => {
               <TabsTrigger value="detailed">Detailed Report</TabsTrigger>
               <TabsTrigger value="medical" className="flex items-center gap-2">
                 <Heart className="h-4 w-4 text-rose-500" />
-                Health & Safety
+                Medical
+              </TabsTrigger>
+              <TabsTrigger value="safety" className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-indigo-500" />
+                Safety & Liability
               </TabsTrigger>
             </TabsList>
 
@@ -346,12 +417,12 @@ const EnhancedReportsPage = () => {
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
-                  ) : attendanceReport && attendanceReport.length > 0 ? (
+                  ) : (attendanceReport as any[]) && (attendanceReport as any[]).length > 0 ? (
                     <div className="space-y-6">
                       <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
-                            data={attendanceReport}
+                            data={attendanceReport as any[]}
                             margin={{
                               top: 5,
                               right: 30,
@@ -384,7 +455,7 @@ const EnhancedReportsPage = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {attendanceReport.map((row: any, index: number) => (
+                          {(attendanceReport as any[]).map((row: any, index: number) => (
                             <TableRow key={index}>
                               <TableCell>{format(new Date(row.attendance_date), 'MMM dd, yyyy')}</TableCell>
                               <TableCell className="font-medium">{row.class_name || 'N/A'}</TableCell>
@@ -416,7 +487,7 @@ const EnhancedReportsPage = () => {
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
-                  ) : detailedAttendance && detailedAttendance.length > 0 ? (
+                  ) : (detailedAttendance as any[]) && (detailedAttendance as any[]).length > 0 ? (
                     <div className="max-h-[500px] overflow-y-auto">
                       <Table>
                         <TableHeader>
@@ -430,7 +501,7 @@ const EnhancedReportsPage = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {detailedAttendance.map((row: any, index: number) => (
+                          {(detailedAttendance as any[]).map((row: any, index: number) => (
                             <TableRow key={index}>
                               <TableCell>{format(new Date(row.attendance_date), 'MMM dd')}</TableCell>
                               <TableCell className="font-medium">{row.child_name}</TableCell>
@@ -455,6 +526,204 @@ const EnhancedReportsPage = () => {
                       <p>No detailed attendance records for selected period</p>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="safety" className="space-y-6">
+              {/* Ratio Alerts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-1">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-amber-600">
+                      <AlertTriangle className="h-5 w-5" />
+                      Ratio Alerts
+                    </CardTitle>
+                    <CardDescription>Real-time safety ratio monitors</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingRatios ? (
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                    ) : (ratioAlerts as any[]) && (ratioAlerts as any[]).length > 0 ? (
+                      <div className="space-y-4">
+                        {(ratioAlerts as any[]).map((alert: any, i: number) => (
+                          <div key={i} className={cn(
+                            "p-3 rounded-lg border",
+                            alert.violation_level === 'Critical' ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"
+                          )}>
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-sm">{alert.class_name}</span>
+                              <Badge variant={alert.violation_level === 'Critical' ? 'destructive' : 'outline'}>
+                                {alert.violation_level}
+                              </Badge>
+                            </div>
+                            <div className="mt-2 text-xs flex justify-between">
+                              <span className="text-slate-500">Present / Capacity</span>
+                              <span className="font-mono">{alert.current_count} / {alert.capacity}</span>
+                            </div>
+                            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                              <div 
+                                className={cn("h-full", alert.violation_level === 'Critical' ? "bg-red-500" : "bg-amber-500")}
+                                style={{ width: `${Math.min(100, (alert.current_count / alert.capacity) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-slate-400">
+                        <ShieldCheck className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                        <p className="text-sm">All classes within safe ratios.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Presence Heatmap */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-indigo-500" />
+                      Peak Occupancy Analysis
+                    </CardTitle>
+                    <CardDescription>Average attendance by hour for selected period</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[200px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={heatmapData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="label" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="avg_count" name="Avg Children" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Enhanced Liability Audit Table */}
+              {/* Liability Audit Table */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* No-Show Alert Column */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-rose-600">
+                      <ShieldAlert className="h-5 w-5" />
+                      Expected But Not Present
+                    </CardTitle>
+                    <CardDescription>Children assigned today who haven't checked in</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {loadingNoShows ? <Loader2 className="h-6 w-6 animate-spin mx-auto"/> : (noShowReport as any[])?.length > 0 ? (
+                        <Table>
+                          <TableHeader>
+                            <TableRow><TableHead>Child</TableHead><TableHead>Class</TableHead><TableHead>Phone</TableHead></TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(noShowReport as any[]).map((r: any, i: number) => (
+                              <TableRow key={i}>
+                                <TableCell className="font-medium">{r.child_name}</TableCell>
+                                <TableCell className="text-xs">{r.class_name}</TableCell>
+                                <TableCell className="text-xs">{r.parent_phone || 'N/A'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      ) : <p className="text-center text-slate-400 py-8 italic">All expected children present.</p>}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Stethoscope className="h-5 w-5 text-indigo-500" />
+                      Critical Medical Alerts
+                    </CardTitle>
+                    <CardDescription>High-priority conditions for children currently present</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-[300px] overflow-y-auto space-y-2">
+                      {medicalProfiles?.filter((c: any) => c.child_medical_profiles?.[0]?.allergies?.some((a: any) => a.severity === 'high')).map((c: any, i: number) => (
+                        <div key={i} className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-center justify-between">
+                          <span className="font-bold text-red-700">{c.first_name} {c.last_name}</span>
+                          <Badge variant="destructive">High Allergy</Badge>
+                        </div>
+                      ))}
+                      {(medicalProfiles as any[])?.filter((c: any) => c.child_medical_profiles?.[0]?.allergies?.some((a: any) => a.severity === 'high')).length === 0 && (
+                        <p className="text-center text-slate-400 py-8 italic text-sm">No critical medical alerts for present children.</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <History className="h-5 w-5 text-slate-600" />
+                      Liability & Custody Audit
+                    </CardTitle>
+                    <CardDescription>Detailed chain-of-custody for child check-in/out</CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead>Date</TableHead>
+                          <TableHead>Child</TableHead>
+                          <TableHead>Check-In (By)</TableHead>
+                          <TableHead>Check-Out (By)</TableHead>
+                          <TableHead>Duration</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loadingLiability ? (
+                          <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
+                        ) : (liabilityAudit as any[])?.map((log: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{format(new Date(log.attendance_date), 'MMM dd')}</TableCell>
+                            <TableCell className="font-bold">{log.child_name}</TableCell>
+                            <TableCell>
+                              <div className="text-xs">
+                                <span className="font-semibold block">{format(new Date(log.checked_in_at), 'HH:mm')}</span>
+                                <span className="text-slate-400">By: {log.checked_in_by_name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {log.checked_out_at ? (
+                                <div className="text-xs">
+                                  <span className="font-semibold block">{format(new Date(log.checked_out_at), 'HH:mm')}</span>
+                                  <span className="text-slate-400">By: {log.checked_out_by_name}</span>
+                                </div>
+                              ) : <span className="text-xs italic text-slate-400">Currently in center</span>}
+                            </TableCell>
+                            <TableCell>
+                              {log.duration_hours ? (
+                                <Badge variant="secondary" className="font-mono">
+                                  {log.duration_hours.toFixed(1)}h
+                                </Badge>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {log.checked_out_at ? (
+                                <Badge variant="outline" className="text-green-600 bg-green-50 border-green-100">Verified Exit</Badge>
+                              ) : (
+                                <Badge className="bg-indigo-600 animate-pulse">Present</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

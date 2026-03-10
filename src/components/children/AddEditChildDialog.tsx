@@ -42,7 +42,9 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [classId, setClassId] = useState<string | null>(null);
   const [currentChildParentId, setCurrentChildParentId] = useState<string | null>(null);
+  const [classes, setClasses] = useState<any[]>([]);
 
   // Medical Profile State
   const [medicalData, setMedicalData] = useState<any>({
@@ -86,6 +88,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
             setEmergencyContactName(childData.emergency_contact_name || "");
             setEmergencyContactPhone(childData.emergency_contact_phone || "");
             setNotes(childData.notes || "");
+            setClassId((childData as any).class_id);
             setCurrentChildParentId(childData.parent_id);
           }
 
@@ -139,7 +142,13 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
       }
     };
 
+    const fetchClasses = async () => {
+      const { data } = await supabase.from('classes').select('id, name').order('name');
+      setClasses(data || []);
+    };
+
     fetchChildAndMedicalData();
+    fetchClasses();
   }, [childId, user, open, toast]);
 
   const handleSubmit = async () => {
@@ -163,6 +172,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
         emergency_contact_phone: emergencyContactPhone,
         notes: notes,
         parent_id: user.id,
+        class_id: classId,
         // Sync the main allergies field for legacy compatibility/quick view
         allergies: medicalData.allergies.map((a: any) => a.type).join(', '),
         medical_info: medicalData.emergency_notes
@@ -320,6 +330,24 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                   </div>
                 </div>
               </div>
+
+              {isAdmin && (
+                <div className="space-y-2">
+                  <Label htmlFor="class-assignment" className="text-slate-600 font-bold uppercase text-[10px] tracking-wider">Classroom Assignment (Admin Only)</Label>
+                  <Select value={classId || "none"} onValueChange={(val) => setClassId(val === "none" ? null : val)}>
+                    <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all">
+                      <SelectValue placeholder="Assign to a class (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Class / Unassigned</SelectItem>
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-slate-400 italic">Overrides automatic age-based assignment if manually set.</p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="emergencyContactName" className="text-slate-600 font-bold uppercase text-[10px] tracking-wider">Emergency Contact Name</Label>
