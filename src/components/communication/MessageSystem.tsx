@@ -41,6 +41,8 @@ interface Message {
   subject?: string;
   content: string;
   is_read: boolean;
+  recipient_role?: string;
+  is_broadcast?: boolean;
   created_at: string;
   sender?: {
     first_name?: string;
@@ -63,7 +65,7 @@ const MessageSystem = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const { messages, isLoading, error, refetch, sendMessage, isSending } = useMessages();
+  const { messages, isLoading, error, refetch, sendMessage, isSending, markAsRead } = useMessages();
 
   // Fetch staff and teachers for recipient selection
   useEffect(() => {
@@ -151,28 +153,11 @@ const MessageSystem = () => {
 
   // Mutation moved to hook
 
-  const markAsRead = async (messageId: string) => {
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('id', messageId);
-
-      if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ["messages"] });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to mark as read",
-        variant: "destructive",
-      });
-    }
-  };
+  // Local markAsRead removed in favor of useMessages hook implementation
 
   const unreadCount = React.useMemo(() => {
-    return messages?.filter(m => m.recipient_id === user?.id && !m.is_read).length || 0;
-  }, [messages, user?.id]);
+    return messages?.filter(m => !m.is_read).length || 0;
+  }, [messages]);
 
   return (
     <Card>
@@ -284,7 +269,7 @@ const MessageSystem = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => markAsRead(message.id)}
+                                onClick={() => markAsRead(message)}
                               >
                                 Mark Read
                               </Button>
@@ -341,9 +326,11 @@ const MessageSystem = () => {
                           </div>
                           <div className="text-sm text-muted-foreground">
                             To: <span className="font-medium text-foreground">
-                              {recipient
-                                ? `${recipient.first_name} ${recipient.last_name} (${recipient.role})`
-                                : 'Unknown Recipient'}
+                              {message.recipient_role 
+                                ? `Broadcast: ${message.recipient_role.toUpperCase()}`
+                                : recipient
+                                  ? `${recipient.first_name} ${recipient.last_name} (${recipient.role})`
+                                  : 'Contact'}
                             </span>
                           </div>
                           <p className="text-sm">

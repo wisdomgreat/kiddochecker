@@ -10,6 +10,8 @@ export interface Message {
   subject?: string;
   content: string;
   is_read: boolean;
+  recipient_role?: string;
+  is_broadcast?: boolean;
   created_at: string;
   updated_at: string;
   sender?: {
@@ -56,8 +58,14 @@ export const useMessages = () => {
           .select('id, first_name, last_name')
           .in('id', senderIds);
 
+        const { data: receipts } = await supabase
+          .from('message_read_receipts' as any)
+          .select('message_id' as any)
+          .eq('user_id', user.id) as any;
+
         const messagesWithSenders = messagesData.map(message => ({
           ...message,
+          is_read: message.is_read || receipts?.some((r: any) => r.message_id === message.id) || false,
           sender: profiles?.find(profile => profile.id === message.sender_id) || undefined
         }));
 
@@ -112,6 +120,34 @@ export const useMessages = () => {
     },
   });
 
+  const markAsReadMutation = useMutation({
+    mutationFn: async (message: Message) => {
+      if (!user?.id) throw new Error("User not authenticated");
+
+      if (message.recipient_id === user.id || !message.recipient_role) {
+        // Direct message
+        const { error } = await supabase
+          .from('messages')
+          .update({ is_read: true } as any)
+          .eq('id', message.id);
+        if (error) throw error;
+      } else {
+        // Broadcast message (or role-based)
+        const { error } = await supabase
+          .from('message_read_receipts' as any)
+          .upsert({ 
+            message_id: message.id, 
+            user_id: user.id,
+            read_at: new Date().toISOString()
+          } as any);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+    },
+  });
+
   return {
     messages,
     isLoading,
@@ -119,6 +155,7 @@ export const useMessages = () => {
     refetch,
     sendMessage: sendMessageMutation.mutate,
     isSending: sendMessageMutation.isPending,
+    markAsRead: markAsReadMutation.mutate,
   };
 };
 

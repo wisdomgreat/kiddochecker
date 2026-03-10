@@ -14,7 +14,7 @@ import { MessageSquare, Plus, Send, Inbox, Users, Bell } from 'lucide-react';
 
 const MessagesManagement = () => {
   const { toast } = useToast();
-  const { messages, isLoading, sendMessage } = useMessages();
+  const { messages, isLoading, sendMessage, markAsRead } = useMessages();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     subject: '',
@@ -156,12 +156,15 @@ const MessagesManagement = () => {
                 ) : (
                   <div className="space-y-3">
                     {messages.map((message) => (
-                      <div key={message.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div key={message.id} className={`p-4 border rounded-lg hover:bg-gray-50 transition-colors ${!message.is_read ? 'bg-primary/5 border-primary/20' : ''}`}>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
-                            <h3 className="font-semibold">{message.subject}</h3>
+                            <h3 className="font-semibold flex items-center gap-2">
+                              {message.subject}
+                              {!message.is_read && <Badge variant="default" className="text-[10px] h-4 px-1">New</Badge>}
+                            </h3>
                             <p className="text-sm text-muted-foreground">
-                              From: {message.sender_id}
+                              From: {message.sender?.first_name} {message.sender?.last_name || 'System'}
                             </p>
                           </div>
                           <div className="text-sm text-muted-foreground">
@@ -173,9 +176,16 @@ const MessagesManagement = () => {
                           <Badge variant={message.is_read ? "outline" : "default"}>
                             {message.is_read ? 'Read' : 'Unread'}
                           </Badge>
-                          <Button size="sm" variant="outline">
-                            Reply
-                          </Button>
+                          <div className="flex gap-2">
+                            {!message.is_read && (
+                              <Button size="sm" variant="ghost" onClick={() => markAsRead(message)}>
+                                Mark Read
+                              </Button>
+                            )}
+                            <Button size="sm" variant="outline">
+                              Reply
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
