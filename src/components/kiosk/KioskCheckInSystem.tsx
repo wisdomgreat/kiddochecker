@@ -349,14 +349,29 @@ const KioskCheckInSystem = () => {
 
   // Staff search
   useEffect(() => {
-    if (!staffAuthed || staffSearchTerm.length < 3) { setStaffSearchResults([]); return; }
+    if (!staffAuthed || staffSearchTerm.length < 2) { setStaffSearchResults([]); return; }
     const t = setTimeout(async () => {
       try {
-        const { data } = await supabase.from('children').select('*')
-          .or(`first_name.ilike.%${staffSearchTerm}%,last_name.ilike.%${staffSearchTerm}%`).limit(8);
+        const cleaned = staffSearchTerm.trim();
+        let query = supabase.from('children').select('*');
+
+        if (cleaned.includes(' ')) {
+          const parts = cleaned.split(' ').filter(p => p.length > 0);
+          if (parts.length >= 2) {
+            query = query.ilike('first_name', `%${parts[0]}%`).ilike('last_name', `%${parts[1]}%`);
+          } else {
+            query = query.or(`first_name.ilike.%${cleaned}%,last_name.ilike.%${cleaned}%`);
+          }
+        } else {
+          query = query.or(`first_name.ilike.%${cleaned}%,last_name.ilike.%${cleaned}%`);
+        }
+
+        const { data } = await query.limit(8);
         setStaffSearchResults(data || []);
-      } catch { }
-    }, 400);
+      } catch (err) {
+        console.error("[Kiosk] Search error:", err);
+      }
+    }, 300);
     return () => clearTimeout(t);
   }, [staffSearchTerm, staffAuthed]);
 
@@ -470,17 +485,7 @@ const KioskCheckInSystem = () => {
         .eq('is_active', true)
         .maybeSingle();
 
-      if (error || !rec) {
-        console.error("[Kiosk] QR not recognized in DB:", qrData, error);
-        toast({
-          title: "Invalid QR",
-          description: `Code not recognized: "${qrData.substring(0, 10)}${qrData.length > 10 ? '...' : ''}". Please regenerate labels.`,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (rec.child) {
+      if (!error && rec && rec.child) {
         // Toggle if present
         if (checkedInChildIds.has(rec.child_id)) {
           const record = checkedInChildren.find((r: any) => r.child_id === rec.child_id);
@@ -491,9 +496,34 @@ const KioskCheckInSystem = () => {
           }
         }
         handleStaffCheckIn(rec.child as any);
-      } else {
-        toast({ title: "Broken Link", description: "This QR code is valid but points to a child that no longer exists.", variant: "destructive" });
+        return;
       }
+
+      // ─── 4. RAW UUID FALLBACK ─────────────────────────────────────
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(qrData)) {
+        console.log("[Kiosk] Data is raw UUID. Looking up child directly.");
+        const { data: child, error: childErr } = await supabase.from('children').select('*').eq('id', qrData).single();
+        if (!childErr && child) {
+          if (checkedInChildIds.has(child.id)) {
+            const record = checkedInChildren.find((r: any) => r.child_id === child.id);
+            if (record) {
+              handleCheckOut(record);
+              return;
+            }
+          }
+          handleStaffCheckIn(child as any);
+          return;
+        }
+      }
+
+      // ─── 5. FAIL ──────────────────────────────────────────────────
+      console.error("[Kiosk] QR not recognized after all checks:", qrData);
+      toast({
+        title: "Invalid QR",
+        description: `Code not recognized: "${qrData.substring(0, 15)}${qrData.length > 15 ? '...' : ''}". Please ensure you scanned the correct label.`,
+        variant: "destructive"
+      });
     } catch (err) {
       console.error("[Kiosk] QR processing error:", err);
       toast({ title: "Error", description: "Failed to process QR code scan results.", variant: "destructive" });

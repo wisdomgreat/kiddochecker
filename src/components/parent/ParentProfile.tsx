@@ -61,6 +61,7 @@ const ParentProfile = () => {
           last_name: profileData.last_name,
           phone: profileData.phone,
           address: profileData.address,
+          security_pin: profileData.security_pin,
           created_at: profileData.created_at,
           updated_at: profileData.updated_at,
         };
