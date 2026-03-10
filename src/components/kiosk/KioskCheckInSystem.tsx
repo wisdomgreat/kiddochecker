@@ -124,15 +124,22 @@ const KioskCheckInSystem = () => {
 
   const loadTodayData = async () => {
     try {
-      const data = await AttendanceService.getTodaysAttendance();
-      setTodayCount(data.length);
+      // 1. Get stats for today (checked in + checked out today)
+      const todayData = await AttendanceService.getTodaysAttendance();
+      setTodayCount(todayData.length);
+      
+      // 2. Get EVERYONE currently present (for checkout list, regardless of date)
+      const presentData = await AttendanceService.getCheckedInChildren();
       const ids = new Set<string>();
-      const checkedIn: any[] = [];
-      data.forEach((r: any) => { if (!r.checked_out_at) { ids.add(r.child_id); checkedIn.push(r); } });
+      presentData.forEach((r: any) => ids.add(r.child_id));
+      
       setCheckedInChildIds(ids);
-      setCheckedInChildren(checkedIn);
-      setCheckoutFilteredChildren(checkedIn);
-    } catch { setTodayCount(0); }
+      setCheckedInChildren(presentData);
+      setCheckoutFilteredChildren(presentData);
+    } catch (err) { 
+      console.error("Kiosk data load error:", err);
+      setTodayCount(0); 
+    }
   };
 
   const showSuccess = (msg: string) => {
@@ -498,6 +505,7 @@ const KioskCheckInSystem = () => {
       if (result.success) {
         await logActivity('check_out', {
           child_id: record.child_id, child_name: `${record.child?.first_name} ${record.child?.last_name}`,
+          actor: `staff:${staffName}`
         });
         
         // Notify Parent
@@ -540,8 +548,39 @@ const KioskCheckInSystem = () => {
         toast({ title: "Failed", description: result.error || "Could not check out", variant: "destructive" });
       }
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Error", description: e.message || "Checkout failed", variant: "destructive" });
     } finally { setIsLoading(false); }
+  };
+
+  const handleEmergencySignOut = async () => {
+    if (!window.confirm(`Are you sure you want to sign out ALL ${checkedInChildren.length} children? This action will be logged.`)) return;
+    
+    setIsLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const record of checkedInChildren) {
+      try {
+        const actorId = (await supabase.auth.getUser()).data.user?.id;
+        const result = await AttendanceService.checkOutChild({ 
+          attendanceId: record.id,
+          checkedOutBy: actorId,
+          method: 'emergency_bulk',
+          station: 'Main Kiosk'
+        });
+        if (result.success) successCount++;
+        else failCount++;
+      } catch { failCount++; }
+    }
+
+    await loadTodayData();
+    setIsLoading(false);
+    
+    toast({
+      title: "Bulk Sign-Out Complete",
+      description: `Successfully signed out ${successCount} children. ${failCount} failures.`,
+      variant: failCount > 0 ? "destructive" : "default"
+    });
   };
 
   // ═══════════════════════════════════════════════════════
@@ -871,9 +910,21 @@ const KioskCheckInSystem = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-white text-lg font-bold">Check Out</h2>
-                <p className="text-white/25 text-xs">
-                  {staffAuthed ? "Searching all children..." : `Logged in: ${parentName}`}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-white/25 text-xs">
+                    {staffAuthed ? "Searching all children..." : `Logged in: ${parentName}`}
+                  </p>
+                  {staffAuthed && checkedInChildren.length > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-6 text-[9px] bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
+                      onClick={handleEmergencySignOut}
+                    >
+                      Sign-Out All ({checkedInChildren.length})
+                    </Button>
+                  )}
+                </div>
               </div>
               <Button variant="ghost" size="sm" onClick={handleGlobalLogout} className="text-white/30 hover:text-white/60 text-xs">
                 <LogOut className="w-3 h-3 mr-1" /> Finish Session

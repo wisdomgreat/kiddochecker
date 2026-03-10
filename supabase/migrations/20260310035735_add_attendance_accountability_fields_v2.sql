@@ -8,7 +8,9 @@ ADD COLUMN IF NOT EXISTS checked_out_station TEXT;
 
 -- Drop existing functions before recreation because signatures are changing
 DROP FUNCTION IF EXISTS public.checkin_child(uuid, uuid, uuid, text);
+DROP FUNCTION IF EXISTS public.checkin_child(uuid, uuid, uuid, text, text, text);
 DROP FUNCTION IF EXISTS public.checkout_child(uuid, uuid, text);
+DROP FUNCTION IF EXISTS public.checkout_child(uuid, uuid, text, text, text);
 DROP FUNCTION IF EXISTS public.get_liability_audit_report(date, date);
 
 -- Redefine checkin_child with accountability parameters
@@ -153,7 +155,7 @@ BEGIN
 END;
 $function$;
 
--- Update the Liability Audit Report to return these new fields
+-- Update the Liability Audit Report to return these new fields and roles
 CREATE OR REPLACE FUNCTION public.get_liability_audit_report(start_date date, end_date date)
 RETURNS TABLE (
     attendance_id UUID,
@@ -164,10 +166,12 @@ RETURNS TABLE (
     class_name TEXT,
     checked_in_at TIMESTAMPTZ,
     checked_in_by_name TEXT,
+    checked_in_by_role TEXT,
     checked_in_method TEXT,
     checked_in_station TEXT,
     checked_out_at TIMESTAMPTZ,
     checked_out_by_name TEXT,
+    checked_out_by_role TEXT,
     checked_out_method TEXT,
     checked_out_station TEXT,
     duration_hours NUMERIC
@@ -183,10 +187,12 @@ BEGIN
         COALESCE(cl.name, 'Unassigned') as class_name,
         a.checked_in_at,
         COALESCE(CONCAT(p_in.first_name, ' ', p_in.last_name), 'System/PIN') as checked_in_by_name,
+        COALESCE(ur_in.role::text, 'parent') as checked_in_by_role,
         a.checked_in_method,
         a.checked_in_station,
         a.checked_out_at,
         COALESCE(CONCAT(p_out.first_name, ' ', p_out.last_name), 'N/A') as checked_out_by_name,
+        COALESCE(ur_out.role::text, 'parent') as checked_out_by_role,
         a.checked_out_method,
         a.checked_out_station,
         CASE 
@@ -199,6 +205,8 @@ BEGIN
     LEFT JOIN classes cl ON a.class_id = cl.id
     LEFT JOIN profiles p_in ON a.checked_in_by = p_in.id
     LEFT JOIN profiles p_out ON a.checked_out_by = p_out.id
+    LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_in_by LIMIT 1) ur_in ON TRUE
+    LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_out_by LIMIT 1) ur_out ON TRUE
     WHERE a.attendance_date BETWEEN start_date AND end_date
     ORDER BY a.attendance_date DESC, a.checked_in_at DESC;
 END;

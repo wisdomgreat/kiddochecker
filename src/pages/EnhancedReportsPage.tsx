@@ -199,7 +199,7 @@ const EnhancedReportsPage = () => {
     if (!detailedAttendance) return;
 
     const csv = [
-      ['Date', 'Child Name', 'Age', 'Allergies', 'Class', 'Check-In Time', 'In By', 'In Method/Station', 'Check-Out Time', 'Out By', 'Out Method/Station', 'Duration (hours)'],
+      ['Date', 'Child Name', 'Age', 'Allergies', 'Class', 'Check-In Time', 'In By', 'Role', 'In Method/Station', 'Check-Out Time', 'Out By', 'Role', 'Out Method/Station', 'Duration (hours)'],
       ...detailedAttendance.map((row: any) => [
         row.attendance_date ? format(new Date(row.attendance_date), 'yyyy-MM-dd') : 'N/A',
         row.child_name,
@@ -208,9 +208,11 @@ const EnhancedReportsPage = () => {
         row.class_name || 'N/A',
         row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A',
         row.checked_in_by_name || 'System/PIN',
+        row.checked_in_by_role || 'parent',
         `${row.checked_in_method || 'N/A'}${row.checked_in_station ? ` (${row.checked_in_station})` : ''}`,
         row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A',
         row.checked_out_by_name || 'N/A',
+        row.checked_out_by_role || 'N/A',
         `${row.checked_out_method || 'N/A'}${row.checked_out_station ? ` (${row.checked_out_station})` : ''}`,
         row.duration_hours?.toFixed(2) || 'N/A',
       ]),
@@ -524,10 +526,18 @@ const EnhancedReportsPage = () => {
                               <TableCell>
                                 <div className="space-y-1">
                                   <div className="text-xs font-mono">{row.checked_in_at ? format(new Date(row.checked_in_at), 'HH:mm') : 'N/A'}</div>
-                                  <div className="text-[10px] text-slate-500 font-medium italic flex items-center gap-1">
-                                    {row.checked_in_by_name?.split(' ')[0]}
+                                  <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
+                                    <span className="text-slate-700">{row.checked_in_by_name}</span>
                                     <Badge variant="outline" className={cn(
-                                      "text-[8px] px-1 h-3 leading-none",
+                                      "text-[7px] px-1 h-3 leading-none uppercase",
+                                      row.checked_in_by_role?.includes('admin') || row.checked_in_by_role === 'staff' || row.checked_in_by_role === 'teacher' 
+                                        ? "bg-amber-50 text-amber-600 border-amber-200" 
+                                        : "bg-blue-50 text-blue-600 border-blue-200"
+                                    )}>
+                                      {row.checked_in_by_role || 'parent'}
+                                    </Badge>
+                                    <Badge variant="outline" className={cn(
+                                      "text-[7px] px-1 h-3 leading-none",
                                       row.checked_in_method === 'kiosk' ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
                                     )}>
                                       {row.checked_in_method || 'app'}
@@ -538,15 +548,25 @@ const EnhancedReportsPage = () => {
                               <TableCell>
                                 <div className="space-y-1">
                                   <div className="text-xs font-mono">{row.checked_out_at ? format(new Date(row.checked_out_at), 'HH:mm') : 'N/A'}</div>
-                                  <div className="text-[10px] text-slate-500 font-medium italic flex items-center gap-1">
-                                    {row.checked_out_by_name?.split(' ')[0]}
-                                    {row.checked_out_method && (
-                                      <Badge variant="outline" className={cn(
-                                        "text-[8px] px-1 h-3 leading-none",
-                                        row.checked_out_method === 'kiosk' ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
-                                      )}>
-                                        {row.checked_out_method}
-                                      </Badge>
+                                  <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
+                                    <span className="text-slate-700">{row.checked_out_by_name}</span>
+                                    {row.checked_out_at && (
+                                      <>
+                                        <Badge variant="outline" className={cn(
+                                          "text-[7px] px-1 h-3 leading-none uppercase",
+                                          row.checked_out_by_role?.includes('admin') || row.checked_out_by_role === 'staff' || row.checked_out_role === 'teacher'
+                                            ? "bg-amber-50 text-amber-600 border-amber-200" 
+                                            : "bg-blue-50 text-blue-600 border-blue-200"
+                                        )}>
+                                          {row.checked_out_by_role || 'parent'}
+                                        </Badge>
+                                        <Badge variant="outline" className={cn(
+                                          "text-[7px] px-1 h-3 leading-none",
+                                          row.checked_out_method === 'kiosk' ? "bg-indigo-50 text-indigo-600" : "bg-emerald-50 text-emerald-600"
+                                        )}>
+                                          {row.checked_out_method}
+                                        </Badge>
+                                      </>
                                     )}
                                   </div>
                                 </div>
@@ -717,8 +737,9 @@ const EnhancedReportsPage = () => {
                         <TableRow className="bg-slate-50">
                           <TableHead>Date</TableHead>
                           <TableHead>Child</TableHead>
-                          <TableHead>Check-In (By)</TableHead>
-                          <TableHead>Check-Out (By)</TableHead>
+                          <TableHead>Age</TableHead>
+                          <TableHead>Check-In (By/Via)</TableHead>
+                          <TableHead>Check-Out (By/Via)</TableHead>
                           <TableHead>Duration</TableHead>
                           <TableHead>Status</TableHead>
                         </TableRow>
@@ -727,26 +748,58 @@ const EnhancedReportsPage = () => {
                         {loadingLiability ? (
                           <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto"/></TableCell></TableRow>
                         ) : (liabilityAudit as any[])?.map((log: any, i: number) => (
-                          <TableRow key={i}>
+                          <TableRow key={i} className={cn(log.has_allergies && "bg-rose-50/20")}>
                             <TableCell className="font-medium">{format(new Date(log.attendance_date), 'MMM dd')}</TableCell>
-                            <TableCell className="font-bold">{log.child_name}</TableCell>
+                            <TableCell className="font-bold">
+                              <div className="flex items-center gap-1.5">
+                                {log.child_name}
+                                {log.has_allergies && <AlertTriangle className="h-3 w-3 text-rose-500" />}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-500">{log.child_age || '-'}</TableCell>
                             <TableCell>
-                              <div className="text-xs">
-                                <span className="font-semibold block">{format(new Date(log.checked_in_at), 'HH:mm')}</span>
-                                <span className="text-slate-400">By: {log.checked_in_by_name}</span>
+                              <div className="space-y-1">
+                                <div className="text-[11px] font-bold">{format(new Date(log.checked_in_at), 'HH:mm')}</div>
+                                <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
+                                  <span className="text-slate-700">{log.checked_in_by_name}</span>
+                                  <Badge variant="outline" className={cn(
+                                    "text-[7px] px-1 h-3 leading-none uppercase",
+                                    log.checked_in_by_role?.includes('admin') || log.checked_in_by_role === 'staff' || log.checked_in_by_role === 'teacher'
+                                      ? "bg-amber-50 text-amber-600 border-amber-200" 
+                                      : "bg-blue-50 text-blue-600 border-blue-200"
+                                  )}>
+                                    {log.checked_in_by_role || 'parent'}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-[7px] px-1 h-3 leading-none bg-indigo-50/50">
+                                    {log.checked_in_method || 'app'}
+                                  </Badge>
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               {log.checked_out_at ? (
-                                <div className="text-xs">
-                                  <span className="font-semibold block">{format(new Date(log.checked_out_at), 'HH:mm')}</span>
-                                  <span className="text-slate-400">By: {log.checked_out_by_name}</span>
+                                <div className="space-y-1">
+                                  <div className="text-[11px] font-bold">{format(new Date(log.checked_out_at), 'HH:mm')}</div>
+                                  <div className="text-[10px] text-slate-500 font-bold flex flex-wrap items-center gap-1">
+                                    <span className="text-slate-700">{log.checked_out_by_name}</span>
+                                    <Badge variant="outline" className={cn(
+                                      "text-[7px] px-1 h-3 leading-none uppercase",
+                                      log.checked_out_by_role?.includes('admin') || log.checked_out_by_role === 'staff' || log.checked_out_by_role === 'teacher'
+                                        ? "bg-amber-50 text-amber-600 border-amber-200" 
+                                        : "bg-blue-50 text-blue-600 border-blue-200"
+                                    )}>
+                                      {log.checked_out_by_role || 'parent'}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-[7px] px-1 h-3 leading-none bg-emerald-50/50">
+                                      {log.checked_out_method || 'app'}
+                                    </Badge>
+                                  </div>
                                 </div>
-                              ) : <span className="text-xs italic text-slate-400">Currently in center</span>}
+                              ) : <span className="text-[10px] italic text-slate-400 font-medium">Currently in center</span>}
                             </TableCell>
                             <TableCell>
                               {log.duration_hours ? (
-                                <Badge variant="secondary" className="font-mono">
+                                <Badge variant="secondary" className="font-mono text-xs">
                                   {log.duration_hours.toFixed(1)}h
                                 </Badge>
                               ) : '-'}
