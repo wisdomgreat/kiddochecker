@@ -65,6 +65,7 @@ export const useStaffManagement = () => {
             phone: staffData.phone ?? null,
             role: staffData.role,
             isVolunteer: staffData.is_volunteer ?? false,
+            staffPin: staffData.staff_pin,
           },
         }
       );
@@ -72,18 +73,18 @@ export const useStaffManagement = () => {
       if (error) {
         let errorDetails = error.message;
         try {
-            if (error.context && typeof error.context.text === 'function') {
-                const text = await error.context.text();
-                const json = JSON.parse(text);
-                if (json.error) errorDetails = json.error;
-            } else if (error.context) {
-                if (error.context.error) errorDetails = error.context.error;
-            }
-        } catch (e) {}
+          if (error.context && typeof error.context.text === 'function') {
+            const text = await error.context.text();
+            const json = JSON.parse(text);
+            if (json.error) errorDetails = json.error;
+          } else if (error.context) {
+            if (error.context.error) errorDetails = error.context.error;
+          }
+        } catch (e) { }
         console.error("Admin user management error:", errorDetails);
         throw new Error(`User management failed: ${errorDetails}`);
       }
-      
+
       if (!data?.success) throw new Error(data?.error ?? 'User creation failed');
 
       // Send the setup email to the new staff/teacher
@@ -100,11 +101,11 @@ export const useStaffManagement = () => {
           type: 'staff_onboarding',
         }
       });
-      
+
       if (emailError) {
-          console.error("Failed to send welcome email:", emailError);
-          // Don't throw the error, we already created the user! The admin can manually send them the password or we can just toast a warning.
-          toast({ title: 'Staff added, but failed to send email. Check Supabase logs.', variant: 'destructive' });
+        console.error("Failed to send welcome email:", emailError);
+        // Don't throw the error, we already created the user! The admin can manually send them the password or we can just toast a warning.
+        toast({ title: 'Staff added, but failed to send email. Check Supabase logs.', variant: 'destructive' });
       }
 
       return { user: data.user, tempPassword };
@@ -139,6 +140,7 @@ export const useStaffManagement = () => {
               role: updates.role,
               isActive: updates.is_active,
               isVolunteer: updates.is_volunteer,
+              staffPin: updates.staff_pin,
             },
           },
         }
@@ -194,8 +196,8 @@ export const useStaffManagement = () => {
       const { data, error } = await supabase.functions.invoke(
         'admin-user-management',
         {
-          body: { 
-            action: 'resend_welcome_email', 
+          body: {
+            action: 'resend_welcome_email',
             userId: member.user_id,
             email: member.email,
             firstName: member.first_name

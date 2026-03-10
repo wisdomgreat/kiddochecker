@@ -400,6 +400,17 @@ const KioskCheckInSystem = () => {
         const childId = parsed.id || parsed.child_id;
         if (childId && (parsed.type === 'CHILD_CHECKIN' || parsed.type === 'CHECKIN')) {
           console.log("[Kiosk] Found child ID in JSON:", childId);
+
+          // Smart Toggle: Check-In if NOT present, Check-Out if IS present
+          if (checkedInChildIds.has(childId)) {
+            const record = checkedInChildren.find((r: any) => r.child_id === childId);
+            if (record) {
+              console.log("[Kiosk] Child is already present. Switching to Check-Out mode.");
+              handleCheckOut(record);
+              return;
+            }
+          }
+
           const { data: child, error: childError } = await supabase
             .from('children')
             .select('*')
@@ -421,6 +432,15 @@ const KioskCheckInSystem = () => {
         if (parts.length >= 2) {
           const childId = parts[1];
           console.log("[Kiosk] Found child ID in prefix format:", childId);
+
+          if (checkedInChildIds.has(childId)) {
+            const record = checkedInChildren.find((r: any) => r.child_id === childId);
+            if (record) {
+              handleCheckOut(record);
+              return;
+            }
+          }
+
           const { data: child, error: childError } = await supabase.from('children').select('*').eq('id', childId).single();
           if (!childError && child) {
             handleStaffCheckIn(child as any);
@@ -461,6 +481,15 @@ const KioskCheckInSystem = () => {
       }
 
       if (rec.child) {
+        // Toggle if present
+        if (checkedInChildIds.has(rec.child_id)) {
+          const record = checkedInChildren.find((r: any) => r.child_id === rec.child_id);
+          if (record) {
+            console.log("[Kiosk] Child present via DB Token. Checking OUT.");
+            handleCheckOut(record);
+            return;
+          }
+        }
         handleStaffCheckIn(rec.child as any);
       } else {
         toast({ title: "Broken Link", description: "This QR code is valid but points to a child that no longer exists.", variant: "destructive" });

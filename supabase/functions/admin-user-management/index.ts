@@ -15,6 +15,7 @@ interface CreateUserRequest {
   phone?: string;
   role: string;
   isVolunteer?: boolean;
+  staffPin?: string;
 }
 
 interface UpdateUserRequest {
@@ -26,6 +27,7 @@ interface UpdateUserRequest {
     role?: string;
     isActive?: boolean;
     isVolunteer?: boolean;
+    staffPin?: string;
   };
 }
 
@@ -112,9 +114,9 @@ serve(async (req) => {
         if (authError) {
           console.error('Auth user creation error:', authError);
           // Return as success: false so it's not a 500
-          return new Response(JSON.stringify({ 
-            success: false, 
-            error: `Auth Error: ${authError.message}` 
+          return new Response(JSON.stringify({
+            success: false,
+            error: `Auth Error: ${authError.message}`
           }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -122,9 +124,9 @@ serve(async (req) => {
         }
 
         if (!authData.user) {
-          return new Response(JSON.stringify({ 
-            success: false, 
-            error: 'User creation failed - no user data returned' 
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'User creation failed - no user data returned'
           }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -134,7 +136,7 @@ serve(async (req) => {
         console.log('User created successfully in Auth:', authData.user.id);
 
         // We use upsert for profile and role to handle potential race conditions with handle_new_user trigger
-        
+
         // 1. Profile
         const { error: profileError } = await supabaseAdmin
           .from('profiles')
@@ -142,7 +144,8 @@ serve(async (req) => {
             id: authData.user.id,
             first_name: firstName,
             last_name: lastName,
-            phone: phone || null
+            phone: phone || null,
+            staff_pin: (data as CreateUserRequest).staffPin || null
           }, { onConflict: 'id' });
 
         if (profileError) {
@@ -163,9 +166,9 @@ serve(async (req) => {
 
         if (roleError) {
           console.error('Role assignment error:', roleError);
-          return new Response(JSON.stringify({ 
-            success: false, 
-            error: `Failed to set role: ${roleError.message}` 
+          return new Response(JSON.stringify({
+            success: false,
+            error: `Failed to set role: ${roleError.message}`
           }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -191,13 +194,14 @@ serve(async (req) => {
       case 'update_user': {
         const { userId, updates } = data as UpdateUserRequest;
 
-        if (updates.firstName || updates.lastName || updates.phone) {
+        if (updates.firstName || updates.lastName || updates.phone || updates.staffPin !== undefined) {
           const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .update({
               first_name: updates.firstName,
               last_name: updates.lastName,
               phone: updates.phone,
+              staff_pin: updates.staffPin,
             })
             .eq('id', userId);
 
@@ -251,7 +255,7 @@ serve(async (req) => {
 
       case 'resend_welcome_email': {
         const { userId, email, firstName } = data;
-        
+
         // Generate a new temporary password
         const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
         const array = new Uint8Array(16);
@@ -274,7 +278,7 @@ serve(async (req) => {
         // We will return the tempPassword and let the frontend call send-email for now, 
         // to stay consistent with how addStaff does it.
         // POSSIBLY BETTER: Just do the fetch here.
-        
+
         return new Response(JSON.stringify({
           success: true,
           tempPassword,

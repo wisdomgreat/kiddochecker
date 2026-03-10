@@ -34,6 +34,7 @@ const StaffPage = () => {
     phone: '',
     role: 'staff',
     is_volunteer: false,
+    staff_pin: '',
   });
 
   const resetForm = () => {
@@ -44,6 +45,7 @@ const StaffPage = () => {
       phone: '',
       role: 'staff',
       is_volunteer: false,
+      staff_pin: '',
     });
   };
 
@@ -81,8 +83,8 @@ const StaffPage = () => {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
-        role: formData.role as any,
         is_volunteer: formData.is_volunteer,
+        staff_pin: formData.staff_pin,
       }
     });
     setIsEditDialogOpen(false);
@@ -127,6 +129,7 @@ const StaffPage = () => {
       phone: member.phone || '',
       role: member.role,
       is_volunteer: member.is_volunteer,
+      staff_pin: member.staff_pin || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -433,6 +436,18 @@ const StaffPage = () => {
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-staff_pin">Staff Kiosk PIN (4-8 digits)</Label>
+              <Input
+                id="edit-staff_pin"
+                value={formData.staff_pin}
+                onChange={(e) => setFormData({ ...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8) })}
+                placeholder="e.g. 1234"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1 tracking-tight">
+                This code is used by the staff member to authenticate on the kiosk terminals.
+              </p>
             </div>
             <div className="flex gap-2 justify-end">
               <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>

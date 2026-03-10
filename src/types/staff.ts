@@ -25,11 +25,12 @@ export interface AddStaffData {
   phone?: string;
   role: AppRole;
   is_volunteer?: boolean;
+  staff_pin?: string;
 }
 
 export interface UpdateStaffData {
   userId: string;
   updates: Partial<Pick<StaffMember,
-    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer'
+    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin'
   >>;
 }
