@@ -15,6 +15,7 @@ export interface StaffMember {
   is_volunteer: boolean;
   is_active: boolean;
   verification_status?: string;
+  staff_pin?: string;
 }
 
 export interface AddStaffData {

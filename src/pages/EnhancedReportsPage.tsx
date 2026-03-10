@@ -18,7 +18,8 @@ import {
 import {
   BarChart3, Download, Calendar as CalendarIcon, TrendingUp, Users, ClipboardCheck,
   FileText, Loader2, Heart, Stethoscope, ShieldAlert, Activity, Clock, ShieldCheck,
-  AlertTriangle, Zap, History, UserCheck, DollarSign, ZapOff, Briefcase, Info, Search
+  AlertTriangle, Zap, History, UserCheck, DollarSign, ZapOff, Briefcase, Info, Search,
+  Monitor, ArrowRight, Phone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';

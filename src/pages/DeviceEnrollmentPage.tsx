@@ -131,6 +131,7 @@ interface DeviceRow {
   revoked_at?: string | null;
   notes?: string | null;
   failure_count?: number;
+  serial_number?: string | null;
 }
 
 interface FormState {
@@ -138,6 +139,7 @@ interface FormState {
   type: string;
   location: string;
   notes: string;
+  serial_number: string;
 }
 
 // ─── Helpers: localStorage fallback
@@ -167,6 +169,7 @@ const DeviceEnrollmentPage = () => {
     type: "kiosk",
     location: "",
     notes: "",
+    serial_number: "",
   });
   // fallback local devices (when DB unavailable)
   const [localDevices, setLocalDevices] = useState<DeviceRow[]>(lsLoad);
@@ -247,7 +250,7 @@ const DeviceEnrollmentPage = () => {
     onSuccess: (dev) => {
       qc.invalidateQueries({ queryKey: ["enrolled_devices"] });
       setShowAdd(false);
-      setForm({ name: "", type: "kiosk", location: "", notes: "" });
+      setForm({ name: "", type: "kiosk", location: "", notes: "", serial_number: "" });
       setEnrollCode(generateCode());
       toast({
         title: "Device enrolled!",
@@ -376,6 +379,7 @@ const DeviceEnrollmentPage = () => {
       enrolled_by: user?.id || null,
       enrolled_at: new Date().toISOString(),
       notes: form.notes || null,
+      serial_number: form.serial_number || null,
     });
   };
 
@@ -582,7 +586,7 @@ const DeviceEnrollmentPage = () => {
           </TabsList>
 
           <TabsContent value="inventory" className="space-y-6">
-            {isLoading && dbAvailable ? (
+            {(isLoading && dbAvailable) || dbAvailable === null ? (
               <div className="flex items-center justify-center py-20">
                 <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
               </div>
@@ -645,6 +649,13 @@ const DeviceEnrollmentPage = () => {
                                 </span>
                               </div>
                               <div className="flex items-center justify-between">
+                                <span className="text-slate-400">Serial No:</span>
+                                <span className="text-slate-700 font-medium truncate max-w-[120px]">
+                                  {device.serial_number || "None"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+
                                 <span className="text-slate-400">Last IP:</span>
                                 <span className="text-slate-700 font-medium">{device.last_ip || "N/A"}</span>
                               </div>
@@ -794,6 +805,18 @@ const DeviceEnrollmentPage = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-semibold text-slate-700">
+                    Serial Number / Asset ID
+                  </Label>
+                  <Input
+                    placeholder="e.g. SN-99228811"
+                    value={form.serial_number}
+                    onChange={(e) => setForm({ ...form, serial_number: e.target.value })}
+                    className="mt-1 rounded-xl"
+                  />
                 </div>
 
                 <div>

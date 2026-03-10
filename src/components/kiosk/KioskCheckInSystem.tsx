@@ -313,21 +313,22 @@ const KioskCheckInSystem = () => {
   // ═══════════════════════════════════════════════════════
   const handleStaffAuth = async () => {
     try {
-      const { data, error } = await (supabase
-        .from('profiles')
-        .select('id, first_name, last_name, staff_pin')
-        .eq('staff_pin', staffPinInput.toUpperCase().trim())
-        .single() as any);
+      const { data, error } = await ((supabase.rpc as any)('verify_staff_pin_for_kiosk', {
+        p_pin: staffPinInput
+      }) as any);
 
-      if (error || !data) {
+      // Data is an array for RPC usually, or a single object depending on how it's called
+      const staffMember = Array.isArray(data) ? data[0] : data;
+
+      if (error || !staffMember) {
         setStaffPinError('Invalid Staff ID / PIN');
         setStaffPinInput('');
       } else {
         setStaffAuthed(true);
-        setStaffName(`${data.first_name} ${data.last_name}`);
+        setStaffName(`${staffMember.first_name} ${staffMember.last_name}`);
         setShowStaffPin(false);
-        toast({ title: "Staff Authorized", description: `Welcome, ${data.first_name}` });
-        await logActivity('staff_login', { staff_id: data.id, staff_name: `${data.first_name} ${data.last_name}`, method: 'staff_pin' });
+        toast({ title: "Staff Authorized", description: `Welcome, ${staffMember.first_name}` });
+        await logActivity('staff_login', { staff_id: staffMember.id, staff_name: `${staffMember.first_name} ${staffMember.last_name}`, method: 'staff_pin' });
 
         // Auto-logout staff if they do nothing for 45 minutes (2700s)
         startAutoLogoutTimer(2700);

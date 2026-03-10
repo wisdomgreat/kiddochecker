@@ -251,6 +251,12 @@ const StaffPage = () => {
                                 {member.phone}
                               </span>
                             )}
+                            {member.staff_pin && (
+                              <span className="flex items-center gap-1 font-mono text-indigo-600 font-bold bg-indigo-50 px-2 rounded-md">
+                                <Shield className="h-3 w-3" />
+                                PIN: {member.staff_pin}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -267,9 +273,9 @@ const StaffPage = () => {
                         {member.is_volunteer && (
                           <Badge variant="outline">Volunteer</Badge>
                         )}
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => resendWelcomeEmail(member)}
                           disabled={isResendingEmail}
                           title="Resend Welcome Email"
