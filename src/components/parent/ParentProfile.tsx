@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/CleanAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { User, Mail, Phone, MapPin, Edit, Save, X } from "lucide-react";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface Profile {
   id: string;
@@ -19,6 +20,8 @@ interface Profile {
   phone?: string;
   address?: string;
   security_pin?: string;
+  avatar_url?: string;
+  photo_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +37,7 @@ const ParentProfile = () => {
   const [address, setAddress] = useState("");
   const [securityPin, setSecurityPin] = useState("");
   const [showPin, setShowPin] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState("");
 
   const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["profile", user?.id],
@@ -62,6 +66,8 @@ const ParentProfile = () => {
           phone: profileData.phone,
           address: profileData.address,
           security_pin: profileData.security_pin,
+          avatar_url: profileData.avatar_url,
+          photo_url: profileData.photo_url,
           created_at: profileData.created_at,
           updated_at: profileData.updated_at,
         };
@@ -87,6 +93,7 @@ const ParentProfile = () => {
       setPhone(profile.phone || "");
       setAddress(profile.address || "");
       setSecurityPin(profile.security_pin || "");
+      setPhotoUrl(profile.photo_url || profile.avatar_url || "");
     }
   }, [profile]);
 
@@ -102,6 +109,7 @@ const ParentProfile = () => {
           phone: phone,
           address: address,
           security_pin: securityPin,
+          photo_url: photoUrl,
         } as any)
         .eq('id', user.id)
         .select()
@@ -140,6 +148,7 @@ const ParentProfile = () => {
       setPhone(profile.phone || "");
       setAddress(profile.address || "");
       setSecurityPin(profile.security_pin || "");
+      setPhotoUrl(profile.photo_url || profile.avatar_url || "");
     }
   };
 
@@ -170,7 +179,20 @@ const ParentProfile = () => {
         <CardHeader className="space-y-0.5">
           <CardTitle className="text-2xl font-bold">My Profile</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-6">
+          <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-100 rounded-xl">
+            <Label className="text-slate-600 font-bold uppercase text-[10px] tracking-wider mb-4">Guardian Photo</Label>
+            <ImageUpload
+              bucket="avatars"
+              defaultImage={photoUrl}
+              onUpload={setPhotoUrl}
+              fallbackText={firstName ? firstName[0] : "U"}
+              size="xl"
+              disabled={!isEditing}
+            />
+            <p className="text-[10px] text-slate-400 mt-3 text-center">Clear face photo required for authorized pick-up verification.</p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* First Name */}
             <div>

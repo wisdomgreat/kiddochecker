@@ -12,7 +12,9 @@ import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { useSettings } from '@/hooks/useSettings';
 import { useEmailNotifications } from '@/hooks/useEmailNotifications';
+import { useNavigate } from 'react-router-dom';
 import QRCodeScanner from '@/components/qr/QRCodeScanner';
 import ClassSelectionDialog from './ClassSelectionDialog';
 import NameTagPrintDialog from './NameTagPrintDialog';
@@ -73,7 +75,9 @@ const KioskCheckInSystem = () => {
   const phoneRef = useRef<HTMLInputElement>(null);
   const logoutTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const { settings } = useSettings();
   const { user, userRole } = useAuth();
+  const navigate = useNavigate();
   const { sendCheckInNotification, sendCheckOutNotification } = useEmailNotifications();
 
   // ─── Boot ───
@@ -764,7 +768,10 @@ const KioskCheckInSystem = () => {
       <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/[0.04] shrink-0">
         <div className="flex items-center gap-2 text-white/40 text-[10px] font-semibold tracking-widest uppercase">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          KiddoChecker
+          {settings?.logo_url && (
+            <img src={settings.logo_url} alt="Logo" className="w-4 h-4 object-contain rounded-sm" />
+          )}
+          {settings?.name || 'KiddoChecker'}
           {geoLocation && <MapPin className="w-2.5 h-2.5 text-emerald-400/40" />}
         </div>
         <div className="flex items-center gap-2 text-white/40 text-[10px] font-semibold">
@@ -907,9 +914,16 @@ const KioskCheckInSystem = () => {
               </Button>
             </div>
 
-            <p className="text-white/15 text-[10px] text-center flex items-center justify-center gap-1">
-              <Shield className="w-2.5 h-2.5" /> Your PIN was set during registration
-            </p>
+            <div className="pt-4 border-t border-white/[0.05]">
+              <p className="text-white/30 text-xs text-center mb-2">First time here?</p>
+              <Button 
+                onClick={() => navigate('/register/parent')}
+                variant="outline" 
+                className="w-full h-12 bg-white/[0.02] border-white/10 text-white hover:bg-white/10 rounded-xl text-sm font-semibold"
+              >
+                Start Registration Assistant
+              </Button>
+            </div>
           </div>
         )}
 

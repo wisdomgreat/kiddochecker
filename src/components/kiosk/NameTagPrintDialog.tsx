@@ -22,6 +22,7 @@ interface NameTagPrintDialogProps {
   };
   qrData: string;
   className?: string;
+  securityCode?: string; // Optional passed code, otherwise we generate a random 4-char one
 }
 
 const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
@@ -30,8 +31,13 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   child,
   qrData,
   className,
+  securityCode,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  
+  // Generate a matching security code for the session if not provided
+  const generatedCode = useRef(Math.random().toString(36).substring(2, 6).toUpperCase());
+  const displayCode = securityCode || generatedCode.current;
 
   const handlePrint = () => {
     const safeFirstName = DOMPurify.sanitize(child.first_name);
@@ -42,71 +48,163 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     const printWindow = window.open('', '_blank');
     if (!printWindow || !printRef.current) return;
 
-    const content = printRef.current.innerHTML;
-
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Name Tag - ${safeFirstName} ${safeLastName}</title>
+          <title>Security Label - ${safeFirstName} ${safeLastName}</title>
           <style>
+            @page { margin: 0; size: auto; }
             body {
               margin: 0;
-              padding: 20px;
-              font-family: Arial, sans-serif;
+              padding: 0;
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              color: #000;
             }
-            .name-tag {
-              width: 4in;
-              height: 3in;
-              border: 2px solid #000;
-              padding: 20px;
+            .print-container {
               display: flex;
               flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              page-break-after: always;
+              gap: 20px;
+            }
+            .label-box {
+              width: 3.5in;
+              height: 2.25in;
+              border: 1px dashed #999;
+              padding: 12px;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              page-break-inside: avoid;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #000;
+              padding-bottom: 4px;
+              margin-bottom: 8px;
             }
             .child-name {
-              font-size: 36px;
+              font-size: 26px;
+              font-weight: 900;
+              line-height: 1.1;
+              margin: 0;
+              text-transform: uppercase;
+            }
+            .security-code-box {
+              background: #000;
+              color: #fff;
+              padding: 4px 8px;
+              font-family: monospace;
+              font-size: 20px;
               font-weight: bold;
-              margin-bottom: 10px;
+              border-radius: 4px;
               text-align: center;
             }
-            .child-details {
-              font-size: 18px;
-              margin-bottom: 15px;
-              text-align: center;
-            }
-            .allergy-warning {
-              background-color: #fee;
-              color: #c00;
-              padding: 10px;
-              border-radius: 5px;
+            .allergy-alert {
+              background: #000 !important;
+              color: #fff !important;
+              padding: 4px;
               font-weight: bold;
-              margin-bottom: 15px;
               text-align: center;
-              border: 2px solid #c00;
+              font-size: 14px;
+              margin: 4px 0;
+              text-transform: uppercase;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
-            .qr-code {
-              margin-top: 15px;
+            .details-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 12px;
+              font-weight: bold;
+              margin-bottom: 4px;
             }
-            @media print {
-              body { padding: 0; }
-              .name-tag { margin: 0 auto; }
+            .qr-area {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .qr-placeholder {
+              width: 50px;
+              height: 50px;
+            }
+            .ticket-title {
+              font-size: 14px;
+              font-weight: bold;
+              text-align: center;
+              border-bottom: 1px solid #000;
+              padding-bottom: 4px;
+              margin-bottom: 8px;
             }
           </style>
         </head>
         <body>
-          ${content}
+          <div class="print-container">
+            <!-- CHILD LABEL -->
+            <div class="label-box">
+              <div>
+                <div class="header">
+                  <div>
+                    <h1 class="child-name">${safeFirstName}</h1>
+                    <h1 class="child-name">${safeLastName}</h1>
+                  </div>
+                  <div class="security-code-box">${displayCode}</div>
+                </div>
+                ${safeAllergies ? `<div class="allergy-alert">⚠️ ALLERGY: ${safeAllergies}</div>` : ''}
+              </div>
+              <div>
+                <div class="details-row">
+                  <span>Class: ${safeClassName || 'N/A'}</span>
+                  <span>Date: ${new Date().toLocaleDateString()}</span>
+                </div>
+                <div class="qr-area">
+                  <!-- The precise QR SVG will be injected from the React render if we use printRef, 
+                       but we are constructing custom HTML. Let's just grab the QR svg from the DOM. -->
+                  <div id="qr-inject"></div>
+                  <div style="font-size:10px; line-height:1.2;">
+                    <strong>Guardian Notice:</strong><br/>
+                    Present matching tag for pick-up.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PARENT CLAIM TICKET -->
+            <div class="label-box">
+              <div class="ticket-title">PRIMARY GUARDIAN CLAIM TICKET</div>
+              <div style="text-align:center; margin: auto 0;">
+                <div style="font-size: 12px; margin-bottom: 10px;">Security Match Code</div>
+                <div class="security-code-box" style="font-size: 32px; padding: 10px; display:inline-block;">${displayCode}</div>
+                <div style="font-size: 16px; margin-top: 15px; font-weight:bold;">${safeFirstName} ${safeLastName}</div>
+                <div style="font-size: 12px; margin-top: 5px;">Date: ${new Date().toLocaleDateString()}</div>
+              </div>
+            </div>
+          </div>
+
+          <script>
+            // Inject the QR code SVG from the parent window
+            const qrSvg = window.opener.document.querySelector('.qr-rendered-svg');
+            if (qrSvg) {
+              document.getElementById('qr-inject').innerHTML = qrSvg.outerHTML;
+              const injected = document.getElementById('qr-inject').querySelector('svg');
+              if(injected) {
+                injected.setAttribute('width', '50');
+                injected.setAttribute('height', '50');
+              }
+            }
+          </script>
         </body>
       </html>
     `);
 
     printWindow.document.close();
     setTimeout(() => {
+      printWindow.focus();
       printWindow.print();
       printWindow.close();
-    }, 250);
+    }, 500);
   };
 
   return (
@@ -119,46 +217,61 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div ref={printRef}>
-          <div className="border-4 border-primary rounded-lg p-8 bg-white">
-            <div className="text-center space-y-4">
-              <h2 className="text-4xl font-bold text-primary">
-                {child.first_name} {child.last_name}
-              </h2>
-
-              {child.age && (
-                <p className="text-xl text-muted-foreground">
-                  Age: {child.age}
-                </p>
-              )}
-
-              {className && (
-                <p className="text-lg font-semibold">
-                  Class: {className}
-                </p>
-              )}
-
-              {child.allergies && (
-                <div className="bg-destructive/10 border-2 border-destructive text-destructive px-4 py-3 rounded-lg">
-                  <p className="font-bold text-lg">⚠️ ALLERGY ALERT</p>
-                  <p className="font-semibold">{child.allergies}</p>
+        <div ref={printRef} className="max-h-[60vh] overflow-y-auto">
+          <div className="flex flex-col gap-6 items-center">
+            {/* Child Label Preview */}
+            <div className="w-[3.5in] h-[2.25in] border-2 border-dashed border-gray-400 p-3 flex flex-col justify-between bg-white relative">
+              <div>
+                <div className="flex justify-between items-start border-b-2 border-black pb-1 mb-2">
+                  <div>
+                    <h1 className="text-2xl font-black leading-tight uppercase m-0">{child.first_name}</h1>
+                    <h1 className="text-2xl font-black leading-tight uppercase m-0">{child.last_name}</h1>
+                  </div>
+                  <div className="bg-black text-white px-2 py-1 font-mono text-xl font-bold rounded">
+                    {displayCode}
+                  </div>
                 </div>
-              )}
-
-              <div className="flex justify-center pt-4">
-                <div className="bg-white p-4 border-2 border-gray-200 rounded-lg">
+                {child.allergies && (
+                  <div className="bg-red-600 text-white font-bold text-center text-xs py-1 rounded uppercase tracking-wider my-2">
+                    ⚠️ Allergy: {child.allergies}
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <div className="flex justify-between text-xs font-bold mb-1">
+                  <span>Class: {className || 'N/A'}</span>
+                  <span>{new Date().toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-3">
                   <QRCodeSVG
                     value={qrData}
-                    size={150}
+                    size={50}
                     level="H"
-                    includeMargin={true}
+                    className="qr-rendered-svg"
                   />
+                  <div className="text-[9px] leading-tight font-medium text-gray-700">
+                    <strong>Guardian Notice:</strong><br />
+                    Must present matching tag with code {displayCode} for pick-up.
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <p className="text-sm text-muted-foreground">
-                {new Date().toLocaleDateString()}
-              </p>
+            {/* Parent Ticket Preview */}
+            <div className="w-[3.5in] h-[2.25in] border-2 border-dashed border-gray-400 p-3 flex flex-col bg-white">
+              <div className="text-xs font-bold text-center border-b border-black pb-1 mb-2">
+                PRIMARY GUARDIAN CLAIM TICKET
+              </div>
+              <div className="flex flex-col items-center justify-center flex-1">
+                <div className="text-xs mb-2 text-gray-600 font-medium">Security Match Code</div>
+                <div className="bg-black text-white px-6 py-2 font-mono text-3xl font-bold rounded tracking-widest">
+                  {displayCode}
+                </div>
+                <div className="text-sm font-bold mt-4">
+                  {child.first_name} {child.last_name}
+                </div>
+              </div>
             </div>
           </div>
         </div>

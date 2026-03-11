@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Baby, Heart, ShieldAlert, Phone, User, Stethoscope, Info, Pill, Trash2, X, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface AddEditChildDialogProps {
   open: boolean;
@@ -45,6 +46,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
   const [classId, setClassId] = useState<string | null>(null);
   const [currentChildParentId, setCurrentChildParentId] = useState<string | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
+  const [photoUrl, setPhotoUrl] = useState("");
 
   // Medical Profile State
   const [medicalData, setMedicalData] = useState<any>({
@@ -90,6 +92,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
             setNotes(childData.notes || "");
             setClassId((childData as any).class_id);
             setCurrentChildParentId(childData.parent_id);
+            setPhotoUrl((childData as any).photo_url || "");
           }
 
           // Fetch medical profile
@@ -138,6 +141,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
           insurance_provider: '',
           insurance_number: ''
         });
+        setPhotoUrl("");
         setActiveTab("basic");
       }
     };
@@ -175,7 +179,8 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
         class_id: classId,
         // Sync the main allergies field for legacy compatibility/quick view
         allergies: medicalData.allergies.map((a: any) => a.type).join(', '),
-        medical_info: medicalData.emergency_notes
+        medical_info: medicalData.emergency_notes,
+        photo_url: photoUrl
       };
 
       let currentChildId = childId;
@@ -278,6 +283,18 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
 
           <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
             <TabsContent value="basic" className="mt-0 space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-col items-center justify-center p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                <Label className="text-slate-600 font-bold uppercase text-[10px] tracking-wider mb-4">Child Photo</Label>
+                <ImageUpload
+                  bucket="avatars"
+                  defaultImage={photoUrl}
+                  onUpload={setPhotoUrl}
+                  fallbackText={firstName ? firstName[0] : "C"}
+                  size="xl"
+                />
+                <p className="text-[10px] text-slate-400 mt-3 text-center">Clear face photo recommended for easier staff verification.</p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="firstName" className="text-slate-600 font-bold uppercase text-[10px] tracking-wider">First Name</Label>

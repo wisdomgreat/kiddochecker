@@ -12,6 +12,8 @@ import { AddressField } from "./AddressField";
 import { CheckInSettingsFields } from "./CheckInSettingsFields";
 import { CheckInPolicyFields } from "./CheckInPolicyFields";
 import { Loader2 } from "lucide-react";
+import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 const GeneralSettings = () => {
   const { toast } = useToast();
@@ -47,6 +49,7 @@ const GeneralSettings = () => {
         allowLateCheckIn: true,
         allowEarlyCheckOut: false,
         sessionLength: "60",
+        logoUrl: orgSettings.logo_url || "",
       });
     }
   }, [orgSettings, form]);
@@ -57,6 +60,7 @@ const GeneralSettings = () => {
         .from("organization_settings")
         .update({
           name: values.churchName,
+          logo_url: values.logoUrl,
         })
         .eq("id", orgSettings?.id)
         .select()
@@ -96,6 +100,27 @@ const GeneralSettings = () => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="logoUrl"
+          render={({ field }) => (
+            <FormItem className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-slate-50/50">
+              <FormLabel className="font-semibold text-lg mb-2">Organization Logo</FormLabel>
+              <FormControl>
+                <ImageUpload
+                  defaultImage={field.value || undefined}
+                  onUpload={field.onChange}
+                  bucket="avatars"
+                />
+              </FormControl>
+              <FormDescription className="text-center mt-2">
+                This logo will be displayed on the check-in kiosk and dashboard. Max 150KB.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <ChurchInfoFields form={form} />
         <AddressField form={form} />
         <CheckInSettingsFields form={form} />

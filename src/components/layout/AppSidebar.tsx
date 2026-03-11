@@ -12,6 +12,7 @@ import {
   SidebarMenuButton, SidebarMenuItem, SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { useSettings } from "@/hooks/useSettings";
 import { useMessages } from "@/hooks/useMessages";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 
 export function AppSidebar() {
   const { user, userRole, isAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, verificationStatus, isVerifiedStaff, signOut } = useAuth();
+  const { settings } = useSettings();
   const { unreadCount } = useMessages();
   const location = useLocation();
   const navigate = useNavigate();
@@ -182,11 +184,19 @@ export function AppSidebar() {
     <Sidebar className="border-r border-slate-100 bg-white w-64">
       <SidebarHeader className="border-b border-slate-100 px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md">
-            <Building className="h-4 w-4 text-white" />
-          </div>
+          {settings?.logo_url ? (
+            <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-sm bg-slate-50 border border-slate-100">
+               <img src={settings.logo_url} alt="Organization Logo" className="h-full w-full object-contain" />
+            </div>
+          ) : (
+            <div className="flex shrink-0 h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md">
+              <Building className="h-4 w-4 text-white" />
+            </div>
+          )}
           <div className="text-left flex-1 min-w-0">
-            <h2 className="text-base font-bold text-slate-900 truncate">KiddoChecker</h2>
+            <h2 className="text-base font-bold text-slate-900 truncate">
+              {settings?.name || "KiddoChecker"}
+            </h2>
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 ${color}`}>
               {label}
             </Badge>

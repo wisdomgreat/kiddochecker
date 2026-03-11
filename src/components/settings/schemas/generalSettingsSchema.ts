@@ -15,6 +15,7 @@ export const generalSettingsSchema = z.object({
   allowLateCheckIn: z.boolean().default(false),
   allowEarlyCheckOut: z.boolean().default(false),
   sessionLength: z.string(),
+  logoUrl: z.string().optional(),
 });
 
 export type GeneralSettingsFormValues = z.infer<typeof generalSettingsSchema>;
@@ -27,4 +28,5 @@ export const defaultValues: GeneralSettingsFormValues = {
   allowLateCheckIn: true,
   allowEarlyCheckOut: false,
   sessionLength: "60",
+  logoUrl: "",
 };
