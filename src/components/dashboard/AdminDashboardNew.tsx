@@ -391,7 +391,7 @@ const AdminDashboardNew = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 }}
-                    className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
+                    className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
                 >
                     <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                         <div>
@@ -434,61 +434,6 @@ const AdminDashboardNew = () => {
                             ))
                         )}
                     </div>
-                </motion.div>
-
-                {/* Attendance Rate Progress */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.55 }}
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5"
-                >
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800">Overview</h3>
-                        <p className="text-sm text-slate-500">Today's key metrics</p>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-slate-600">Attendance Rate</span>
-                                <span className="text-sm font-bold text-indigo-600">{attendanceRate}%</span>
-                            </div>
-                            <Progress value={attendanceRate} className="h-2" />
-                        </div>
-
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-slate-600">Classes Active</span>
-                                <span className="text-sm font-bold text-emerald-600">{classes.length}</span>
-                            </div>
-                            <Progress value={Math.min((classes.length / 10) * 100, 100)} className="h-2" />
-                        </div>
-
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-slate-600">Staff Capacity</span>
-                                <span className="text-sm font-bold text-blue-600">{staff.length}/{Math.max(staff.length, 10)}</span>
-                            </div>
-                            <Progress value={Math.min((staff.length / 10) * 100, 100)} className="h-2" />
-                        </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-3">
-                        <div className="bg-slate-50 rounded-xl p-3 text-center">
-                            <p className="text-2xl font-bold text-slate-800">{presentNow}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">Present Now</p>
-                        </div>
-                        <div className="bg-slate-50 rounded-xl p-3 text-center">
-                            <p className="text-2xl font-bold text-slate-800">{checkedOutToday}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">Checked Out</p>
-                        </div>
-                    </div>
-
-                    <Button onClick={() => navigate("/reports")} className="w-full bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2 text-sm">
-                        <BarChart3 className="h-4 w-4" />
-                        Full Report
-                    </Button>
                 </motion.div>
             </div>
         </div>

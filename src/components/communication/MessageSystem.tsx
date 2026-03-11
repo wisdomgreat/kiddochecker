@@ -356,7 +356,7 @@ const MessageSystem = () => {
                     <Label htmlFor="recipient" className="text-sm font-semibold">
                     To <span className="text-destructive">*</span>
                     </Label>
-                    <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                    <Popover open={openCombobox} onOpenChange={setOpenCombobox} modal={true}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
@@ -370,7 +370,7 @@ const MessageSystem = () => {
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" style={{ zIndex: 9999 }}>
                         <Command>
                           <CommandInput placeholder="Search people..." className="h-9" />
                           <CommandList>
