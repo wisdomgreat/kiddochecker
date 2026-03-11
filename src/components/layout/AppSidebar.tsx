@@ -28,69 +28,132 @@ export function AppSidebar() {
     navigate('/login');
   };
 
-  const adminItems = [
-    { title: "Dashboard", url: "/admin-dashboard", icon: Home },
-    { title: "User Management", url: "/users", icon: Users },
-    { title: "Verify Staff", url: "/admin/verify-staff", icon: Shield },
-    { title: "Staff", url: "/staff", icon: UserCheck },
-    { title: "Children", url: "/children", icon: Baby },
-    { title: "Classes", url: "/classes", icon: BookOpen },
-    { title: "Attendance", url: "/attendance", icon: ClipboardCheck },
-    { title: "Reports", url: "/reports", icon: BarChart3 },
-    { title: "QR Management", url: "/qr-management", icon: QrCode },
-    { title: "Device Enrollment", url: "/devices", icon: Zap },
-    ...(userRole === 'super_admin' ? [{ title: "Roles & Permissions", url: "/roles", icon: ShieldCheck }] : []),
-    { title: "Calendar", url: "/calendar", icon: Calendar },
-    { title: "Messages", url: "/messages", icon: MessageSquare },
-    { title: "Check-In", url: "/check-in", icon: Monitor },
-    { title: "Check-Out", url: "/check-out", icon: ClipboardCheck },
-    { title: "Events Management", url: "/admin/events", icon: Calendar },
-    { title: "Kiosk Management", url: "/admin/kiosks", icon: Monitor },
-    { title: "Attendance Rewards", url: "/admin/rewards", icon: Trophy },
-    { title: "System Health", url: "/admin/system-health", icon: HeartPulse },
-    { title: "Audit Log", url: "/audit-log", icon: Activity },
-    { title: "Help & Docs", url: "/help", icon: HelpCircle },
-    { title: "Settings", url: "/settings", icon: Settings },
-    { title: "My Profile", url: "/profile", icon: Users },
+  const adminMenuGroups = [
+    {
+      label: "Overview",
+      items: [
+        { title: "Dashboard", url: "/", icon: Home },
+        { title: "Calendar", url: "/calendar", icon: Calendar },
+        { title: "Events Management", url: "/admin/events", icon: Calendar },
+        { title: "Messages", url: "/messages", icon: MessageSquare },
+      ]
+    },
+    {
+      label: "Operations",
+      items: [
+        { title: "Attendance", url: "/attendance", icon: ClipboardCheck },
+        { title: "Check-In", url: "/check-in", icon: Monitor },
+        { title: "Check-Out", url: "/check-out", icon: ClipboardCheck },
+        { title: "Attendance Rewards", url: "/admin/rewards", icon: Trophy },
+      ]
+    },
+    {
+      label: "People & Academics",
+      items: [
+        { title: "Children", url: "/children", icon: Baby },
+        { title: "Staff", url: "/staff", icon: UserCheck },
+        { title: "Classes", url: "/classes", icon: BookOpen },
+        { title: "Verify Staff", url: "/admin/verify-staff", icon: Shield },
+      ]
+    },
+    {
+      label: "System configuration",
+      items: [
+        { title: "User Management", url: "/users", icon: Users },
+        { title: "QR Management", url: "/qr-management", icon: QrCode },
+        { title: "Device Enrollment", url: "/devices", icon: Zap },
+        { title: "Kiosk Management", url: "/admin/kiosks", icon: Monitor },
+        ...(userRole === 'super_admin' ? [{ title: "Roles & Permissions", url: "/roles", icon: ShieldCheck }] : []),
+        { title: "Reports", url: "/reports", icon: BarChart3 },
+        { title: "System Health", url: "/admin/system-health", icon: HeartPulse },
+        { title: "Audit Log", url: "/audit-log", icon: Activity },
+      ]
+    },
+    {
+      label: "Personal",
+      items: [
+        { title: "Settings", url: "/settings", icon: Settings },
+        { title: "Help & Docs", url: "/help", icon: HelpCircle },
+        { title: "My Profile", url: "/profile", icon: Users },
+      ]
+    }
   ];
 
-  const staffItems = [
-    { title: "Dashboard", url: "/staff-dashboard", icon: Home },
-    ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: "Attendance", url: "/attendance", icon: ClipboardCheck }] : []),
-    ...(isTeacher || isTeacherAssistant ? [
-      { title: "Classes", url: "/classes", icon: BookOpen },
-    ] : []),
-    { title: "Calendar", url: "/calendar", icon: Calendar },
-    { title: "Messages", url: "/messages", icon: MessageSquare },
-    { title: "My Documents", url: "/staff/documents", icon: Shield },
-    { title: "Help & Docs", url: "/help", icon: HelpCircle },
-    { title: "My Profile", url: "/profile", icon: Users },
+  const staffMenuGroups = [
+    {
+      label: "Overview",
+      items: [
+        { title: "Dashboard", url: "/", icon: Home },
+        { title: "Calendar", url: "/calendar", icon: Calendar },
+        { title: "Messages", url: "/messages", icon: MessageSquare },
+      ]
+    },
+    {
+      label: "Operations",
+      items: [
+        ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: "Attendance", url: "/attendance", icon: ClipboardCheck }] : []),
+        ...(isTeacher || isTeacherAssistant ? [{ title: "Classes", url: "/classes", icon: BookOpen }] : []),
+      ]
+    },
+    {
+      label: "Personal",
+      items: [
+        { title: "My Documents", url: "/staff/documents", icon: Shield },
+        { title: "Help & Docs", url: "/help", icon: HelpCircle },
+        { title: "My Profile", url: "/profile", icon: Users },
+      ]
+    }
   ];
 
-  const unverifiedStaffItems = [
-    { title: "Dashboard", url: "/staff-dashboard", icon: Home },
-    { title: "My Documents", url: "/staff/documents", icon: Shield },
-    { title: "Messages", url: "/messages", icon: MessageSquare },
-    { title: "Help & Docs", url: "/help", icon: HelpCircle },
-    { title: "My Profile", url: "/profile", icon: Users },
+  const unverifiedStaffMenuGroups = [
+    {
+      label: "Overview",
+      items: [
+        { title: "Dashboard", url: "/", icon: Home },
+        { title: "Messages", url: "/messages", icon: MessageSquare },
+      ]
+    },
+    {
+      label: "Personal",
+      items: [
+        { title: "My Documents", url: "/staff/documents", icon: Shield },
+        { title: "Help & Docs", url: "/help", icon: HelpCircle },
+        { title: "My Profile", url: "/profile", icon: Users },
+      ]
+    }
   ];
 
-  const parentItems = [
-    { title: "Dashboard", url: "/parent-dashboard", icon: Home },
-    { title: "My Children", url: "/parent/children", icon: Baby },
-    { title: "Attendance", url: "/parent/attendance", icon: Calendar },
-    { title: "Messages", url: "/parent/messages", icon: MessageSquare },
-    { title: "Help & Docs", url: "/help", icon: HelpCircle },
-    { title: "Profile", url: "/parent/profile", icon: Users },
+  const parentMenuGroups = [
+    {
+      label: "Overview",
+      items: [
+        { title: "Dashboard", url: "/", icon: Home },
+        { title: "Messages", url: "/parent/messages", icon: MessageSquare },
+      ]
+    },
+    {
+      label: "Family",
+      items: [
+        { title: "My Children", url: "/parent/children", icon: Baby },
+        { title: "Attendance", url: "/parent/attendance", icon: Calendar },
+      ]
+    },
+    {
+      label: "Personal",
+      items: [
+        { title: "Profile", url: "/parent/profile", icon: Users },
+        { title: "Help & Docs", url: "/help", icon: HelpCircle },
+      ]
+    }
   ];
 
   const isStaffRole = isStaff || isTeacher || isTeacherAssistant || userRole === "volunteer";
 
-  let menuItems = parentItems;
+  let menuGroups = parentMenuGroups;
   if (isAdmin) {
-    menuItems = adminItems;
+    menuGroups = adminMenuGroups;
   } else if (isStaffRole) {
-    menuItems = isVerifiedStaff ? staffItems : unverifiedStaffItems;
+    menuGroups = isVerifiedStaff ? staffMenuGroups : unverifiedStaffMenuGroups;
   }
   const portalLabel = isAdmin
     ? 'Admin Portal'
@@ -132,44 +195,46 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-3 py-4">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-left mb-1 px-2 text-[10px] uppercase tracking-widest text-slate-400 font-semibold">
-            {portalLabel}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
-              {menuItems.map((item) => {
-                const isActive = location.pathname === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      className="w-full justify-start text-left rounded-xl"
-                    >
-                      <Link
-                        to={item.url}
-                        className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium transition-all ${isActive
-                          ? "bg-indigo-50 text-indigo-700"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                          }`}
+        {menuGroups.map((group, groupIdx) => (
+          <SidebarGroup key={groupIdx}>
+            <SidebarGroupLabel className="text-left mb-1 px-2 text-[10px] uppercase tracking-widest text-slate-400 font-semibold">
+              {groupIdx === 0 ? portalLabel : group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = location.pathname === item.url;
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        className="w-full justify-start text-left rounded-xl"
                       >
-                        <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
-                        <span className="truncate">{item.title}</span>
-                        {item.title === "Messages" && unreadCount > 0 && (
-                          <Badge className="ml-auto bg-indigo-600 text-[10px] px-1.5 h-4 min-w-[16px] flex items-center justify-center">
-                            {unreadCount > 99 ? "99+" : unreadCount}
-                          </Badge>
-                        )}
-                        {isActive && item.title !== "Messages" && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                        <Link
+                          to={item.url}
+                          className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-sm font-medium transition-all ${isActive
+                            ? "bg-indigo-50 text-indigo-700"
+                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                            }`}
+                        >
+                          <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
+                          <span className="truncate">{item.title}</span>
+                          {item.title === "Messages" && unreadCount > 0 && (
+                            <Badge className="ml-auto bg-indigo-600 text-[10px] px-1.5 h-4 min-w-[16px] flex items-center justify-center">
+                              {unreadCount > 99 ? "99+" : unreadCount}
+                            </Badge>
+                          )}
+                          {isActive && item.title !== "Messages" && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-slate-100 p-4">

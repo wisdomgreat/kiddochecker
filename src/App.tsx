@@ -18,12 +18,7 @@ const Index = lazy(() => import("./pages/Index"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 const DeviceLoginPage = lazy(() => import("./pages/DeviceLoginPage"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-
-// Dashboards
-const AdminDashboardPage = lazy(() => import("./pages/AdminDashboardPage"));
-const StaffDashboardPage = lazy(() => import("./pages/StaffDashboardPage"));
-const ParentDashboardPage = lazy(() => import("./pages/ParentDashboardPage"));
+// Dashboards are handled by Index -> UnifiedDashboard
 
 // Admin
 const AdminDocumentVerification = lazy(() => import("./pages/AdminDocumentVerification"));
@@ -110,12 +105,7 @@ function App() {
                         <CheckOutPage />
                       </RoleBasedRoute>
                     } />
-                    <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-
-                    {/* Dashboard Routes */}
-                    <Route path="/admin-dashboard" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
-                    <Route path="/staff-dashboard" element={<ProtectedRoute><StaffDashboardPage /></ProtectedRoute>} />
-                    <Route path="/parent-dashboard" element={<ProtectedRoute><ParentDashboardPage /></ProtectedRoute>} />
+                    {/* Dashboard routes handled by index route */}
 
                     {/* Admin-Only Routes */}
                     <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><UsersPage /></RoleBasedRoute>} />
