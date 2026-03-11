@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 interface Child {
   id: string;
@@ -17,6 +18,7 @@ interface Child {
   medical_info?: string | null;
   emergency_contact_name?: string | null;
   emergency_contact_phone?: string | null;
+  photo_url?: string | null;
 }
 
 interface EditChildModalProps {
@@ -35,6 +37,7 @@ const EditChildModal = ({ open, onOpenChange, child, onSuccess }: EditChildModal
     medical_info: "",
     emergency_contact_name: "",
     emergency_contact_phone: "",
+    photo_url: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -49,6 +52,7 @@ const EditChildModal = ({ open, onOpenChange, child, onSuccess }: EditChildModal
         medical_info: child.medical_info || "",
         emergency_contact_name: child.emergency_contact_name || "",
         emergency_contact_phone: child.emergency_contact_phone || "",
+        photo_url: child.photo_url || "",
       });
     }
   }, [child]);
@@ -69,6 +73,7 @@ const EditChildModal = ({ open, onOpenChange, child, onSuccess }: EditChildModal
           medical_info: formData.medical_info || null,
           emergency_contact_name: formData.emergency_contact_name || null,
           emergency_contact_phone: formData.emergency_contact_phone || null,
+          photo_url: formData.photo_url || null,
         })
         .eq('id', child.id);
 
@@ -98,6 +103,17 @@ const EditChildModal = ({ open, onOpenChange, child, onSuccess }: EditChildModal
           <DialogTitle>Edit Child Information</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex flex-col items-center justify-center mb-6">
+            <Label className="mb-2">Child Photo</Label>
+            <ImageUpload
+              bucket="avatars"
+              size="lg"
+              defaultImage={formData.photo_url}
+              fallbackText={formData.first_name ? formData.first_name.charAt(0).toUpperCase() : "B"}
+              onUpload={(url) => setFormData(prev => ({ ...prev, photo_url: url }))}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="first_name">First Name</Label>

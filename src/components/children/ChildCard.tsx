@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Child } from "@/hooks/useChildren";
 
 interface ChildCardProps {
@@ -29,8 +30,13 @@ const ChildCard = ({ child, onEdit, onDelete, onUpdate, showActions = true }: Ch
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-        <div className="flex items-center space-x-2 flex-1">
-          <User className="h-5 w-5 text-blue-600" />
+        <div className="flex items-center space-x-3 flex-1">
+          <Avatar className="h-10 w-10 border">
+            <AvatarImage src={child.photo_url} alt={`${child.first_name} ${child.last_name}`} />
+            <AvatarFallback className="bg-primary/10 text-primary">
+              {child.first_name?.charAt(0) || <User className="h-5 w-5" />}
+            </AvatarFallback>
+          </Avatar>
           <CardTitle className="text-lg">
             {child.first_name} {child.last_name}
           </CardTitle>

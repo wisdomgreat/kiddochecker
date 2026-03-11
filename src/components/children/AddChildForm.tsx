@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { 
   User, 
   Calendar, 
@@ -43,6 +44,7 @@ interface Child {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   notes?: string;
+  photoUrl?: string;
 }
 
 const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
@@ -54,6 +56,7 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
   const [emergencyContactName, setEmergencyContactName] = useState("");
   const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -73,6 +76,7 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
           emergency_contact_name: childData.emergencyContactName,
           emergency_contact_phone: childData.emergencyContactPhone,
           notes: childData.notes,
+          photo_url: childData.photoUrl,
           parent_id: user.id,
         })
         .select()
@@ -96,6 +100,7 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
       setEmergencyContactName("");
       setEmergencyContactPhone("");
       setNotes("");
+      setPhotoUrl("");
       onSuccess?.();
     },
     onError: (error: any) => {
@@ -129,6 +134,7 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
       emergencyContactName,
       emergencyContactPhone,
       notes,
+      photoUrl,
     };
 
     addChildMutation.mutate(childData);
@@ -142,17 +148,28 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
         </DialogHeader>
         <Card className="border-0 shadow-none">
           <CardContent className="p-0">
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  placeholder="Enter first name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  required
+            <form onSubmit={onSubmit} className="space-y-6 mt-4">
+              <div className="flex flex-col items-center justify-center mb-6">
+                <Label className="mb-2">Child Photo</Label>
+                <ImageUpload
+                  bucket="avatars"
+                  size="lg"
+                  fallbackText={firstName ? firstName.charAt(0).toUpperCase() : "B"}
+                  onUpload={(url) => setPhotoUrl(url)}
                 />
               </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    placeholder="Enter first name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
+                </div>
               <div>
                 <Label htmlFor="lastName">Last Name</Label>
                 <Input
@@ -210,14 +227,15 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
                   onChange={(e) => setEmergencyContactPhone(e.target.value)}
                 />
               </div>
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Enter notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Enter notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={addChildMutation.isPending}>

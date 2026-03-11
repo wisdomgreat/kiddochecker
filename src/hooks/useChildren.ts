@@ -15,6 +15,7 @@ export interface Child {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   notes?: string;
+  photo_url?: string;
   created_at: string;
   updated_at: string;
 }

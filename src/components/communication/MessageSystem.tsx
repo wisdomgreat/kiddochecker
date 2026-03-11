@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +27,9 @@ import {
   Plus,
   Search,
   Filter,
-  Clock
+  Clock,
+  Check,
+  ChevronsUpDown
 } from "lucide-react";
 
 interface User {
@@ -56,6 +61,7 @@ const MessageSystem = () => {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<User[]>([]);
+  const [openCombobox, setOpenCombobox] = useState(false);
   const [newMessage, setNewMessage] = useState({
     subject: "",
     content: "",
@@ -83,7 +89,7 @@ const MessageSystem = () => {
             )
           `)
           .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant', 'parent'])
-          .limit(200);
+          .limit(1000);
 
         if (staffError) {
           console.error("Error fetching staff:", staffError);
@@ -346,38 +352,63 @@ const MessageSystem = () => {
             
             <div className="p-6 space-y-5 bg-background">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 flex flex-col">
                     <Label htmlFor="recipient" className="text-sm font-semibold">
                     To <span className="text-destructive">*</span>
                     </Label>
-                    <Select
-                    value={newMessage.recipientId}
-                    onValueChange={(value) => setNewMessage({ ...newMessage, recipientId: value })}
-                    >
-                    <SelectTrigger id="recipient" className="transition-all hover:border-primary/50">
-                        <SelectValue placeholder="Select a recipient" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {users.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                            Searching for people...
-                        </div>
-                        ) : (
-                        users.map(recipient => (
-                            <SelectItem key={recipient.id} value={recipient.id} className="cursor-pointer">
-                            <div className="flex items-center justify-between w-full gap-8">
-                                <span className="font-medium">
-                                {recipient.first_name} {recipient.last_name}
-                                </span>
-                                <Badge variant="outline" className="text-[10px] uppercase font-bold shrink-0">
-                                {recipient.role}
-                                </Badge>
-                            </div>
-                            </SelectItem>
-                        ))
-                        )}
-                    </SelectContent>
-                    </Select>
+                    <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openCombobox}
+                          className="justify-between transition-all hover:border-primary/50 w-full font-normal"
+                        >
+                          {newMessage.recipientId
+                            ? (users.find((user) => user.id === newMessage.recipientId)?.first_name + " " + users.find((user) => user.id === newMessage.recipientId)?.last_name) || "Unknown User"
+                            : "Select a recipient..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search people..." className="h-9" />
+                          <CommandList>
+                            <CommandEmpty>No person found.</CommandEmpty>
+                            <CommandGroup>
+                              {users.map((recipient) => (
+                                <CommandItem
+                                  key={recipient.id}
+                                  value={`${recipient.first_name} ${recipient.last_name}`}
+                                  onSelect={() => {
+                                    setNewMessage({ ...newMessage, recipientId: recipient.id });
+                                    setOpenCombobox(false);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <div className="flex items-center">
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          newMessage.recipientId === recipient.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      <span className="font-medium">
+                                      {recipient.first_name} {recipient.last_name}
+                                      </span>
+                                    </div>
+                                    <Badge variant="outline" className="ml-2 text-[10px] uppercase font-bold shrink-0">
+                                    {recipient.role}
+                                    </Badge>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                 </div>
                 
                 <div className="space-y-2">

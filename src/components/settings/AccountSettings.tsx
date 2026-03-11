@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -22,6 +23,7 @@ const formSchema = z.object({
 const AccountSettings = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -76,6 +78,13 @@ const AccountSettings = () => {
           phone: profile.phone || '',
           role: roleData.role || 'parent',
         });
+
+        // Set avatar url if it exists
+        if (profile.avatar_url) {
+          setAvatarUrl(profile.avatar_url);
+        } else if (profile.photo_url) {
+          setAvatarUrl(profile.photo_url);
+        }
       } catch (error: any) {
         console.error('Error loading profile:', error);
         toast({
@@ -114,6 +123,7 @@ const AccountSettings = () => {
           first_name: firstName,
           last_name: lastName,
           phone: values.phone,
+          avatar_url: avatarUrl,
         })
         .eq('id', user.id);
         
@@ -144,20 +154,14 @@ const AccountSettings = () => {
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-            <div className="flex flex-col items-center space-y-4">
-              <Avatar className="h-24 w-24">
-                <AvatarImage 
-                  src="/lovable-uploads/029d2e1a-eb1f-4149-89ea-500a876d3568.png" 
-                  alt="Profile" 
-                />
-                <AvatarFallback>
-                  {form.getValues().name.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              <Button variant="outline" size="sm" className="flex gap-2">
-                <Upload size={14} />
-                Change Avatar
-              </Button>
+            <div className="flex flex-col items-center space-y-4 pt-4">
+              <ImageUpload
+                bucket="avatars"
+                size="xl"
+                defaultImage={avatarUrl}
+                fallbackText={form.getValues().name ? form.getValues().name.charAt(0).toUpperCase() : "U"}
+                onUpload={(url) => setAvatarUrl(url)}
+              />
             </div>
 
             <Form {...form}>

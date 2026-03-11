@@ -38,8 +38,8 @@ const DocumentUploadSystem = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 300 * 1024) {
-        alert("File too large. Please select a file smaller than 300KB.");
+      if (file.size > 200 * 1024) {
+        alert("File too large. Please select a file smaller than 200KB.");
         return;
       }
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
@@ -203,7 +203,7 @@ const DocumentUploadSystem = () => {
                     className="cursor-pointer"
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    PDF, JPG, PNG files only. Max 300KB.
+                    PDF, JPG, PNG files only. Max 200KB.
                   </p>
                 </div>
               </div>
