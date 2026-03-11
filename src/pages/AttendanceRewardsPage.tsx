@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/context/AuthContext";
+import ModernLayout from "@/components/layout/ModernLayout";
 import { useToast } from "@/hooks/use-toast";
-import { Trophy, Star, Gift, Plus, Edit, Trash2 } from "lucide-react";
+import { Trophy, Star, Gift, Plus, Edit, Trash2, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Reward {
@@ -29,38 +31,29 @@ const AttendanceRewardsPage = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
 
-  // For now, let's use mock data since rewards table doesn't exist
   const { data: rewards = [], isLoading, refetch } = useQuery({
     queryKey: ["rewards"],
     queryFn: async (): Promise<Reward[]> => {
-      // Mock rewards data until rewards table is created
-      return [
-        {
-          id: '1',
-          name: 'Perfect Attendance',
-          description: 'Attend all sessions in a month',
-          points: 100,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          name: 'Helper Badge',
-          description: 'Help clean up after class',
-          points: 50,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
+      const { data, error } = await supabase
+        .from("rewards")
+        .select("*")
+        .order("points", { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
     },
   });
 
-  // Mock mutations for now
   const addRewardMutation = useMutation({
     mutationFn: async (rewardData: Omit<Reward, 'id' | 'created_at' | 'updated_at'>) => {
-      // Mock implementation
-      console.log('Adding reward:', rewardData);
-      return { id: Math.random().toString(), ...rewardData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      const { data, error } = await supabase
+        .from("rewards")
+        .insert([rewardData])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rewards"] });
@@ -82,9 +75,15 @@ const AttendanceRewardsPage = () => {
 
   const updateRewardMutation = useMutation({
     mutationFn: async ({ id, ...rewardData }: Partial<Reward> & { id: string }) => {
-      // Mock implementation
-      console.log('Updating reward:', id, rewardData);
-      return { id, ...rewardData };
+      const { data, error } = await supabase
+        .from("rewards")
+        .update(rewardData)
+        .eq("id", id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rewards"] });
@@ -106,8 +105,12 @@ const AttendanceRewardsPage = () => {
 
   const deleteRewardMutation = useMutation({
     mutationFn: async (rewardId: string) => {
-      // Mock implementation
-      console.log('Deleting reward:', rewardId);
+      const { error } = await supabase
+        .from("rewards")
+        .delete()
+        .eq("id", rewardId);
+      
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rewards"] });
@@ -127,85 +130,117 @@ const AttendanceRewardsPage = () => {
   });
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Attendance Rewards Management</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Button onClick={() => setIsAddOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Reward
-            </Button>
+    <ModernLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Attendance Rewards</h1>
+            <p className="text-muted-foreground">
+              Manage student rewards and point values.
+            </p>
           </div>
+          <Button onClick={() => setIsAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Reward
+          </Button>
+        </div>
 
-          {isLoading ? (
-            <p>Loading rewards...</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {rewards.map((reward) => (
-                <Card key={reward.id}>
-                  <CardHeader>
-                    <CardTitle className="flex justify-between items-center">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rewards.map((reward) => (
+              <Card key={reward.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-amber-500" />
                       {reward.name}
-                      <div className="space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedReward(reward)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => deleteRewardMutation.mutate(reward.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </Button>
-                      </div>
                     </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-500">{reward.description}</p>
-                    <div className="mt-2">
-                      <Label>Points:</Label>
-                      <p>{reward.points}</p>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setSelectedReward(reward)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          if (window.confirm("Are you sure you want to delete this reward?")) {
+                            deleteRewardMutation.mutate(reward.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {reward.description || "No description provided."}
+                  </p>
+                  <div className="flex items-center justify-between pt-2">
+                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-100">
+                      {reward.points} Points
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-      {/* Add Reward Dialog */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Reward</DialogTitle>
-          </DialogHeader>
-          <AddEditRewardForm
-            onSubmit={(values) => {
-              addRewardMutation.mutate(values as Omit<Reward, 'id' | 'created_at' | 'updated_at'>);
-            }}
-            isLoading={addRewardMutation.isPending}
-          />
-        </DialogContent>
-      </Dialog>
+        {rewards.length === 0 && !isLoading && (
+          <Card className="border-dashed">
+            <CardContent className="py-12 text-center">
+              <Gift className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-semibold mb-2">No Rewards Created</h3>
+              <p className="text-muted-foreground mb-4">
+                Get started by creating your first attendance reward.
+              </p>
+              <Button onClick={() => setIsAddOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add First Reward
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Edit Reward Dialog */}
-      <Dialog open={!!selectedReward} onOpenChange={() => setSelectedReward(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Reward</DialogTitle>
-          </DialogHeader>
-          <AddEditRewardForm
-            reward={selectedReward}
-            onSubmit={(values) => {
-              updateRewardMutation.mutate({ id: selectedReward!.id, ...values });
-            }}
-            isLoading={updateRewardMutation.isPending}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
+        {/* Add Reward Dialog */}
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Reward</DialogTitle>
+            </DialogHeader>
+            <AddEditRewardForm
+              onSubmit={(values) => {
+                addRewardMutation.mutate(values as Omit<Reward, 'id' | 'created_at' | 'updated_at'>);
+              }}
+              isLoading={addRewardMutation.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Reward Dialog */}
+        <Dialog open={!!selectedReward} onOpenChange={() => setSelectedReward(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Reward</DialogTitle>
+            </DialogHeader>
+            <AddEditRewardForm
+              reward={selectedReward}
+              onSubmit={(values) => {
+                updateRewardMutation.mutate({ id: selectedReward!.id, ...values });
+              }}
+              isLoading={updateRewardMutation.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </ModernLayout>
   );
 };
 

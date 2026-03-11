@@ -55,6 +55,12 @@ const QRManagementPage = lazy(() => import("./pages/QRManagementPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 const EmailTemplatesPage = lazy(() => import("./pages/EmailTemplatesPage"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
+const AttendanceRewardsPage = lazy(() => import("./pages/AttendanceRewardsPage"));
+const SystemHealth = lazy(() => import("./pages/SystemHealth"));
+const KioskManagement = lazy(() => import("./pages/KioskManagement"));
+const EventsManagement = lazy(() => import("./pages/EventsManagement"));
+const HelpDocumentation = lazy(() => import("./pages/HelpDocumentation"));
+const AboutUsPage = lazy(() => import("./pages/AboutUsPage"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -147,6 +153,12 @@ function App() {
                     <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
                     <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
                     <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EmailTemplatesPage /></RoleBasedRoute>} />
+                    <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
+                    <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SystemHealth /></RoleBasedRoute>} />
+                    <Route path="/admin/kiosks" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><KioskManagement /></RoleBasedRoute>} />
+                    <Route path="/admin/events" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EventsManagement /></RoleBasedRoute>} />
+                    <Route path="/help" element={<ProtectedRoute><HelpDocumentation /></ProtectedRoute>} />
+                    <Route path="/about" element={<AboutUsPage />} />
 
                     {/* Catch all route */}
                     <Route path="*" element={<Navigate to="/" replace />} />

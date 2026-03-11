@@ -2,7 +2,8 @@
 import {
   Calendar, Home, Users, Settings, BarChart3, Building, LogOut,
   Baby, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare,
-  QrCode, Printer, Zap, Shield, Activity, ShieldCheck
+  QrCode, Printer, Zap, Shield, Activity, ShieldCheck,
+  Trophy, HeartPulse, HelpCircle, LayoutGrid
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -43,7 +44,12 @@ export function AppSidebar() {
     { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "Check-In", url: "/check-in", icon: Monitor },
     { title: "Check-Out", url: "/check-out", icon: ClipboardCheck },
+    { title: "Events Management", url: "/admin/events", icon: Calendar },
+    { title: "Kiosk Management", url: "/admin/kiosks", icon: Monitor },
+    { title: "Attendance Rewards", url: "/admin/rewards", icon: Trophy },
+    { title: "System Health", url: "/admin/system-health", icon: HeartPulse },
     { title: "Audit Log", url: "/audit-log", icon: Activity },
+    { title: "Help & Docs", url: "/help", icon: HelpCircle },
     { title: "Settings", url: "/settings", icon: Settings },
     { title: "My Profile", url: "/profile", icon: Users },
   ];
@@ -57,6 +63,7 @@ export function AppSidebar() {
     { title: "Calendar", url: "/calendar", icon: Calendar },
     { title: "Messages", url: "/messages", icon: MessageSquare },
     { title: "My Documents", url: "/staff/documents", icon: Shield },
+    { title: "Help & Docs", url: "/help", icon: HelpCircle },
     { title: "My Profile", url: "/profile", icon: Users },
   ];
 
@@ -64,6 +71,7 @@ export function AppSidebar() {
     { title: "Dashboard", url: "/staff-dashboard", icon: Home },
     { title: "My Documents", url: "/staff/documents", icon: Shield },
     { title: "Messages", url: "/messages", icon: MessageSquare },
+    { title: "Help & Docs", url: "/help", icon: HelpCircle },
     { title: "My Profile", url: "/profile", icon: Users },
   ];
 
@@ -72,6 +80,7 @@ export function AppSidebar() {
     { title: "My Children", url: "/parent/children", icon: Baby },
     { title: "Attendance", url: "/parent/attendance", icon: Calendar },
     { title: "Messages", url: "/parent/messages", icon: MessageSquare },
+    { title: "Help & Docs", url: "/help", icon: HelpCircle },
     { title: "Profile", url: "/parent/profile", icon: Users },
   ];
 
