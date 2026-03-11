@@ -29,8 +29,10 @@ import {
   Filter,
   Clock,
   Check,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Smartphone
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface User {
   id: string;
@@ -65,7 +67,9 @@ const MessageSystem = () => {
   const [newMessage, setNewMessage] = useState({
     subject: "",
     content: "",
-    recipientId: ""
+    recipientId: "",
+    sendViaSms: false,
+    sendViaEmail: false
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -438,12 +442,39 @@ const MessageSystem = () => {
                 />
               </div>
 
+              {['admin', 'super_admin'].includes(user?.user_metadata?.role || '') && (
+                <div className="flex flex-col sm:flex-row gap-6 p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                  <div className="flex items-center space-x-3">
+                    <Switch
+                        id="sms-toggle"
+                        checked={newMessage.sendViaSms}
+                        onCheckedChange={(c) => setNewMessage({ ...newMessage, sendViaSms: c })}
+                    />
+                    <Label htmlFor="sms-toggle" className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+                        <Smartphone className="h-4 w-4 text-indigo-600" />
+                        Send as SMS
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Switch
+                        id="email-toggle"
+                        checked={newMessage.sendViaEmail}
+                        onCheckedChange={(c) => setNewMessage({ ...newMessage, sendViaEmail: c })}
+                    />
+                    <Label htmlFor="email-toggle" className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+                        <Mail className="h-4 w-4 text-emerald-600" />
+                        Send as Email
+                    </Label>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end items-center gap-3 pt-4 border-t">
                 <Button
                   variant="ghost"
                   onClick={() => {
                     setIsComposeOpen(false);
-                    setNewMessage({ subject: "", content: "", recipientId: "" });
+                    setNewMessage({ subject: "", content: "", recipientId: "", sendViaSms: false, sendViaEmail: false });
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >
@@ -454,10 +485,12 @@ const MessageSystem = () => {
                         sendMessage({
                             subject: newMessage.subject,
                             content: newMessage.content,
-                            recipient_id: newMessage.recipientId
+                            recipient_id: newMessage.recipientId,
+                            sent_via_sms: newMessage.sendViaSms,
+                            sent_via_email: newMessage.sendViaEmail
                         });
                         setIsComposeOpen(false);
-                        setNewMessage({ subject: "", content: "", recipientId: "" });
+                        setNewMessage({ subject: "", content: "", recipientId: "", sendViaSms: false, sendViaEmail: false });
                     }}
                     disabled={
                       isSending ||

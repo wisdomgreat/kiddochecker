@@ -6,7 +6,8 @@ import AppearanceSettings from '@/components/settings/AppearanceSettings';
 import SecuritySettings from '@/components/settings/SecuritySettings';
 import KioskSettings from '@/components/settings/KioskSettings';
 import SystemMaintenance from '@/components/settings/SystemMaintenance';
-import { Monitor, Wrench } from 'lucide-react';
+import IntegrationSettings from '@/components/settings/IntegrationSettings';
+import { Monitor, Wrench, Link as LinkIcon } from 'lucide-react';
 
 const SettingsPage = () => {
   return (
@@ -25,6 +26,10 @@ const SettingsPage = () => {
             <TabsTrigger value="kiosk" className="flex items-center gap-2">
               <Monitor className="h-4 w-4" />
               Kiosk
+            </TabsTrigger>
+            <TabsTrigger value="integrations" className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4" />
+              Integrations
             </TabsTrigger>
             <TabsTrigger value="maintenance" className="flex items-center gap-2">
               <Wrench className="h-4 w-4" />
@@ -46,6 +51,10 @@ const SettingsPage = () => {
 
           <TabsContent value="kiosk" className="space-y-4">
             <KioskSettings />
+          </TabsContent>
+
+          <TabsContent value="integrations" className="space-y-4">
+            <IntegrationSettings />
           </TabsContent>
 
           <TabsContent value="maintenance" className="space-y-4">

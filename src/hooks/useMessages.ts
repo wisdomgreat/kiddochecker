@@ -12,6 +12,8 @@ export interface Message {
   is_read: boolean;
   recipient_role?: string;
   is_broadcast?: boolean;
+  sent_via_sms?: boolean;
+  sent_via_email?: boolean;
   created_at: string;
   updated_at: string;
   sender?: {
@@ -107,6 +109,8 @@ export const useMessages = () => {
       content: string;
       recipient_id?: string;
       recipient_role?: string;
+      sent_via_sms?: boolean;
+      sent_via_email?: boolean;
     }) => {
       if (!user?.id) throw new Error("User not authenticated");
 
@@ -118,7 +122,9 @@ export const useMessages = () => {
           content: messageData.content,
           recipient_id: messageData.recipient_id || null,
           recipient_role: messageData.recipient_role || null,
-          is_broadcast: !!messageData.recipient_role
+          is_broadcast: !!messageData.recipient_role,
+          sent_via_sms: messageData.sent_via_sms || false,
+          sent_via_email: messageData.sent_via_email || false
         })
         .select()
         .single();

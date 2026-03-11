@@ -12,13 +12,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { useClasses } from '@/hooks/useClasses';
-import { Users, Clock, StickyNote } from 'lucide-react';
+import { Users, Clock, StickyNote, ActivitySquare, AlertTriangle } from 'lucide-react';
+import { useTranslation, Language } from '@/lib/i18n';
 
 interface ClassSelectionDialogProps {
   open: boolean;
   onClose: () => void;
   onConfirm: (classId: string, specialInstructions: string) => void;
   childName: string;
+  language?: Language;
 }
 
 const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
@@ -26,10 +28,14 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
   onClose,
   onConfirm,
   childName,
+  language = 'en',
 }) => {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [instructions, setInstructions] = useState('');
+  const [hasFever, setHasFever] = useState<boolean | null>(null);
+  const [hasCough, setHasCough] = useState<boolean | null>(null);
   const { classes, isLoading } = useClasses();
+  const { t } = useTranslation(language);
 
   const handleConfirm = () => {
     if (selectedClass) {
@@ -42,9 +48,9 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Select Class for {childName}</DialogTitle>
+          <DialogTitle className="text-2xl">{t('selectChild').replace('...', '')} - {childName}</DialogTitle>
           <DialogDescription>
-            Please select which class to check this child into
+            {t('subtitle')}
           </DialogDescription>
         </DialogHeader>
 
@@ -94,11 +100,61 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                 ))}
               </div>
             </RadioGroup>
+
+            <div className="p-4 bg-muted/10 rounded-lg border border-border space-y-4">
+              <Label className="flex items-center gap-2 text-primary font-semibold text-lg">
+                <ActivitySquare className="w-5 h-5" />
+                {t('wellnessSurvey')}
+              </Label>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t('wellnessQuestion1')}</Label>
+                  <RadioGroup 
+                    className="flex gap-4" 
+                    value={hasFever === null ? '' : hasFever.toString()} 
+                    onValueChange={(val) => setHasFever(val === 'true')}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="fever-yes" />
+                      <Label htmlFor="fever-yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="fever-no" />
+                      <Label htmlFor="fever-no">No</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t('wellnessQuestion2')}</Label>
+                  <RadioGroup 
+                    className="flex gap-4" 
+                    value={hasCough === null ? '' : hasCough.toString()} 
+                    onValueChange={(val) => setHasCough(val === 'true')}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="cough-yes" />
+                      <Label htmlFor="cough-yes">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="cough-no" />
+                      <Label htmlFor="cough-no">No</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+              
+              {(hasFever === true || hasCough === true) && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2 text-destructive mt-4">
+                    <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <p className="text-sm font-medium">{t('wellnessFail')}</p>
+                </div>
+              )}
+            </div>
             
             <div className="p-4 bg-muted/30 rounded-lg border border-border space-y-3">
               <Label htmlFor="instructions" className="flex items-center gap-2 text-primary font-semibold">
                 <StickyNote className="w-4 h-4" />
-                Special Instructions (Optional)
+                {t('specialInstructions')}
               </Label>
               <Textarea 
                 id="instructions"
@@ -109,7 +165,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                 onChange={(e) => setInstructions(e.target.value)}
               />
               <p className="text-xs text-muted-foreground flex items-center justify-between">
-                <span>Notes will be visible to staff and printed on the name tag.</span>
+                <span>{t('addNotes')}</span>
                 <span className={instructions.length > 150 ? "text-destructive" : ""}>{instructions.length}/150</span>
               </p>
             </div>
@@ -118,10 +174,14 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
 
         <div className="flex gap-3 mt-6">
           <Button variant="outline" onClick={onClose} className="flex-1">
-            Cancel
+            {t('cancel')}
           </Button>
-          <Button onClick={handleConfirm} disabled={!selectedClass} className="flex-1">
-            Confirm Check-In
+          <Button 
+            onClick={handleConfirm} 
+            disabled={!selectedClass || hasFever === null || hasCough === null || hasFever || hasCough} 
+            className="flex-1"
+          >
+            {hasFever || hasCough ? t('wellnessFail') : t('checkIn')}
           </Button>
         </div>
       </DialogContent>
