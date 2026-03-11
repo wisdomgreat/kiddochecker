@@ -9,6 +9,9 @@ export interface OrganizationSettings {
   logo_url?: string;
   primary_color: string;
   font_family: string;
+  kiosk_id?: string;
+  require_checkout_signature?: boolean;
+  google_maps_api_key?: string;
   created_by?: string;
   created_at: string;
   updated_at: string;

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Phone, Edit, Trash2, Loader2, Shield, UserPlus, Users } from 'lucide-react';
+import { Mail, Phone, Edit, Trash2, Loader2, Shield, UserPlus, Users, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -13,10 +13,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-
 import { useStaff, type StaffMember } from '@/hooks/useStaff';
 
-const StaffPage = () => {
+const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const { staff, isLoading, addStaff, isAddingStaff, updateStaff, isUpdatingStaff, resendWelcomeEmail, isResendingEmail } = useStaff();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -95,7 +94,6 @@ const StaffPage = () => {
     if (!selectedStaff) return;
 
     try {
-      // Delete user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .delete()
@@ -103,7 +101,6 @@ const StaffPage = () => {
 
       if (roleError) throw roleError;
 
-      // Delete profile
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -151,9 +148,9 @@ const StaffPage = () => {
     }
   };
 
-  return (
-    <UnifiedDashboardLayout>
-      <div className="space-y-6">
+  const content = (
+    <div className="space-y-6">
+      {!isEmbedded && (
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Staff Management</h1>
@@ -164,158 +161,186 @@ const StaffPage = () => {
             Add Staff Member
           </Button>
         </div>
+      )}
 
-        {/* Search */}
-        <div className="flex gap-4">
-          <Input
-            placeholder="Search staff members..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-
-        {/* Stats */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-4"
-          variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
-          initial="hidden" animate="show"
-        >
-          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{staff?.length || 0}</div>
-              </CardContent>
-            </Card>
-          </motion.div>
-          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Verified Staff</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {staff?.filter((s: StaffMember) => s.is_active).length || 0}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Volunteers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {staff?.filter((s: StaffMember) => s.is_volunteer).length || 0}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        {/* Staff List */}
-        <motion.div
-          className="grid gap-4"
-          variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
-          initial="hidden" animate="show"
-        >
-          {isLoading ? (
-            <Card>
-              <CardContent className="p-6 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </CardContent>
-            </Card>
-          ) : filteredStaff && filteredStaff.length > 0 ? (
-            filteredStaff.map((member: StaffMember) => (
-              <motion.div key={member.user_id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Users className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">
-                            {member.first_name} {member.last_name}
-                          </CardTitle>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                            <span className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              {member.email}
-                            </span>
-                            {member.phone && (
-                              <span className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {member.phone}
-                              </span>
-                            )}
-                            {member.staff_pin && (
-                              <span className="flex items-center gap-1 font-mono text-indigo-600 font-bold bg-indigo-50 px-2 rounded-md">
-                                <Shield className="h-3 w-3" />
-                                PIN: {member.staff_pin}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getRoleBadgeVariant(member.role)} className="capitalize">
-                          {member.role?.replace('_', ' ')}
-                        </Badge>
-                        {member.is_super_admin && (
-                          <Badge variant="default" className="bg-amber-500">
-                            <Shield className="h-3 w-3 mr-1" />
-                            Super Admin
-                          </Badge>
-                        )}
-                        {member.is_volunteer && (
-                          <Badge variant="outline">Volunteer</Badge>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => resendWelcomeEmail(member)}
-                          disabled={isResendingEmail}
-                          title="Resend Welcome Email"
-                        >
-                          <Mail className={`h-4 w-4 ${isResendingEmail ? 'animate-pulse' : ''}`} />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(member)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(member)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
-              </motion.div>
-            ))
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center">
-                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Staff Members</h3>
-                <p className="text-muted-foreground mb-4">
-                  Get started by adding your first staff member
-                </p>
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Staff Member
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </motion.div>
+      {/* Search */}
+      <div className="flex gap-4">
+        <Input
+          placeholder="Search staff members..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+        {isEmbedded && (
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Staff
+          </Button>
+        )}
       </div>
 
-      {/* Add Staff Dialog */}
+      {/* Stats */}
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
+        initial="hidden" animate="show"
+      >
+        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{staff?.length || 0}</div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Verified Staff</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {staff?.filter((s: StaffMember) => s.is_active).length || 0}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Volunteers</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {staff?.filter((s: StaffMember) => s.is_volunteer).length || 0}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
+
+      {/* Staff List */}
+      <motion.div
+        className="grid gap-4"
+        variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
+        initial="hidden" animate="show"
+      >
+        {isLoading ? (
+          <Card>
+            <CardContent className="p-6 flex items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ) : filteredStaff && filteredStaff.length > 0 ? (
+          filteredStaff.map((member: StaffMember) => (
+            <motion.div key={member.user_id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+                        {member.avatar_url || member.photo_url ? (
+                          <img 
+                            src={member.avatar_url || member.photo_url} 
+                            alt={`${member.first_name}`} 
+                            className="h-full w-full object-cover" 
+                          />
+                        ) : (
+                          <Users className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          {member.first_name} {member.last_name}
+                        </CardTitle>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {member.email}
+                          </span>
+                          {member.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {member.phone}
+                            </span>
+                          )}
+                          {member.staff_pin && (
+                            <span className="flex items-center gap-1 font-mono text-indigo-600 font-bold bg-indigo-50 px-2 rounded-md">
+                              <Shield className="h-3 w-3" />
+                              PIN: {member.staff_pin}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={getRoleBadgeVariant(member.role)} className="capitalize">
+                        {member.role?.replace('_', ' ')}
+                      </Badge>
+                      {member.is_super_admin && (
+                        <Badge variant="default" className="bg-amber-500">
+                          <Shield className="h-3 w-3 mr-1" />
+                          Super Admin
+                        </Badge>
+                      )}
+                      {member.is_volunteer && (
+                        <Badge variant="outline">Volunteer</Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => resendWelcomeEmail(member)}
+                        disabled={isResendingEmail}
+                        title="Resend Welcome Email"
+                      >
+                        <Mail className={`h-4 w-4 ${isResendingEmail ? 'animate-pulse' : ''}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                        onClick={() => {
+                          toast({
+                            title: "Background Check Requested",
+                            description: `A background check request has been sent to the partner for ${member.first_name}.`,
+                          });
+                        }}
+                        title="Request Background Check"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(member)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(member)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            </motion.div>
+          ))
+        ) : (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Staff Members</h3>
+              <p className="text-muted-foreground mb-4">
+                Get started by adding your first staff member
+              </p>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Staff Member
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </motion.div>
+
+      {/* Dialogs */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -387,7 +412,6 @@ const StaffPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Staff Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -461,7 +485,6 @@ const StaffPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -478,6 +501,14 @@ const StaffPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+
+  if (isEmbedded) return content;
+
+  return (
+    <UnifiedDashboardLayout>
+      {content}
     </UnifiedDashboardLayout>
   );
 };

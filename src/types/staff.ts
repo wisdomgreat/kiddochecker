@@ -16,6 +16,8 @@ export interface StaffMember {
   is_active: boolean;
   verification_status?: string;
   staff_pin?: string;
+  avatar_url?: string;
+  photo_url?: string;
 }
 
 export interface AddStaffData {

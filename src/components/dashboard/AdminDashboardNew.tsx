@@ -214,6 +214,7 @@ const AdminDashboardNew = () => {
     const quickActions = [
         { title: "Check-In Kiosk", description: "Launch the QR check-in station", icon: QrCode, color: "bg-indigo-500", path: "/check-in" },
         { title: "Print QR Labels", description: "Print QR codes for children", icon: Printer, color: "bg-emerald-500", path: "/qr-management" },
+        { title: "Staff Schedules", description: "Manage team shifts & roster", icon: Calendar, color: "bg-rose-500", path: "/staff/schedules" },
         { title: "Manage Users", description: "Add, edit, and manage accounts", icon: Users, color: "bg-blue-500", path: "/users" },
         { title: "Device Enrollment", description: "Enroll kiosk & printer devices", icon: Zap, color: "bg-purple-500", path: "/devices" },
         { title: "Reports & Analytics", description: "View detailed attendance reports", icon: BarChart3, color: "bg-orange-500", path: "/reports" },

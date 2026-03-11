@@ -17,7 +17,9 @@ export interface CheckOutData {
   qrToken?: string;
   method?: string;
   station?: string;
+  signatureData?: string;
 }
+
 
 export class AttendanceService {
   static async checkInChild(data: CheckInData): Promise<{ success: boolean; attendanceId?: string; error?: string }> {
@@ -58,8 +60,10 @@ export class AttendanceService {
         p_checked_out_by: data.checkedOutBy || null,
         p_qr_token: data.qrToken || null,
         p_method: data.method || 'app_dashboard',
-        p_station: data.station || null
+        p_station: data.station || null,
+        p_signature_data: data.signatureData || null
       });
+
 
       if (error) {
         console.error("Check-out error:", error);

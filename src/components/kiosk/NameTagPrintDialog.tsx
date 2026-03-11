@@ -7,9 +7,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import DOMPurify from 'dompurify';
+import { useTranslation, Language } from '@/lib/i18n';
 
 interface NameTagPrintDialogProps {
   open: boolean;
@@ -24,6 +25,7 @@ interface NameTagPrintDialogProps {
   className?: string;
   securityCode?: string; // Optional passed code, otherwise we generate a random 4-char one
   specialInstructions?: string;
+  language?: Language;
 }
 
 const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
@@ -34,7 +36,9 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   className,
   securityCode,
   specialInstructions,
+  language = 'en'
 }) => {
+  const { t } = useTranslation(language);
   const printRef = useRef<HTMLDivElement>(null);
   
   // Generate a matching security code for the session if not provided
@@ -164,12 +168,9 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                   <span>Date: ${new Date().toLocaleDateString()}</span>
                 </div>
                 <div class="qr-area">
-                  <!-- The precise QR SVG will be injected from the React render if we use printRef, 
-                       but we are constructing custom HTML. Let's just grab the QR svg from the DOM. -->
                   <div id="qr-inject"></div>
                   <div style="font-size:10px; line-height:1.2;">
-                    <strong>Guardian Notice:</strong><br/>
-                    Present matching tag for pick-up.
+                    <strong>${t('guardianNotice')}</strong>
                   </div>
                 </div>
               </div>
@@ -177,9 +178,9 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
 
             <!-- PARENT CLAIM TICKET -->
             <div class="label-box">
-              <div class="ticket-title">PRIMARY GUARDIAN CLAIM TICKET</div>
+              <div class="ticket-title">${t('claimTicket')}</div>
               <div style="text-align:center; margin: auto 0;">
-                <div style="font-size: 12px; margin-bottom: 10px;">Security Match Code</div>
+                <div style="font-size: 12px; margin-bottom: 10px;">${t('securityCode')}</div>
                 <div class="security-code-box" style="font-size: 32px; padding: 10px; display:inline-block;">${displayCode}</div>
                 <div style="font-size: 16px; margin-top: 15px; font-weight:bold;">${safeFirstName} ${safeLastName}</div>
                 <div style="font-size: 12px; margin-top: 5px;">Date: ${new Date().toLocaleDateString()}</div>
@@ -215,7 +216,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Print Name Tag</DialogTitle>
+          <DialogTitle>{t('printNameTag')}</DialogTitle>
           <DialogDescription>
             Preview and print the name tag for {child.first_name} {child.last_name}
           </DialogDescription>
@@ -260,8 +261,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                     className="qr-rendered-svg"
                   />
                   <div className="text-[9px] leading-tight font-medium text-gray-700">
-                    <strong>Guardian Notice:</strong><br />
-                    Must present matching tag with code {displayCode} for pick-up.
+                    <strong>{t('guardianNotice')}</strong>
                   </div>
                 </div>
               </div>
@@ -273,7 +273,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                 PRIMARY GUARDIAN CLAIM TICKET
               </div>
               <div className="flex flex-col items-center justify-center flex-1">
-                <div className="text-xs mb-2 text-gray-600 font-medium">Security Match Code</div>
+                <div className="text-xs mb-2 text-gray-600 font-medium">{t('securityCode')}</div>
                 <div className="bg-black text-white px-6 py-2 font-mono text-3xl font-bold rounded tracking-widest">
                   {displayCode}
                 </div>
@@ -287,11 +287,11 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
 
         <div className="flex gap-3 mt-4">
           <Button variant="outline" onClick={onClose} className="flex-1">
-            Close
+            {t('cancel')}
           </Button>
           <Button onClick={handlePrint} className="flex-1">
             <Printer className="h-4 w-4 mr-2" />
-            Print Name Tag
+            {t('printNameTag')}
           </Button>
         </div>
       </DialogContent>

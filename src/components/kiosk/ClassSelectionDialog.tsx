@@ -116,11 +116,11 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="true" id="fever-yes" />
-                      <Label htmlFor="fever-yes">Yes</Label>
+                      <Label htmlFor="fever-yes">{t('yes')}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="false" id="fever-no" />
-                      <Label htmlFor="fever-no">No</Label>
+                      <Label htmlFor="fever-no">{t('no')}</Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -133,11 +133,11 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="true" id="cough-yes" />
-                      <Label htmlFor="cough-yes">Yes</Label>
+                      <Label htmlFor="cough-yes">{t('yes')}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="false" id="cough-no" />
-                      <Label htmlFor="cough-no">No</Label>
+                      <Label htmlFor="cough-no">{t('no')}</Label>
                     </div>
                   </RadioGroup>
                 </div>

@@ -110,6 +110,7 @@ const ParentProfile = () => {
           address: address,
           security_pin: securityPin,
           photo_url: photoUrl,
+          avatar_url: photoUrl,
         } as any)
         .eq('id', user.id)
         .select()

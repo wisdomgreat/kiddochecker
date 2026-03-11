@@ -26,6 +26,10 @@ interface DetailedReport {
   check_in_time: string;
   check_out_time: string | null;
   duration_hours: number | null;
+  checked_in_by_name: string;
+  checked_out_by_name: string;
+  checked_in_method: string;
+  checked_out_method: string;
 }
 
 const EnhancedReporting = () => {
@@ -63,13 +67,18 @@ const EnhancedReporting = () => {
   const { data: detailedData = [], isLoading: detailedLoading } = useQuery({
     queryKey: ['detailed-attendance-report', startDate, endDate],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_detailed_attendance_report', {
+      const { data, error } = await supabase.rpc('get_liability_audit_report', {
         start_date: startDate.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0]
       });
       
       if (error) throw error;
-      return (data || []) as DetailedReport[];
+      // Map fields from liability report to detailed report interface
+      return (data || []).map((r: any) => ({
+        ...r,
+        check_in_time: r.checked_in_at,
+        check_out_time: r.checked_out_at
+      })) as DetailedReport[];
     }
   });
 
@@ -164,9 +173,9 @@ const EnhancedReporting = () => {
             `${item.attendance_date},${item.class_name || 'All'},${item.total_checked_in || 0},${item.total_checked_out || 0}`
           ).join("\n")
         : "data:text/csv;charset=utf-8," +
-          "Date,Child,Class,Check-in Time,Check-out Time,Duration (hours)\n" +
+          "Date,Child,Class,Check-in Time,Check-in By,Check-in Method,Check-out Time,Check-out By,Check-out Method,Duration (hours)\n" +
           dataToExport.map((item: any) => 
-            `${item.attendance_date},"${item.child_name}","${item.class_name || 'N/A'}","${item.check_in_time || 'N/A'}","${item.check_out_time || 'N/A'}",${item.duration_hours || 0}`
+            `${item.attendance_date},"${item.child_name}","${item.class_name || 'N/A'}","${item.check_in_time || 'N/A'}","${item.checked_in_by_name || 'N/A'}","${item.checked_in_method || 'N/A'}","${item.check_out_time || 'N/A'}","${item.checked_out_by_name || 'N/A'}","${item.checked_out_method || 'N/A'}",${item.duration_hours || 0}`
           ).join("\n");
       
       const encodedUri = encodeURI(csvContent);
@@ -422,13 +431,25 @@ const EnhancedReporting = () => {
                   {filteredDetailedData.slice(0, 20).map((record, index) => (
                     <tr key={index} className="border-b hover:bg-gray-50">
                       <td className="p-2">{new Date(record.attendance_date).toLocaleDateString()}</td>
-                      <td className="p-2">{record.child_name}</td>
+                      <td className="p-2 font-medium">{record.child_name}</td>
                       <td className="p-2">
                         <Badge variant="outline">{record.class_name || 'N/A'}</Badge>
                       </td>
-                      <td className="p-2">{record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString() : 'N/A'}</td>
-                      <td className="p-2">{record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : 'Still checked in'}</td>
-                      <td className="p-2">{record.duration_hours ? `${record.duration_hours.toFixed(1)}h` : 'N/A'}</td>
+                      <td className="p-2">
+                        <div className="flex flex-col">
+                          <span>{record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString() : 'N/A'}</span>
+                          <span className="text-[10px] text-gray-500">By: {record.checked_in_by_name} ({record.checked_in_method})</span>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex flex-col">
+                          <span>{record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : 'Still checked in'}</span>
+                          {record.check_out_time && (
+                            <span className="text-[10px] text-gray-500">By: {record.checked_out_by_name} ({record.checked_out_method})</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2 font-bold">{record.duration_hours ? `${record.duration_hours.toFixed(1)}h` : 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>

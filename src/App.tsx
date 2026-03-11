@@ -2,6 +2,15 @@ import React, { lazy, Suspense } from "react";
 import "./App.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -41,6 +50,7 @@ const StaffPage = lazy(() => import("./pages/StaffPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const ChildrenPage = lazy(() => import("./pages/ChildrenPage"));
 const CalendarPage = lazy(() => import("./pages/CalendarPage"));
+const StaffSchedulesPage = lazy(() => import("./pages/StaffSchedulesPage"));
 const ParentChildrenPage = lazy(() => import("./pages/ParentChildrenPage"));
 const ParentAttendancePage = lazy(() => import("./pages/ParentAttendancePage"));
 const ParentMessagesPage = lazy(() => import("./pages/ParentMessagesPage"));
@@ -56,6 +66,9 @@ const KioskManagement = lazy(() => import("./pages/KioskManagement"));
 const EventsManagement = lazy(() => import("./pages/EventsManagement"));
 const HelpDocumentation = lazy(() => import("./pages/HelpDocumentation"));
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage"));
+const CentersPage = lazy(() => import("./pages/CentersPage"));
+const ShiftManagementPage = lazy(() => import("./pages/ShiftManagementPage"));
+
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -111,11 +124,14 @@ function App() {
                     <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><UsersPage /></RoleBasedRoute>} />
                     <Route path="/roles" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><RolesPage /></RoleBasedRoute>} />
                     <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><StaffPage /></RoleBasedRoute>} />
+                    <Route path="/staff/schedules" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><StaffSchedulesPage /></RoleBasedRoute>} />
                     <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><CombinedReportsWrapper /></RoleBasedRoute>} />
                     <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SettingsPage /></RoleBasedRoute>} />
                     <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
                     <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
                     <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><QRManagementPage /></RoleBasedRoute>} />
+                    <Route path="/admin/shifts" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><ShiftManagementPage /></RoleBasedRoute>} />
+
 
                     {/* Staff & Admin Shared Routes */}
                     <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
@@ -149,6 +165,7 @@ function App() {
                     <Route path="/admin/events" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EventsManagement /></RoleBasedRoute>} />
                     <Route path="/help" element={<ProtectedRoute><HelpDocumentation /></ProtectedRoute>} />
                     <Route path="/about" element={<AboutUsPage />} />
+                    <Route path="/centers" element={<ProtectedRoute><CentersPage /></ProtectedRoute>} />
 
                     {/* Catch all route */}
                     <Route path="*" element={<Navigate to="/" replace />} />

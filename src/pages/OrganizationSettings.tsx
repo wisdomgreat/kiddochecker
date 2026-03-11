@@ -32,8 +32,11 @@ const OrganizationSettings = () => {
     email_notifications: true,
     sms_notifications: false,
     print_name_tags: true,
+    require_checkout_signature: false,
+    google_maps_api_key: '',
     backup_frequency: 'daily'
   });
+
 
   const handleSave = async () => {
     try {
@@ -237,6 +240,17 @@ const OrganizationSettings = () => {
                     onCheckedChange={(checked) => setFormData({ ...formData, require_pin: checked })}
                   />
                 </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Digital Signature on Checkout</Label>
+                    <p className="text-sm text-muted-foreground">Require a digital signature for child pickup</p>
+                  </div>
+                  <Switch
+                    checked={formData.require_checkout_signature}
+                    onCheckedChange={(checked) => setFormData({ ...formData, require_checkout_signature: checked })}
+                  />
+                </div>
+
               </CardContent>
             </Card>
           </TabsContent>
@@ -317,6 +331,20 @@ const OrganizationSettings = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="pt-4 border-t">
+                  <Label htmlFor="google_maps_key">Google Maps API Key</Label>
+                  <Input
+                    id="google_maps_key"
+                    type="password"
+                    value={formData.google_maps_api_key}
+                    onChange={(e) => setFormData({ ...formData, google_maps_api_key: e.target.value })}
+                    placeholder="AIza..."
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Required for the Center Finder map feature.
+                  </p>
+                </div>
+
               </CardContent>
             </Card>
           </TabsContent>

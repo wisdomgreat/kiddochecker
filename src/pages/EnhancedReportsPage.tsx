@@ -23,6 +23,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PenTool } from 'lucide-react';
+
 
 const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const { toast } = useToast();
@@ -30,6 +33,8 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
+
 
   // ─── Queries ────────────────────────────────────────────────────────
 
@@ -41,9 +46,23 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
         end_date: format(dateRange.to, 'yyyy-MM-dd'),
       });
       if (error) throw error;
-      return data || [];
+      
+      const rawData = data || [];
+      const aggregated: any[] = [];
+      rawData.forEach((item: any) => {
+        const existing = aggregated.find((a: any) => a.attendance_date === item.attendance_date);
+        if (existing) {
+          existing.total_checked_in += item.total_checked_in;
+          existing.total_checked_out += item.total_checked_out;
+        } else {
+          aggregated.push({ ...item });
+        }
+      });
+      return aggregated.sort((a: any, b: any) => a.attendance_date.localeCompare(b.attendance_date));
     },
   });
+
+
 
   const { data: detailedAttendance, isLoading: loadingDetailed } = useQuery({
     queryKey: ['detailed-attendance', dateRange],
@@ -106,8 +125,10 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
       // Logic for staff utilization - simplified for now
       // Aggregate attendance records by checked_in_by
       const { data } = await supabase.from('attendance')
-        .select('checked_in_by, profiles!attendance_checked_in_by_fkey(first_name, last_name)')
+        .select('checked_in_by, profiles!checked_in_by(first_name, last_name)')
         .not('checked_in_by', 'is', null);
+
+
 
       const counts: Record<string, { name: string, count: number }> = {};
       data?.forEach((r: any) => {
@@ -143,15 +164,17 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
 
   const handleExportDetailed = () => {
     if (!detailedAttendance) return;
-    const headers = ['Date', 'Child', 'Class', 'In (Time/Method)', 'Out (Time/Method)', 'Duration (Hrs)'];
+    const headers = ['Date', 'Child', 'Class', 'In (Time/Method/Actor)', 'Out (Time/Method/Actor)', 'Duration (Hrs)', 'Has Signature'];
     const rows = detailedAttendance.map((r: any) => [
       r.attendance_date,
       r.child_name,
       r.class_name || '-',
-      `${r.checked_in_at ? format(new Date(r.checked_in_at), 'HH:mm') : '-'} (${r.checked_in_method})`,
-      `${r.checked_out_at ? format(new Date(r.checked_out_at), 'HH:mm') : '-'} (${r.checked_out_method || '-'})`,
-      r.duration_hours?.toFixed(2) || '0'
+      `${r.checked_in_at ? format(new Date(r.checked_in_at), 'HH:mm') : '-'} (${r.checked_in_method}) by ${r.checked_in_by_name}`,
+      `${r.checked_out_at ? format(new Date(r.checked_out_at), 'HH:mm') : '-'} (${r.checked_out_method || '-'}) by ${r.checked_out_by_name}`,
+      r.duration_hours?.toFixed(2) || '0',
+      r.signature_data ? 'Yes' : 'No'
     ]);
+
 
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -231,10 +254,12 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
 
         {/* Global KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <SummaryCard title="Total Volume" value={loadingAttendance ? '--' : attendanceReport?.reduce((a: any, b: any) => a + b.total_checked_in, 0)} sub="Check-ins" icon={Users} color="bg-indigo-600" />
+          <SummaryCard title="Total Volume" value={loadingAttendance ? '--' : attendanceReport?.reduce((a: any, b: any) => a + Number(b.total_checked_in), 0)} sub="Check-ins" icon={Users} color="bg-indigo-600" />
           <SummaryCard title="Staff Impact" value={staffStats?.length || 0} sub="Active Staff" icon={Briefcase} color="bg-emerald-500" />
           <SummaryCard title="System Health" value={securityStats?.total_terminals || 0} sub="Active Units" icon={Zap} color="bg-amber-500" />
+          <SummaryCard title="Safety Alerts" value={securityStats?.alerts_last_24h || 0} sub="Incidents" icon={ShieldAlert} color="bg-rose-500" />
         </div>
+
 
         {/* Main Intelligence Tabs */}
         <Tabs defaultValue="overview" className="space-y-8 animate-in fade-in duration-500">
@@ -377,8 +402,10 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                         <TableHead className="pl-8 text-[10px] font-black uppercase tracking-widest">Child Identity</TableHead>
                         <TableHead className="text-[10px] font-black uppercase tracking-widest">Check-In Node</TableHead>
                         <TableHead className="text-[10px] font-black uppercase tracking-widest">Check-Out Node</TableHead>
+                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Verify</TableHead>
                         <TableHead className="text-[10px] font-black uppercase tracking-widest text-right pr-8">Auth Cycle</TableHead>
                       </TableRow>
+
                     </TableHeader>
                     <TableBody>
                       {detailedAttendance?.map((log: any, i: number) => (
@@ -418,10 +445,17 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                               </div>
                             ) : <Badge className="bg-indigo-600 text-[10px] rounded-full px-3 py-0.5 animate-pulse border-none shadow-lg shadow-indigo-200">ACTIVE SESSION</Badge>}
                           </TableCell>
-                          <TableCell className="text-right pr-8">
+                           <TableCell>
+                             {log.signature_data ? (
+                               <Button variant="ghost" size="sm" onClick={() => setSelectedSignature(log.signature_data)} className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
+                                 <PenTool className="h-4 w-4 text-indigo-600" />
+                               </Button>
+                             ) : <span className="text-[10px] text-slate-300">No Sig</span>}
+                           </TableCell>
+                           <TableCell className="text-right pr-8">
                             <div className="flex flex-col items-end">
                               <span className="text-xs font-black text-indigo-600">{log.duration_hours?.toFixed(1) || '--'}h</span>
-                              <Badge variant="outline" className="text-[8px] border-emerald-100 text-emerald-600 bg-emerald-50/30">SECURE</Badge>
+                               {log.checked_out_at && <Badge variant="outline" className="text-[8px] border-emerald-100 text-emerald-600 bg-emerald-50/30">VERIFIED</Badge>}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -432,6 +466,7 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
               </CardContent>
             </Card>
           </TabsContent>
+
 
           {/* ─── STAFF MANAGEMENT ─── */}
           <TabsContent value="staff" className="space-y-8">
@@ -605,7 +640,24 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
           </TabsContent>
 
         </Tabs>
+
+        <Dialog open={!!selectedSignature} onOpenChange={() => setSelectedSignature(null)}>
+          <DialogContent className="sm:max-w-md bg-white border-none rounded-[2.5rem]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PenTool className="h-5 w-5 text-indigo-600" />
+                Checkout Verification Signature
+              </DialogTitle>
+            </DialogHeader>
+            <div className="p-4 bg-slate-50 rounded-3xl border-2 border-slate-100 flex items-center justify-center min-h-[250px]">
+              {selectedSignature && (
+                <img src={selectedSignature} alt="Signature" className="max-w-full h-auto grayscale contrast-125" />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
+
   );
 
   return isEmbedded ? content : <UnifiedDashboardLayout>{content}</UnifiedDashboardLayout>;

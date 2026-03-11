@@ -9,9 +9,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/CleanAuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Baby, Heart, ShieldAlert, Phone, User, Stethoscope, Info, Pill, Trash2, X, Plus } from "lucide-react";
+import { Loader2, Baby, Heart, ShieldAlert, Phone, User, Stethoscope, Info, Pill, Trash2, X, Plus, Key } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface AddEditChildDialogProps {
   open: boolean;
@@ -47,6 +49,8 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
   const [currentChildParentId, setCurrentChildParentId] = useState<string | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [youthPin, setYouthPin] = useState("");
+  const [allowSelfCheck, setAllowSelfCheck] = useState(false);
 
   // Medical Profile State
   const [medicalData, setMedicalData] = useState<any>({
@@ -93,6 +97,8 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
             setClassId((childData as any).class_id);
             setCurrentChildParentId(childData.parent_id);
             setPhotoUrl((childData as any).photo_url || "");
+            setYouthPin((childData as any).youth_pin || "");
+            setAllowSelfCheck((childData as any).allow_self_check || false);
           }
 
           // Fetch medical profile
@@ -142,6 +148,8 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
           insurance_number: ''
         });
         setPhotoUrl("");
+        setYouthPin("");
+        setAllowSelfCheck(false);
         setActiveTab("basic");
       }
     };
@@ -180,7 +188,9 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
         // Sync the main allergies field for legacy compatibility/quick view
         allergies: medicalData.allergies.map((a: any) => a.type).join(', '),
         medical_info: medicalData.emergency_notes,
-        photo_url: photoUrl
+        photo_url: photoUrl,
+        youth_pin: youthPin,
+        allow_self_check: allowSelfCheck
       };
 
       let currentChildId = childId;
@@ -277,6 +287,13 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
               >
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Health & Safety
+              </TabsTrigger>
+              <TabsTrigger
+                value="selfcheck"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none h-full px-0 font-semibold"
+              >
+                <Key className="h-4 w-4 mr-2" />
+                Youth Self-Check
               </TabsTrigger>
             </TabsList>
           </div>
@@ -627,6 +644,53 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                     className="h-11 rounded-xl bg-slate-50 border-slate-200"
                   />
                 </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="selfcheck" className="mt-0 space-y-6 animate-in fade-in duration-300">
+              <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-[2rem] space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h4 className="font-black text-indigo-900 text-sm italic">Enable Independent Access</h4>
+                    <p className="text-xs text-indigo-600/70 font-medium">Allow this child to check themselves in/out using a personal PIN.</p>
+                  </div>
+                  <Switch 
+                    checked={allowSelfCheck} 
+                    onCheckedChange={setAllowSelfCheck}
+                    disabled={loading}
+                  />
+                </div>
+
+                <AnimatePresence>
+                  {allowSelfCheck && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="pt-4 border-t border-indigo-200/50 space-y-4"
+                    >
+                      <div className="space-y-2">
+                        <Label className="text-indigo-900 font-black uppercase text-[10px] tracking-widest">Personal Access PIN</Label>
+                        <Input 
+                          type="password"
+                          maxLength={8}
+                          placeholder="Enter 4-8 digit PIN"
+                          value={youthPin}
+                          onChange={(e) => setYouthPin(e.target.value.replace(/[^0-9]/g, ''))}
+                          className="h-12 rounded-2xl bg-white border-indigo-200 focus:ring-indigo-500 text-center text-2xl font-black tracking-[0.5em]"
+                        />
+                        <p className="text-[10px] text-indigo-500 font-bold text-center">Youths will use this PIN to bypass parent verification at the kiosk.</p>
+                      </div>
+
+                      <div className="p-4 bg-white/50 rounded-2xl border border-indigo-100">
+                        <h5 className="text-[10px] font-black text-indigo-900 uppercase mb-2">Security Note</h5>
+                        <p className="text-[10px] text-indigo-600 leading-relaxed italic">
+                          Youth self-check is intended for older children. Ensure the child understands their PIN is private and should not be shared.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </TabsContent>
           </div>

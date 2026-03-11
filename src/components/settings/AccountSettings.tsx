@@ -124,6 +124,7 @@ const AccountSettings = () => {
           last_name: lastName,
           phone: values.phone,
           avatar_url: avatarUrl,
+          photo_url: avatarUrl,
         })
         .eq('id', user.id);
         
