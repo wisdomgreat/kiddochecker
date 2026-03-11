@@ -26,7 +26,7 @@ interface AuditLogEntry {
     user_name?: string;
 }
 
-const AuditLogPage = () => {
+const AuditLogPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterAction, setFilterAction] = useState('all');
     const [page, setPage] = useState(0);
@@ -98,8 +98,7 @@ const AuditLogPage = () => {
         return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     };
 
-    return (
-        <UnifiedDashboardLayout>
+    const content = (
             <div className="space-y-6">
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -240,8 +239,9 @@ const AuditLogPage = () => {
                     </Card>
                 </motion.div>
             </div>
-        </UnifiedDashboardLayout>
     );
+
+    return isEmbedded ? content : <UnifiedDashboardLayout>{content}</UnifiedDashboardLayout>;
 };
 
 export default AuditLogPage;

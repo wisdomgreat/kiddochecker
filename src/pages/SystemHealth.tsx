@@ -27,7 +27,7 @@ interface SystemMetric {
   description: string;
 }
 
-const SystemHealth = () => {
+const SystemHealth = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const { toast } = useToast();
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
@@ -124,8 +124,7 @@ const SystemHealth = () => {
   const overallStatus = healthMetrics?.some(m => m.status === 'error') ? 'error' :
                       healthMetrics?.some(m => m.status === 'warning') ? 'warning' : 'healthy';
 
-  return (
-    <ModernLayout>
+  const content = (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -228,8 +227,9 @@ const SystemHealth = () => {
           </CardContent>
         </Card>
       </div>
-    </ModernLayout>
   );
+
+  return isEmbedded ? content : <ModernLayout>{content}</ModernLayout>;
 };
 
 export default SystemHealth;

@@ -12,6 +12,7 @@ export interface AttendanceRecord {
   checked_in_by?: string;
   checked_out_by?: string;
   attendance_date: string;
+  special_instructions?: string;
   child?: {
     id: string;
     first_name: string;

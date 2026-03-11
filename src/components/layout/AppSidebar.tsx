@@ -44,8 +44,7 @@ export function AppSidebar() {
       label: "Operations",
       items: [
         { title: "Attendance", url: "/attendance", icon: ClipboardCheck },
-        { title: "Check-In", url: "/check-in", icon: Monitor },
-        { title: "Check-Out", url: "/check-out", icon: ClipboardCheck },
+        { title: "Kiosk Station", url: "/check-in", icon: Monitor },
         { title: "Attendance Rewards", url: "/admin/rewards", icon: Trophy },
       ]
     },
@@ -64,11 +63,8 @@ export function AppSidebar() {
         { title: "User Management", url: "/users", icon: Users },
         { title: "QR Management", url: "/qr-management", icon: QrCode },
         { title: "Device Enrollment", url: "/devices", icon: Zap },
-        { title: "Kiosk Management", url: "/admin/kiosks", icon: Monitor },
         ...(userRole === 'super_admin' ? [{ title: "Roles & Permissions", url: "/roles", icon: ShieldCheck }] : []),
-        { title: "Reports", url: "/reports", icon: BarChart3 },
-        { title: "System Health", url: "/admin/system-health", icon: HeartPulse },
-        { title: "Audit Log", url: "/audit-log", icon: Activity },
+        { title: "Reports & Logs", url: "/reports", icon: BarChart3 },
       ]
     },
     {

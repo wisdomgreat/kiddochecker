@@ -539,7 +539,9 @@ const KioskCheckInSystem = () => {
   // ═══════════════════════════════════════════════════════
   // CLASS SELECTED → ACTUAL CHECK-IN
   // ═══════════════════════════════════════════════════════
-  const handleClassSelected = async (classId: string) => {
+  const [currentSpecialInstructions, setCurrentSpecialInstructions] = useState('');
+
+  const handleClassSelected = async (classId: string, specialInstructions: string = '') => {
     if (!selectedChild) return;
     setShowClassDialog(false);
     setIsLoading(true);
@@ -559,7 +561,8 @@ const KioskCheckInSystem = () => {
         classId,
         checkedInBy: actorId,
         method: 'kiosk',
-        station: 'Main Kiosk' // Defaulting to Main Kiosk or we could fetch from settings
+        station: 'Main Kiosk', // Defaulting to Main Kiosk or we could fetch from settings
+        specialInstructions
       });
 
       if (result.success) {
@@ -580,6 +583,7 @@ const KioskCheckInSystem = () => {
 
         setCheckInQRData(qrCodeData?.qr_data || fallbackQR);
         setSelectedClassName(classData?.name || '');
+        setCurrentSpecialInstructions(specialInstructions);
         setCheckedInChildIds(prev => new Set([...prev, selectedChild.id]));
         showSuccess(`${selectedChild.first_name} → ${classData?.name || 'class'}`);
         await loadTodayData();
@@ -1188,10 +1192,11 @@ const KioskCheckInSystem = () => {
       {selectedChild && (
         <NameTagPrintDialog
           open={showNameTagDialog}
-          onClose={() => { setShowNameTagDialog(false); setSelectedChild(null); setCheckInQRData(''); setSelectedClassName(''); }}
+          onClose={() => { setShowNameTagDialog(false); setSelectedChild(null); setCheckInQRData(''); setSelectedClassName(''); setCurrentSpecialInstructions(''); }}
           child={selectedChild}
           qrData={checkInQRData}
           className={selectedClassName}
+          specialInstructions={currentSpecialInstructions}
         />
       )}
     </div>

@@ -24,7 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-const EnhancedReportsPage = () => {
+const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const { toast } = useToast();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
@@ -191,8 +191,7 @@ const EnhancedReportsPage = () => {
     </Card>
   );
 
-  return (
-    <UnifiedDashboardLayout>
+  const content = (
       <div className="space-y-8 pb-20">
 
         {/* Header Section */}
@@ -235,7 +234,6 @@ const EnhancedReportsPage = () => {
           <SummaryCard title="Total Volume" value={loadingAttendance ? '--' : attendanceReport?.reduce((a: any, b: any) => a + b.total_checked_in, 0)} sub="Check-ins" icon={Users} color="bg-indigo-600" />
           <SummaryCard title="Staff Impact" value={staffStats?.length || 0} sub="Active Staff" icon={Briefcase} color="bg-emerald-500" />
           <SummaryCard title="System Health" value={securityStats?.total_terminals || 0} sub="Active Units" icon={Zap} color="bg-amber-500" />
-          <SummaryCard title="Revenue (Est)" value={`$${(attendanceReport?.reduce((a: any, b: any) => a + b.total_checked_in, 0) * 45).toLocaleString()}`} sub="Current Period" icon={DollarSign} color="bg-rose-500" />
         </div>
 
         {/* Main Intelligence Tabs */}
@@ -477,7 +475,7 @@ const EnhancedReportsPage = () => {
                 <div>
                   <Badge className="bg-white/20 text-white border-none text-[10px] font-black uppercase mb-4">Workforce Insight</Badge>
                   <h3 className="text-3xl font-black leading-tight">Staff Distribution Analysis</h3>
-                  <p className="text-indigo-100/70 text-sm mt-4 leading-relaxed">System analysis shows even distribution across your core staff. {staffStats?.[0]?.name} is currently handling {Math.floor(Math.random() * 10 + 20)}% of the total volume.</p>
+                  <p className="text-indigo-100/70 text-sm mt-4 leading-relaxed">View which staff members process the most check-ins to optimize your staff allocation.</p>
                 </div>
                 <div className="mt-8 grid grid-cols-2 gap-4">
                   <div className="bg-white/10 rounded-2xl p-4">
@@ -608,8 +606,9 @@ const EnhancedReportsPage = () => {
 
         </Tabs>
       </div>
-    </UnifiedDashboardLayout>
   );
+
+  return isEmbedded ? content : <UnifiedDashboardLayout>{content}</UnifiedDashboardLayout>;
 };
 
 export default EnhancedReportsPage;

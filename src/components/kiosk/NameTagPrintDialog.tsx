@@ -23,6 +23,7 @@ interface NameTagPrintDialogProps {
   qrData: string;
   className?: string;
   securityCode?: string; // Optional passed code, otherwise we generate a random 4-char one
+  specialInstructions?: string;
 }
 
 const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
@@ -32,6 +33,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   qrData,
   className,
   securityCode,
+  specialInstructions,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -44,6 +46,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     const safeLastName = DOMPurify.sanitize(child.last_name);
     const safeAllergies = child.allergies ? DOMPurify.sanitize(child.allergies) : '';
     const safeClassName = className ? DOMPurify.sanitize(className) : '';
+    const safeInstructions = specialInstructions ? DOMPurify.sanitize(specialInstructions) : '';
 
     const printWindow = window.open('', '_blank');
     if (!printWindow || !printRef.current) return;
@@ -153,6 +156,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                   <div class="security-code-box">${displayCode}</div>
                 </div>
                 ${safeAllergies ? `<div class="allergy-alert">⚠️ ALLERGY: ${safeAllergies}</div>` : ''}
+                ${safeInstructions ? `<div style="font-size:10px; border:1px solid #000; padding:4px; margin-top:4px;"><strong>NOTE:</strong> ${safeInstructions}</div>` : ''}
               </div>
               <div>
                 <div class="details-row">
@@ -234,6 +238,11 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                 {child.allergies && (
                   <div className="bg-red-600 text-white font-bold text-center text-xs py-1 rounded uppercase tracking-wider my-2">
                     ⚠️ Allergy: {child.allergies}
+                  </div>
+                )}
+                {specialInstructions && (
+                  <div className="border border-black text-black text-[10px] p-1 rounded mt-1 bg-gray-50/50 leading-tight">
+                    <strong>NOTE:</strong> {specialInstructions}
                   </div>
                 )}
               </div>

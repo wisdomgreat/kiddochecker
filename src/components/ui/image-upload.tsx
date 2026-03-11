@@ -27,6 +27,12 @@ export const ImageUpload = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  React.useEffect(() => {
+    if (defaultImage !== undefined) {
+      setPreview(defaultImage);
+    }
+  }, [defaultImage]);
+
   const sizeClasses = {
     sm: 'h-10 w-10',
     md: 'h-16 w-16',

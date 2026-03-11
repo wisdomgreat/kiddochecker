@@ -8,6 +8,7 @@ export interface CheckInData {
   qrToken?: string;
   method?: string;
   station?: string;
+  specialInstructions?: string;
 }
 
 export interface CheckOutData {
@@ -30,7 +31,8 @@ export class AttendanceService {
         p_checked_in_by: data.checkedInBy || null,
         p_qr_token: data.qrToken || null,
         p_method: data.method || 'app_dashboard',
-        p_station: data.station || null
+        p_station: data.station || null,
+        p_special_instructions: data.specialInstructions || null
       });
 
       if (error) {

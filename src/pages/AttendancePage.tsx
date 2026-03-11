@@ -331,11 +331,18 @@ const AttendancePage = () => {
                     <TableBody>
                       {todayAttendance.map((record) => (
                         <TableRow key={record.id}>
-                          <TableCell className="font-medium">
-                            {record.child ?
-                              `${record.child.first_name} ${record.child.last_name}` :
-                              'Unknown Child'
-                            }
+                          <TableCell className="font-medium align-top">
+                            <div>
+                              {record.child ?
+                                `${record.child.first_name} ${record.child.last_name}` :
+                                'Unknown Child'
+                              }
+                            </div>
+                            {record.special_instructions && (
+                              <div className="text-[10px] text-muted-foreground bg-muted/30 border p-1.5 rounded mt-1.5 leading-snug">
+                                <span className="font-semibold text-primary">Note:</span> {record.special_instructions}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>{record.class?.name || 'No Class'}</TableCell>
                           <TableCell>{formatTime(record.checked_in_at)}</TableCell>
