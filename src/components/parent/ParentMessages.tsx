@@ -37,26 +37,33 @@ const ParentMessages = () => {
   // Fetch only staff for parents to message
   useEffect(() => {
     const fetchRecipients = async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select(`
-          user_id,
-          role,
-          profiles:user_id (id, first_name, last_name)
-        `)
-        .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant'])
-        .limit(100);
+      const { data, error } = await supabase.rpc('get_available_recipients');
 
-      if (data && !error) {
-        const staff = data
-          .filter(item => item.profiles)
-          .map(item => ({
-            id: item.user_id,
-            first_name: (item.profiles as any).first_name,
-            last_name: (item.profiles as any).last_name,
-            role: item.role
-          }));
-        setRecipients(staff);
+      if (!error && data) {
+         // Parents should mainly see staff/admin
+         const staff = data.filter((r: any) => 
+            ['admin', 'staff', 'teacher', 'teacher_assistant'].includes(r.role)
+         );
+         setRecipients(staff);
+      } else {
+        // Fallback
+        const { data: staffData } = await supabase
+          .from('user_roles')
+          .select('user_id, role, profiles:user_id (id, first_name, last_name)')
+          .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant'])
+          .limit(100);
+
+        if (staffData) {
+          const staff = staffData
+            .filter(item => item.profiles)
+            .map(item => ({
+              id: item.user_id,
+              first_name: (item.profiles as any).first_name,
+              last_name: (item.profiles as any).last_name,
+              role: item.role
+            }));
+          setRecipients(staff);
+        }
       }
     };
     fetchRecipients();

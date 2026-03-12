@@ -81,36 +81,33 @@ const MessageSystem = () => {
   useEffect(() => {
     const fetchRecipients = async () => {
       try {
-        const { data: staffData, error: staffError } = await supabase
-          .from('user_roles')
-          .select(`
-            user_id,
-            role,
-            profiles:user_id (
-              id,
-              first_name,
-              last_name
-            )
-          `)
-          .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant', 'parent'])
-          .limit(1000);
+        const { data, error } = await supabase.rpc('get_available_recipients');
 
-        if (staffError) {
-          console.error("Error fetching staff:", staffError);
+        if (error) {
+          console.error("Error fetching recipients:", error);
+          // Fallback to old method if RPC not yet deployed or fails
+          const { data: staffData } = await supabase
+            .from('user_roles')
+            .select('user_id, role, profiles:user_id (id, first_name, last_name)')
+            .in('role', ['admin', 'staff', 'teacher', 'teacher_assistant', 'parent'])
+            .limit(100);
+          
+          if (staffData) {
+            const fallbackUsers: User[] = staffData
+              .filter(item => item.profiles)
+              .map(item => ({
+                id: item.user_id,
+                first_name: (item.profiles as any)?.first_name || '',
+                last_name: (item.profiles as any)?.last_name || '',
+                email: '',
+                role: item.role
+              }));
+            setUsers(fallbackUsers);
+          }
           return;
         }
 
-        const recipientUsers: User[] = (staffData || [])
-          .filter(item => item.profiles)
-          .map(item => ({
-            id: item.user_id,
-            first_name: (item.profiles as any)?.first_name || '',
-            last_name: (item.profiles as any)?.last_name || '',
-            email: '', 
-            role: item.role
-          }));
-
-        setUsers(recipientUsers);
+        setUsers(data || []);
       } catch (error: any) {
         console.error("Error fetching recipients:", error);
       }
@@ -176,7 +173,9 @@ const MessageSystem = () => {
     setNewMessage({
       recipientId: message.sender_id,
       subject: message.subject?.startsWith("Re:") ? message.subject : `Re: ${message.subject || "Message"}`,
-      content: `\n\n--- Original Message ---\n${message.content}`
+      content: `\n\n--- Original Message ---\n${message.content}`,
+      sendViaSms: false,
+      sendViaEmail: false
     });
     setIsComposeOpen(true);
   };

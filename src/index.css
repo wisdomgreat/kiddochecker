@@ -115,24 +115,77 @@
 
 @layer components {
 
-  /* ── Glass effects ────────────────────────────────────────────── */
+  /* ── Antigravity Design System ─────────────────────────────── */
+  
+  .antigravity-perspective {
+    perspective: 1500px;
+    perspective-origin: center;
+  }
+
+  .floating-island {
+    @apply bg-white/60 backdrop-blur-2xl border border-white/40 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)];
+    transform-style: preserve-3d;
+    will-change: transform;
+    transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .floating-island:hover {
+    @apply shadow-[0_48px_80px_-20px_rgba(99,102,241,0.15)];
+    transform: translateY(-8px) rotateX(2deg) rotateY(-1deg);
+  }
+
   .glass-card {
-    @apply bg-white/80 backdrop-blur-xl border border-white/30 shadow-xl;
+    @apply bg-white/40 backdrop-blur-xl border border-white/50 shadow-2xl;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  }
+
+  .isometric-tilt {
+    transform: rotateX(15deg) rotateY(-15deg) rotateZ(5deg);
+    transform-style: preserve-3d;
+  }
+
+  .weightless-shadow {
+    box-shadow: 0 20px 40px rgba(0,0,0,0.04), 0 10px 20px rgba(0,0,0,0.02);
+  }
+
+  .antigravity-stagger-in > * {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: floatingEnter 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  @keyframes floatingEnter {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .glow-border {
+    position: relative;
+  }
+
+  .glow-border::after {
+    content: "";
+    @apply absolute -inset-[1px] rounded-[inherit] pointer-events-none;
+    background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0), rgba(99,102,241,0.2));
   }
 
   /* ── Stat / KPI cards ─────────────────────────────────────────── */
   .stat-card {
-    @apply bg-white rounded-2xl p-6 shadow-sm border border-slate-100 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+    @apply bg-white/60 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-white/40 transition-all duration-500 hover:shadow-xl hover:-translate-y-2 hover:bg-white/80;
   }
 
   .kpi-card {
-    @apply relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+    @apply relative overflow-hidden rounded-[2rem] p-6 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2;
   }
 
   /* ── Gradient backgrounds (text-white assumed on parent) ─────── */
   .gradient-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
   }
+
+  /* ... (rest of old code managed below systematically) */
 
   .gradient-success {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);

@@ -82,6 +82,10 @@ export const usePermissions = () => {
     canViewSystemHealth: () => hasRolePermission(PERMISSIONS.VIEW_SYSTEM_HEALTH),
     canManageBackups: () => hasRolePermission(PERMISSIONS.MANAGE_BACKUPS),
     canManageIntegrations: () => hasRolePermission(PERMISSIONS.MANAGE_INTEGRATIONS),
+
+    canSendMessages: () => hasRolePermission(PERMISSIONS.SEND_MESSAGES),
+    canViewMessages: () => hasRolePermission(PERMISSIONS.VIEW_MESSAGES),
+    canBroadcastMessages: () => hasRolePermission(PERMISSIONS.BROADCAST_MESSAGES),
   };
 };
 

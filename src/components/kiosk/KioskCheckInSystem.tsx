@@ -97,6 +97,9 @@ const KioskCheckInSystem = () => {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const [pendingCheckoutRecord, setPendingCheckoutRecord] = useState<any>(null);
   const signatureRef = useRef<any>(null);
+  const [showNearbyDialog, setShowNearbyDialog] = useState(false);
+  const [nearbyCenters, setNearbyCenters] = useState<any[]>([]);
+  const [isLoadingNearby, setIsLoadingNearby] = useState(false);
 
 
   // ─── Boot ───
@@ -206,6 +209,29 @@ const KioskCheckInSystem = () => {
     }
     try { await (supabase.from('device_activity_log' as any) as any).insert({ action, metadata }); } catch { }
   };
+
+  const fetchNearbyCenters = async () => {
+    if (!geoLocation) return;
+    setIsLoadingNearby(true);
+    try {
+      const { data, error } = await supabase.rpc('get_nearest_centers', {
+        p_lat: geoLocation.latitude,
+        p_lng: geoLocation.longitude,
+        p_limit: 5
+      });
+      if (!error) setNearbyCenters(data || []);
+    } catch (err) {
+      console.error("Error fetching nearby centers:", err);
+    } finally {
+      setIsLoadingNearby(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showNearbyDialog && geoLocation) {
+      fetchNearbyCenters();
+    }
+  }, [showNearbyDialog, geoLocation]);
 
   const startAutoLogoutTimer = (seconds: number = 7) => {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
@@ -591,57 +617,72 @@ const KioskCheckInSystem = () => {
   const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
   return (
-    <div className="fixed inset-0 bg-[#080c1f] flex flex-col overflow-hidden text-white">
+    <div className="fixed inset-0 bg-[#020617] flex flex-col overflow-hidden text-white antigravity-perspective">
+      {/* Dynamic Background decor */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[150px] rounded-full animate-pulse pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[150px] rounded-full animate-pulse pointer-events-none" />
+      <div className="absolute top-[20%] right-[10%] w-[20%] h-[20%] bg-blue-600/5 blur-[100px] rounded-full pointer-events-none" />
+
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white/[0.02] border-b border-white/[0.04]">
-        <div className="flex items-center gap-2 text-white/40 text-[10px] font-bold uppercase tracking-widest">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+      <div className="relative z-50 flex items-center justify-between px-6 py-4 bg-white/5 backdrop-blur-md border-b border-white/10 shadow-lg">
+        <div className="flex items-center gap-3 text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse" />
           {settings?.name || 'KiddoChecker'}
-          {geoLocation && <MapPin className="w-2.5 h-2.5" />}
+          {geoLocation && <MapPin className="w-3 h-3 text-emerald-400/60" />}
         </div>
-        <div className="flex items-center gap-3 text-white/40 text-[10px]">
+        <div className="flex items-center gap-6 text-white/60 text-[11px] font-black">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 gap-1 text-white/40 uppercase">
-                <Globe className="h-3 w-3" /> {language}
+              <Button variant="ghost" size="sm" className="h-8 gap-2 text-white/60 hover:text-white hover:bg-white/10 uppercase tracking-widest border border-white/5 rounded-full px-4 transition-all">
+                <Globe className="h-4 w-4" /> {language}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-[#0a0f25] border-white/10 text-white">
-              <DropdownMenuItem onClick={() => setLanguage('en')}>English</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('fr')}>Français</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('es')}>Español</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('de')}>Deutsch</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="bg-[#0f172a]/95 backdrop-blur-xl border-white/10 text-white rounded-2xl shadow-2xl p-2">
+              <DropdownMenuItem className="rounded-xl focus:bg-indigo-500/20" onClick={() => setLanguage('en')}>English</DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl focus:bg-indigo-500/20" onClick={() => setLanguage('fr')}>Français</DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl focus:bg-indigo-500/20" onClick={() => setLanguage('es')}>Español</DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl focus:bg-indigo-500/20" onClick={() => setLanguage('de')}>Deutsch</DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl focus:bg-indigo-500/20" onClick={() => setLanguage('it')}>Italiano</DropdownMenuItem>
+              <DropdownMenuItem className="rounded-xl focus:bg-indigo-500/20" onClick={() => setLanguage('pt')}>Português</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Badge className="bg-indigo-500/10 text-indigo-300/60 border-0">{todayCount} today</Badge>
-          <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          <button onClick={toggleFs}><Maximize className="w-3 h-3" /></button>
+          <div className="flex items-center gap-4 bg-white/5 px-4 py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
+             <Badge className="bg-indigo-500/20 text-indigo-300 border-0 font-black px-2">{todayCount} LIVE</Badge>
+             <span className="text-white font-black tracking-tighter text-sm">
+               {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+             </span>
+          </div>
+          <button onClick={() => setShowNearbyDialog(true)} className="hover:scale-110 active:scale-95 transition-transform text-indigo-400"><MapPin className="w-4 h-4" /></button>
+          <button onClick={toggleFs} className="hover:scale-110 active:scale-95 transition-transform"><Maximize className="w-4 h-4" /></button>
         </div>
       </div>
 
       {successMsg && (
-        <div className="mx-4 mt-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/10 rounded-lg flex items-center gap-2">
-          <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-          <p className="text-emerald-300 text-xs">{successMsg}</p>
+        <div className="relative z-50 mx-6 mt-4 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3 backdrop-blur-md animate-in">
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
+          <p className="text-emerald-300 font-bold text-sm tracking-tight">{successMsg}</p>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="px-4 pt-3 pb-2">
-        <div className="flex bg-white/[0.02] rounded-lg p-0.5 border border-white/[0.04]">
+      {/* Navigation Tabs */}
+      <div className="relative z-50 px-6 pt-6 pb-4">
+        <div className="flex bg-white/5 backdrop-blur-xl rounded-[2rem] p-1.5 border border-white/10 shadow-2xl overflow-hidden">
           {([
             { id: 'parent', label: t('parentAccess'), icon: KeyRound },
-            { id: 'youth', label: 'Youth', icon: User },
+            { id: 'youth', label: t('youthCheckIn'), icon: User },
             { id: 'checkout', label: t('checkout'), icon: LogOut },
             { id: 'staff', label: t('staffAccess'), icon: UserCog },
-          ] as { id: KioskTab, label: string, icon: any }[]).map(t => (
+          ] as { id: KioskTab, label: string, icon: any }[]).map(tab => (
             <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-bold transition-all ${activeTab === t.id ? 'bg-indigo-600 shadow-lg' : 'text-white/20 hover:text-white/40'}`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex flex-col md:flex-row items-center justify-center gap-2.5 py-4 px-2 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest transition-all duration-500 group relative ${activeTab === tab.id ? 'bg-indigo-600 shadow-[0_12px_24px_rgba(79,70,229,0.3)] text-white' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
             >
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
+              <tab.icon className={`w-5 h-5 transition-transform duration-500 ${activeTab === tab.id ? 'scale-110 rotate-[-5deg]' : 'group-hover:scale-110'}`} />
+              <span className="hidden sm:inline">{tab.label}</span>
+              {activeTab === tab.id && (
+                <div className="absolute bottom-1 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_white]" />
+              )}
             </button>
           ))}
         </div>
@@ -769,8 +810,13 @@ const KioskCheckInSystem = () => {
                               <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center group-hover:bg-indigo-600 transition-colors">
                                 <Baby className="w-5 h-5 text-indigo-400 group-hover:text-white" />
                               </div>
-                              <div className="text-left">
-                                <p className="font-bold text-sm">{child.first_name} {child.last_name}</p>
+                              <div className="text-left flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-bold text-sm">{child.first_name} {child.last_name}</p>
+                                  {(child as any).has_active_background_check && (
+                                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/20 text-[8px] uppercase font-black px-1.5 py-0">Verified Staff</Badge>
+                                  )}
+                                </div>
                                 <p className="text-[10px] text-white/40">Manual Override Check-In</p>
                               </div>
                             </Button>
@@ -899,6 +945,46 @@ const KioskCheckInSystem = () => {
                 Confirm Checkout
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nearby Centers Dialog */}
+      <Dialog open={showNearbyDialog} onOpenChange={setShowNearbyDialog}>
+        <DialogContent className="sm:max-w-[425px] bg-[#0a0f25] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-black uppercase italic tracking-tight">
+              <MapPin className="w-5 h-5 text-indigo-400" />
+              Nearby Centers
+            </DialogTitle>
+            <DialogDescription className="text-white/40 uppercase text-[10px] font-black tracking-widest">
+              Find our partner locations in your area
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+             {isLoadingNearby ? (
+               <div className="flex justify-center py-8"><Loader2 className="animate-spin text-white/20" /></div>
+             ) : (
+               <div className="space-y-2">
+                 {nearbyCenters.length === 0 ? (
+                    <div className="text-center p-8 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                      <p className="text-white/40 text-xs">No active centers detected nearby.</p>
+                      <Button variant="link" onClick={fetchNearbyCenters} className="text-indigo-400 text-[10px] uppercase font-black">Retry Search</Button>
+                    </div>
+                 ) : nearbyCenters.map(center => (
+                   <div key={center.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
+                     <div>
+                       <p className="font-bold text-sm group-hover:text-indigo-400 transition-colors">{center.name}</p>
+                       <p className="text-[10px] text-white/40">{center.address}</p>
+                     </div>
+                     <Badge variant="outline" className="text-[8px] font-black">{center.distance_km || '?'} KM</Badge>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowNearbyDialog(false)} className="w-full border-white/10 rounded-xl text-white/40">Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
