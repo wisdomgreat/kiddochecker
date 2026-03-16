@@ -16,6 +16,10 @@ interface CreateUserRequest {
   role: string;
   isVolunteer?: boolean;
   staffPin?: string;
+  department?: string;
+  specialties?: string[];
+  maxHoursPerWeek?: number;
+  staffGroups?: string[];
 }
 
 interface UpdateUserRequest {
@@ -28,6 +32,10 @@ interface UpdateUserRequest {
     isActive?: boolean;
     isVolunteer?: boolean;
     staffPin?: string;
+    department?: string;
+    staffGroups?: string[];
+    specialties?: string[];
+    maxHoursPerWeek?: number;
   };
 }
 
@@ -95,7 +103,7 @@ serve(async (req) => {
 
     switch (action) {
       case 'create_user': {
-        const { email, password, firstName, lastName, phone, role } = data as CreateUserRequest;
+        const { email, password, firstName, lastName, phone, role, staffGroups } = data as CreateUserRequest;
 
         console.log(`Creating user: ${email} with role: ${role}`);
 
@@ -145,7 +153,10 @@ serve(async (req) => {
             first_name: firstName,
             last_name: lastName,
             phone: phone || null,
-            staff_pin: (data as CreateUserRequest).staffPin || null
+            staff_pin: (data as CreateUserRequest).staffPin || null,
+            department: (data as CreateUserRequest).department || null,
+            specialties: (data as CreateUserRequest).specialties || [],
+            max_hours_per_week: (data as CreateUserRequest).maxHoursPerWeek || 40
           }, { onConflict: 'id' });
 
         if (profileError) {
@@ -175,6 +186,21 @@ serve(async (req) => {
           });
         }
 
+        // Add new staff group memberships if provided
+        if (staffGroups && staffGroups.length > 0) {
+          const groupRows = staffGroups.map((groupId: string) => ({
+            group_id: groupId,
+            profile_id: authData.user.id
+          }));
+          const { error: groupError } = await supabaseAdmin
+            .from('staff_group_members')
+            .insert(groupRows);
+          if (groupError) {
+            console.error('Group assignment error:', groupError);
+            // This is non-fatal for user creation, but log it.
+          }
+        }
+
         return new Response(JSON.stringify({
           success: true,
           user: {
@@ -194,7 +220,7 @@ serve(async (req) => {
       case 'update_user': {
         const { userId, updates } = data as UpdateUserRequest;
 
-        if (updates.firstName || updates.lastName || updates.phone || updates.staffPin !== undefined) {
+        if (updates.firstName || updates.lastName || updates.phone || updates.staffPin !== undefined || updates.department !== undefined || updates.specialties !== undefined || updates.maxHoursPerWeek !== undefined) {
           const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .update({
@@ -202,12 +228,49 @@ serve(async (req) => {
               last_name: updates.lastName,
               phone: updates.phone,
               staff_pin: updates.staffPin,
+              department: updates.department,
+              specialties: updates.specialties,
+              max_hours_per_week: updates.maxHoursPerWeek,
             })
             .eq('id', userId);
 
-          if (profileError) {
-            console.error('Profile update error:', profileError);
-            throw profileError;
+           if (profileError) {
+             console.error('Profile update error:', profileError);
+             // If trigger rejected it, we want to return a nice message
+             if (profileError.message.includes('Super-Admins')) {
+               return new Response(JSON.stringify({
+                 success: false,
+                 error: profileError.message
+               }), {
+                 status: 200,
+                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+               });
+             }
+             throw profileError;
+           }
+         }
+
+        if (updates.staffGroups !== undefined) {
+          // Sync group memberships
+          // 1. Remove existing
+          await supabaseAdmin
+            .from('staff_group_members')
+            .delete()
+            .eq('profile_id', userId);
+          
+          // 2. Add new
+          if (updates.staffGroups && updates.staffGroups.length > 0) {
+            const groupRows = updates.staffGroups.map((groupId: string) => ({
+              group_id: groupId,
+              profile_id: userId
+            }));
+            const { error: groupError } = await supabaseAdmin
+              .from('staff_group_members')
+              .insert(groupRows);
+            if (groupError) {
+              console.error('Group update error:', groupError);
+              throw groupError;
+            }
           }
         }
 

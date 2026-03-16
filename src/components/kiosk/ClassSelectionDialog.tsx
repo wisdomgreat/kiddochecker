@@ -13,14 +13,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { useClasses } from '@/hooks/useClasses';
 import { Users, Clock, StickyNote, ActivitySquare, AlertTriangle } from 'lucide-react';
-import { useTranslation, Language } from '@/lib/i18n';
+import { useTranslation } from '@/lib/i18n';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface ClassSelectionDialogProps {
   open: boolean;
   onClose: () => void;
   onConfirm: (classId: string, specialInstructions: string) => void;
   childName: string;
-  language?: Language;
 }
 
 const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
@@ -28,14 +28,13 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
   onClose,
   onConfirm,
   childName,
-  language = 'en',
 }) => {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [instructions, setInstructions] = useState('');
   const [hasFever, setHasFever] = useState<boolean | null>(null);
   const [hasCough, setHasCough] = useState<boolean | null>(null);
   const { classes, isLoading } = useClasses();
-  const { t } = useTranslation(language);
+  const { t } = useTranslation();
 
   const handleConfirm = () => {
     if (selectedClass) {

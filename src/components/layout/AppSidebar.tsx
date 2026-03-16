@@ -58,7 +58,7 @@ export function AppSidebar() {
       items: [
         { title: "Children", url: "/children", icon: Baby },
         { title: "Staff", url: "/staff", icon: UserCheck },
-        { title: "Staff Management", url: "/admin/shifts", icon: Calendar },
+        { title: "Shift Auto-Planner", url: "/staff/schedules", icon: Zap },
         { title: "Classes", url: "/classes", icon: BookOpen },
         { title: "Verify Staff", url: "/admin/verify-staff", icon: Shield },
       ]

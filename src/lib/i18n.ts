@@ -357,10 +357,14 @@ export const translations = {
   },
 };
 
-export const useTranslation = (lang: Language) => {
+import { useLanguage } from '@/context/LanguageContext';
+
+export const useTranslation = () => {
+  const { language: lang } = useLanguage();
   return {
     t: (key: keyof typeof translations['en'], params?: Record<string, string>) => {
-      let text = translations[lang][key] || translations['en'][key];
+      const translationSet = translations[lang] || translations['en'];
+      let text = (translationSet as any)[key] || (translations['en'] as any)[key] || key;
       if (params) {
         Object.entries(params).forEach(([k, v]) => {
           text = text.replace(`{${k}}`, v);

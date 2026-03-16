@@ -36,9 +36,8 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   className,
   securityCode,
   specialInstructions,
-  language = 'en'
 }) => {
-  const { t } = useTranslation(language);
+  const { t } = useTranslation();
   const printRef = useRef<HTMLDivElement>(null);
   
   // Generate a matching security code for the session if not provided

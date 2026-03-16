@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
@@ -101,7 +102,8 @@ function App() {
           <BrowserRouter>
             <AuthErrorBoundary>
               <LanguageProvider>
-                <AuthProvider>
+                <ThemeProvider>
+                  <AuthProvider>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       {/* Public Routes */}
@@ -174,7 +176,8 @@ function App() {
                     </Routes>
                   </Suspense>
                 </AuthProvider>
-              </LanguageProvider>
+              </ThemeProvider>
+            </LanguageProvider>
             </AuthErrorBoundary>
           </BrowserRouter>
         </TooltipProvider>

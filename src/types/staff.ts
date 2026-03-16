@@ -20,6 +20,8 @@ export interface StaffMember {
   photo_url?: string;
   department?: string;
   staff_groups?: string[]; // IDs of groups
+  specialties?: string[];
+  max_hours_per_week?: number;
 }
 
 export interface AddStaffData {
@@ -31,11 +33,14 @@ export interface AddStaffData {
   is_volunteer?: boolean;
   staff_pin?: string;
   department?: string;
+  specialties?: string[];
+  max_hours_per_week?: number;
+  staff_groups?: string[];
 }
 
 export interface UpdateStaffData {
   userId: string;
   updates: Partial<Pick<StaffMember,
-    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin' | 'department'
+    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin' | 'department' | 'staff_groups' | 'specialties' | 'max_hours_per_week'
   >>;
 }

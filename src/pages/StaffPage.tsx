@@ -37,6 +37,9 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     is_volunteer: false,
     staff_pin: '',
     department: '',
+    specialties: [] as string[],
+    max_hours_per_week: 40,
+    staff_groups: [] as string[],
   });
 
   const { data: groups = [] } = useQuery({
@@ -81,6 +84,9 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       is_volunteer: false,
       staff_pin: '',
       department: '',
+      specialties: [],
+      max_hours_per_week: 40,
+      staff_groups: [],
     });
   };
 
@@ -104,6 +110,9 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       role: formData.role as any,
       is_volunteer: formData.is_volunteer,
       department: formData.department,
+      specialties: formData.specialties,
+      max_hours_per_week: formData.max_hours_per_week,
+      staff_groups: formData.staff_groups,
     });
     setIsAddDialogOpen(false);
     resetForm();
@@ -122,6 +131,8 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
         is_volunteer: formData.is_volunteer,
         staff_pin: formData.staff_pin,
         department: formData.department,
+        specialties: formData.specialties,
+        max_hours_per_week: formData.max_hours_per_week,
       }
     });
     setIsEditDialogOpen(false);
@@ -166,6 +177,9 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       is_volunteer: member.is_volunteer,
       staff_pin: member.staff_pin || '',
       department: member.department || '',
+      specialties: member.specialties || [],
+      max_hours_per_week: member.max_hours_per_week || 40,
+      staff_groups: groupMembers.filter((m: any) => m.profile_id === member.user_id).map((m: any) => m.group_id),
     });
     setIsEditDialogOpen(true);
   };
@@ -249,12 +263,22 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                             {member.department && (
                                <Badge className="bg-indigo-50 text-indigo-700 border-none rounded-lg text-[10px] font-bold uppercase tracking-wider">{member.department}</Badge>
                             )}
-                          </div>
+                           </div>
+                           <div className="flex flex-wrap gap-1 mb-2">
+                             {member.specialties?.map((spec: string) => (
+                               <Badge key={spec} variant="outline" className="text-[9px] font-bold text-slate-400 border-slate-100 rounded-md py-0">{spec}</Badge>
+                             ))}
+                           </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-400">
                             <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {member.email}</span>
                             {member.phone && <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> {member.phone}</span>}
-                          </div>
-                        </div>
+                             {member.staff_pin ? (
+                               <span className="flex items-center gap-1.5 bg-amber-50 text-amber-600 px-2 py-0.5 rounded-md text-[10px] font-black tracking-[0.2em]"><Shield className="h-3 w-3" /> {member.staff_pin}</span>
+                             ) : (
+                               <span className="flex items-center gap-1.5 text-slate-300 italic text-[10px]"><Shield className="h-3 w-3" /> PIN Locked</span>
+                             )}
+                           </div>
+                         </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -386,12 +410,38 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label className="font-bold ml-1">Department/Group</Label>
-                <Input value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} placeholder="e.g. Technical" className="rounded-xl h-12" />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end pt-6">
+               <div className="space-y-1.5">
+                 <Label className="font-bold ml-1">Department/Group</Label>
+                 <Input value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} placeholder="e.g. Technical" className="rounded-xl h-12" />
+               </div>
+             </div>
+
+             <div className="space-y-3 pt-2">
+               <Label className="font-bold ml-1 font-black uppercase text-[10px] tracking-widest text-slate-400">Initial Group Assignments</Label>
+               <div className="grid grid-cols-2 gap-3">
+                 {groups.map((group: any) => (
+                   <div key={group.id} className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                     <input 
+                       type="checkbox" 
+                       id={`add-group-${group.id}`}
+                       className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                       checked={formData.staff_groups?.includes(group.id)}
+                       onChange={(e) => {
+                         const current = formData.staff_groups || [];
+                         if (e.target.checked) {
+                           setFormData({ ...formData, staff_groups: [...current, group.id] });
+                         } else {
+                           setFormData({ ...formData, staff_groups: current.filter(id => id !== group.id) });
+                         }
+                       }}
+                     />
+                     <label htmlFor={`add-group-${group.id}`} className="text-xs font-bold text-slate-600 truncate">{group.name}</label>
+                   </div>
+                 ))}
+               </div>
+             </div>
+
+             <div className="flex gap-2 justify-end pt-6">
               <Button type="button" variant="ghost" className="rounded-xl font-bold" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={isAddingStaff} className="rounded-xl font-black px-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100">
                 {isAddingStaff ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Account'}
@@ -429,7 +479,23 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
             </div>
             <div className="space-y-1.5">
               <Label className="font-bold ml-1 font-black uppercase text-[10px] tracking-widest text-slate-400">Security PIN</Label>
-              <Input value={formData.staff_pin} onChange={(e) => setFormData({ ...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8) })} placeholder="4-8 digits" className="rounded-xl h-12 font-mono text-lg tracking-[0.5em]" />
+               <Input value={formData.staff_pin} onChange={(e) => setFormData({ ...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8) })} placeholder="4-8 digits" className="rounded-xl h-12 font-mono text-lg tracking-[0.5em]" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">Weekly Hour Limit</Label>
+                <Input type="number" value={formData.max_hours_per_week} onChange={(e) => setFormData({ ...formData, max_hours_per_week: parseInt(e.target.value) })} className="rounded-xl h-12" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">Specialties (comma separated)</Label>
+                <Input 
+                  value={formData.specialties.join(', ')} 
+                  onChange={(e) => setFormData({ ...formData, specialties: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '') })} 
+                  placeholder="e.g. First Aid, CPR" 
+                  className="rounded-xl h-12" 
+                />
+              </div>
             </div>
 
             <div className="space-y-3 pt-2">

@@ -23,6 +23,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import ClassSelectionDialog from './ClassSelectionDialog';
 import NameTagPrintDialog from './NameTagPrintDialog';
 import { useTranslation, Language } from '@/lib/i18n';
+import { useLanguage } from '@/context/LanguageContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface Child {
@@ -37,17 +38,16 @@ interface Child {
 interface GeoLocation { latitude: number; longitude: number; accuracy: number; }
 
 type KioskTab = 'parent' | 'youth' | 'staff' | 'checkout';
-
 const KioskCheckInSystem = () => {
   // ─── Core State ───
+  const { language, setLanguage } = useLanguage();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<KioskTab>('parent');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayCount, setTodayCount] = useState(0);
   const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [language, setLanguage] = useState<Language>('en');
-  const { t } = useTranslation(language);
 
   // ─── Parent Login ───
   const [parentPhone, setParentPhone] = useState('');
@@ -900,7 +900,7 @@ const KioskCheckInSystem = () => {
         )}
       </div>
 
-      <ClassSelectionDialog open={showClassDialog} onClose={() => setShowClassDialog(false)} onConfirm={handleClassSelected} childName={selectedChild?.first_name || ''} language={language} />
+      <ClassSelectionDialog open={showClassDialog} onClose={() => setShowClassDialog(false)} onConfirm={handleClassSelected} childName={selectedChild?.first_name || ''} />
       {selectedChild && <NameTagPrintDialog open={showNameTagDialog} onClose={() => setShowNameTagDialog(false)} child={selectedChild} qrData={checkInQRData} className={selectedClassName} specialInstructions={currentSpecialInstructions} />}
 
       {/* Signature Dialog */}

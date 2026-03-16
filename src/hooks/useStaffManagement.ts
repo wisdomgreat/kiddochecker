@@ -66,6 +66,10 @@ export const useStaffManagement = () => {
             role: staffData.role,
             isVolunteer: staffData.is_volunteer ?? false,
             staffPin: staffData.staff_pin,
+            department: staffData.department,
+            specialties: staffData.specialties,
+            maxHoursPerWeek: staffData.max_hours_per_week,
+            staffGroups: staffData.staff_groups,
           },
         }
       );
@@ -141,6 +145,10 @@ export const useStaffManagement = () => {
               isActive: updates.is_active,
               isVolunteer: updates.is_volunteer,
               staffPin: updates.staff_pin,
+              department: updates.department,
+              staffGroups: updates.staff_groups,
+              specialties: updates.specialties,
+              maxHoursPerWeek: updates.max_hours_per_week,
             },
           },
         }

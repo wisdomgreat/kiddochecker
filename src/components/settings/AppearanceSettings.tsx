@@ -1,669 +1,128 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Moon, Sun, Monitor, Check } from "lucide-react";
-import { ThemeSettings } from "@/types/supabase";
-
-const formSchema = z.object({
-  theme: z.enum(["light", "dark", "system"]),
-  highContrast: z.boolean().default(false),
-  largeText: z.boolean().default(false),
-  animations: z.boolean().default(true),
-  colorScheme: z.enum(["purple", "blue", "green", "orange"]),
-});
-
-type ColorOption = {
-  value: string;
-  label: string;
-  color: string;
-  primaryColor: string;
-  primaryHsl: string;
-};
+import { Moon, Sun, Monitor, Check, Sparkles } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const AppearanceSettings = () => {
   const { toast } = useToast();
-  const [selectedColor, setSelectedColor] = useState<string>("purple");
+  const { 
+    theme, setTheme, 
+    colorScheme, setColorScheme, 
+    highContrast, setHighContrast, 
+    largeText, setLargeText,
+    animations, setAnimations
+  } = useTheme();
 
-  const colorOptions: ColorOption[] = [
-    { 
-      value: "purple", 
-      label: "Purple", 
-      color: "bg-purple-600", 
-      primaryColor: "#8B5CF6",
-      primaryHsl: "252 95% 70%"
-    },
-    { 
-      value: "blue", 
-      label: "Blue", 
-      color: "bg-blue-600", 
-      primaryColor: "#3b82f6",
-      primaryHsl: "220 91% 60%"
-    },
-    { 
-      value: "green", 
-      label: "Green", 
-      color: "bg-green-600", 
-      primaryColor: "#22c55e",
-      primaryHsl: "142 71% 45%"
-    },
-    { 
-      value: "orange", 
-      label: "Orange", 
-      color: "bg-orange-600", 
-      primaryColor: "#f97316",
-      primaryHsl: "25 95% 53%"
-    },
+  const colorOptions = [
+    { value: "purple" as const, label: "Midnight Purple", color: "bg-purple-600" },
+    { value: "blue" as const, label: "Ocean Blue", color: "bg-blue-600" },
+    { value: "green" as const, label: "Emerald Green", color: "bg-green-600" },
+    { value: "orange" as const, label: "Sunset Orange", color: "bg-orange-600" },
   ];
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      theme: "light",
-      highContrast: false,
-      largeText: false,
-      animations: true,
-      colorScheme: "purple",
-    },
-  });
-
-  // Load saved settings from localStorage on component mount
-  useEffect(() => {
-    try {
-      const savedSettings = localStorage.getItem("themeSettings");
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings) as ThemeSettings;
-        form.reset(settings);
-        setSelectedColor(settings.colorScheme);
-        
-        // Apply saved settings immediately on load
-        applyThemeSettings(settings);
-      } else {
-        // Apply default settings if none saved
-        const defaultSettings: ThemeSettings = {
-          theme: "light",
-          colorScheme: "purple",
-          highContrast: false,
-          largeText: false,
-          animations: true
-        };
-        applyThemeSettings(defaultSettings);
-      }
-    } catch (error) {
-      console.error("Error loading theme settings", error);
-    }
-  }, []);
-
-  // Function to apply theme settings throughout the app
-  const applyThemeSettings = (settings: ThemeSettings) => {
-    console.log("Applying theme settings:", settings);
-    const root = document.documentElement;
-    const body = document.body;
-    
-    // Apply theme (light/dark/system)
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    
-    if (settings.theme === "dark" || (settings.theme === "system" && prefersDark)) {
-      root.classList.add("dark");
-      body.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-      body.classList.remove("dark");
-    }
-    
-    // Apply system theme listener if needed
-    if (settings.theme === "system") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleChange = (e: MediaQueryListEvent) => {
-        if (e.matches) {
-          root.classList.add("dark");
-          body.classList.add("dark");
-        } else {
-          root.classList.remove("dark");
-          body.classList.remove("dark");
-        }
-      };
-      
-      // Clean up old listener if exists
-      try {
-        mediaQuery.removeEventListener("change", handleChange);
-      } catch(e) {
-        console.log("No previous listener to remove");
-      }
-      mediaQuery.addEventListener("change", handleChange);
-    }
-    
-    // Apply color scheme throughout the app
-    const colorOption = colorOptions.find(c => c.value === settings.colorScheme);
-    if (colorOption) {
-      // Set CSS variables for consistent theming
-      root.style.setProperty("--color-primary", colorOption.primaryColor);
-      root.style.setProperty("--primary", colorOption.primaryHsl);
-      
-      // Apply to buttons, links, and interactive elements
-      const primaryElements = document.querySelectorAll('.btn-primary, .text-primary, .bg-primary, .border-primary');
-      primaryElements.forEach(element => {
-        if (element instanceof HTMLElement) {
-          element.style.setProperty('--tw-bg-opacity', '1');
-          element.style.backgroundColor = `rgb(${colorOption.primaryColor})`;
-        }
-      });
-      
-      // Update all purple-colored elements to use the new color scheme
-      updateColorClasses(settings.colorScheme);
-    }
-    
-    // Apply accessibility settings
-    applyAccessibilitySettings(settings);
+  const handleSave = () => {
+    toast({
+      title: "Settings Applied",
+      description: "Visual atmosphere and accessibility preferences synchronized.",
+    });
   };
-  
-  // Update color classes throughout the app
-  const updateColorClasses = (colorScheme: string) => {
-    const colorMap: Record<string, string[]> = {
-      purple: ['purple-600', 'purple-700', 'purple-500', 'purple-50', 'purple-100'],
-      blue: ['blue-600', 'blue-700', 'blue-500', 'blue-50', 'blue-100'],
-      green: ['green-600', 'green-700', 'green-500', 'green-50', 'green-100'],
-      orange: ['orange-600', 'orange-700', 'orange-500', 'orange-50', 'orange-100']
-    };
-    
-    // Create or update dynamic style sheet
-    let styleSheet = document.getElementById('dynamic-color-scheme');
-    if (!styleSheet) {
-      styleSheet = document.createElement('style');
-      styleSheet.id = 'dynamic-color-scheme';
-      document.head.appendChild(styleSheet);
-    }
-    
-    const colors = colorMap[colorScheme];
-    if (colors) {
-      const rules = `
-        .bg-purple-600, .hover\\:bg-purple-700:hover, .btn-primary { 
-          background-color: var(--color-primary) !important; 
-        }
-        .text-purple-600, .hover\\:text-purple-600:hover { 
-          color: var(--color-primary) !important; 
-        }
-        .border-purple-600, .focus\\:ring-purple-500:focus { 
-          border-color: var(--color-primary) !important; 
-        }
-        .bg-purple-50 { 
-          background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important; 
-        }
-        .bg-purple-100 { 
-          background-color: color-mix(in srgb, var(--color-primary) 20%, white) !important; 
-        }
-        .sidebar-item.active {
-          background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important;
-          color: var(--color-primary) !important;
-        }
-        .sidebar-item:hover {
-          background-color: color-mix(in srgb, var(--color-primary) 10%, white) !important;
-          color: var(--color-primary) !important;
-        }
-      `;
-      
-      styleSheet.textContent = rules;
-    }
-  };
-  
-  // Apply accessibility-specific settings
-  const applyAccessibilitySettings = (settings: ThemeSettings) => {
-    const { highContrast, largeText, animations } = settings;
-    const root = document.documentElement;
-    const body = document.body;
-    
-    // High contrast mode
-    if (highContrast) {
-      root.classList.add("high-contrast");
-      body.classList.add("high-contrast");
-      applyHighContrastStyles();
-    } else {
-      root.classList.remove("high-contrast");
-      body.classList.remove("high-contrast");
-      removeHighContrastStyles();
-    }
-    
-    // Large text mode
-    if (largeText) {
-      root.classList.add("large-text");
-      body.classList.add("text-lg");
-      applyLargeTextStyles();
-    } else {
-      root.classList.remove("large-text");
-      body.classList.remove("text-lg");
-      removeLargeTextStyles();
-    }
-    
-    // Animations
-    if (!animations) {
-      root.classList.add("reduce-motion");
-      body.classList.add("reduce-motion");
-      applyReduceMotionStyles();
-    } else {
-      root.classList.remove("reduce-motion");
-      body.classList.remove("reduce-motion");
-      removeReduceMotionStyles();
-    }
-  };
-  
-  // Style management functions
-  const applyHighContrastStyles = () => {
-    let styleEl = document.getElementById('high-contrast-styles');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'high-contrast-styles';
-      document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = `
-      .high-contrast {
-        --background: #000000;
-        --foreground: #ffffff;
-        --muted: #444444;
-        --muted-foreground: #eeeeee;
-        --border: #ffffff;
-        --input: #333333;
-      }
-      .high-contrast p, .high-contrast h1, .high-contrast h2, .high-contrast h3, 
-      .high-contrast h4, .high-contrast span, .high-contrast div {
-        color: #ffffff;
-      }
-      .high-contrast .card {
-        background-color: #222222;
-        border: 1px solid #ffffff;
-      }
-      .high-contrast button {
-        border: 2px solid white;
-      }
-      .high-contrast input, .high-contrast select {
-        background-color: #333333;
-        color: white;
-        border: 1px solid white;
-      }
-    `;
-  };
-  
-  const removeHighContrastStyles = () => {
-    const styleEl = document.getElementById('high-contrast-styles');
-    if (styleEl) {
-      styleEl.textContent = '';
-    }
-  };
-  
-  const applyLargeTextStyles = () => {
-    let styleEl = document.getElementById('large-text-styles');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'large-text-styles';
-      document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = `
-      .large-text {
-        font-size: 18px;
-      }
-      .large-text h1 {
-        font-size: 2.5rem;
-      }
-      .large-text h2 {
-        font-size: 2rem;
-      }
-      .large-text h3 {
-        font-size: 1.75rem;
-      }
-      .large-text button, .large-text input, .large-text select {
-        font-size: 1.1rem;
-      }
-    `;
-  };
-  
-  const removeLargeTextStyles = () => {
-    const styleEl = document.getElementById('large-text-styles');
-    if (styleEl) {
-      styleEl.textContent = '';
-    }
-  };
-  
-  const applyReduceMotionStyles = () => {
-    let styleEl = document.getElementById('reduce-motion-styles');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'reduce-motion-styles';
-      document.head.appendChild(styleEl);
-    }
-    styleEl.textContent = `
-      .reduce-motion * {
-        transition: none !important;
-        animation: none !important;
-      }
-    `;
-  };
-  
-  const removeReduceMotionStyles = () => {
-    const styleEl = document.getElementById('reduce-motion-styles');
-    if (styleEl) {
-      styleEl.textContent = '';
-    }
-  };
-  
-  // Convert hex color to HSL for CSS variables
-  const hexToHSL = (hex: string): { h: number; s: number; l: number } | null => {
-    try {
-      // Remove the # if it exists
-      hex = hex.replace(/^#/, '');
-      
-      // Parse the hex values
-      let r = parseInt(hex.substring(0, 2), 16) / 255;
-      let g = parseInt(hex.substring(2, 4), 16) / 255;
-      let b = parseInt(hex.substring(4, 6), 16) / 255;
-      
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      let h = 0;
-      let s = 0;
-      let l = (max + min) / 2;
-
-      if (max !== min) {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        
-        switch (max) {
-          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-          case g: h = (b - r) / d + 2; break;
-          case b: h = (r - g) / d + 4; break;
-        }
-        
-        h *= 60;
-      }
-      
-      // Round values
-      h = Math.round(h);
-      s = Math.round(s * 100);
-      l = Math.round(l * 100);
-      
-      return { h, s, l };
-    } catch (error) {
-      console.error("Error converting hex to HSL:", error);
-      return null;
-    }
-  };
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      console.log("Saving appearance settings:", values);
-      // Save settings to localStorage
-      const themeSettings: ThemeSettings = {
-        theme: values.theme,
-        colorScheme: values.colorScheme,
-        highContrast: values.highContrast,
-        largeText: values.largeText,
-        animations: values.animations
-      };
-      
-      localStorage.setItem("themeSettings", JSON.stringify(themeSettings));
-      
-      // Apply the theme settings immediately
-      applyThemeSettings(themeSettings);
-      
-      toast({
-        title: "Appearance updated",
-        description: "Your appearance settings have been saved and applied throughout the app.",
-      });
-    } catch (error) {
-      console.error("Error saving theme settings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save appearance settings.",
-        variant: "destructive",
-      });
-    }
-  }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Theme</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="theme"
-              render={({ field }) => (
-                <FormItem className="space-y-4">
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={(value) => {
-                        console.log("Theme changed to:", value);
-                        field.onChange(value);
-                        // Preview theme change immediately
-                        const currentSettings = form.getValues();
-                        applyThemeSettings({
-                          theme: value as "light" | "dark" | "system",
-                          colorScheme: currentSettings.colorScheme,
-                          highContrast: currentSettings.highContrast,
-                          largeText: currentSettings.largeText,
-                          animations: currentSettings.animations
-                        });
-                      }}
-                      value={field.value}
-                      className="grid grid-cols-3 gap-4"
-                    >
-                      <FormItem>
-                        <FormControl>
-                          <div className="[&:has([data-state=checked])>div]:border-primary [&:has([data-state=checked])>div]:ring-1 [&:has([data-state=checked])>div]:ring-purple-600">
-                            <RadioGroupItem value="light" id="light" className="sr-only" />
-                            <div className="border-2 rounded-md p-4 flex flex-col items-center cursor-pointer hover:border-purple-200">
-                              <Sun className="mb-3 h-6 w-6" />
-                              <span className="text-sm font-medium">Light</span>
-                            </div>
-                          </div>
-                        </FormControl>
-                      </FormItem>
-                      <FormItem>
-                        <FormControl>
-                          <div className="[&:has([data-state=checked])>div]:border-primary [&:has([data-state=checked])>div]:ring-1 [&:has([data-state=checked])>div]:ring-purple-600">
-                            <RadioGroupItem value="dark" id="dark" className="sr-only" />
-                            <div className="border-2 rounded-md p-4 flex flex-col items-center cursor-pointer hover:border-purple-200">
-                              <Moon className="mb-3 h-6 w-6" />
-                              <span className="text-sm font-medium">Dark</span>
-                            </div>
-                          </div>
-                        </FormControl>
-                      </FormItem>
-                      <FormItem>
-                        <FormControl>
-                          <div className="[&:has([data-state=checked])>div]:border-primary [&:has([data-state=checked])>div]:ring-1 [&:has([data-state=checked])>div]:ring-purple-600">
-                            <RadioGroupItem value="system" id="system" className="sr-only" />
-                            <div className="border-2 rounded-md p-4 flex flex-col items-center cursor-pointer hover:border-purple-200">
-                              <Monitor className="mb-3 h-6 w-6" />
-                              <span className="text-sm font-medium">System</span>
-                            </div>
-                          </div>
-                        </FormControl>
-                      </FormItem>
-                    </RadioGroup>
-                  </FormControl>
-                  <FormDescription className="text-center">
-                    Select a theme preference for the application.
-                  </FormDescription>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl">
+      <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-indigo-900/10 rounded-[2.5rem] overflow-hidden bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+        <CardHeader className="p-8 border-b border-slate-50 dark:border-white/5">
+          <CardTitle className="text-2xl font-black font-heading flex items-center gap-3">
+            <Sparkles className="w-6 h-6 text-indigo-500" />
+            Visual Atmosphere
+          </CardTitle>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Choose how the application looks and feels on your screen.</p>
+        </CardHeader>
+        <CardContent className="p-8 space-y-8">
+          <div className="space-y-4">
+            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Display Theme</Label>
+            <RadioGroup value={theme} onValueChange={(v: any) => setTheme(v)} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { id: 'light', icon: Sun, label: 'Standard Light' },
+                { id: 'dark', icon: Moon, label: 'Deep Dark' },
+                { id: 'system', icon: Monitor, label: 'System Sync' }
+              ].map(item => (
+                <div 
+                  key={item.id} 
+                  onClick={() => setTheme(item.id as any)} 
+                  className={`flex items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${theme === item.id ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-500/10' : 'border-slate-100 dark:border-white/5 hover:border-indigo-200 hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                >
+                  <div className={`p-3 rounded-xl transition-colors ${theme === item.id ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-400'}`}>
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <span className={`font-bold text-sm tracking-tight ${theme === item.id ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-600 dark:text-slate-400'}`}>{item.label}</span>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Color Scheme</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="colorScheme"
-              render={({ field }) => (
-                <FormItem className="space-y-4">
-                  <div className="grid grid-cols-4 gap-4">
-                    {colorOptions.map((option) => (
-                      <div 
-                        key={option.value}
-                        className={`flex flex-col items-center gap-2 cursor-pointer`}
-                        onClick={() => {
-                          console.log("Color scheme changed to:", option.value);
-                          field.onChange(option.value);
-                          setSelectedColor(option.value);
-                          
-                          // Preview color change immediately
-                          const currentSettings = form.getValues();
-                          const typeSafeColorScheme = option.value as "purple" | "blue" | "green" | "orange";
-                          applyThemeSettings({
-                            theme: currentSettings.theme,
-                            colorScheme: typeSafeColorScheme,
-                            highContrast: currentSettings.highContrast,
-                            largeText: currentSettings.largeText,
-                            animations: currentSettings.animations
-                          });
-                        }}
-                      >
-                        <div 
-                          className={`w-12 h-12 rounded-full ${option.color} flex items-center justify-center transition-all ${
-                            selectedColor === option.value ? 'ring-4 ring-purple-200' : ''
-                          }`}
-                        >
-                          {selectedColor === option.value && (
-                            <Check className="h-6 w-6 text-white" />
-                          )}
-                        </div>
-                        <span className="text-sm">{option.label}</span>
-                      </div>
-                    ))}
+          <div className="space-y-4">
+            <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Core Color Palette</Label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {colorOptions.map((option) => (
+                <div 
+                  key={option.value}
+                  onClick={() => setColorScheme(option.value)}
+                  className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${colorScheme === option.value ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-white/5 hover:border-indigo-200'}`}
+                >
+                  <div className={`h-10 w-10 rounded-full ${option.color} flex items-center justify-center shadow-lg transition-transform ${colorScheme === option.value ? 'scale-110' : 'scale-100'}`}>
+                    {colorScheme === option.value && <Check className="h-5 w-5 text-white" />}
                   </div>
-                  <FormDescription className="text-center">
-                    Choose a primary color that will be applied throughout the entire application.
-                  </FormDescription>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{option.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Accessibility</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="highContrast"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">High Contrast</FormLabel>
-                    <FormDescription>
-                      Increase contrast for better readability.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        console.log("High contrast changed to:", checked);
-                        field.onChange(checked);
-                        
-                        // Preview contrast change immediately
-                        const currentSettings = form.getValues();
-                        applyThemeSettings({
-                          theme: currentSettings.theme,
-                          colorScheme: currentSettings.colorScheme,
-                          highContrast: checked,
-                          largeText: currentSettings.largeText,
-                          animations: currentSettings.animations
-                        });
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="largeText"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Large Text</FormLabel>
-                    <FormDescription>
-                      Increase the font size across the application.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        console.log("Large text changed to:", checked);
-                        field.onChange(checked);
-                        
-                        // Preview text size change immediately
-                        const currentSettings = form.getValues();
-                        applyThemeSettings({
-                          theme: currentSettings.theme,
-                          colorScheme: currentSettings.colorScheme,
-                          highContrast: currentSettings.highContrast,
-                          largeText: checked,
-                          animations: currentSettings.animations
-                        });
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="animations"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Animations</FormLabel>
-                    <FormDescription>
-                      Enable or disable UI animations.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={(checked) => {
-                        console.log("Animations changed to:", checked);
-                        field.onChange(checked);
-                        
-                        // Preview animation change immediately
-                        const currentSettings = form.getValues();
-                        applyThemeSettings({
-                          theme: currentSettings.theme,
-                          colorScheme: currentSettings.colorScheme,
-                          highContrast: currentSettings.highContrast,
-                          largeText: currentSettings.largeText,
-                          animations: checked
-                        });
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
+      <Card className="border-none shadow-xl shadow-slate-200/50 dark:shadow-indigo-900/10 rounded-[2.5rem] overflow-hidden bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+        <CardHeader className="p-8 border-b border-slate-50 dark:border-white/5">
+          <CardTitle className="text-2xl font-black font-heading">Accessibility & Comfort</CardTitle>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Adjust readability and interface interaction settings.</p>
+        </CardHeader>
+        <CardContent className="p-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-4 p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5 transition-all hover:bg-white dark:hover:bg-white/10">
+            <div className="space-y-1">
+              <Label className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">High Contrast</Label>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-normal">Improves visibility by using sharper color boundaries.</p>
+            </div>
+            <Switch checked={highContrast} onCheckedChange={setHighContrast} />
+          </div>
 
-        <div className="flex justify-end">
-          <Button type="submit">Save Appearance Settings</Button>
-        </div>
-      </form>
-    </Form>
+          <div className="flex flex-col gap-4 p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5 transition-all hover:bg-white dark:hover:bg-white/10">
+            <div className="space-y-1">
+              <Label className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Large Text</Label>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-normal">Scales up fonts across the platform for better legibility.</p>
+            </div>
+            <Switch checked={largeText} onCheckedChange={setLargeText} />
+          </div>
+
+          <div className="flex flex-col gap-4 p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5 transition-all hover:bg-white dark:hover:bg-white/10">
+            <div className="space-y-1">
+              <Label className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Interface Motion</Label>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-normal">Toggle micro-animations and smooth transitions.</p>
+            </div>
+            <Switch checked={animations} onCheckedChange={setAnimations} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end pt-4">
+        <Button onClick={handleSave} className="rounded-2xl h-16 px-12 bg-slate-900 dark:bg-indigo-600 text-white font-black uppercase tracking-[0.2em] text-[10px] hover:scale-105 shadow-2xl transition-all active:scale-95 group">
+          Apply Visual Profile
+          <Sparkles className="w-4 h-4 ml-3 group-hover:rotate-12 transition-transform" />
+        </Button>
+      </div>
+    </div>
   );
 };
 
