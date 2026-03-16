@@ -19,6 +19,7 @@ ALTER TABLE public.medical_audit_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins view all medical audits" ON public.medical_audit_logs
     FOR SELECT USING (is_admin_secure());
 
+DROP FUNCTION IF EXISTS public.audit_medical_profile_changes();
 CREATE OR REPLACE FUNCTION public.audit_medical_profile_changes()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -50,6 +51,7 @@ CREATE TRIGGER tr_audit_medical_profiles
 -- 2. CONFLICT-AWARE SCHEDULING
 -- Purpose: Prevent staff from being double-booked.
 
+DROP FUNCTION IF EXISTS public.check_shift_conflicts(UUID, TIMESTAMPTZ, TIMESTAMPTZ, UUID);
 CREATE OR REPLACE FUNCTION public.check_shift_conflicts(
     p_staff_id UUID,
     p_start_time TIMESTAMPTZ,
@@ -85,6 +87,7 @@ ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS has_active_background_check BOOLEAN DEFAULT false;
 
 -- Trigger to auto-update the flag when a police_check or background_check is approved
+DROP FUNCTION IF EXISTS public.sync_background_check_status();
 CREATE OR REPLACE FUNCTION public.sync_background_check_status()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -103,17 +106,29 @@ CREATE TRIGGER tr_sync_background_check
 
 -- 4. MULTI-LOCATION ENHANCEMENT
 -- Add a function to find nearest center by location
+DROP FUNCTION IF EXISTS public.get_nearest_centers(DOUBLE PRECISION, DOUBLE PRECISION, INTEGER);
 CREATE OR REPLACE FUNCTION public.get_nearest_centers(
     p_lat DOUBLE PRECISION,
     p_lng DOUBLE PRECISION,
     p_limit INTEGER DEFAULT 3
 )
-RETURNS SETOF public.child_care_centers
+RETURNS TABLE (
+    id UUID,
+    name TEXT,
+    address TEXT,
+    distance_km FLOAT
+)
 LANGUAGE sql
 STABLE
 AS $$
-    SELECT *
-    FROM public.child_care_centers
+    SELECT 
+        id, 
+        name, 
+        address,
+        -- Simple Euclidean distance approximation for display (approx 111km per degree)
+        ROUND(((POINT(longitude, latitude) <-> POINT(p_lng, p_lat)) * 111.0)::numeric, 1)::float as distance_km
+    FROM public.centers
+    WHERE is_active = true
     ORDER BY (POINT(longitude, latitude) <-> POINT(p_lng, p_lat))
     LIMIT p_limit;
 $$;

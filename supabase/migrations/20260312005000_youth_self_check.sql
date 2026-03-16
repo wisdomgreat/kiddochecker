@@ -9,6 +9,7 @@ ADD COLUMN IF NOT EXISTS youth_pin TEXT;
 CREATE INDEX IF NOT EXISTS idx_children_pin ON public.children(youth_pin) WHERE youth_pin IS NOT NULL;
 
 -- RPC for Youth Self-Check
+DROP FUNCTION IF EXISTS public.youth_self_check_action(TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.youth_self_check_action(
     p_pin_code TEXT,
     p_kiosk_id TEXT DEFAULT NULL

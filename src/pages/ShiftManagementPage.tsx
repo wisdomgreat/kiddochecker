@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { format, addDays, startOfWeek, endOfWeek } from 'date-fns';
+import { format, addDays, startOfWeek, endOfWeek, startOfDay, endOfDay } from 'date-fns';
 import { Calendar as CalendarIcon, Clock, Users, Plus, Trash2, Edit2, Loader2, ChevronLeft, ChevronRight, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -33,12 +33,24 @@ const ShiftManagementPage = () => {
 
   // Queries
   const { data: staff = [], isLoading: loadingStaff } = useQuery({
-    queryKey: ['all-staff'],
+    queryKey: ['all-staff-scheduling'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('id, first_name, last_name, email');
+      const { data, error } = await supabase.rpc('get_available_recipients');
+      if (error) throw error;
       return data || [];
     }
   });
+
+  // Real-time updates
+  React.useEffect(() => {
+    const channel = supabase
+      .channel('shifts-admin-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const { data: classes = [] } = useQuery({
     queryKey: ['all-classes'],
@@ -51,8 +63,9 @@ const ShiftManagementPage = () => {
   const { data: shifts = [], isLoading: loadingShifts } = useQuery({
     queryKey: ['shifts', format(selectedDate, 'yyyy-MM-dd')],
     queryFn: async () => {
-      const start = format(selectedDate, 'yyyy-MM-dd') + ' 00:00:00';
-      const end = format(selectedDate, 'yyyy-MM-dd') + ' 23:59:59';
+      const start = startOfDay(selectedDate).toISOString();
+      const end = endOfDay(selectedDate).toISOString();
+      
       const { data, error } = await supabase
         .from('shifts')
         .select(`
@@ -60,8 +73,7 @@ const ShiftManagementPage = () => {
           staff:profiles(first_name, last_name),
           class:classes(name)
         `)
-        .gte('start_time', start)
-        .lte('start_time', end)
+        .or(`start_time.gte.${start},end_time.lte.${end}`)
         .order('start_time', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -205,14 +217,13 @@ const ShiftManagementPage = () => {
           </Dialog>
         </div>
 
-        {/* Date Selector */}
-        <div className="flex items-center justify-between bg-white/60 backdrop-blur-md p-4 rounded-[2rem] border border-slate-100 shadow-sm">
-          <Button variant="ghost" className="rounded-full h-10 w-10 p-0" onClick={() => changeDate(-1)}><ChevronLeft /></Button>
-          <div className="text-center">
-            <p className="text-xs font-black uppercase tracking-widest text-indigo-600">{format(selectedDate, 'EEEE')}</p>
-            <h2 className="text-2xl font-black text-slate-800">{format(selectedDate, 'MMM dd, yyyy')}</h2>
+        <div className="flex items-center justify-between bg-white/60 backdrop-blur-md p-6 rounded-[2.5rem] border border-slate-100 shadow-sm transition-all hover:bg-white/80">
+          <Button variant="ghost" className="rounded-full h-12 w-12 p-0 hover:bg-indigo-50 text-indigo-600 transition-colors" onClick={() => changeDate(-1)}><ChevronLeft className="h-6 w-6" /></Button>
+          <div className="text-center group cursor-pointer" onClick={() => setSelectedDate(new Date())}>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 mb-1">Schedule for</p>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight">{format(selectedDate, 'EEEE, MMM dd')}</h2>
           </div>
-          <Button variant="ghost" className="rounded-full h-10 w-10 p-0" onClick={() => changeDate(1)}><ChevronRight /></Button>
+          <Button variant="ghost" className="rounded-full h-12 w-12 p-0 hover:bg-indigo-50 text-indigo-600 transition-colors" onClick={() => changeDate(1)}><ChevronRight className="h-6 w-6" /></Button>
         </div>
 
         {/* Shift Grid/List */}

@@ -8,6 +8,7 @@ ADD COLUMN IF NOT EXISTS actual_end_time TIMESTAMPTZ,
 ADD COLUMN IF NOT EXISTS kiosk_id UUID; -- tracked where they clocked in
 
 -- 2. ENFORCE NO-CONFLICTS VIA TRIGGER
+DROP FUNCTION IF EXISTS public.enforce_shift_no_conflicts();
 CREATE OR REPLACE FUNCTION public.enforce_shift_no_conflicts()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -32,6 +33,7 @@ CREATE TRIGGER tr_enforce_shift_conflicts
     EXECUTE FUNCTION public.enforce_shift_no_conflicts();
 
 -- 3. HELPER FOR KIOSK SHIFT ACTIONS (used by frontend handleShiftAction)
+DROP FUNCTION IF EXISTS public.staff_shift_action_kiosk(UUID, TEXT, UUID);
 CREATE OR REPLACE FUNCTION public.staff_shift_action_kiosk(
     p_shift_id UUID,
     p_action TEXT, -- 'check_in', 'check_out'
@@ -84,6 +86,7 @@ END;
 $$;
 
 -- 4. HELPER TO FETCH TODAY'S SHIFTS FOR STAFF (used by frontend)
+DROP FUNCTION IF EXISTS public.get_staff_shifts_for_kiosk(TEXT);
 CREATE OR REPLACE FUNCTION public.get_staff_shifts_for_kiosk(
     p_pin TEXT
 )

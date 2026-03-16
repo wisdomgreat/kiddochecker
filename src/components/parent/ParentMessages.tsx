@@ -154,7 +154,9 @@ const ParentMessages = () => {
                 >
                   <div className="flex justify-between items-start mb-1">
                     <span className="font-bold text-sm truncate max-w-[150px]">
-                      {msg.sender_id === user?.id ? `To: ${msg.recipient?.first_name || 'Staff'}` : `${msg.sender?.first_name} ${msg.sender?.last_name}`}
+                      {msg.sender_id === user?.id 
+                        ? `To: ${msg.recipient?.first_name ? `${msg.recipient.first_name} ${msg.recipient.last_name || ''}` : 'Staff'}` 
+                        : (msg.sender?.first_name ? `${msg.sender.first_name} ${msg.sender.last_name || ''}` : 'Staff Member')}
                     </span>
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       {format(new Date(msg.created_at), "MMM d")}
@@ -249,7 +251,9 @@ const ParentMessages = () => {
                                 <CardTitle className="text-lg mb-1">{msg.subject || "(No Subject)"}</CardTitle>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     <span className="font-semibold text-foreground">
-                                        {msg.sender_id === user?.id ? "You" : `${msg.sender?.first_name} ${msg.sender?.last_name}`}
+                                        {msg.sender_id === user?.id 
+                                            ? "You" 
+                                            : (msg.sender?.first_name ? `${msg.sender.first_name} ${msg.sender.last_name || ''}` : 'Staff Member')}
                                     </span>
                                     <span>•</span>
                                     <span>{format(new Date(msg.created_at), "PPPP 'at' p")}</span>

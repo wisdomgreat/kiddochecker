@@ -94,9 +94,13 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    font-smoothing: auto;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+    text-rendering: optimizeLegibility;
   }
 
   html {

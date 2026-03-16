@@ -1,6 +1,7 @@
 -- Migration: 20260312004000_broaden_reports.sql
 
 -- Update the Liability Audit Report to return all accountability fields including signature
+DROP FUNCTION IF EXISTS public.get_liability_audit_report(date, date);
 CREATE OR REPLACE FUNCTION public.get_liability_audit_report(start_date date, end_date date)
 RETURNS TABLE (
     attendance_id UUID,

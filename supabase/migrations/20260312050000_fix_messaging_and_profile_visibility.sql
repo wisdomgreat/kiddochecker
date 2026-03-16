@@ -1,12 +1,63 @@
--- Migration: 20260312050000_fix_messaging_and_profile_visibility.sql
--- Description: Allow users to find colleagues and staff for messaging, and ensure messaging permissions are correctly assigned.
+-- 1. ENSURE PERMISSION CHECK FUNCTION EXISTS
+-- Redefine check_user_permission to ensure it's available for the RLS policy
+CREATE OR REPLACE FUNCTION public.check_user_permission(
+  p_user_id uuid,
+  p_permission_name text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_is_super_admin boolean := false;
+  v_has_permission boolean := false;
+BEGIN
+  -- Check if user is super admin (bypass)
+  SELECT COALESCE(is_super_admin, false) OR role = 'super_admin'
+  INTO v_is_super_admin
+  FROM public.user_roles
+  WHERE user_id = p_user_id;
+  
+  IF v_is_super_admin THEN
+    RETURN true;
+  END IF;
+  
+  -- Check role-based permissions (legacy roles)
+  SELECT EXISTS(
+    SELECT 1
+    FROM public.user_roles ur
+    JOIN public.role_permissions rp ON ur.role::text = (
+      SELECT name FROM public.custom_roles WHERE id = rp.role_id
+    )
+    JOIN public.permissions p ON rp.permission_id = p.id
+    WHERE ur.user_id = p_user_id
+    AND p.name = p_permission_name
+  ) INTO v_has_permission;
+  
+  -- Also check custom role assignments
+  IF NOT v_has_permission THEN
+    SELECT EXISTS(
+      SELECT 1
+      FROM public.user_roles ur
+      JOIN public.role_permissions rp ON ur.custom_role_id = rp.role_id
+      JOIN public.permissions p ON rp.permission_id = p.id
+      WHERE ur.user_id = p_user_id
+      AND p.name = p_permission_name
+    ) INTO v_has_permission;
+  END IF;
+  
+  RETURN v_has_permission;
+END;
+$$;
 
--- 1. FIX PROFILE VISIBILITY
+-- 2. FIX PROFILE VISIBILITY
 -- Previously, users could only view their own profile. For messaging to work, 
 -- users need to see the names and roles of other people they might message.
 
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Anyone can view staff profiles" ON public.profiles;
+DROP POLICY IF EXISTS "authenticated_view_profiles_selective" ON public.profiles;
 
 -- Create an enhanced SELECT policy for profiles
 CREATE POLICY "authenticated_view_profiles_selective" 
@@ -16,8 +67,8 @@ USING (
   -- Always see your own profile
   id = auth.uid()
   -- OR you are an Admin/Staff member (can see everyone for management)
-  OR public.check_user_permission(auth.uid(), 'view_users')
-  OR public.check_user_permission(auth.uid(), 'send_messages')
+  OR public.check_user_permission(auth.uid(), 'view_users'::text)
+  OR public.check_user_permission(auth.uid(), 'send_messages'::text)
   -- OR you are viewing a Staff member, Teacher, or Admin (Public/Team directory)
   OR EXISTS (
     SELECT 1 FROM public.user_roles ur 
@@ -62,6 +113,7 @@ ON CONFLICT DO NOTHING;
 
 -- 3. FIX RECIPIENT FETCH VIEW/FUNCTION (Optional but helpful)
 -- If the frontend join is failing due to complex RLS, a security definer function helps.
+DROP FUNCTION IF EXISTS public.get_available_recipients();
 CREATE OR REPLACE FUNCTION public.get_available_recipients()
 RETURNS TABLE (
     id UUID,

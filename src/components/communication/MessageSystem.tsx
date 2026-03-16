@@ -275,10 +275,10 @@ const MessageSystem = () => {
                                 </span>
                                 <span className="font-semibold text-foreground">
                                   {activeTab === "inbox" 
-                                    ? `${message.sender?.first_name} ${message.sender?.last_name}`
-                                    : message.recipient 
-                                        ? `${message.recipient.first_name} ${message.recipient.last_name}`
-                                        : message.recipient_role ? `All ${message.recipient_role}` : "Anonymous"}
+                                    ? (message.sender?.first_name ? `${message.sender.first_name} ${message.sender.last_name || ''}` : "Staff Member")
+                                    : (message.recipient?.first_name 
+                                        ? `${message.recipient.first_name} ${message.recipient.last_name || ''}`
+                                        : message.recipient_role ? `All ${message.recipient_role}` : "User")}
                                 </span>
                                 {(activeTab === "inbox" ? message.sender?.role : message.recipient?.role) && (
                                     <Badge variant="outline" className="text-[10px] h-5 px-1.5">
@@ -368,7 +368,10 @@ const MessageSystem = () => {
                           className="justify-between transition-all hover:border-primary/50 w-full font-normal"
                         >
                           {newMessage.recipientId
-                            ? (users.find((user) => user.id === newMessage.recipientId)?.first_name + " " + users.find((user) => user.id === newMessage.recipientId)?.last_name) || "Unknown User"
+                            ? (() => {
+                                const selected = users.find((u) => u.id === newMessage.recipientId);
+                                return selected?.first_name ? `${selected.first_name} ${selected.last_name || ''}` : "Selected User";
+                              })()
                             : "Select a recipient..."}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -397,9 +400,7 @@ const MessageSystem = () => {
                                           newMessage.recipientId === recipient.id ? "opacity-100" : "opacity-0"
                                         )}
                                       />
-                                      <span className="font-medium">
-                                      {recipient.first_name} {recipient.last_name}
-                                      </span>
+                                      {recipient.first_name ? `${recipient.first_name} ${recipient.last_name || ''}` : 'Unknown User'}
                                     </div>
                                     <Badge variant="outline" className="ml-2 text-[10px] uppercase font-bold shrink-0">
                                     {recipient.role}
