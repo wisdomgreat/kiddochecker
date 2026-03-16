@@ -19,6 +19,11 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Plus Jakarta Sans", "Inter", "sans-serif"],
+        heading: ["Outfit", "sans-serif"],
+        lexend: ["Lexend", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

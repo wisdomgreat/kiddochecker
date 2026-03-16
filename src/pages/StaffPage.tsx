@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useStaff, type StaffMember } from '@/hooks/useStaff';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Briefcase, Building2, Plus, Info } from 'lucide-react';
 
 const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const { staff, isLoading, addStaff, isAddingStaff, updateStaff, isUpdatingStaff, resendWelcomeEmail, isResendingEmail } = useStaff();
@@ -34,6 +36,39 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     role: 'staff',
     is_volunteer: false,
     staff_pin: '',
+    department: '',
+  });
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ['staff-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('staff_groups').select('*').order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: groupMembers = [] } = useQuery({
+    queryKey: ['staff-group-members-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff_group_members')
+        .select('group_id, profile_id, profiles:profile_id(first_name, last_name)');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const createGroupMutation = useMutation({
+    mutationFn: async (newGroup: { name: string, description: string }) => {
+      const { data, error } = await supabase.from('staff_groups').insert([newGroup]).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-groups'] });
+      toast({ title: "Group Created", description: "Department/Group added successfully." });
+    }
   });
 
   const resetForm = () => {
@@ -45,6 +80,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       role: 'staff',
       is_volunteer: false,
       staff_pin: '',
+      department: '',
     });
   };
 
@@ -67,6 +103,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       phone: formData.phone,
       role: formData.role as any,
       is_volunteer: formData.is_volunteer,
+      department: formData.department,
     });
     setIsAddDialogOpen(false);
     resetForm();
@@ -84,6 +121,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
         phone: formData.phone,
         is_volunteer: formData.is_volunteer,
         staff_pin: formData.staff_pin,
+        department: formData.department,
       }
     });
     setIsEditDialogOpen(false);
@@ -127,6 +165,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       role: member.role,
       is_volunteer: member.is_volunteer,
       staff_pin: member.staff_pin || '',
+      department: member.department || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -153,259 +192,209 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       {!isEmbedded && (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Staff Management</h1>
-            <p className="text-muted-foreground">Manage your team members</p>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Personnel & Teams</h1>
+            <p className="text-slate-500 font-medium">Manage your organizational structure and staff units.</p>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100">
             <UserPlus className="h-4 w-4 mr-2" />
             Add Staff Member
           </Button>
         </div>
       )}
 
-      {/* Search */}
-      <div className="flex gap-4">
-        <Input
-          placeholder="Search staff members..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        {isEmbedded && (
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Staff
-          </Button>
-        )}
-      </div>
+      <Tabs defaultValue="staff" className="w-full">
+        <TabsList className="bg-slate-100 p-1 rounded-2xl mb-6">
+          <TabsTrigger value="staff" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Users className="h-4 w-4 mr-2" />
+            Team Roster
+          </TabsTrigger>
+          <TabsTrigger value="groups" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Briefcase className="h-4 w-4 mr-2" />
+            Departments & Groups
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Stats */}
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
-        variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
-        initial="hidden" animate="show"
-      >
-        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{staff?.length || 0}</div>
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Verified Staff</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {staff?.filter((s: StaffMember) => s.is_active).length || 0}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Volunteers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {staff?.filter((s: StaffMember) => s.is_volunteer).length || 0}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </motion.div>
+        <TabsContent value="staff" className="space-y-6">
+          <div className="flex gap-4">
+            <div className="relative max-w-sm flex-1">
+              <Input
+                placeholder="Search by name, email or role..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="rounded-xl h-11 pl-10 bg-slate-50 border-slate-200"
+              />
+              <Users className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+            </div>
+          </div>
 
-      {/* Staff List */}
-      <motion.div
-        className="grid gap-4"
-        variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
-        initial="hidden" animate="show"
-      >
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-6 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ) : filteredStaff && filteredStaff.length > 0 ? (
-          filteredStaff.map((member: StaffMember) => (
-            <motion.div key={member.user_id} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
-                        {member.avatar_url || member.photo_url ? (
-                          <img 
-                            src={member.avatar_url || member.photo_url} 
-                            alt={`${member.first_name}`} 
-                            className="h-full w-full object-cover" 
-                          />
-                        ) : (
-                          <Users className="h-5 w-5 text-primary" />
-                        )}
+          <div className="grid gap-4">
+            {isLoading ? (
+              <div className="py-20 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-indigo-500" /></div>
+            ) : filteredStaff && filteredStaff.length > 0 ? (
+              filteredStaff.map((member: StaffMember) => (
+                <Card key={member.user_id} className="border-none shadow-xl shadow-slate-100 rounded-[2rem] overflow-hidden group hover:shadow-indigo-100/50 transition-all border-l-4 border-l-transparent hover:border-l-indigo-500">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm ring-1 ring-slate-100">
+                          {member.avatar_url || member.photo_url ? (
+                            <img src={member.avatar_url || member.photo_url} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <Users className="h-7 w-7 text-slate-300" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-xl font-black text-slate-900">{member.first_name} {member.last_name}</h3>
+                            {member.department && (
+                               <Badge className="bg-indigo-50 text-indigo-700 border-none rounded-lg text-[10px] font-bold uppercase tracking-wider">{member.department}</Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-400">
+                            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {member.email}</span>
+                            {member.phone && <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> {member.phone}</span>}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {member.first_name} {member.last_name}
-                        </CardTitle>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {member.email}
-                          </span>
-                          {member.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {member.phone}
-                            </span>
-                          )}
-                          {member.staff_pin && (
-                            <span className="flex items-center gap-1 font-mono text-indigo-600 font-bold bg-indigo-50 px-2 rounded-md">
-                              <Shield className="h-3 w-3" />
-                              PIN: {member.staff_pin}
-                            </span>
-                          )}
+
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getRoleBadgeVariant(member.role)} className="rounded-lg px-3 py-1 font-bold">
+                          {member.role?.replace('_', ' ').toUpperCase()}
+                        </Badge>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-50" onClick={() => openEditDialog(member)}><Edit className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="rounded-xl hover:bg-rose-50 hover:text-rose-600" onClick={() => openDeleteDialog(member)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={getRoleBadgeVariant(member.role)} className="capitalize">
-                        {member.role?.replace('_', ' ')}
-                      </Badge>
-                      {member.is_super_admin && (
-                        <Badge variant="default" className="bg-amber-500">
-                          <Shield className="h-3 w-3 mr-1" />
-                          Super Admin
-                        </Badge>
-                      )}
-                      {member.is_volunteer && (
-                        <Badge variant="outline">Volunteer</Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => resendWelcomeEmail(member)}
-                        disabled={isResendingEmail}
-                        title="Resend Welcome Email"
-                      >
-                        <Mail className={`h-4 w-4 ${isResendingEmail ? 'animate-pulse' : ''}`} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                        onClick={() => {
-                          toast({
-                            title: "Background Check Requested",
-                            description: `A background check request has been sent to the partner for ${member.first_name}.`,
-                          });
-                        }}
-                        title="Request Background Check"
-                      >
-                        <ShieldCheck className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(member)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(member)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            </motion.div>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Staff Members</h3>
-              <p className="text-muted-foreground mb-4">
-                Get started by adding your first staff member
-              </p>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Add Staff Member
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </motion.div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="py-20 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-900">No personnel found</h3>
+                <p className="text-slate-500">Try adjusting your search or add a new team member.</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
 
-      {/* Dialogs */}
+        <TabsContent value="groups" className="space-y-6">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="md:col-span-1 border-none shadow-xl shadow-slate-200/50 rounded-[2rem] h-fit">
+                <CardHeader>
+                  <CardTitle className="text-xl font-black">New Group</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="font-bold ml-1">Group Name</Label>
+                    <Input id="group-name" placeholder="e.g., Technical Support" className="rounded-xl h-11" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold ml-1">Description</Label>
+                    <Input id="group-desc" placeholder="Responsibility overview..." className="rounded-xl h-11" />
+                  </div>
+                  <Button 
+                    className="w-full rounded-xl font-bold h-11 bg-indigo-600 hover:bg-indigo-700 mt-2"
+                    onClick={() => {
+                      const name = (document.getElementById('group-name') as HTMLInputElement).value;
+                      const desc = (document.getElementById('group-desc') as HTMLInputElement).value;
+                      if (name) createGroupMutation.mutate({ name, description: desc });
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Group
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <div className="md:col-span-2 grid grid-cols-1 gap-4">
+                {groups.length === 0 ? (
+                  <div className="py-12 bg-white rounded-3xl border border-dashed text-center text-slate-400 font-bold">
+                    No departments defined yet.
+                  </div>
+                ) : (
+                  groups.map((group: any) => (
+                    <Card key={group.id} className="border-none shadow-xl shadow-slate-100 rounded-[2rem] group hover:bg-slate-50 transition-colors">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-4">
+                            <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
+                              <Building2 className="h-5 w-5 text-indigo-600" />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-black text-slate-900 tracking-tight">{group.name}</h4>
+                              <p className="text-xs text-slate-400 font-medium mb-3">{group.description || 'General staff department'}</p>
+                              
+                              <div className="flex flex-wrap gap-2">
+                                {groupMembers.filter((m: any) => m.group_id === group.id).map((m: any) => (
+                                  <Badge key={m.profile_id} className="bg-white border-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-md text-[10px]">
+                                    {m.profiles?.first_name} {m.profiles?.last_name}
+                                  </Badge>
+                                ))}
+                                {groupMembers.filter((m: any) => m.group_id === group.id).length === 0 && (
+                                  <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest italic">No members assigned yet</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge className="bg-indigo-600 text-white font-black px-3 rounded-xl shadow-lg shadow-indigo-100">
+                             {groupMembers.filter((m: any) => m.group_id === group.id).length} MEMBERS
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+           </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialogs updated with Department */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Staff Member</DialogTitle>
+        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-3xl bg-white/95 backdrop-blur-xl">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-black">Add Team Member</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddStaff} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">First Name</Label>
+                <Input value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} required className="rounded-xl h-12" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">Last Name</Label>
+                <Input value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} required className="rounded-xl h-12" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="font-bold ml-1">Email Address</Label>
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required className="rounded-xl h-12" />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="first_name">First Name</Label>
-                <Input
-                  id="first_name"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  required
-                />
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">Base Role</Label>
+                <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+                  <SelectTrigger className="rounded-xl h-12"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-2xl shadow-2xl border-none">
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="teacher">Teacher</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="volunteer">Volunteer</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label htmlFor="last_name">Last Name</Label>
-                <Input
-                  id="last_name"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  required
-                />
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">Department/Group</Label>
+                <Input value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} placeholder="e.g. Technical" className="rounded-xl h-12" />
               </div>
             </div>
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="role">Role</Label>
-              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isAddingStaff}>
-                {isAddingStaff ? 'Adding...' : 'Add Staff'}
+            <div className="flex gap-2 justify-end pt-6">
+              <Button type="button" variant="ghost" className="rounded-xl font-bold" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isAddingStaff} className="rounded-xl font-black px-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100">
+                {isAddingStaff ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Account'}
               </Button>
             </div>
           </form>
@@ -413,72 +402,70 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       </Dialog>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Staff Member</DialogTitle>
+        <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-3xl">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-black">Update Identity</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEditStaff} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-first_name">First Name</Label>
-                <Input
-                  id="edit-first_name"
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                  required
-                />
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">First Name</Label>
+                <Input value={formData.first_name} onChange={(e) => setFormData({ ...formData, first_name: e.target.value })} required className="rounded-xl h-12" />
               </div>
-              <div>
-                <Label htmlFor="edit-last_name">Last Name</Label>
-                <Input
-                  id="edit-last_name"
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                  required
-                />
+              <div className="space-y-1.5">
+                <Label className="font-bold ml-1">Last Name</Label>
+                <Input value={formData.last_name} onChange={(e) => setFormData({ ...formData, last_name: e.target.value })} required className="rounded-xl h-12" />
               </div>
             </div>
-            <div>
-              <Label htmlFor="edit-phone">Phone</Label>
-              <Input
-                id="edit-phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+               <div className="space-y-1.5">
+                 <Label className="font-bold ml-1">Department</Label>
+                 <Input value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} className="rounded-xl h-12 text-indigo-600 font-bold" />
+               </div>
+               <div className="space-y-1.5">
+                 <Label className="font-bold ml-1">Phone</Label>
+                 <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="rounded-xl h-12" />
+               </div>
             </div>
-            <div>
-              <Label htmlFor="edit-role">Role</Label>
-              <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="teacher">Teacher</SelectItem>
-                  <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-1.5">
+              <Label className="font-bold ml-1 font-black uppercase text-[10px] tracking-widest text-slate-400">Security PIN</Label>
+              <Input value={formData.staff_pin} onChange={(e) => setFormData({ ...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8) })} placeholder="4-8 digits" className="rounded-xl h-12 font-mono text-lg tracking-[0.5em]" />
             </div>
-            <div>
-              <Label htmlFor="edit-staff_pin">Staff Kiosk PIN (4-8 digits)</Label>
-              <Input
-                id="edit-staff_pin"
-                value={formData.staff_pin}
-                onChange={(e) => setFormData({ ...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8) })}
-                placeholder="e.g. 1234"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1 tracking-tight">
-                This code is used by the staff member to authenticate on the kiosk terminals.
-              </p>
+
+            <div className="space-y-3 pt-2">
+              <Label className="font-bold ml-1 font-black uppercase text-[10px] tracking-widest text-indigo-500">Functional Group Memberships</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {groups.map((group: any) => (
+                  <div key={group.id} className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <input 
+                      type="checkbox" 
+                      id={`group-${group.id}`}
+                      className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+                      checked={groupMembers.some((m: any) => m.profile_id === selectedStaff?.user_id && m.group_id === group.id)}
+                      onChange={async (e) => {
+                        if (e.target.checked) {
+                          await supabase.from('staff_group_members').insert({ 
+                            group_id: group.id, 
+                            profile_id: selectedStaff?.user_id 
+                          });
+                        } else {
+                          await supabase.from('staff_group_members').delete().match({ 
+                            group_id: group.id, 
+                            profile_id: selectedStaff?.user_id 
+                          });
+                        }
+                        queryClient.invalidateQueries({ queryKey: ['staff-group-members-all'] });
+                      }}
+                    />
+                    <label htmlFor={`group-${group.id}`} className="text-xs font-bold text-slate-600 truncate">{group.name}</label>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isUpdatingStaff}>
-                {isUpdatingStaff ? 'Updating...' : 'Update Staff'}
+            <div className="flex gap-2 justify-end pt-6">
+              <Button type="button" variant="ghost" onClick={() => setIsEditDialogOpen(false)} className="rounded-xl font-bold">Cancel</Button>
+              <Button type="submit" disabled={isUpdatingStaff} className="rounded-xl font-black px-12 bg-indigo-600 hover:bg-indigo-700 text-white">
+                {isUpdatingStaff ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Profile'}
               </Button>
             </div>
           </form>
@@ -486,18 +473,17 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       </Dialog>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-[2.5rem] p-8">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Staff Member</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove {selectedStaff?.first_name} {selectedStaff?.last_name}? This action cannot be undone.
+            <AlertDialogTitle className="text-2xl font-black tracking-tight">Deactivate Member?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 font-medium">
+              You are about to remove <strong>{selectedStaff?.first_name} {selectedStaff?.last_name}</strong> from the active roster. 
+              This will disable their kiosk access and clear their upcoming shifts.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteStaff} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remove
-            </AlertDialogAction>
+          <AlertDialogFooter className="mt-6">
+            <AlertDialogCancel className="rounded-xl font-bold">Abort</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteStaff} className="bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black uppercase tracking-widest text-xs px-8">Confirm Removal</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

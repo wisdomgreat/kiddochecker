@@ -17,9 +17,13 @@ import { useMessages } from "@/hooks/useMessages";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/context/LanguageContext";
+import { Language } from "@/lib/i18n";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function AppSidebar() {
   const { user, userRole, isAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, verificationStatus, isVerifiedStaff, signOut } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const { settings } = useSettings();
   const { unreadCount } = useMessages();
   const location = useLocation();
@@ -250,7 +254,24 @@ export function AppSidebar() {
           ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-white/20 p-6 pt-4">
+        <SidebarFooter className="border-t border-white/20 p-6 pt-4 space-y-4">
+          <div className="flex items-center justify-between gap-2 bg-white/30 backdrop-blur-sm rounded-2xl p-2 border border-white/40">
+            <Globe className="h-4 w-4 text-slate-400 ml-2" />
+            <Select value={language} onValueChange={(val: Language) => setLanguage(val)}>
+              <SelectTrigger className="h-8 border-none bg-transparent shadow-none focus:ring-0 text-[11px] font-black uppercase tracking-wider text-slate-600">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-none shadow-2xl">
+                <SelectItem value="en">English (US)</SelectItem>
+                <SelectItem value="fr">Français</SelectItem>
+                <SelectItem value="es">Español</SelectItem>
+                <SelectItem value="de">Deutsch</SelectItem>
+                <SelectItem value="it">Italiano</SelectItem>
+                <SelectItem value="pt">Português</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-3 mb-4 bg-white/40 backdrop-blur-md rounded-3xl p-4 shadow-inner border border-white/50">
             <Avatar className="h-9 w-9 flex-shrink-0 rounded-2xl bg-indigo-100 ring-2 ring-white/60">
               <AvatarFallback className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white text-xs font-black">

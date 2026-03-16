@@ -57,7 +57,8 @@ const StaffSchedules = () => {
     start_time: format(new Date(), "yyyy-MM-dd'T'09:00"),
     end_time: format(new Date(), "yyyy-MM-dd'T'17:00"),
     role_type: 'volunteer' as Shift['role_type'],
-    notes: ''
+    notes: '',
+    required_group_id: ''
   });
 
   const { shifts, isLoading, createShift, updateShift, deleteShift } = useShifts({
@@ -70,16 +71,69 @@ const StaffSchedules = () => {
   const queryClient = useQueryClient();
 
   const { data: staffList } = useQuery({
-    queryKey: ['staff-list-profiles-v2'],
+    queryKey: ['staff-list-profiles-v3'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_available_recipients');
       if (error) throw error;
       
+      // The RPC already filters, but we'll double-check for safety
+      // Updated to exclude ONLY parents/children/kiosks, allowing technical and custom staff roles
       return data.filter((r: any) => 
-        ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer'].includes(r.role?.toLowerCase())
+        !['parent', 'child', 'kiosk'].includes(r.role?.toLowerCase())
       );
     }
   });
+
+  const { data: templates } = useQuery({
+    queryKey: ['scheduling-templates'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('scheduling_templates').select('*').eq('is_active', true);
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const { data: staffGroups } = useQuery({
+    queryKey: ['staff-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('staff_groups').select('*').order('name');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleAutoSchedule = async () => {
+    if (!selectedTemplate && templates && templates.length > 0) {
+      toast({ title: "Template Required", description: "Please select a roster template to proceed.", variant: "destructive" });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.rpc('generate_roster_from_template', {
+        p_date: format(selectedDate, 'yyyy-MM-dd'),
+        p_template_id: selectedTemplate || templates?.[0]?.id,
+        p_assign_staff: true
+      });
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Roster Deployed", 
+        description: `Successfully created ${data.shifts_created} shifts and auto-assigned ${data.staff_assigned} staff members.`,
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['shifts'] });
+      setShowAutoSchedule(false);
+    } catch (err: any) {
+      toast({ title: "Generation Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   React.useEffect(() => {
     const channel = supabase
@@ -106,7 +160,8 @@ const StaffSchedules = () => {
           start_time: new Date(newShift.start_time).toISOString(),
           end_time: new Date(newShift.end_time).toISOString(),
           role_type: newShift.role_type,
-          notes: newShift.notes
+          notes: newShift.notes,
+          required_group_id: newShift.required_group_id || null
         });
         toast({ title: "Shift Updated", description: "The assignment change has been saved." });
       } else {
@@ -117,7 +172,8 @@ const StaffSchedules = () => {
           end_time: new Date(newShift.end_time).toISOString(),
           role_type: newShift.role_type,
           notes: newShift.notes,
-          status: 'scheduled'
+          status: 'scheduled',
+          required_group_id: newShift.required_group_id || null
         });
         toast({ title: "Shift Created", description: "The staff member has been assigned." });
       }
@@ -136,7 +192,8 @@ const StaffSchedules = () => {
       start_time: format(new Date(shift.start_time), "yyyy-MM-dd'T'HH:mm"),
       end_time: format(new Date(shift.end_time), "yyyy-MM-dd'T'HH:mm"),
       role_type: shift.role_type,
-      notes: shift.notes || ''
+      notes: shift.notes || '',
+      required_group_id: shift.required_group_id || ''
     });
     setShowAddDialog(true);
   };
@@ -204,7 +261,8 @@ const StaffSchedules = () => {
                 start_time: format(new Date(), "yyyy-MM-dd'T'09:00"),
                 end_time: format(new Date(), "yyyy-MM-dd'T'17:00"),
                 role_type: 'volunteer' as Shift['role_type'],
-                notes: ''
+                notes: '',
+                required_group_id: ''
               });
             }
           }}>
@@ -253,16 +311,16 @@ const StaffSchedules = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-slate-400 ml-1">Role Type</Label>
-                    <Select value={newShift.role_type} onValueChange={(val: any) => setNewShift(prev => ({ ...prev, role_type: val }))}>
+                    <Label className="text-xs font-black uppercase text-slate-400 ml-1">Functional Group</Label>
+                    <Select value={newShift.required_group_id} onValueChange={(val) => setNewShift(prev => ({ ...prev, required_group_id: val }))}>
                       <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-white/50">
-                        <SelectValue />
+                        <SelectValue placeholder="General / Any Group" />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-none shadow-2xl">
-                        <SelectItem value="leader">Leader</SelectItem>
-                        <SelectItem value="assistant">Assistant</SelectItem>
-                        <SelectItem value="volunteer">Volunteer</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="none">General (No Group)</SelectItem>
+                        {staffGroups?.map(g => (
+                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -347,21 +405,23 @@ const StaffSchedules = () => {
                 >
                   <Card className="border-none shadow-[0_8px_30px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-8px_rgba(99,102,241,0.1)] transition-all bg-white group overflow-hidden relative border-l-4 border-l-transparent hover:border-l-indigo-500">
                     <CardContent className="p-6 flex items-center gap-6">
-                      <div className="h-14 w-14 rounded-2xl bg-slate-50 flex items-center justify-center font-black text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-all duration-500 overflow-hidden relative">
+                      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center font-black transition-all duration-500 overflow-hidden relative ${!shift.profiles ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}>
                          {shift.profiles?.avatar_url ? (
                            <img src={shift.profiles.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                         ) : shift.profiles ? (
+                           <span className="text-lg">{shift.profiles.first_name[0]}{shift.profiles.last_name[0]}</span>
                          ) : (
-                           <span className="text-lg">{shift.profiles?.first_name[0]}{shift.profiles?.last_name[0]}</span>
+                           <Users className="h-6 w-6" />
                          )}
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <h4 className="font-extrabold text-slate-900 tracking-tight text-xl">
-                            {shift.profiles?.first_name} {shift.profiles?.last_name}
+                          <h4 className={`font-extrabold tracking-tight text-xl ${!shift.profiles ? 'text-amber-600 italic' : 'text-slate-900'}`}>
+                            {shift.profiles ? `${shift.profiles.first_name} ${shift.profiles.last_name}` : 'OPEN POSITION'}
                           </h4>
                           <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-tight px-2 py-0 h-5 border-none ${getStatusColor(shift.status)}`}>
-                            {shift.status}
+                            {shift.profiles ? shift.status : 'PENDING ASSIGNMENT'}
                           </Badge>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -523,23 +583,30 @@ const StaffSchedules = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-8 mb-10">
-            <div className="bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100/50 flex gap-4 relative overflow-hidden group">
+            <div className="bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100/50 flex flex-col gap-4 relative overflow-hidden group">
               <div className="absolute -right-10 -bottom-10 h-32 w-32 bg-indigo-500/5 rounded-full blur-2xl font-black flex items-center justify-center text-indigo-500/10 text-9xl">?</div>
-              <div className="h-10 w-10 bg-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
-                <Zap className="h-5 w-5 text-white" />
-              </div>
-              <div className="text-xs font-bold text-indigo-900 leading-relaxed pr-6">
-                Optimization Engine detected a high-efficiency template matching your {format(selectedDate, 'EEEE')} requirements. 
-                <div className="mt-4 flex gap-3">
-                  <div className="bg-white/80 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm flex items-center gap-2">
-                    <Users className="h-3 w-3 text-indigo-500" />
-                    <span className="text-[10px] font-black uppercase">4 Staff</span>
-                  </div>
-                  <div className="bg-white/80 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm flex items-center gap-2">
-                    <User className="h-3 w-3 text-indigo-500" />
-                    <span className="text-[10px] font-black uppercase">2 Volunteers</span>
-                  </div>
+              <div className="flex gap-4">
+                <div className="h-10 w-10 bg-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
+                  <Zap className="h-5 w-5 text-white" />
                 </div>
+                <div className="text-xs font-bold text-indigo-900 leading-relaxed pr-6">
+                  Optimization Engine detected templates matching your {format(selectedDate, 'EEEE')} requirements. 
+                  Select a template to auto-populate the roster.
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase text-indigo-400 ml-1">Active Template</Label>
+                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                  <SelectTrigger className="h-12 rounded-2xl border-indigo-100 bg-white/50">
+                    <SelectValue placeholder="Select Template..." />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl border-none shadow-2xl">
+                    {templates?.map(t => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
@@ -557,11 +624,12 @@ const StaffSchedules = () => {
           </div>
           <DialogFooter className="gap-3">
             <Button variant="ghost" onClick={() => setShowAutoSchedule(false)} className="rounded-2xl font-black uppercase text-[10px] tracking-widest h-14 px-8 text-slate-400">Abort</Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-12 font-black uppercase tracking-widest text-[10px] h-14 shadow-2xl shadow-indigo-200 grow" onClick={() => {
-              toast({ title: "Deploying Roster", description: "Calculating optimal coverage patterns..." });
-              setShowAutoSchedule(false);
-            }}>
-              Execute Deployment
+            <Button 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-12 font-black uppercase tracking-widest text-[10px] h-14 shadow-2xl shadow-indigo-200 grow" 
+              onClick={handleAutoSchedule}
+              disabled={isGenerating}
+            >
+              {isGenerating ? <Loader2 className="h-5 w-5 animate-spin" /> : "Execute Deployment"}
             </Button>
           </DialogFooter>
         </DialogContent>

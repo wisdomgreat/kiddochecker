@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200;1,300;1,400;1,500;1,600;1,700;1,800&family=Outfit:wght@100;200;300;400;500;600;700;800;900&family=Lexend:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -95,11 +95,12 @@
 
   body {
     @apply bg-background text-foreground;
-    -webkit-font-smoothing: subpixel-antialiased;
-    -moz-osx-font-smoothing: auto;
-    font-smoothing: auto;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-smoothing: antialiased;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+    letter-spacing: -0.015em;
     text-rendering: optimizeLegibility;
   }
 
@@ -113,7 +114,13 @@
   h4,
   h5,
   h6 {
-    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+  }
+
+  .font-lexend {
+    font-family: 'Lexend', sans-serif;
   }
 }
 

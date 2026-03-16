@@ -11,6 +11,7 @@ export interface Shift {
   status: 'scheduled' | 'confirmed' | 'completed' | 'canceled' | 'absent';
   role_type: 'leader' | 'assistant' | 'volunteer' | 'admin';
   notes?: string;
+  required_group_id?: string;
   profiles?: {
     first_name: string;
     last_name: string;

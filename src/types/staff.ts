@@ -18,6 +18,8 @@ export interface StaffMember {
   staff_pin?: string;
   avatar_url?: string;
   photo_url?: string;
+  department?: string;
+  staff_groups?: string[]; // IDs of groups
 }
 
 export interface AddStaffData {
@@ -28,11 +30,12 @@ export interface AddStaffData {
   role: AppRole;
   is_volunteer?: boolean;
   staff_pin?: string;
+  department?: string;
 }
 
 export interface UpdateStaffData {
   userId: string;
   updates: Partial<Pick<StaffMember,
-    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin'
+    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin' | 'department'
   >>;
 }

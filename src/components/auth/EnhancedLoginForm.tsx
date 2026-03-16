@@ -110,7 +110,7 @@ const EnhancedLoginForm = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-slate-950 overflow-hidden">
+    <div className="min-h-screen flex bg-slate-950 overflow-hidden font-sans">
 
       {/* ━━━ LEFT HERO PANEL ━━━ */}
       <div
@@ -136,7 +136,7 @@ const EnhancedLoginForm = () => {
           <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-xl">
             <Shield className="h-6 w-6 text-white" />
           </div>
-          <span className="text-white font-bold text-xl tracking-tight">KiddoChecker</span>
+          <span className="text-white font-black text-xl tracking-tight font-heading">KiddoChecker</span>
         </div>
 
         {/* Hero copy */}
@@ -146,7 +146,7 @@ const EnhancedLoginForm = () => {
             Trusted by child-care organisations worldwide
           </div>
 
-          <h1 className="text-5xl xl:text-6xl font-black text-white leading-[1.1] mb-6">
+          <h1 className="text-5xl xl:text-6xl font-black text-white leading-[1.1] mb-6 font-heading">
             Protect Every<br />
             <span style={{
               background: 'linear-gradient(90deg, #a5b4fc, #e879f9)',
@@ -197,11 +197,11 @@ const EnhancedLoginForm = () => {
             <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
               <Shield className="h-6 w-6 text-white" />
             </div>
-            <span className="font-black text-slate-900 text-2xl tracking-tighter">KiddoChecker</span>
+            <span className="font-black text-slate-900 text-2xl tracking-tighter font-heading">KiddoChecker</span>
           </div>
 
           <div className="mb-10">
-            <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
+            <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight font-heading">
               {mode === 'login' ? 'Welcome back' : 'Create account'}
             </h2>
             <p className="text-slate-500 mt-3 text-lg font-medium leading-relaxed">

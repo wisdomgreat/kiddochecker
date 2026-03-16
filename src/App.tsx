@@ -15,6 +15,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
@@ -99,79 +100,81 @@ function App() {
           <Sonner />
           <BrowserRouter>
             <AuthErrorBoundary>
-              <AuthProvider>
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<Index />} />
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/device-login" element={<DeviceLoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/landing" element={<LandingPage />} />
-                    <Route path="/check-in" element={
-                      <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk']}>
-                        <CheckInPage />
-                      </RoleBasedRoute>
-                    } />
-                    <Route path="/check-out" element={
-                      <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk']}>
-                        <CheckOutPage />
-                      </RoleBasedRoute>
-                    } />
-                    {/* Dashboard routes handled by index route */}
+              <LanguageProvider>
+                <AuthProvider>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      {/* Public Routes */}
+                      <Route path="/" element={<Index />} />
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/device-login" element={<DeviceLoginPage />} />
+                      <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/landing" element={<LandingPage />} />
+                      <Route path="/check-in" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk']}>
+                          <CheckInPage />
+                        </RoleBasedRoute>
+                      } />
+                      <Route path="/check-out" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk']}>
+                          <CheckOutPage />
+                        </RoleBasedRoute>
+                      } />
+                      {/* Dashboard routes handled by index route */}
 
-                    {/* Admin-Only Routes */}
-                    <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><UsersPage /></RoleBasedRoute>} />
-                    <Route path="/roles" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><RolesPage /></RoleBasedRoute>} />
-                    <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><StaffPage /></RoleBasedRoute>} />
-                    <Route path="/staff/schedules" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><StaffSchedulesPage /></RoleBasedRoute>} />
-                    <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><CombinedReportsWrapper /></RoleBasedRoute>} />
-                    <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SettingsPage /></RoleBasedRoute>} />
-                    <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
-                    <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
-                    <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><QRManagementPage /></RoleBasedRoute>} />
-                    <Route path="/admin/shifts" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><ShiftManagementPage /></RoleBasedRoute>} />
+                      {/* Admin-Only Routes */}
+                      <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><UsersPage /></RoleBasedRoute>} />
+                      <Route path="/roles" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><RolesPage /></RoleBasedRoute>} />
+                      <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><StaffPage /></RoleBasedRoute>} />
+                      <Route path="/staff/schedules" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><StaffSchedulesPage /></RoleBasedRoute>} />
+                      <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><CombinedReportsWrapper /></RoleBasedRoute>} />
+                      <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SettingsPage /></RoleBasedRoute>} />
+                      <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
+                      <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
+                      <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><QRManagementPage /></RoleBasedRoute>} />
+                      <Route path="/admin/shifts" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><ShiftManagementPage /></RoleBasedRoute>} />
 
 
-                    {/* Staff & Admin Shared Routes */}
-                    <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
-                    <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
-                    <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
+                      {/* Staff & Admin Shared Routes */}
+                      <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
+                      <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
+                      <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
 
-                    {/* All Authenticated */}
-                    <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
-                    <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+                      {/* All Authenticated */}
+                      <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+                      <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
 
-                    {/* Parent-specific routes */}
-                    <Route path="/parent/children" element={<ProtectedRoute><ParentChildrenPage /></ProtectedRoute>} />
-                    <Route path="/parent/attendance" element={<ProtectedRoute><ParentAttendancePage /></ProtectedRoute>} />
-                    <Route path="/parent/messages" element={<ProtectedRoute><ParentMessagesPage /></ProtectedRoute>} />
-                    <Route path="/parent/profile" element={<ProtectedRoute><ParentProfilePage /></ProtectedRoute>} />
+                      {/* Parent-specific routes */}
+                      <Route path="/parent/children" element={<ProtectedRoute><ParentChildrenPage /></ProtectedRoute>} />
+                      <Route path="/parent/attendance" element={<ProtectedRoute><ParentAttendancePage /></ProtectedRoute>} />
+                      <Route path="/parent/messages" element={<ProtectedRoute><ParentMessagesPage /></ProtectedRoute>} />
+                      <Route path="/parent/profile" element={<ProtectedRoute><ParentProfilePage /></ProtectedRoute>} />
 
-                    {/* Staff Verification & Document Routes – admin-only */}
-                    <Route path="/admin/verify-staff" element={
-                      <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
-                        <AdminDocumentVerification />
-                      </RoleBasedRoute>
-                    } />
-                    <Route path="/staff/documents" element={<ProtectedRoute><StaffDocumentUpload /></ProtectedRoute>} />
-                    <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-                    <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
-                    <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
-                    <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EmailTemplatesPage /></RoleBasedRoute>} />
-                    <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
-                    <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SystemHealth /></RoleBasedRoute>} />
-                    <Route path="/admin/kiosks" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><KioskManagement /></RoleBasedRoute>} />
-                    <Route path="/admin/events" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EventsManagement /></RoleBasedRoute>} />
-                    <Route path="/help" element={<ProtectedRoute><HelpDocumentation /></ProtectedRoute>} />
-                    <Route path="/about" element={<AboutUsPage />} />
-                    <Route path="/centers" element={<ProtectedRoute><CentersPage /></ProtectedRoute>} />
+                      {/* Staff Verification & Document Routes – admin-only */}
+                      <Route path="/admin/verify-staff" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
+                          <AdminDocumentVerification />
+                        </RoleBasedRoute>
+                      } />
+                      <Route path="/staff/documents" element={<ProtectedRoute><StaffDocumentUpload /></ProtectedRoute>} />
+                      <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+                      <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
+                      <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
+                      <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EmailTemplatesPage /></RoleBasedRoute>} />
+                      <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
+                      <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SystemHealth /></RoleBasedRoute>} />
+                      <Route path="/admin/kiosks" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><KioskManagement /></RoleBasedRoute>} />
+                      <Route path="/admin/events" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EventsManagement /></RoleBasedRoute>} />
+                      <Route path="/help" element={<ProtectedRoute><HelpDocumentation /></ProtectedRoute>} />
+                      <Route path="/about" element={<AboutUsPage />} />
+                      <Route path="/centers" element={<ProtectedRoute><CentersPage /></ProtectedRoute>} />
 
-                    {/* Catch all route */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Suspense>
-              </AuthProvider>
+                      {/* Catch all route */}
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </Suspense>
+                </AuthProvider>
+              </LanguageProvider>
             </AuthErrorBoundary>
           </BrowserRouter>
         </TooltipProvider>

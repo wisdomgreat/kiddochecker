@@ -617,7 +617,7 @@ const KioskCheckInSystem = () => {
   const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
   return (
-    <div className="fixed inset-0 bg-[#020617] flex flex-col overflow-hidden text-white antigravity-perspective">
+    <div className="fixed inset-0 bg-[#020617] flex flex-col overflow-hidden text-white antigravity-perspective font-sans">
       {/* Dynamic Background decor */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[150px] rounded-full animate-pulse pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[150px] rounded-full animate-pulse pointer-events-none" />
@@ -627,7 +627,7 @@ const KioskCheckInSystem = () => {
       <div className="relative z-50 flex items-center justify-between px-6 py-4 bg-white/5 backdrop-blur-md border-b border-white/10 shadow-lg">
         <div className="flex items-center gap-3 text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
           <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse" />
-          {settings?.name || 'KiddoChecker'}
+          <span className="font-heading">{settings?.name || 'KiddoChecker'}</span>
           {geoLocation && <MapPin className="w-3 h-3 text-emerald-400/60" />}
         </div>
         <div className="flex items-center gap-6 text-white/60 text-[11px] font-black">
@@ -688,14 +688,14 @@ const KioskCheckInSystem = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-8 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-4 pb-8 custom-scrollbar font-lexend">
         {activeTab === 'parent' && !parentLoggedIn && (
           <div className="max-w-sm mx-auto pt-8 space-y-6">
             <div className="text-center">
               <div className="w-16 h-16 mx-auto bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-4">
                 <LogIn className="w-8 h-8 text-indigo-400" />
               </div>
-              <h2 className="text-xl font-black italic uppercase tracking-tight text-white mb-2">{t('parentPortal')}</h2>
+              <h2 className="text-xl font-black italic uppercase tracking-tight text-white mb-2 font-heading">{t('parentPortal')}</h2>
               <div className="space-y-4">
                 <div className="relative">
                   <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder={t('phoneNamePlaceholder')} className="h-12 pl-10 bg-white/5 border-white/10" autoFocus />
