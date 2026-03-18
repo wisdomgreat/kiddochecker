@@ -5,11 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useMessages } from "@/hooks/useMessages";
+import { useTranslation } from "@/lib/i18n";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
     Baby, Clock, Calendar, MessageSquare, AlertTriangle, Phone,
     QrCode, ChevronRight, CheckCircle2, XCircle, LogIn, LogOut,
-    Bell, Heart, Shield, Activity
+    Bell, Heart, Shield, Activity, Award
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ const ParentDashboardNew = () => {
     const { user } = useAuth();
     const { messages, unreadCount, isLoading: messagesLoading } = useMessages();
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const { data: myChildren = [], isLoading } = useQuery({
         queryKey: ["parent-my-children", user?.id],
@@ -81,19 +83,19 @@ const ParentDashboardNew = () => {
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900">Parent Portal</h1>
+                        <h1 className="text-3xl font-bold text-slate-900">{t('parentPortal')}</h1>
                         <p className="text-slate-500 mt-1 text-sm">{today}</p>
                     </div>
                     <div className="flex gap-3">
                         {unreadMessages > 0 && (
                             <Button variant="outline" onClick={() => navigate("/parent/messages")} className="rounded-xl gap-2 border-red-200 text-red-600 hover:bg-red-50">
                                 <Bell className="h-4 w-4" />
-                                {unreadMessages} New
+                                {unreadMessages} {t('new')}
                             </Button>
                         )}
                         <Button onClick={() => navigate("/check-in")} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2">
                             <QrCode className="h-4 w-4" />
-                            Quick Check-In
+                            {t('quickCheckIn')}
                         </Button>
                     </div>
                 </div>
@@ -102,10 +104,10 @@ const ParentDashboardNew = () => {
             {/* KPI Row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: "My Children", value: myChildren.length, icon: Baby, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", index: 0, path: "/parent/children" },
-                    { label: "Present Today", value: presentToday, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", index: 1, path: "/parent/attendance" },
-                    { label: "Allergy Alerts", value: childrenWithAllergies.length, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", index: 2, path: "/parent/children" },
-                    { label: "New Messages", value: messages.length, icon: MessageSquare, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100", index: 3, path: "/parent/messages" },
+                    { label: t('myChildren'), value: myChildren.length, icon: Baby, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", index: 0, path: "/parent/children" },
+                    { label: t('presentToday'), value: presentToday, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", index: 1, path: "/parent/attendance" },
+                    { label: t('rewardsTitle'), value: myChildren.reduce((acc: number, curr: any) => acc + (curr.points_balance || 0), 0), icon: Award, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", index: 2, path: "/parent/rewards" },
+                    { label: t('messages'), value: messages.length, icon: MessageSquare, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100", index: 3, path: "/parent/messages" },
                 ].map(({ label, value, icon: Icon, color, bg, border, index, path }) => (
                     <motion.div key={label} custom={index} variants={cardVariants} initial="hidden" animate="show">
                         <div
@@ -130,9 +132,9 @@ const ParentDashboardNew = () => {
                     className="lg:col-span-2"
                 >
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-slate-800">My Children</h3>
+                        <h3 className="text-lg font-bold text-slate-800">{t('myChildren')}</h3>
                         <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => navigate("/parent/children")}>
-                            Manage <ChevronRight className="h-3 w-3 ml-1" />
+                            {t('viewAll')} <ChevronRight className="h-3 w-3 ml-1" />
                         </Button>
                     </div>
 
@@ -143,10 +145,10 @@ const ParentDashboardNew = () => {
                     ) : myChildren.length === 0 ? (
                         <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-12 text-center">
                             <Baby className="h-12 w-12 mx-auto text-slate-300 mb-3" />
-                            <p className="font-semibold text-slate-600">No children registered yet</p>
-                            <p className="text-sm text-slate-500 mb-4">Add your children to get started</p>
+                            <p className="font-semibold text-slate-600">{t('noChildrenRegistered')}</p>
+                            <p className="text-sm text-slate-500 mb-4">{t('addChildrenToGetStarted')}</p>
                             <Button onClick={() => navigate("/parent/children")} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl">
-                                Add Child
+                                {t('addChild')}
                             </Button>
                         </div>
                     ) : (
@@ -174,16 +176,16 @@ const ParentDashboardNew = () => {
                                                 </div>
                                                 <div>
                                                     <p className="font-bold text-slate-800 text-lg">{child.first_name} {child.last_name}</p>
-                                                    <p className="text-sm text-slate-500">{child.age ? `${child.age} years old` : "Age not set"}</p>
+                                                    <p className="text-sm text-slate-500">{child.age ? `${child.age} ${t('yearsOld')}` : t('ageNotSet')}</p>
                                                     <div className="flex gap-2 mt-1.5">
                                                         {presentNow && (
                                                             <Badge className="badge-success text-xs">
-                                                                <CheckCircle2 className="h-3 w-3 mr-1" />Present
+                                                                <CheckCircle2 className="h-3 w-3 mr-1" />{t('presentNow')}
                                                             </Badge>
                                                         )}
                                                         {child.allergies && (
                                                             <Badge className="badge-warning text-xs">
-                                                                <AlertTriangle className="h-3 w-3 mr-1" />Allergy Alert
+                                                                <AlertTriangle className="h-3 w-3 mr-1" />{t('allergyAlert')}
                                                             </Badge>
                                                         )}
                                                         {child.emergency_contact_name && (
@@ -196,14 +198,18 @@ const ParentDashboardNew = () => {
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-2xl font-bold text-indigo-600">{attendanceDays}</p>
-                                                <p className="text-xs text-slate-500">days attended</p>
+                                                <p className="text-xs text-slate-500">{t('daysAttended')}</p>
+                                                <div className="mt-2 flex items-center justify-end gap-1 text-amber-600">
+                                                    <Award className="h-3 w-3" />
+                                                    <p className="text-sm font-bold">{child.points_balance || 0}</p>
+                                                </div>
                                             </div>
                                         </div>
 
                                         {child.allergies && (
                                             <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
                                                 <p className="text-xs font-semibold text-amber-700 flex items-center gap-1">
-                                                    <AlertTriangle className="h-3 w-3" /> Allergy Information
+                                                    <AlertTriangle className="h-3 w-3" /> {t('allergyInformation')}
                                                 </p>
                                                 <p className="text-xs text-amber-700 mt-0.5">{child.allergies}</p>
                                             </div>
@@ -216,7 +222,7 @@ const ParentDashboardNew = () => {
                                                 className="rounded-xl flex-1 text-xs"
                                                 onClick={() => navigate("/parent/attendance")}
                                             >
-                                                <Clock className="h-3 w-3 mr-1.5" />Attendance
+                                                <Clock className="h-3 w-3 mr-1.5" />{t('attendance')}
                                             </Button>
                                             <Button
                                                 size="sm"
@@ -241,7 +247,7 @@ const ParentDashboardNew = () => {
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
                         className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100"
                     >
-                        <h3 className="font-bold text-slate-800 mb-1">7-Day Attendance</h3>
+                        <h3 className="font-bold text-slate-800 mb-1">{t('sevenDayAttendance')}</h3>
                         <p className="text-xs text-slate-500 mb-4">Your children's attendance this week</p>
                         <ResponsiveContainer width="100%" height={120}>
                             <LineChart data={attendanceTrend}>
@@ -260,9 +266,9 @@ const ParentDashboardNew = () => {
                         className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
                     >
                         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                            <h3 className="font-bold text-slate-800 text-sm">Recent Messages</h3>
+                            <h3 className="font-bold text-slate-800 text-sm">{t('recentMessages')}</h3>
                             <Button variant="outline" size="sm" className="rounded-xl text-xs h-7" onClick={() => navigate("/parent/messages")}>
-                                View All
+                                {t('viewAll')}
                             </Button>
                         </div>
                         <div className="divide-y divide-slate-50 max-h-52 overflow-y-auto">
@@ -292,10 +298,10 @@ const ParentDashboardNew = () => {
                         className="grid grid-cols-2 gap-3"
                     >
                         {[
-                            { label: "Attendance", icon: Clock, path: "/parent/attendance", color: "bg-blue-50 text-blue-600" },
-                            { label: "Calendar", icon: Calendar, path: "/calendar", color: "bg-purple-50 text-purple-600" },
-                            { label: "Profile", icon: Shield, path: "/parent/profile", color: "bg-emerald-50 text-emerald-600" },
-                            { label: "Messages", icon: MessageSquare, path: "/parent/messages", color: "bg-orange-50 text-orange-600" },
+                            { label: t('attendance'), icon: Clock, path: "/parent/attendance", color: "bg-blue-50 text-blue-600" },
+                            { label: t('calendar'), icon: Calendar, path: "/calendar", color: "bg-purple-50 text-purple-600" },
+                            { label: t('myProfile'), icon: Shield, path: "/parent/profile", color: "bg-emerald-50 text-emerald-600" },
+                            { label: t('messages'), icon: MessageSquare, path: "/parent/messages", color: "bg-orange-50 text-orange-600" },
                         ].map((link) => (
                             <button
                                 key={link.label}

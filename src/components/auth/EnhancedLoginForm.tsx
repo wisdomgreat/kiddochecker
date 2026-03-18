@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useTranslation } from '@/lib/i18n';
 
 const EnhancedLoginForm = () => {
   const [email, setEmail] = useState('');
@@ -21,6 +22,7 @@ const EnhancedLoginForm = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   React.useEffect(() => {
     if (!loading && user) {
@@ -202,12 +204,12 @@ const EnhancedLoginForm = () => {
 
           <div className="mb-10">
             <h2 className="text-4xl font-black text-slate-900 tracking-tighter leading-tight font-heading">
-              {mode === 'login' ? 'Welcome back' : 'Create account'}
+              {mode === 'login' ? t('welcomeBack') : t('createAccount')}
             </h2>
             <p className="text-slate-500 mt-3 text-lg font-medium leading-relaxed">
               {mode === 'login'
-                ? 'Sign in to access your secure dashboard'
-                : 'Join our safe community for free today'}
+                ? t('signInToDashboard')
+                : t('joinCommunityForFree')}
             </p>
           </div>
 
@@ -224,7 +226,7 @@ const EnhancedLoginForm = () => {
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {tab === 'login' ? 'Sign In' : 'Sign Up'}
+                {tab === 'login' ? t('signIn') : t('signUp')}
               </button>
             ))}
           </div>
@@ -243,7 +245,7 @@ const EnhancedLoginForm = () => {
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="login-email" className="text-slate-900 font-black text-sm ml-1">Email Address</Label>
+                <Label htmlFor="login-email" className="text-slate-900 font-black text-sm ml-1">{t('emailAddress')}</Label>
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   <Input
@@ -261,8 +263,8 @@ const EnhancedLoginForm = () => {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center ml-1">
-                  <Label htmlFor="login-password" className="text-slate-900 font-black text-sm">Password</Label>
-                  <button type="button" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Forgot?</button>
+                  <Label htmlFor="login-password" className="text-slate-900 font-black text-sm">{t('password')}</Label>
+                  <button type="button" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">{t('forgot')}</button>
                 </div>
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
@@ -288,7 +290,7 @@ const EnhancedLoginForm = () => {
                 disabled={isLoading}
                 className="w-full h-16 rounded-[1.5rem] font-black text-lg text-white shadow-2xl shadow-indigo-100 bg-indigo-600 hover:bg-indigo-700 transition-all active:scale-95"
               >
-                {isLoading ? <><Loader2 className="mr-3 h-5 w-5 animate-spin" />Signing in…</> : 'Start Exploring →'}
+                {isLoading ? <><Loader2 className="mr-3 h-5 w-5 animate-spin" />{t('loading')}…</> : t('startExploring')}
               </Button>
 
               <div className="flex items-center gap-4 my-2">
@@ -309,7 +311,7 @@ const EnhancedLoginForm = () => {
             <form onSubmit={handleSignup} className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-first" className="text-slate-900 font-black text-sm ml-1">First Name</Label>
+                  <Label htmlFor="signup-first" className="text-slate-900 font-black text-sm ml-1">{t('firstName')}</Label>
                   <Input
                     id="signup-first"
                     type="text"
@@ -321,7 +323,7 @@ const EnhancedLoginForm = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-last" className="text-slate-900 font-black text-sm ml-1">Last Name</Label>
+                  <Label htmlFor="signup-last" className="text-slate-900 font-black text-sm ml-1">{t('lastName')}</Label>
                   <Input
                     id="signup-last"
                     type="text"
@@ -391,7 +393,7 @@ const EnhancedLoginForm = () => {
                 disabled={isLoading}
                 className="w-full h-16 rounded-[1.5rem] font-black text-lg text-white shadow-2xl shadow-indigo-100 bg-indigo-600 hover:bg-indigo-700 transition-all active:scale-95"
               >
-                {isLoading ? <><Loader2 className="mr-3 h-5 w-5 animate-spin" />Creating... </> : 'Join KiddoChecker →'}
+                {isLoading ? <><Loader2 className="mr-3 h-5 w-5 animate-spin" />{t('loading')}... </> : t('joinKiddoChecker')}
               </Button>
             </form>
           )}

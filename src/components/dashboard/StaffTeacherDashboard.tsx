@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "@/lib/i18n";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from "recharts";
@@ -29,6 +30,7 @@ const cardVariants = {
 const StaffTeacherDashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const today = format(new Date(), "EEEE, MMMM dd, yyyy");
 
     const { data: myClasses = [] } = useQuery({
@@ -119,7 +121,7 @@ const StaffTeacherDashboard = () => {
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900">Staff Dashboard</h1>
+                        <h1 className="text-3xl font-bold text-slate-900">{t('staffDashboard')}</h1>
                         <p className="text-slate-500 mt-1 text-sm flex items-center gap-1.5">
                             <Calendar className="h-4 w-4" /> {today}
                         </p>
@@ -130,7 +132,7 @@ const StaffTeacherDashboard = () => {
                             {unreadMessages > 0 && (
                                 <Badge className="bg-red-500 text-white text-xs px-1.5 py-0.5 h-auto ml-0.5">{unreadMessages}</Badge>
                             )}
-                            Messages
+                            {t('messages')}
                         </Button>
                     </div>
                 </div>
@@ -139,10 +141,10 @@ const StaffTeacherDashboard = () => {
             {/* KPI Row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: "Present Now", value: presentNow, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", index: 0, path: "/attendance" },
-                    { label: "Checked Out", value: checkedOut, icon: XCircle, color: "text-slate-500", bg: "bg-slate-50", index: 1, path: "/attendance" },
-                    { label: "Total Today", value: todayAttendance.length, icon: ClipboardCheck, color: "text-indigo-600", bg: "bg-indigo-50", index: 2, path: "/attendance" },
-                    { label: "Alert: Allergies", value: withAllergies, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", index: 3, path: "/children" },
+                    { label: t('presentNow'), value: presentNow, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", index: 0, path: "/attendance" },
+                    { label: t('checkedOut'), value: checkedOut, icon: XCircle, color: "text-slate-500", bg: "bg-slate-50", index: 1, path: "/attendance" },
+                    { label: t('totalToday'), value: todayAttendance.length, icon: ClipboardCheck, color: "text-indigo-600", bg: "bg-indigo-50", index: 2, path: "/attendance" },
+                    { label: t('allergyAlert'), value: withAllergies, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", index: 3, path: "/children" },
                 ].map(({ label, value, icon: Icon, color, bg, index, path }) => (
                     <motion.div key={label} custom={index} variants={cardVariants} initial="hidden" animate="show">
                         <div
@@ -168,11 +170,11 @@ const StaffTeacherDashboard = () => {
                 >
                     <div className="flex items-center justify-between mb-5">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">Hourly Check-in Distribution</h3>
-                            <p className="text-sm text-slate-500">Check-in activity by hour today</p>
+                            <h3 className="text-lg font-bold text-slate-800">{t('hourlyCheckinDistribution')}</h3>
+                            <p className="text-sm text-slate-500">{t('checkinActivityByHour')}</p>
                         </div>
                         <Badge className="bg-indigo-50 text-indigo-600 border-indigo-200">
-                            <Activity className="h-3 w-3 mr-1" />Today
+                            <Activity className="h-3 w-3 mr-1" />{t('today')}
                         </Badge>
                     </div>
                     <ResponsiveContainer width="100%" height={200}>
@@ -195,7 +197,7 @@ const StaffTeacherDashboard = () => {
                 >
                     <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                         <div>
-                            <h3 className="font-bold text-slate-800">My Classes</h3>
+                            <h3 className="font-bold text-slate-800">{t('myClasses')}</h3>
                             <p className="text-xs text-slate-500">{myClasses.length} assigned</p>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => navigate("/classes")} className="rounded-xl text-xs">
@@ -235,10 +237,10 @@ const StaffTeacherDashboard = () => {
                     <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <h3 className="font-bold text-slate-800">Live Attendance Feed</h3>
+                            <h3 className="font-bold text-slate-800">{t('liveAttendanceFeed')}</h3>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => navigate("/attendance")} className="rounded-xl text-xs gap-1">
-                            View All <ChevronRight className="h-3 w-3" />
+                            {t('viewAll')} <ChevronRight className="h-3 w-3" />
                         </Button>
                     </div>
                     <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
@@ -283,12 +285,12 @@ const StaffTeacherDashboard = () => {
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
                     className="space-y-3"
                 >
-                    <h3 className="font-bold text-slate-800">Quick Actions</h3>
+                    <h3 className="font-bold text-slate-800">{t('quickActions')}</h3>
                     {[
-                        { label: "View Children", icon: Baby, color: "bg-emerald-600 hover:bg-emerald-700", path: "/children" },
-                        { label: "Attendance Record", icon: ClipboardCheck, color: "bg-blue-600 hover:bg-blue-700", path: "/attendance" },
-                        { label: "My Calendar", icon: Calendar, color: "bg-purple-600 hover:bg-purple-700", path: "/calendar" },
-                        { label: "Messages", icon: MessageSquare, color: "bg-orange-500 hover:bg-orange-600", path: "/messages" },
+                        { label: t('children'), icon: Baby, color: "bg-emerald-600 hover:bg-emerald-700", path: "/children" },
+                        { label: t('attendance'), icon: ClipboardCheck, color: "bg-blue-600 hover:bg-blue-700", path: "/attendance" },
+                        { label: t('calendar'), icon: Calendar, color: "bg-purple-600 hover:bg-purple-700", path: "/calendar" },
+                        { label: t('messages'), icon: MessageSquare, color: "bg-orange-500 hover:bg-orange-600", path: "/messages" },
                     ].map((action) => (
                         <button
                             key={action.label}

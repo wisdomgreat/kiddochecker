@@ -57,6 +57,7 @@ const ParentChildrenPage = lazy(() => import("./pages/ParentChildrenPage"));
 const ParentAttendancePage = lazy(() => import("./pages/ParentAttendancePage"));
 const ParentMessagesPage = lazy(() => import("./pages/ParentMessagesPage"));
 const ParentProfilePage = lazy(() => import("./pages/ParentProfilePage"));
+const ParentRewardsPage = lazy(() => import("./pages/ParentRewardsPage"));
 const ChildMedicalProfile = lazy(() => import("./pages/ChildMedicalProfile"));
 const QRManagementPage = lazy(() => import("./pages/QRManagementPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
@@ -151,6 +152,7 @@ function App() {
                       <Route path="/parent/attendance" element={<ProtectedRoute><ParentAttendancePage /></ProtectedRoute>} />
                       <Route path="/parent/messages" element={<ProtectedRoute><ParentMessagesPage /></ProtectedRoute>} />
                       <Route path="/parent/profile" element={<ProtectedRoute><ParentProfilePage /></ProtectedRoute>} />
+                      <Route path="/parent/rewards" element={<ProtectedRoute><ParentRewardsPage /></ProtectedRoute>} />
 
                       {/* Staff Verification & Document Routes – admin-only */}
                       <Route path="/admin/verify-staff" element={

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useTranslation, translations } from "@/lib/i18n";
 import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -118,6 +119,7 @@ const ActionCard = ({ title, description, icon: Icon, color, onClick, index }: a
 const AdminDashboardNew = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const today = format(new Date(), "EEEE, MMMM dd, yyyy");
 
     const { data: children = [] } = useQuery({
@@ -199,9 +201,9 @@ const AdminDashboardNew = () => {
     const attendanceRate = children.length > 0 ? Math.round((totalCheckins / children.length) * 100) : 0;
 
     const pieData = [
-        { name: "Present", value: presentNow },
-        { name: "Checked Out", value: checkedOutToday },
-        { name: "Not Arrived", value: Math.max(0, children.length - totalCheckins) },
+        { name: t('presentNow'), value: presentNow },
+        { name: t('checkedOut'), value: checkedOutToday },
+        { name: t('out'), value: Math.max(0, children.length - totalCheckins) },
     ];
 
     const ageDistribution = [
@@ -212,13 +214,13 @@ const AdminDashboardNew = () => {
     ];
 
     const quickActions = [
-        { title: "Check-In Kiosk", description: "Launch the QR check-in station", icon: QrCode, color: "bg-indigo-500", path: "/check-in" },
-        { title: "Print QR Labels", description: "Print QR codes for children", icon: Printer, color: "bg-emerald-500", path: "/qr-management" },
-        { title: "Staff Schedules", description: "Manage team shifts & roster", icon: Calendar, color: "bg-rose-500", path: "/staff/schedules" },
-        { title: "Manage Users", description: "Add, edit, and manage accounts", icon: Users, color: "bg-blue-500", path: "/users" },
-        { title: "Device Enrollment", description: "Enroll kiosk & printer devices", icon: Zap, color: "bg-purple-500", path: "/devices" },
-        { title: "Reports & Analytics", description: "View detailed attendance reports", icon: BarChart3, color: "bg-orange-500", path: "/reports" },
-        { title: "Organization Settings", description: "Configure system preferences", icon: Settings, color: "bg-slate-500", path: "/settings" },
+        { title: t('checkInKiosk'), description: t('checkInKioskDesc'), icon: QrCode, color: "bg-indigo-500", path: "/check-in" },
+        { title: t('printQRLabels'), description: t('printQRLabelsDesc'), icon: Printer, color: "bg-emerald-500", path: "/qr-management" },
+        { title: t('staffSchedules'), description: t('staffSchedulesDesc'), icon: Calendar, color: "bg-rose-500", path: "/staff/schedules" },
+        { title: t('manageUsers'), description: t('manageUsersDesc'), icon: Users, color: "bg-blue-500", path: "/users" },
+        { title: t('deviceEnrollment'), description: t('deviceEnrollmentDesc'), icon: Zap, color: "bg-purple-500", path: "/devices" },
+        { title: t('reportsAnalytics'), description: t('reportsAnalyticsDesc'), icon: BarChart3, color: "bg-orange-500", path: "/reports" },
+        { title: t('organizationSettings'), description: t('organizationSettingsDesc'), icon: Settings, color: "bg-slate-500", path: "/settings" },
     ];
 
     return (
@@ -230,17 +232,17 @@ const AdminDashboardNew = () => {
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+                    <h1 className="text-3xl font-bold text-slate-900">{t('adminDashboard')}</h1>
                     <p className="text-slate-500 mt-1 text-sm">{today}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Badge variant="outline" className="gap-1.5 text-emerald-600 border-emerald-200 bg-emerald-50 px-3 py-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                        System Live
+                        {t('systemLive')}
                     </Badge>
                     <Button onClick={() => navigate("/check-in")} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2">
                         <QrCode className="h-4 w-4" />
-                        Launch Kiosk
+                        {t('launchKiosk')}
                     </Button>
                 </div>
             </motion.div>
@@ -248,31 +250,31 @@ const AdminDashboardNew = () => {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
-                    index={0} title="Total Children" value={children.length}
+                    index={0} title={t('totalChildren')} value={children.length}
                     icon={Baby} gradient="gradient-primary"
-                    change="Enrolled in system" changeType="neutral"
+                    change={t('enrolledSystem')} changeType="neutral"
                     subtitle={`${children.filter((c: any) => c.allergies).length} with allergies`}
                     onClick={() => navigate("/children")}
                 />
                 <StatCard
-                    index={1} title="Present Now" value={presentNow}
+                    index={1} title={t('presentNow')} value={presentNow}
                     icon={UserCheck} gradient="gradient-success"
                     change={`${attendanceRate}% attendance rate`} changeType="up"
                     subtitle={`${totalCheckins} total check-ins today`}
                     onClick={() => navigate("/attendance")}
                 />
                 <StatCard
-                    index={2} title="Staff Members" value={staff.length}
+                    index={2} title={t('staffMembersCount')} value={staff.length}
                     icon={Shield} gradient="gradient-info"
-                    change="Active team members" changeType="neutral"
+                    change={t('activeTeamMembers')} changeType="neutral"
                     subtitle={`${classes.length} active classes`}
                     onClick={() => navigate("/staff")}
                 />
                 <StatCard
-                    index={3} title="New Messages" value={messages.length}
+                    index={3} title={t('messages')} value={messages.length}
                     icon={MessageSquare} gradient="gradient-warning"
-                    change="Unread messages" changeType={messages.length > 0 ? "down" : "neutral"}
-                    subtitle="In your official inbox"
+                    change={t('unreadMessages')} changeType={messages.length > 0 ? "down" : "neutral"}
+                    subtitle={t('officialInbox')}
                     onClick={() => navigate("/messages")}
                 />
             </div>
@@ -288,11 +290,11 @@ const AdminDashboardNew = () => {
                 >
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">Weekly Attendance</h3>
+                            <h3 className="text-lg font-bold text-slate-800">{t('weeklyAttendance')}</h3>
                             <p className="text-sm text-slate-500">Check-in activity over the last 7 days</p>
                         </div>
                         <Badge className="bg-indigo-50 text-indigo-600 border-indigo-200">
-                            <Activity className="h-3 w-3 mr-1" /> Live
+                            <Activity className="h-3 w-3 mr-1" /> {t('systemLive')}
                         </Badge>
                     </div>
                     <ResponsiveContainer width="100%" height={220}>
@@ -323,7 +325,7 @@ const AdminDashboardNew = () => {
                     className="chart-container"
                 >
                     <div className="mb-4">
-                        <h3 className="text-lg font-bold text-slate-800">Today's Status</h3>
+                        <h3 className="text-lg font-bold text-slate-800">{t('todaysStatus')}</h3>
                         <p className="text-sm text-slate-500">Real-time attendance breakdown</p>
                     </div>
                     <ResponsiveContainer width="100%" height={160}>
@@ -358,7 +360,7 @@ const AdminDashboardNew = () => {
                     className="chart-container"
                 >
                     <div className="mb-4">
-                        <h3 className="text-lg font-bold text-slate-800">Age Distribution</h3>
+                        <h3 className="text-lg font-bold text-slate-800">{t('ageDistribution')}</h3>
                         <p className="text-sm text-slate-500">Children by age group</p>
                     </div>
                     <ResponsiveContainer width="100%" height={180}>
@@ -375,7 +377,7 @@ const AdminDashboardNew = () => {
                 {/* Quick Actions */}
                 <div className="lg:col-span-2 space-y-3">
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-                        <h3 className="text-lg font-bold text-slate-800 mb-3">Quick Actions</h3>
+                        <h3 className="text-lg font-bold text-slate-800 mb-3">{t('quickActions')}</h3>
                     </motion.div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {quickActions.map((action, i) => (
@@ -396,18 +398,18 @@ const AdminDashboardNew = () => {
                 >
                     <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800">Today's Check-in Feed</h3>
-                            <p className="text-sm text-slate-500">{attendance.length} events today</p>
+                            <h3 className="text-lg font-bold text-slate-800">{t('todaysFeed')}</h3>
+                            <p className="text-sm text-slate-500">{t('eventsToday', { count: attendance.length.toString() })}</p>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => navigate("/attendance")} className="rounded-xl text-xs gap-1">
-                            View All <ChevronRight className="h-3 w-3" />
+                            {t('viewAll')} <ChevronRight className="h-3 w-3" />
                         </Button>
                     </div>
                     <div className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
                         {attendance.length === 0 ? (
                             <div className="p-12 text-center">
                                 <ClipboardCheck className="h-10 w-10 mx-auto text-slate-300 mb-3" />
-                                <p className="text-slate-500 text-sm">No check-ins yet today</p>
+                                <p className="text-slate-500 text-sm">{t('noCheckins')}</p>
                             </div>
                         ) : (
                             attendance.slice(0, 8).map((record: any) => (

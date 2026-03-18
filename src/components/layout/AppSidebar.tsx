@@ -18,12 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/context/LanguageContext";
-import { Language } from "@/lib/i18n";
+import { Language, useTranslation } from "@/lib/i18n";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function AppSidebar() {
   const { user, userRole, isAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, verificationStatus, isVerifiedStaff, signOut } = useAuth();
   const { language, setLanguage } = useLanguage();
+  const { t } = useTranslation();
   const { settings } = useSettings();
   const { unreadCount } = useMessages();
   const location = useLocation();
@@ -36,121 +37,121 @@ export function AppSidebar() {
 
   const adminMenuGroups = [
     {
-      label: "Overview",
+      label: t('overview'),
       items: [
-        { title: "Dashboard", url: "/", icon: Home },
-        { title: "Center Finder", url: "/centers", icon: Globe },
-        { title: "Calendar", url: "/calendar", icon: Calendar },
-        { title: "Events Management", url: "/admin/events", icon: Calendar },
-        { title: "Messages", url: "/messages", icon: MessageSquare },
+        { title: t('dashboard'), url: "/", icon: Home },
+        { title: t('centerFinder'), url: "/centers", icon: Globe },
+        { title: t('calendar'), url: "/calendar", icon: Calendar },
+        { title: t('eventsManagement'), url: "/admin/events", icon: Calendar },
+        { title: t('messages'), url: "/messages", icon: MessageSquare },
       ]
     },
     {
-      label: "Operations",
+      label: t('operations'),
       items: [
-        { title: "Attendance", url: "/attendance", icon: ClipboardCheck },
-        { title: "Kiosk Station", url: "/check-in", icon: Monitor },
-        { title: "Attendance Rewards", url: "/admin/rewards", icon: Trophy },
+        { title: t('attendance'), url: "/attendance", icon: ClipboardCheck },
+        { title: t('kioskStation'), url: "/check-in", icon: Monitor },
+        { title: t('attendanceRewards'), url: "/admin/rewards", icon: Trophy },
       ]
     },
     {
-      label: "People & Academics",
+      label: t('peopleAcademics'),
       items: [
-        { title: "Children", url: "/children", icon: Baby },
-        { title: "Staff", url: "/staff", icon: UserCheck },
-        { title: "Shift Auto-Planner", url: "/staff/schedules", icon: Zap },
-        { title: "Classes", url: "/classes", icon: BookOpen },
-        { title: "Verify Staff", url: "/admin/verify-staff", icon: Shield },
+        { title: t('children'), url: "/children", icon: Baby },
+        { title: t('staff'), url: "/staff", icon: UserCheck },
+        { title: t('shiftAutoPlanner'), url: "/staff/schedules", icon: Zap },
+        { title: t('classes'), url: "/classes", icon: BookOpen },
+        { title: t('verifyStaff'), url: "/admin/verify-staff", icon: Shield },
       ]
     },
     {
-      label: "System configuration",
+      label: t('systemConfiguration'),
       items: [
-        { title: "User Management", url: "/users", icon: Users },
-        { title: "QR Management", url: "/qr-management", icon: QrCode },
-        { title: "Device Enrollment", url: "/devices", icon: Zap },
-        ...(userRole === 'super_admin' ? [{ title: "Roles & Permissions", url: "/roles", icon: ShieldCheck }] : []),
-        { title: "System Monitoring", url: "/reports", icon: BarChart3 },
+        { title: t('userManagement'), url: "/users", icon: Users },
+        { title: t('qrManagement'), url: "/qr-management", icon: QrCode },
+        { title: t('deviceEnrollment'), url: "/devices", icon: Zap },
+        ...(userRole === 'super_admin' ? [{ title: t('rolesPermissions'), url: "/roles", icon: ShieldCheck }] : []),
+        { title: t('systemMonitoring'), url: "/reports", icon: BarChart3 },
       ]
     },
 
     {
-      label: "Personal",
+      label: t('personal'),
       items: [
-        { title: "Settings", url: "/settings", icon: Settings },
-        { title: "Help & Docs", url: "/help", icon: HelpCircle },
-        { title: "My Profile", url: "/profile", icon: Users },
+        { title: t('settings'), url: "/settings", icon: Settings },
+        { title: t('helpDocs'), url: "/help", icon: HelpCircle },
+        { title: t('myProfile'), url: "/profile", icon: Users },
       ]
     }
   ];
 
   const staffMenuGroups = [
     {
-      label: "Overview",
+      label: t('overview'),
       items: [
-        { title: "Dashboard", url: "/", icon: Home },
-        { title: "Center Finder", url: "/centers", icon: Globe },
-        { title: "Calendar", url: "/calendar", icon: Calendar },
-        { title: "Messages", url: "/messages", icon: MessageSquare },
+        { title: t('dashboard'), url: "/", icon: Home },
+        { title: t('centerFinder'), url: "/centers", icon: Globe },
+        { title: t('calendar'), url: "/calendar", icon: Calendar },
+        { title: t('messages'), url: "/messages", icon: MessageSquare },
       ]
     },
     {
-      label: "Operations",
+      label: t('operations'),
       items: [
-        ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: "Attendance", url: "/attendance", icon: ClipboardCheck }] : []),
-        { title: "Staff Schedules", url: "/staff/schedules", icon: Calendar },
-        { title: "Classes", url: "/classes", icon: BookOpen },
+        ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: t('attendance'), url: "/attendance", icon: ClipboardCheck }] : []),
+        { title: t('staffSchedules'), url: "/staff/schedules", icon: Calendar },
+        { title: t('classes'), url: "/classes", icon: BookOpen },
       ]
     },
     {
-      label: "Personal",
+      label: t('personal'),
       items: [
-        { title: "My Documents", url: "/staff/documents", icon: Shield },
-        { title: "Help & Docs", url: "/help", icon: HelpCircle },
-        { title: "My Profile", url: "/profile", icon: Users },
+        { title: t('myDocuments'), url: "/staff/documents", icon: Shield },
+        { title: t('helpDocs'), url: "/help", icon: HelpCircle },
+        { title: t('myProfile'), url: "/profile", icon: Users },
       ]
     }
   ];
 
   const unverifiedStaffMenuGroups = [
     {
-      label: "Overview",
+      label: t('overview'),
       items: [
-        { title: "Dashboard", url: "/", icon: Home },
-        { title: "Messages", url: "/messages", icon: MessageSquare },
+        { title: t('dashboard'), url: "/", icon: Home },
+        { title: t('messages'), url: "/messages", icon: MessageSquare },
       ]
     },
     {
-      label: "Personal",
+      label: t('personal'),
       items: [
-        { title: "My Documents", url: "/staff/documents", icon: Shield },
-        { title: "Help & Docs", url: "/help", icon: HelpCircle },
-        { title: "My Profile", url: "/profile", icon: Users },
+        { title: t('myDocuments'), url: "/staff/documents", icon: Shield },
+        { title: t('helpDocs'), url: "/help", icon: HelpCircle },
+        { title: t('myProfile'), url: "/profile", icon: Users },
       ]
     }
   ];
 
   const parentMenuGroups = [
     {
-      label: "Overview",
+      label: t('overview'),
       items: [
-        { title: "Dashboard", url: "/", icon: Home },
-        { title: "Center Finder", url: "/centers", icon: Globe },
-        { title: "Messages", url: "/parent/messages", icon: MessageSquare },
+        { title: t('dashboard'), url: "/", icon: Home },
+        { title: t('centerFinder'), url: "/centers", icon: Globe },
+        { title: t('messages'), url: "/parent/messages", icon: MessageSquare },
       ]
     },
     {
-      label: "Family",
+      label: t('family'),
       items: [
-        { title: "My Children", url: "/parent/children", icon: Baby },
-        { title: "Attendance", url: "/parent/attendance", icon: Calendar },
+        { title: t('myChildren'), url: "/parent/children", icon: Baby },
+        { title: t('attendance'), url: "/parent/attendance", icon: Calendar },
       ]
     },
     {
-      label: "Personal",
+      label: t('personal'),
       items: [
-        { title: "Profile", url: "/parent/profile", icon: Users },
-        { title: "Help & Docs", url: "/help", icon: HelpCircle },
+        { title: t('myProfile'), url: "/parent/profile", icon: Users },
+        { title: t('helpDocs'), url: "/help", icon: HelpCircle },
       ]
     }
   ];
@@ -237,12 +238,12 @@ export function AppSidebar() {
                           >
                             <item.icon className={`h-4.5 w-4.5 flex-shrink-0 ${isActive ? "text-indigo-600 animate-pulse" : "text-slate-400"}`} />
                             <span className={`text-[13px] tracking-tight ${isActive ? "font-black" : "font-medium"}`}>{item.title}</span>
-                            {item.title === "Messages" && unreadCount > 0 && (
+                            {(item.url === "/messages" || item.url === "/parent/messages") && unreadCount > 0 && (
                               <Badge className="ml-auto bg-indigo-600 text-[10px] px-1.5 h-4 min-w-[16px] flex items-center justify-center rounded-full animate-bounce">
                                 {unreadCount > 99 ? "99+" : unreadCount}
                               </Badge>
                             )}
-                            {isActive && item.title !== "Messages" && <div className="ml-auto w-1.5 h-5 rounded-full bg-indigo-600 transition-all shadow-[0_0_10px_rgba(79,70,229,0.5)]" />}
+                            {isActive && item.url !== "/messages" && item.url !== "/parent/messages" && <div className="ml-auto w-1.5 h-5 rounded-full bg-indigo-600 transition-all shadow-[0_0_10px_rgba(79,70,229,0.5)]" />}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -290,7 +291,7 @@ export function AppSidebar() {
             className="w-full justify-start text-left rounded-2xl h-11 px-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50/50 transition-all font-bold text-xs gap-3 group"
           >
             <LogOut className="h-4 w-4 flex-shrink-0 transition-transform group-hover:translate-x-1" />
-            <span>Sign Out</span>
+            <span>{t('signOut')}</span>
           </Button>
         </SidebarFooter>
       </Sidebar>
