@@ -19,7 +19,7 @@ const ProtectedRoute = ({
   requireAuth = true,
   fallbackPath = '/login'
 }: ProtectedRouteProps) => {
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, loading, isMfaPending } = useAuth();
   const location = useLocation();
 
   // Show loading while auth is being determined
@@ -37,6 +37,11 @@ const ProtectedRoute = ({
   // Redirect to login if authentication is required but user is not authenticated
   if (requireAuth && !user) {
     return <Navigate to={fallbackPath} state={{ from: location }} replace />;
+  }
+
+  // MFA Enforcement: If MFA is pending (aal1), force completion at /login
+  if (user && isMfaPending && userRole !== 'kiosk') {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Check role-based access if roles are specified

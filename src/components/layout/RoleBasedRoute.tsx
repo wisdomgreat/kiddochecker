@@ -26,7 +26,7 @@ const ROLE_HOME: Record<AppRole, string> = {
 };
 
 const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRouteProps) => {
-  const { user, userRole, loading, isVerifiedStaff } = useAuth();
+  const { user, userRole, loading, isVerifiedStaff, isMfaPending } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -38,6 +38,13 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRoutePr
         </div>
       </div>
     );
+  }
+
+  // If MFA is required but not yet completed (still at aal1), force redirect back to login
+  // EXCEPTION: Kiosk role is exempt from MFA as it uses separate physical/PIN security protocols
+  if (user && isMfaPending && userRole !== 'kiosk') {
+    console.log("RoleBasedRoute: Redirecting to MFA verification");
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (!user) {

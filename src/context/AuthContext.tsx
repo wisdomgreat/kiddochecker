@@ -29,8 +29,11 @@ export interface AuthContextType {
   session: Session | null;
   userRole: AppRole | null;
   loading: boolean;
+  mfaLevel: 'aal1' | 'aal2';
+  isMfaPending: boolean;
   signOut: () => Promise<void>;
   refreshUserRole: () => Promise<void>;
+  refreshMfaStatus: () => Promise<void>;
   isAdmin: boolean;
   isSuperAdmin: boolean;
   isParent: boolean;
@@ -52,9 +55,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [mfaLevel, setMfaLevel] = useState<'aal1' | 'aal2'>('aal1');
+  const [isMfaPending, setIsMfaPending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
+
+  const refreshMfaStatus = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!error && data) {
+        setMfaLevel(data.currentLevel as any || 'aal1');
+        setIsMfaPending(data.nextLevel === 'aal2' && data.currentLevel !== 'aal2');
+      }
+    } catch (e) {
+      console.warn("MFA level fetching failed", e);
+    }
+  }, []);
 
   // Session backup to localStorage — stores only non-PII (userId, not email)
   useEffect(() => {
@@ -227,6 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user && mounted) {
+          refreshMfaStatus();
           // Defer role fetch to prevent blocking
           setTimeout(() => {
             if (mounted) {
@@ -269,6 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           setSession(session);
           setUser(session.user);
+          await refreshMfaStatus();
           await refreshUserRole();
         }
 
@@ -336,6 +355,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signOut,
     refreshUserRole,
+    refreshMfaStatus,
     isAdmin,
     isSuperAdmin,
     isParent,
@@ -346,6 +366,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isKiosk,
     verificationStatus,
     isVerifiedStaff,
+    mfaLevel,
+    isMfaPending,
     hasRole,
     hasPermission,
   };

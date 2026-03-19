@@ -24,14 +24,17 @@ const EnhancedLoginForm = () => {
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, isMfaPending, refreshMfaStatus } = useAuth();
   const { t } = useTranslation();
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && !isMfaPending) {
       navigate('/', { replace: true });
     }
-  }, [user, loading, navigate]);
+    if (isMfaPending) {
+      setMode('mfa');
+    }
+  }, [user, loading, isMfaPending, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +98,7 @@ const EnhancedLoginForm = () => {
          setError(verifyError.message);
          toast({ title: "Verification Failed", description: verifyError.message, variant: "destructive" });
       } else {
+         await refreshMfaStatus();
          toast({ title: "Verified", description: "Successfully authenticated." });
          navigate('/');
       }
