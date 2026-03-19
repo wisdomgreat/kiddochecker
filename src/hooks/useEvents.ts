@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 export interface Event {
   id: string;
@@ -14,16 +15,24 @@ export interface Event {
   is_public: boolean;
   created_at: string;
   updated_at: string;
+  created_by?: string;
 }
 
 export const useEvents = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const eventsQuery = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_all_events');
+      // Use Table direct query or RPC depending on which one feels more stable. 
+      // get_all_events RPC exists, but Table query is easier to filter with RLS.
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('start_date', { ascending: true });
+        
       if (error) throw error;
       return data as Event[];
     },
@@ -32,17 +41,29 @@ export const useEvents = () => {
   const upcomingEventsQuery = useQuery({
     queryKey: ["upcoming-events"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_upcoming_events', { limit_count: 5 });
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .gte('start_date', new Date().toISOString())
+        .eq('is_public', true)
+        .order('start_date', { ascending: true })
+        .limit(5);
+        
       if (error) throw error;
       return data as Event[];
     },
   });
 
   const addEventMutation = useMutation({
-    mutationFn: async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => {
+      if (!user) throw new Error("Authentication required");
+      
       const { data, error } = await supabase
         .from('events')
-        .insert(eventData)
+        .insert({
+          ...eventData,
+          created_by: user.id
+        })
         .select()
         .single();
       

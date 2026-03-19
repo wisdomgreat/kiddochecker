@@ -60,12 +60,12 @@ const AttendancePage = () => {
     };
   }, [attendance]);
 
-  // Get today's attendance records
+  // Get today's attendance records + anyone still checked in from previous days
   const todayAttendance = useMemo(() => {
     if (!attendance) return [];
     const today = new Date().toDateString();
     return attendance.filter(r =>
-      new Date(r.attendance_date).toDateString() === today
+      new Date(r.attendance_date).toDateString() === today || (r.checked_in_at && !r.checked_out_at)
     ).sort((a, b) => {
       const dateA = new Date(a.checked_in_at || 0);
       const dateB = new Date(b.checked_in_at || 0);
@@ -179,7 +179,7 @@ const AttendancePage = () => {
                   }}
                 >
                   <Clock className="h-4 w-4 mr-2" />
-                  Sign-Out All ({stats.currentlyPresent})
+                  Sign-Out All({stats.currentlyPresent})
                 </Button>
               )}
               <Button variant="outline" onClick={() => refetch()}>
