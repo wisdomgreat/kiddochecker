@@ -42,7 +42,6 @@ export function AppSidebar() {
         { title: t('dashboard'), url: "/", icon: Home },
         { title: t('centerFinder'), url: "/centers", icon: Globe },
         { title: t('calendar'), url: "/calendar", icon: Calendar },
-        { title: t('eventsManagement'), url: "/admin/events", icon: Calendar },
         { title: t('messages'), url: "/messages", icon: MessageSquare },
       ]
     },
