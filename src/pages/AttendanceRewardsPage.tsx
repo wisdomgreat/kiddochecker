@@ -1,3 +1,14 @@
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/context/AuthContext";
+import ModernLayout from "@/components/layout/ModernLayout";
+import { useToast } from "@/hooks/use-toast";
 import { Trophy, Star, Gift, Plus, Edit, Trash2, RefreshCw, CheckCircle2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,7 +37,7 @@ interface Redemption {
   redeemed_at: string;
   reward: { name: string };
   child: { first_name: string; last_name: string };
-  user: { first_name: string; last_name: string };
+  parent: { first_name: string; last_name: string };
 }
 
 const AttendanceRewardsPage = () => {
@@ -59,7 +70,7 @@ const AttendanceRewardsPage = () => {
           *,
           reward:rewards(name),
           child:children(first_name, last_name),
-          user:profiles(first_name, last_name)
+          parent:profiles(first_name, last_name)
         `)
         .order("redeemed_at", { ascending: false });
       
@@ -279,7 +290,7 @@ const AttendanceRewardsPage = () => {
                     <TableRow key={red.id}>
                       <TableCell className="font-medium">{red.reward?.name || 'Unknown Reward'}</TableCell>
                       <TableCell>{red.child?.first_name} {red.child?.last_name}</TableCell>
-                      <TableCell>{red.user?.first_name} {red.user?.last_name}</TableCell>
+                      <TableCell>{red.parent?.first_name} {red.parent?.last_name}</TableCell>
                       <TableCell>{format(new Date(red.redeemed_at), "MMM dd, yyyy")}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
