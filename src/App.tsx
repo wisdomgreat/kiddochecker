@@ -47,6 +47,8 @@ const CombinedReportsWrapper = lazy(() => import("./pages/CombinedReportsPage"))
 const UsersPage = lazy(() => import("./pages/UsersPage"));
 const RolesPage = lazy(() => import("./pages/RolesPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
@@ -65,8 +67,6 @@ const EmailTemplatesPage = lazy(() => import("./pages/EmailTemplatesPage"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const AttendanceRewardsPage = lazy(() => import("./pages/AttendanceRewardsPage"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
-const KioskManagement = lazy(() => import("./pages/KioskManagement"));
-const EventsManagement = lazy(() => import("./pages/EventsManagement"));
 const HelpDocumentation = lazy(() => import("./pages/HelpDocumentation"));
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage"));
 const CentersPage = lazy(() => import("./pages/CentersPage"));
@@ -112,6 +112,8 @@ function App() {
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/device-login" element={<DeviceLoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                      <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/landing" element={<LandingPage />} />
                       <Route path="/check-in" element={
                         <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk']}>
@@ -167,8 +169,7 @@ function App() {
                       <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EmailTemplatesPage /></RoleBasedRoute>} />
                       <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
                       <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SystemHealth /></RoleBasedRoute>} />
-                      <Route path="/admin/kiosks" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><KioskManagement /></RoleBasedRoute>} />
-                      <Route path="/admin/events" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><EventsManagement /></RoleBasedRoute>} />
+                      <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SystemHealth /></RoleBasedRoute>} />
                       <Route path="/help" element={<ProtectedRoute><HelpDocumentation /></ProtectedRoute>} />
                       <Route path="/about" element={<AboutUsPage />} />
                       <Route path="/centers" element={<ProtectedRoute><CentersPage /></ProtectedRoute>} />
