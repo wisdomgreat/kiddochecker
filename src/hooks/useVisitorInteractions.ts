@@ -22,7 +22,10 @@ export const useVisitorInteractions = (visitorId?: string) => {
       if (!visitorId) return [];
       const { data, error } = await supabase
         .from('visitor_interactions')
-        .select('*')
+        .select(`
+          *,
+          author:profiles!created_by (first_name, last_name)
+        `)
         .eq('visitor_id', visitorId)
         .order('created_at', { ascending: false });
 

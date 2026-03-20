@@ -12,6 +12,7 @@ export interface OrganizationSettings {
   kiosk_id?: string;
   require_checkout_signature?: boolean;
   google_maps_api_key?: string;
+  show_center_finder?: boolean;
   created_by?: string;
   created_at: string;
   updated_at: string;

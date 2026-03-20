@@ -230,9 +230,14 @@ export function AppSidebar() {
 
         <SidebarContent className="px-4 py-6 scrollbar-none">
           {menuGroups.map((group, groupIdx) => {
-            const visibleItems = group.items.filter(item => 
-              !item.requiredPermission || hasPermission(item.requiredPermission)
-            );
+            const visibleItems = group.items.filter(item => {
+              const hasPerm = !item.requiredPermission || hasPermission(item.requiredPermission);
+              const isCenterFinder = item.url === "/centers";
+              const centerFinderEnabled = settings?.show_center_finder ?? true;
+              
+              if (isCenterFinder && !centerFinderEnabled) return false;
+              return hasPerm;
+            });
 
             if (visibleItems.length === 0) return null;
 

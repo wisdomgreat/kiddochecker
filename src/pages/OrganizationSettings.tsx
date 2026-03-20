@@ -18,7 +18,7 @@ const OrganizationSettings = () => {
   const navigate = useNavigate();
   const { settings, updateSettings } = useSettings();
   const [formData, setFormData] = useState({
-    name: 'ChurchCheck',
+    name: '',
     address: '',
     phone: '',
     email: '',
@@ -34,8 +34,34 @@ const OrganizationSettings = () => {
     print_name_tags: true,
     require_checkout_signature: false,
     google_maps_api_key: '',
+    show_center_finder: true,
     backup_frequency: 'daily'
   });
+
+  React.useEffect(() => {
+    if (settings) {
+      setFormData({
+        name: settings.name || '',
+        address: '', // Assuming these might not be in the table yet but keeping for UI
+        phone: '',
+        email: '',
+        primary_color: settings.primary_color || '#6366f1',
+        font_family: settings.font_family || 'Inter',
+        logo_url: settings.logo_url || '',
+        check_in_enabled: true,
+        auto_checkout: false,
+        require_pin: true,
+        session_timeout: 30,
+        email_notifications: true,
+        sms_notifications: false,
+        print_name_tags: true,
+        require_checkout_signature: settings.require_checkout_signature || false,
+        google_maps_api_key: settings.google_maps_api_key || '',
+        show_center_finder: settings.show_center_finder ?? true,
+        backup_frequency: 'daily'
+      });
+    }
+  }, [settings]);
 
 
   const handleSave = async () => {
@@ -141,6 +167,16 @@ const OrganizationSettings = () => {
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-6">
+                  <div className="space-y-1">
+                    <Label className="text-base font-bold text-slate-900 leading-none">Enable Center Finder</Label>
+                    <p className="text-sm text-slate-500">Enable the public locator map for your centers</p>
+                  </div>
+                  <Switch
+                    checked={formData.show_center_finder}
+                    onCheckedChange={(checked) => setFormData({ ...formData, show_center_finder: checked })}
+                  />
                 </div>
               </CardContent>
             </Card>

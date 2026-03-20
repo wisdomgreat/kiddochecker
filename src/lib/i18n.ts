@@ -62,6 +62,7 @@ export const translations = {
     // Sidebar
     dashboard: "Dashboard",
     centerFinder: "Center Finder",
+    centerFinderDesc: "Locate services and gathering points",
     calendar: "Calendar",
     eventsManagement: "Events Management",
     messages: "Messages",
@@ -402,6 +403,7 @@ export const translations = {
     // Sidebar
     dashboard: "Tableau de Bord",
     centerFinder: "Recherche de Centre",
+    centerFinderDesc: "Localiser les services et les points de rencontre",
     calendar: "Calendrier",
     eventsManagement: "Gestion d'Événements",
     messages: "Messages",

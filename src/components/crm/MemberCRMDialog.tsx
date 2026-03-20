@@ -15,6 +15,9 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useVisitorInteractions, VisitorInteraction } from '@/hooks/useVisitorInteractions';
+import { useAuth } from '@/context/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MemberCRMDialogProps {
   member: any;
@@ -23,8 +26,35 @@ interface MemberCRMDialogProps {
 }
 
 const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpenChange }) => {
+    const { user } = useAuth();
     const [newCRMNote, setNewCRMNote] = useState('');
     const { interactions, addInteraction, isSending } = useVisitorInteractions(member?.profiles?.id);
+    
+    // Fetch group assignments for this member
+    const { data: assignments } = useQuery({
+        queryKey: ['member-groups', member?.id],
+        queryFn: async () => {
+            if (!member?.id) return [];
+            const { data, error } = await supabase
+                .from('ministry_member_assignments')
+                .select(`
+                    role,
+                    group:ministry_groups (
+                        name,
+                        ministry:ministries (name)
+                    )
+                `)
+                .eq('membership_id', member.id);
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!member?.id
+    });
+
+    const contactActions = {
+        message: () => window.location.href = `mailto:${member?.profiles?.email}`,
+        call: () => window.location.href = `tel:${member?.profiles?.phone || ''}`,
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -52,15 +82,15 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                         <Phone className="h-4 w-4 text-indigo-600" />
-                                        <span>Phone: {member?.profiles?.phone || '(555) 000-0000'}</span>
+                                        <span>Phone: {member?.profiles?.phone || 'Not provided'}</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                         <Mail className="h-4 w-4 text-indigo-600" />
-                                        <span className="truncate">Email: {member?.profiles?.email}</span>
+                                        <span className="truncate">Email: {member?.profiles?.email || 'Not provided'}</span>
                                     </div>
                                     <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
                                         <MapPin className="h-4 w-4 text-indigo-600 mt-0.5" />
-                                        <span>Address: {member?.profiles?.address || '123 Maple Avenue, Anytown, USA'}</span>
+                                        <span>Address: {member?.profiles?.address || 'No address recorded'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -72,34 +102,50 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                         <Calendar className="h-4 w-4 text-indigo-600" />
-                                        <span>Member Since: {member?.joined_at ? format(new Date(member.joined_at), 'MMMM d, yyyy') : 'March 12, 2018'}</span>
+                                        <span>Member Since: {member?.joined_at ? format(new Date(member.joined_at), 'MMMM d, yyyy') : 'No date recorded'}</span>
                                     </div>
-                                    <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
-                                        <Users className="h-4 w-4 text-indigo-600 mt-0.5" />
-                                        <div>
-                                            <p className="font-bold text-slate-900 dark:text-white">Serving Group:</p>
-                                            <p>{member?.serving_group || 'Sunday School Volunteer'}</p>
+                                    
+                                    {assignments?.some(a => (a.group as any).ministry.name.toLowerCase().includes('serving') || a.role.toLowerCase().includes('volunteer')) ? (
+                                        <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                            <Users className="h-4 w-4 text-indigo-600 mt-0.5" />
+                                            <div>
+                                                <p className="font-bold text-slate-900 dark:text-white">Serving Group:</p>
+                                                <p>{assignments.find(a => (a.group as any).ministry.name.toLowerCase().includes('serving'))?.group?.name || 'Assigned'}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
-                                        <Heart className="h-4 w-4 text-indigo-600 mt-0.5" />
-                                        <div>
-                                            <p className="font-bold text-slate-900 dark:text-white">Life Group:</p>
-                                            <p>{member?.life_group || 'Northside Small Group'}</p>
+                                    ) : (
+                                        <div className="flex items-start gap-3 text-sm text-slate-400">
+                                            <Users className="h-4 w-4 mt-0.5 opacity-50" />
+                                            <p className="italic">Not in a serving team</p>
                                         </div>
-                                    </div>
+                                    )}
+
+                                    {assignments?.some(a => (a.group as any).ministry.name.toLowerCase().includes('life') || (a.group as any).ministry.name.toLowerCase().includes('small')) ? (
+                                        <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                            <Heart className="h-4 w-4 text-indigo-600 mt-0.5" />
+                                            <div>
+                                                <p className="font-bold text-slate-900 dark:text-white">Life Group:</p>
+                                                <p>{assignments.find(a => (a.group as any).ministry.name.toLowerCase().includes('life') || (a.group as any).ministry.name.toLowerCase().includes('small'))?.group?.name}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-start gap-3 text-sm text-slate-400">
+                                            <Heart className="h-4 w-4 mt-0.5 opacity-50" />
+                                            <p className="italic">Not in a small group</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
                         <div className="mt-8 space-y-3">
-                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
+                            <Button onClick={contactActions.message} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
                                 <MessageSquare className="h-4 w-4" /> Message
                             </Button>
-                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
+                            <Button onClick={contactActions.call} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
                                 <Phone className="h-4 w-4" /> Call
                             </Button>
-                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
+                            <Button onClick={() => document.getElementById('crm-note-field')?.focus()} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
                                 <Edit className="h-4 w-4" /> Log Note
                             </Button>
                             <Button variant="ghost" className="w-full text-xs text-slate-400 hover:text-indigo-600 font-bold uppercase tracking-widest mt-2 h-8">
@@ -152,7 +198,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                                     </p>
                                                     <p className="text-xs font-bold text-slate-900 dark:text-white pt-1">
                                                         {interaction.interaction_type === 'email' ? 'Sent by: ' : 'Added by: '}
-                                                        <span className="font-medium text-slate-600">Pastor Michael Brown</span>
+                                                        <span className="font-medium text-slate-600">{(interaction as any).author?.first_name || 'Staff Member'}</span>
                                                     </p>
                                                 </div>
                                             </div>
@@ -173,6 +219,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                 <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Rapid Insight Log</Label>
                                 <div className="relative">
                                     <Textarea 
+                                        id="crm-note-field"
                                         placeholder="Note pastoral outcomes or prayer points..." 
                                         value={newCRMNote}
                                         onChange={e => setNewCRMNote(e.target.value)}

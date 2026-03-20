@@ -14,13 +14,14 @@ import {
     TrendingDown, QrCode, Printer, Shield, AlertTriangle, Activity,
     BookOpen, MessageSquare, Calendar, Settings, ChevronRight,
     Clock, CheckCircle2, XCircle, BarChart3, Bell, LogIn, LogOut,
-    ArrowUpRight, ArrowDownRight, Zap, Star, Award
+    ArrowUpRight, ArrowDownRight, Zap, Star, Award, Globe
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
+import { useSettings } from "@/hooks/useSettings";
 
 const COLORS = {
     primary: "#6366f1",
@@ -120,6 +121,7 @@ const AdminDashboardNew = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { settings } = useSettings();
     const today = format(new Date(), "EEEE, MMMM dd, yyyy");
 
     const { data: children = [] } = useQuery({
@@ -219,9 +221,13 @@ const AdminDashboardNew = () => {
         { title: t('staffSchedules'), description: t('staffSchedulesDesc'), icon: Calendar, color: "bg-rose-500", path: "/staff/schedules" },
         { title: t('manageUsers'), description: t('manageUsersDesc'), icon: Users, color: "bg-blue-500", path: "/users" },
         { title: t('deviceEnrollment'), description: t('deviceEnrollmentDesc'), icon: Zap, color: "bg-purple-500", path: "/devices" },
+        { title: t('centerFinder'), description: t('centerFinderDesc'), icon: Globe, color: "bg-blue-500", path: "/centers" },
         { title: t('reportsAnalytics'), description: t('reportsAnalyticsDesc'), icon: BarChart3, color: "bg-orange-500", path: "/reports" },
         { title: t('organizationSettings'), description: t('organizationSettingsDesc'), icon: Settings, color: "bg-slate-500", path: "/settings" },
-    ];
+    ].filter(action => {
+        if (action.path === "/centers" && settings?.show_center_finder === false) return false;
+        return true;
+    });
 
     return (
         <div className="space-y-8">
