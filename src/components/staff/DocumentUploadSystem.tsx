@@ -12,8 +12,11 @@ import { Progress } from '@/components/ui/progress';
 import {
   Upload, FileText, CheckCircle, Clock, XCircle,
   Download, Eye, Trash2, Shield, AlertTriangle,
-  ArrowRight, Loader2, Lock
+  ArrowRight, Loader2, Lock, AlertCircle
 } from 'lucide-react';
+import { useSettings } from "@/hooks/useSettings";
+import { screenFileUpload } from "@/utils/file-screening";
+import { useToast } from "@/hooks/use-toast";
 import { useStaffVerification } from '@/hooks/useStaffVerification';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
@@ -23,6 +26,8 @@ const DocumentUploadSystem = () => {
   const [documentType, setDocumentType] = useState('');
   const [description, setDescription] = useState('');
   const { user } = useAuth();
+  const { settings } = useSettings();
+  const { toast } = useToast();
 
   const {
     verificationStatus,
@@ -38,13 +43,32 @@ const DocumentUploadSystem = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 200 * 1024) {
-        alert("File too large. Please select a file smaller than 200KB.");
+      // 1. Windows-Server Style Screening (FSRM)
+      const screening = screenFileUpload(file, settings);
+      
+      if (!screening.isValid) {
+        toast({
+          title: "Policy Violation",
+          description: screening.error,
+          variant: "destructive"
+        });
         return;
       }
+
+      if (screening.isSoftLimitTriggered) {
+        toast({
+          title: "Soft Quota Warning",
+          description: screening.error,
+        });
+      }
+
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(file.type)) {
-        alert("Invalid file type. Please select a PDF, JPG, or PNG file.");
+        toast({
+           title: "Invalid Type",
+           description: "Please select a PDF, JPG, or PNG file.",
+           variant: "destructive"
+        });
         return;
       }
       setSelectedFile(file);

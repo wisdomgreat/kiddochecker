@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2, AlertCircle } from 'lucide-react';
+import { useSettings } from "@/hooks/useSettings";
+import { screenFileUpload } from "@/utils/file-screening";
 
 interface ImageUploadProps {
   bucket?: string;
@@ -26,6 +28,7 @@ export const ImageUpload = ({
   const [preview, setPreview] = useState<string | undefined>(defaultImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   React.useEffect(() => {
     if (defaultImage !== undefined) {
@@ -46,17 +49,29 @@ export const ImageUpload = ({
       const file = event.target.files?.[0];
       if (!file) return;
 
-      // Create preview
-      const objectUrl = URL.createObjectURL(file);
-      setPreview(objectUrl);
-
-      // Verify file type and size
+      // 1. Initial Type Check
       if (!file.type.startsWith('image/')) {
         throw new Error('Please upload an image file.');
       }
-      if (file.size > 150 * 1024) {
-        throw new Error('Image size must be less than 150KB.');
+
+      // 2. Windows-Server Style Screening (FSRM)
+      const screening = screenFileUpload(file, settings);
+      if (!screening.isValid) {
+        throw new Error(screening.error);
       }
+
+      // 3. Optional Soft-Limit Warning
+      if (screening.isSoftLimitTriggered) {
+        toast({ 
+          title: 'Soft Quota Warning', 
+          description: screening.error, 
+          variant: 'default',
+        });
+      }
+
+      // Create preview
+      const objectUrl = URL.createObjectURL(file);
+      setPreview(objectUrl);
 
       // Upload to Supabase
       const fileExt = file.name.split('.').pop();

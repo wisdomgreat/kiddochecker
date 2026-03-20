@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/hooks/useSettings';
-import { Settings, Building, Palette, Shield, Clock, Users, Mail, ExternalLink } from 'lucide-react';
+import { Settings, Building, Palette, Shield, Clock, Users, Mail, ExternalLink, HardDrive, FileWarning, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const OrganizationSettings = () => {
@@ -35,6 +35,9 @@ const OrganizationSettings = () => {
     require_checkout_signature: false,
     google_maps_api_key: '',
     show_center_finder: true,
+    max_upload_size_kb: 200,
+    upload_limit_type: 'hard' as 'hard' | 'soft',
+    blocked_extensions: 'exe, bat, sh, php, js, py',
     backup_frequency: 'daily'
   });
 
@@ -58,6 +61,9 @@ const OrganizationSettings = () => {
         require_checkout_signature: settings.require_checkout_signature || false,
         google_maps_api_key: settings.google_maps_api_key || '',
         show_center_finder: settings.show_center_finder ?? true,
+        max_upload_size_kb: settings.max_upload_size_kb || 200,
+        upload_limit_type: settings.upload_limit_type || 'hard',
+        blocked_extensions: settings.blocked_extensions?.join(', ') || 'exe, bat, sh, php, js, py',
         backup_frequency: 'daily'
       });
     }
@@ -66,7 +72,11 @@ const OrganizationSettings = () => {
 
   const handleSave = async () => {
     try {
-      await updateSettings(formData);
+      const payload = {
+        ...formData,
+        blocked_extensions: formData.blocked_extensions.split(',').map(ext => ext.trim()).filter(Boolean)
+      };
+      await updateSettings(payload);
       toast({
         title: "Settings Saved",
         description: "Organization settings have been updated successfully.",
@@ -122,6 +132,10 @@ const OrganizationSettings = () => {
             <TabsTrigger value="security">
               <Shield className="h-4 w-4 mr-2" />
               Security
+            </TabsTrigger>
+            <TabsTrigger value="storage">
+              <HardDrive className="h-4 w-4 mr-2" />
+              Storage
             </TabsTrigger>
           </TabsList>
 
@@ -381,6 +395,63 @@ const OrganizationSettings = () => {
                   </p>
                 </div>
 
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="storage" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-5 w-5 text-indigo-600" />
+                  <CardTitle>File Resource Manager (Quota)</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label>Global Upload Quota (KB)</Label>
+                        <Input 
+                            type="number" 
+                            value={formData.max_upload_size_kb} 
+                            onChange={e => setFormData({...formData, max_upload_size_kb: parseInt(e.target.value)})}
+                        />
+                        <p className="text-xs text-slate-500 italic">Default is 200KB per file.</p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Enforcement Policy</Label>
+                        <Select value={formData.upload_limit_type} onValueChange={(val: any) => setFormData({...formData, upload_limit_type: val})}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="hard">Hard Limit (Block Upload)</SelectItem>
+                                <SelectItem value="soft">Soft Limit (Log & Warn)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 </div>
+
+                 <div className="space-y-2 pt-4 border-t">
+                    <div className="flex items-center gap-2 mb-2">
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                        <Label className="font-bold">File Screen (Administrative Filters)</Label>
+                    </div>
+                    <Textarea 
+                        placeholder="exe, bat, sh, php..."
+                        value={formData.blocked_extensions}
+                        onChange={e => setFormData({...formData, blocked_extensions: e.target.value})}
+                        rows={3}
+                    />
+                    <p className="text-xs text-slate-500">Comma-separated list of blocked extensions. Mirrored from Windows Server FSRM.</p>
+                 </div>
+
+                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+                    <FileWarning className="h-5 w-5 text-amber-600 shrink-0" />
+                    <div className="text-xs text-amber-800 space-y-1">
+                        <p className="font-bold">Security Note</p>
+                        <p>Hard limits strictly prevent uploads exceeding the quota. Soft limits allow the file but generate a system warning for administrative review.</p>
+                    </div>
+                 </div>
               </CardContent>
             </Card>
           </TabsContent>

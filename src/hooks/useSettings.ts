@@ -13,6 +13,9 @@ export interface OrganizationSettings {
   require_checkout_signature?: boolean;
   google_maps_api_key?: string;
   show_center_finder?: boolean;
+  max_upload_size_kb?: number;
+  upload_limit_type?: 'hard' | 'soft';
+  blocked_extensions?: string[];
   created_by?: string;
   created_at: string;
   updated_at: string;
