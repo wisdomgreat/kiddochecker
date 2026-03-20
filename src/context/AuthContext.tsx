@@ -48,6 +48,7 @@ export interface AuthContextType {
   isVerifiedStaff: boolean;
   hasRole: (role: AppRole) => boolean;
   hasPermission: (permissionName: string) => boolean;
+  userPermissions: string[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [mfaLevel, setMfaLevel] = useState<'aal1' | 'aal2'>('aal1');
   const [isMfaPending, setIsMfaPending] = useState(false);
@@ -139,7 +141,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { data, error } = await supabase
         .from('user_roles')
-        .select('*')
+        .select(`
+          *,
+          custom_roles (
+            role_permissions (
+              permissions (name)
+            )
+          )
+        `)
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -182,6 +191,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setUserRole(finalRole as AppRole);
       setVerificationStatus(finalStatus);
+
+      // Extract permissions if any
+      const perms: string[] = [];
+      if (roleData.custom_roles?.role_permissions) {
+        roleData.custom_roles.role_permissions.forEach((rp: any) => {
+          if (rp.permissions?.name) {
+            perms.push(rp.permissions.name);
+          }
+        });
+      }
+      console.log('Fetched User Permissions:', perms);
+      setUserPermissions(perms);
+
     } catch (err: any) {
       console.error("Exception in refreshUserRole:", err);
       toast({
@@ -344,7 +366,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = useCallback((permissionName: string): boolean => {
     if (isSuperAdmin) return true;
     
-    // Basic mapping for now until we fetch full permission set
+    // If the permission is in our fetched list, grant access
+    if (userPermissions.includes(permissionName)) return true;
+
+    // Fallback for legacy hardcoded mappings (to ensure no breakage while migrating)
     const permissionMap: Record<string, string[]> = {
       'access_kiosk': ['admin', 'super_admin', 'staff', 'teacher', 'kiosk'],
       'manage_users': ['admin', 'super_admin'],
@@ -356,7 +381,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     return false;
-  }, [isSuperAdmin, userRole]);
+  }, [isSuperAdmin, userPermissions, userRole]);
 
   const value = {
     user,
@@ -382,6 +407,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     mfaFactors,
     hasRole,
     hasPermission,
+    userPermissions,
   };
 
   return (

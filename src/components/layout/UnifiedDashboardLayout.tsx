@@ -29,10 +29,10 @@ const UnifiedDashboardLayout = ({ children }: UnifiedDashboardLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-slate-50/50 relative overflow-hidden font-sans">
+      <div className="min-h-screen flex w-full bg-background relative overflow-hidden font-sans">
         {/* Background Decor */}
-        <div className="absolute top-[-5%] right-[-5%] w-[40%] h-[40%] bg-indigo-500/5 blur-[80px] rounded-full pointer-events-none z-0" />
-        <div className="absolute bottom-[-5%] left-[-5%] w-[35%] h-[35%] bg-purple-500/5 blur-[80px] rounded-full pointer-events-none z-0" />
+        <div className="absolute top-[-5%] right-[-5%] w-[40%] h-[40%] bg-indigo-500/5 dark:bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none z-0" />
+        <div className="absolute bottom-[-5%] left-[-5%] w-[35%] h-[35%] bg-purple-500/5 dark:bg-purple-500/10 blur-[80px] rounded-full pointer-events-none z-0" />
         
         <AppSidebar />
         

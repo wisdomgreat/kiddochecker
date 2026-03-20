@@ -17,7 +17,7 @@ export interface ChurchMember {
   wedding_date?: string;
   pastoral_notes?: string;
   spiritual_milestones: unknown[];
-  profiles?: { first_name: string; last_name: string; email: string };
+  profiles?: { id: string; first_name: string; last_name: string; email: string; phone?: string };
   children?: { first_name: string; last_name: string };
 }
 
@@ -39,7 +39,7 @@ export const useMembers = () => {
         .from('church_memberships')
         .select(`
           *,
-          profiles (first_name, last_name, email),
+          profiles (id, first_name, last_name, email, phone),
           children (first_name, last_name)
         `)
         .order('joined_at', { ascending: false });

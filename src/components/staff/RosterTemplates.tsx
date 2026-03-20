@@ -10,11 +10,17 @@ import { Plus, Trash2, Clock, Users, Briefcase, Layout, Save, Loader2, Sparkles,
 import { useToast } from '@/hooks/use-toast';
 import { useClasses } from '@/hooks/useClasses';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useMinistries } from '@/hooks/useMinistries';
+import { useVolunteers } from '@/hooks/useVolunteers';
+import { useTranslation } from '@/lib/i18n';
 
 const RosterTemplates = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { classes } = useClasses();
+  const { ministries } = useMinistries();
+  const { roles } = useVolunteers();
+  const { t } = useTranslation();
   
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [isAddTemplateOpen, setIsAddTemplateOpen] = useState(false);
@@ -38,6 +44,8 @@ const RosterTemplates = () => {
         .select(`
           *,
           classes:class_id(name),
+          ministry:ministry_id(name),
+          volunteer_role:volunteer_role_id(name),
           groups:required_group_id(name)
         `)
         .eq('template_id', selectedTemplateId)
@@ -100,6 +108,8 @@ const RosterTemplates = () => {
     end_time: '17:00:00',
     role_type: 'volunteer',
     class_id: '',
+    ministry_id: '',
+    volunteer_role_id: '',
     required_group_id: '',
     required_count: 1
   });
@@ -213,12 +223,23 @@ const RosterTemplates = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Class</Label>
-                <Select value={newReq.class_id} onValueChange={v => setNewReq({...newReq, class_id: v === 'none' ? '' : v})}>
-                  <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue placeholder="General / All Classes" /></SelectTrigger>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Church Ministry</Label>
+                <Select value={newReq.ministry_id} onValueChange={v => setNewReq({...newReq, ministry_id: v === 'none' ? '' : v})}>
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue placeholder="General / No Ministry" /></SelectTrigger>
                   <SelectContent className="rounded-xl border-none shadow-2xl">
-                    <SelectItem value="none">General (No Class Specific)</SelectItem>
-                    {classes?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    <SelectItem value="none">General (Any Ministry)</SelectItem>
+                    {ministries?.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Spec. Volunteer Role</Label>
+                <Select value={newReq.volunteer_role_id} onValueChange={v => setNewReq({...newReq, volunteer_role_id: v === 'none' ? '' : v})}>
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue placeholder="Any Specific Role" /></SelectTrigger>
+                  <SelectContent className="rounded-xl border-none shadow-2xl">
+                    <SelectItem value="none">Any Role (No Constraint)</SelectItem>
+                    {roles?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -229,7 +250,14 @@ const RosterTemplates = () => {
               </div>
 
               <Button 
-                onClick={() => addRequirementMutation.mutate({ ...newReq, template_id: selectedTemplateId, class_id: newReq.class_id || null, required_group_id: newReq.required_group_id || null })}
+                onClick={() => addRequirementMutation.mutate({ 
+                    ...newReq, 
+                    template_id: selectedTemplateId, 
+                    class_id: newReq.class_id || null, 
+                    ministry_id: newReq.ministry_id || null, 
+                    volunteer_role_id: newReq.volunteer_role_id || null, 
+                    required_group_id: newReq.required_group_id || null 
+                })}
                 className="w-full h-12 rounded-xl bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition-colors shadow-2xl shadow-indigo-100/50"
               >
                 Insert Shift Block
@@ -265,7 +293,9 @@ const RosterTemplates = () => {
                                 <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                   <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {req.role_type}</span>
                                   {req.classes && <span className="flex items-center gap-1 text-indigo-400"><Layout className="w-3 h-3" /> {req.classes.name}</span>}
-                                  {req.groups && <span className="flex items-center gap-1 text-amber-500"><Building2 className="w-3 h-3" /> {req.groups.name}</span>}
+                                  {req.ministry && <span className="flex items-center gap-1 text-emerald-500 font-black italic">{req.ministry.name}</span>}
+                                  {req.volunteer_role && <span className="flex items-center gap-1 text-amber-500">• {req.volunteer_role.name}</span>}
+                                  {req.groups && <span className="flex items-center gap-1 text-slate-400"><Building2 className="w-3 h-3" /> {req.groups.name}</span>}
                                 </div>
                               </div>
                             </div>

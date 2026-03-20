@@ -8,7 +8,8 @@ import { ShieldX, Loader2 } from 'lucide-react';
 
 interface RoleBasedRouteProps {
   children: ReactNode;
-  allowedRoles: AppRole[];
+  allowedRoles?: AppRole[];
+  requiredPermission?: string;
   /** Optional override: where to redirect on access denied. Defaults to role-based home. */
   redirectTo?: string;
 }
@@ -25,8 +26,8 @@ const ROLE_HOME: Record<AppRole, string> = {
   parent: '/parent-dashboard',
 };
 
-const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRouteProps) => {
-  const { user, userRole, loading, isVerifiedStaff, isMfaPending } = useAuth();
+const RoleBasedRoute = ({ children, allowedRoles, requiredPermission, redirectTo }: RoleBasedRouteProps) => {
+  const { user, userRole, loading, isVerifiedStaff, isMfaPending, hasPermission } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -51,8 +52,18 @@ const RoleBasedRoute = ({ children, allowedRoles, redirectTo }: RoleBasedRoutePr
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // super_admin always has access to everything
-  const hasAccess = userRole === 'super_admin' || (userRole ? allowedRoles.includes(userRole) : false);
+  // Access check: super_admin always wins
+  let hasAccess = userRole === 'super_admin';
+
+  // If role-based security is specified
+  if (allowedRoles && userRole) {
+    if (allowedRoles.includes(userRole)) hasAccess = true;
+  }
+
+  // If specific granular permission is required
+  if (requiredPermission) {
+    if (hasPermission(requiredPermission)) hasAccess = true;
+  }
 
   if (hasAccess) {
     // SECURITY UPGRADE: Force onboarding for unverified staff

@@ -9,8 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/CleanAuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Phone, MapPin, Edit, Save, X } from "lucide-react";
+import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Zap } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { useMembers } from "@/hooks/useMembers";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { useTranslation } from "@/lib/i18n";
 
 interface Profile {
   id: string;
@@ -30,6 +34,11 @@ const ParentProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const { members, updateMember, createMember } = useMembers();
+
+  // Find the membership record for THIS profile
+  const myMembership = members.find(m => m.profile_id === user?.id);
   const [isEditing, setIsEditing] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -289,6 +298,69 @@ const ParentProfile = () => {
             <p className="text-xs text-muted-foreground">
               This 6-digit PIN will be used to check in your children at the kiosk station.
             </p>
+          </div>
+
+          <div className="h-px bg-slate-100 my-2" />
+
+          {/* Church Membership Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 rounded-xl">
+                        <Heart className="h-5 w-5 text-indigo-600" />
+                    </div>
+                    <div>
+                        <h4 className="font-black text-slate-900 leading-tight">Church Membership</h4>
+                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Congregation Status</p>
+                    </div>
+                </div>
+                {myMembership ? (
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 px-3 py-1 rounded-full font-black uppercase text-[9px] tracking-tight">
+                        {myMembership.membership_type} Member
+                    </Badge>
+                ) : (
+                    <Badge variant="outline" className="border-slate-200 text-slate-400 font-bold uppercase text-[9px] tracking-tight">
+                        Non-Registered
+                    </Badge>
+                )}
+            </div>
+
+            <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Joined Since</Label>
+                    <p className="font-bold text-slate-700">{myMembership ? format(new Date(myMembership.joined_at), 'MMMM dd, yyyy') : 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Membership Type</Label>
+                    <div className="flex gap-2 mt-1">
+                        {['visitor', 'regular', 'registered'].map(type => (
+                            <Button 
+                                key={type} 
+                                size="sm" 
+                                variant={myMembership?.membership_type === type ? 'default' : 'outline'} 
+                                className={`rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-tight ${myMembership?.membership_type === type ? 'bg-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white text-slate-400 border-slate-200'}`}
+                                onClick={() => {
+                                    if(myMembership) {
+                                        updateMember({ id: myMembership.id, membership_type: type as any });
+                                    } else {
+                                        createMember({ profile_id: user?.id, membership_type: type as any });
+                                    }
+                                }}
+                            >
+                                {type}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Spiritual Milestones</Label>
+                    <div className="flex flex-wrap gap-2">
+                        {myMembership?.baptism_date && <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-bold">Baptized: {format(new Date(myMembership.baptism_date), 'yyyy')}</Badge>}
+                        {myMembership?.confirmation_date && <Badge className="bg-purple-50 text-purple-600 border-purple-100 font-bold">Confirmed</Badge>}
+                        <Button variant="ghost" className="h-7 rounded-full text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-3">+ Add Milestone</Button>
+                    </div>
+                </div>
+            </div>
           </div>
 
           {/* Actions */}

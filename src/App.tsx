@@ -129,23 +129,23 @@ function App() {
                       {/* Dashboard routes handled by index route */}
 
                       {/* Admin-Only Routes */}
-                      <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><UsersPage /></RoleBasedRoute>} />
-                      <Route path="/roles" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><RolesPage /></RoleBasedRoute>} />
-                      <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><StaffPage /></RoleBasedRoute>} />
+                      <Route path="/users" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_users"><UsersPage /></RoleBasedRoute>} />
+                      <Route path="/roles" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_users"><RolesPage /></RoleBasedRoute>} />
+                      <Route path="/staff" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_users"><StaffPage /></RoleBasedRoute>} />
                       <Route path="/staff/schedules" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><StaffSchedulesPage /></RoleBasedRoute>} />
-                      <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><CombinedReportsWrapper /></RoleBasedRoute>} />
+                      <Route path="/reports" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="view_audit_logs"><CombinedReportsWrapper /></RoleBasedRoute>} />
                       <Route path="/settings" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SettingsPage /></RoleBasedRoute>} />
                       <Route path="/devices" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
                       <Route path="/device-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><DeviceEnrollmentPage /></RoleBasedRoute>} />
-                      <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><QRManagementPage /></RoleBasedRoute>} />
+                      <Route path="/qr-management" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_qr_codes"><QRManagementPage /></RoleBasedRoute>} />
                       <Route path="/admin/shifts" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><ShiftManagementPage /></RoleBasedRoute>} />
 
 
                       {/* Staff & Admin Shared Routes */}
-                      <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
-                      <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
-                      <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
-                      <Route path="/admin/church" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChurchManagementPage /></RoleBasedRoute>} />
+                      <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']} requiredPermission="manage_classes"><ClassesPage /></RoleBasedRoute>} />
+                      <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']} requiredPermission="view_all_attendance"><AttendancePage /></RoleBasedRoute>} />
+                      <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']} requiredPermission="view_all_children"><ChildrenPage /></RoleBasedRoute>} />
+                      <Route path="/admin/church" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="church_view"><ChurchManagementPage /></RoleBasedRoute>} />
 
                       {/* All Authenticated */}
                       <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />

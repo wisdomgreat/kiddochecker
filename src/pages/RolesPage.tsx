@@ -28,9 +28,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslation } from "@/lib/i18n";
 
 const RolesPage = () => {
   const { isSuperAdmin } = useAuth();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -306,32 +308,48 @@ const RolesPage = () => {
                 </div>
                 <ScrollArea className="h-[250px] border border-slate-100 rounded-3xl bg-slate-50/50 p-4">
                   <div className="grid grid-cols-1 gap-2">
-                    {permissions.map((perm: any) => (
-                      <div 
-                        key={perm.id} 
-                        className={`group flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer ${
-                          selectedPermissions.includes(perm.id) 
-                            ? 'bg-white border-2 border-indigo-600 shadow-md shadow-indigo-100' 
-                            : 'bg-white/50 border border-slate-100 hover:border-indigo-200'
-                        }`}
-                        onClick={() => togglePermission(perm.id)}
-                      >
-                        <div className="flex gap-3 items-center">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                             selectedPermissions.includes(perm.id) ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'
-                          }`}>
-                            <ShieldCheck className="h-4 w-4" />
+                    {Object.entries(
+                      permissions.reduce((acc: any, p: any) => {
+                        const cat = p.category || 'legacy';
+                        if (!acc[cat]) acc[cat] = [];
+                        acc[cat].push(p);
+                        return acc;
+                      }, {})
+                    ).map(([category, catPerms]: [string, any]) => (
+                      <div key={category} className="space-y-2 mb-6 last:mb-0">
+                        <Badge variant="outline" className="bg-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 border-none mb-2 px-3">
+                          {(t as any)(`category_${category}`) || category.toUpperCase()}
+                        </Badge>
+                        {catPerms.map((perm: any) => (
+                          <div 
+                            key={perm.id} 
+                            className={`group flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer ${
+                              selectedPermissions.includes(perm.id) 
+                                ? 'bg-white border-2 border-indigo-600 shadow-md shadow-indigo-100' 
+                                : 'bg-white/50 border border-slate-100 hover:border-indigo-200'
+                            }`}
+                            onClick={() => togglePermission(perm.id)}
+                          >
+                            <div className="flex gap-3 items-center">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                 selectedPermissions.includes(perm.id) ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'
+                              }`}>
+                                <ShieldCheck className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-800 text-sm">
+                                  {(t as any)(`permission_${perm.name}`) || perm.name.replace(/_/g, ' ').toUpperCase()}
+                                </p>
+                                <p className="text-xs text-slate-500 font-medium">{perm.description}</p>
+                              </div>
+                            </div>
+                            <Checkbox 
+                              checked={selectedPermissions.includes(perm.id)} 
+                              onCheckedChange={() => togglePermission(perm.id)}
+                              className="rounded-full h-5 w-5 border-slate-200 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                            />
                           </div>
-                          <div>
-                            <p className="font-bold text-slate-800 text-sm">{perm.name.replace(/_/g, ' ').toUpperCase()}</p>
-                            <p className="text-xs text-slate-500 font-medium">{perm.description}</p>
-                          </div>
-                        </div>
-                        <Checkbox 
-                          checked={selectedPermissions.includes(perm.id)} 
-                          onCheckedChange={() => togglePermission(perm.id)}
-                          className="rounded-full h-5 w-5 border-slate-200 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
-                        />
+                        ))}
                       </div>
                     ))}
                   </div>
@@ -371,32 +389,48 @@ const RolesPage = () => {
 
               <ScrollArea className="h-[400px] border border-slate-100 rounded-3xl bg-slate-50/50 p-4">
                 <div className="grid grid-cols-1 gap-2">
-                  {permissions.map((perm: any) => (
-                    <div 
-                      key={perm.id} 
-                      className={`group flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer ${
-                        selectedPermissions.includes(perm.id) 
-                          ? 'bg-white border-2 border-indigo-600 shadow-md shadow-indigo-100' 
-                          : 'bg-white/50 border border-slate-100'
-                      }`}
-                      onClick={() => togglePermission(perm.id)}
-                    >
-                      <div className="flex gap-3 items-center">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                           selectedPermissions.includes(perm.id) ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
-                        }`}>
-                          <ShieldCheck className="h-4 w-4" />
+                  {Object.entries(
+                    permissions.reduce((acc: any, p: any) => {
+                      const cat = p.category || 'legacy';
+                      if (!acc[cat]) acc[cat] = [];
+                      acc[cat].push(p);
+                      return acc;
+                    }, {})
+                  ).map(([category, catPerms]: [string, any]) => (
+                    <div key={category} className="space-y-2 mb-6 last:mb-0">
+                      <Badge variant="outline" className="bg-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 border-none mb-2 px-3">
+                        {(t as any)(`category_${category}`) || category.toUpperCase()}
+                      </Badge>
+                      {catPerms.map((perm: any) => (
+                        <div 
+                          key={perm.id} 
+                          className={`group flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer ${
+                            selectedPermissions.includes(perm.id) 
+                              ? 'bg-white border-2 border-indigo-600 shadow-md shadow-indigo-100' 
+                              : 'bg-white/50 border border-slate-100'
+                          }`}
+                          onClick={() => togglePermission(perm.id)}
+                        >
+                          <div className="flex gap-3 items-center">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                               selectedPermissions.includes(perm.id) ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                            }`}>
+                              <ShieldCheck className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800 text-sm">
+                                {(t as any)(`permission_${perm.name}`) || perm.name.replace(/_/g, ' ').toUpperCase()}
+                              </p>
+                              <p className="text-xs text-slate-500 font-medium">{perm.description}</p>
+                            </div>
+                          </div>
+                          <Checkbox 
+                            checked={selectedPermissions.includes(perm.id)} 
+                            onCheckedChange={() => togglePermission(perm.id)}
+                            className="rounded-full h-5 w-5"
+                          />
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-800 text-sm">{perm.name.replace(/_/g, ' ').toUpperCase()}</p>
-                          <p className="text-xs text-slate-500 font-medium">{perm.description}</p>
-                        </div>
-                      </div>
-                      <Checkbox 
-                        checked={selectedPermissions.includes(perm.id)} 
-                        onCheckedChange={() => togglePermission(perm.id)}
-                        className="rounded-full h-5 w-5"
-                      />
+                      ))}
                     </div>
                   ))}
                 </div>

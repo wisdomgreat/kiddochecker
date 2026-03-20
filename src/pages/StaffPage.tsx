@@ -17,6 +17,7 @@ import { useStaff, type StaffMember } from '@/hooks/useStaff';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/context/AuthContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useTranslation } from '@/lib/i18n';
 
 const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const { user, userRole } = useAuth();
