@@ -1,4 +1,5 @@
 import React, { lazy, Suspense } from "react";
+import { motion } from "framer-motion";
 import "./App.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -76,10 +77,25 @@ const ChurchManagementPage = lazy(() => import("./pages/ChurchManagementPage"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-background">
-    <div className="flex flex-col items-center gap-3">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground">Loading...</p>
+  <div className="flex items-center justify-center min-h-screen bg-slate-50/50 backdrop-blur-xl relative overflow-hidden">
+    <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-indigo-100/30 rounded-full blur-[160px] animate-pulse" />
+    <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-rose-100/30 rounded-full blur-[160px] animate-pulse" style={{ animationDelay: '1s' }} />
+    
+    <div className="flex flex-col items-center gap-6 relative z-10 px-6 py-10 bg-white/40 border border-white/60 rounded-[3rem] shadow-2xl shadow-indigo-100/20 backdrop-blur-md">
+      <div className="relative">
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], rotate: 360 }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          className="h-20 w-20 rounded-3xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-rose-400 blur-xl opacity-20 absolute inset-0" 
+        />
+        <div className="h-20 w-20 rounded-3xl bg-white shadow-xl flex items-center justify-center relative">
+          <Loader2 className="h-10 w-10 animate-spin text-indigo-600 stroke-[1.5px]" />
+        </div>
+      </div>
+      <div className="space-y-1 text-center">
+        <h3 className="text-lg font-black text-slate-900 tracking-tight italic">KiddoChecker</h3>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 animate-pulse">Syncing Environment...</p>
+      </div>
     </div>
   </div>
 );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,33 @@ import { ImageUpload } from "@/components/ui/image-upload";
 import { useMembers } from "@/hooks/useMembers";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CalendarIcon } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { Check, PlusCircle } from "lucide-react";
+
+interface Milestone {
+  type: string;
+  date: string;
+  note?: string;
+}
 
 interface Profile {
   id: string;
@@ -47,6 +73,9 @@ const ParentProfile = () => {
   const [securityPin, setSecurityPin] = useState("");
   const [showPin, setShowPin] = useState(false);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [isMilestoneOpen, setIsMilestoneOpen] = useState(false);
+  const [newMilestoneType, setNewMilestoneType] = useState("Baptism");
+  const [newMilestoneDate, setNewMilestoneDate] = useState<Date | undefined>(new Date());
 
   const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["profile", user?.id],
@@ -164,6 +193,30 @@ const ParentProfile = () => {
 
   const handleSaveClick = async () => {
     await updateProfileMutation.mutateAsync();
+  };
+
+  const handleAddMilestone = () => {
+    if (!myMembership || !newMilestoneDate) return;
+
+    const currentMilestones = (myMembership.spiritual_milestones as Milestone[]) || [];
+    const updatedMilestones = [
+      ...currentMilestones,
+      {
+        type: newMilestoneType,
+        date: newMilestoneDate.toISOString(),
+      }
+    ];
+
+    updateMember({
+      id: myMembership.id,
+      spiritual_milestones: updatedMilestones
+    });
+
+    setIsMilestoneOpen(false);
+    toast({
+        title: "Milestone Added",
+        description: `${newMilestoneType} added to your spiritual journey.`
+    });
   };
 
   if (isLoading) {
@@ -333,31 +386,67 @@ const ParentProfile = () => {
                 <div className="space-y-1">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Membership Type</Label>
                     <div className="flex gap-2 mt-1">
-                        {['visitor', 'regular', 'registered'].map(type => (
-                            <Button 
-                                key={type} 
-                                size="sm" 
-                                variant={myMembership?.membership_type === type ? 'default' : 'outline'} 
-                                className={`rounded-full h-7 px-4 text-[10px] font-black uppercase tracking-tight ${myMembership?.membership_type === type ? 'bg-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white text-slate-400 border-slate-200'}`}
-                                onClick={() => {
-                                    if(myMembership) {
-                                        updateMember({ id: myMembership.id, membership_type: type as any });
-                                    } else {
-                                        createMember({ profile_id: user?.id, membership_type: type as any });
-                                    }
-                                }}
-                            >
-                                {type}
-                            </Button>
-                        ))}
+                        {['visitor', 'regular', 'registered'].map(type => {
+                            const isActive = myMembership?.membership_type === type;
+                            return (
+                                <Button 
+                                    key={type} 
+                                    size="sm" 
+                                    variant={isActive ? 'default' : 'outline'} 
+                                    className={cn(
+                                        "rounded-full h-8 px-5 text-[10px] font-black uppercase tracking-tight transition-all duration-300",
+                                        isActive 
+                                            ? "bg-indigo-600 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500 ring-offset-2" 
+                                            : "bg-white text-slate-400 border-slate-200 hover:border-indigo-300 hover:text-indigo-500"
+                                    )}
+                                    // Removed isEditing check to allow instant joining as a member
+                                    onClick={() => {
+                                        if (myMembership) {
+                                            updateMember({ id: myMembership.id, membership_type: type as any });
+                                        } else {
+                                            createMember({ 
+                                                profile_id: user?.id, 
+                                                membership_type: type as any,
+                                                status: 'active',
+                                                joined_at: new Date().toISOString()
+                                            });
+                                        }
+                                    }}
+                                >
+                                    {isActive && <Check className="mr-1.5 h-3 w-3" />}
+                                    {type}
+                                </Button>
+                            );
+                        })}
                     </div>
                 </div>
-                <div className="md:col-span-2 space-y-2">
+                <div className="md:col-span-2 space-y-4">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Spiritual Milestones</Label>
-                    <div className="flex flex-wrap gap-2">
-                        {myMembership?.baptism_date && <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-bold">Baptized: {format(new Date(myMembership.baptism_date), 'yyyy')}</Badge>}
-                        {myMembership?.confirmation_date && <Badge className="bg-purple-50 text-purple-600 border-purple-100 font-bold">Confirmed</Badge>}
-                        <Button variant="ghost" className="h-7 rounded-full text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-3">+ Add Milestone</Button>
+                    <div className="flex flex-wrap gap-3">
+                        <AnimatePresence mode="popLayout">
+                            {(myMembership?.spiritual_milestones as Milestone[] || []).map((m, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                >
+                                    <Badge className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-100 font-bold px-3 py-1 rounded-xl flex items-center gap-2">
+                                        <Zap className="h-3 w-3" />
+                                        {m.type}: {format(new Date(m.date), 'yyyy')}
+                                    </Badge>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                        
+                        <Button 
+                            variant="ghost" 
+                            className="h-8 rounded-full text-[10px] font-black text-indigo-600 hover:bg-indigo-50 px-4 border border-dashed border-indigo-200"
+                            onClick={() => setIsMilestoneOpen(true)}
+                        >
+                            <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+                            Add Milestone
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -382,6 +471,71 @@ const ParentProfile = () => {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isMilestoneOpen} onOpenChange={setIsMilestoneOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
+            <DialogHeader>
+                <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                    <Zap className="h-6 w-6 text-indigo-600" />
+                    Record Milestone
+                </DialogTitle>
+                <DialogDescription className="font-bold text-slate-400">
+                    Add a significant event to your spiritual profile.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Milestone Type</Label>
+                    <Select value={newMilestoneType} onValueChange={setNewMilestoneType}>
+                        <SelectTrigger className="rounded-2xl border-slate-100 bg-slate-50/50 h-12 font-bold text-slate-700">
+                            <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
+                            <SelectItem value="Baptism" className="font-bold">Baptism</SelectItem>
+                            <SelectItem value="Confirmation" className="font-bold">Confirmation</SelectItem>
+                            <SelectItem value="Dedication" className="font-bold">Dedication</SelectItem>
+                            <SelectItem value="Membership Class" className="font-bold">Membership Class</SelectItem>
+                            <SelectItem value="Leadership Training" className="font-bold">Leadership Training</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Completion Date</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold text-left px-4",
+                                    !newMilestoneDate && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4 text-indigo-500" />
+                                {newMilestoneDate ? format(newMilestoneDate, "PPP") : "Pick a date"}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 rounded-[2rem] border-slate-100 shadow-2xl overflow-hidden" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={newMilestoneDate}
+                                onSelect={setNewMilestoneDate}
+                                initialFocus
+                                className="font-bold"
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+            </div>
+            <DialogFooter className="sm:justify-end gap-3 pt-4 border-t border-slate-100">
+                <Button variant="ghost" className="rounded-2xl font-bold h-12 px-6" onClick={() => setIsMilestoneOpen(false)}>
+                    Cancel
+                </Button>
+                <Button className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black h-12 px-8 shadow-lg shadow-indigo-100" onClick={handleAddMilestone}>
+                    Save Milestone
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };
