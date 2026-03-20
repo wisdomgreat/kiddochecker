@@ -113,7 +113,7 @@ const ParentDashboard = () => {
             className="relative group"
           >
             <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-[2.5rem] blur opacity-10 group-hover:opacity-20 transition duration-1000 group-hover:duration-200"></div>
-            <div className="relative bg-white border border-slate-100 rounded-[2.5rem] p-10 md:p-14 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
+            <div className="relative bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-[2.5rem] p-10 md:p-14 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm dark:shadow-2xl dark:shadow-black/40">
               <div className="space-y-4 text-center md:text-left">
                 <div className="flex items-center justify-center md:justify-start gap-3">
                   <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest">
@@ -129,12 +129,12 @@ const ParentDashboard = () => {
                 </p>
               </div>
               <div className="flex flex-col gap-4 w-full md:w-auto">
-                <Button size="lg" onClick={() => navigate('/parent/children')} className="h-16 px-10 rounded-3xl bg-slate-900 shadow-2xl shadow-slate-200 hover:scale-105 transition-all text-sm font-black uppercase tracking-widest text-white">
+                <Button size="lg" onClick={() => navigate('/parent/children')} className="h-16 px-10 rounded-3xl bg-slate-900 dark:bg-indigo-600 shadow-2xl shadow-slate-200 dark:shadow-indigo-500/20 hover:scale-105 transition-all text-sm font-black uppercase tracking-widest text-white">
                   <Plus className="mr-3 h-5 w-5" />
                   Add Child
                 </Button>
-                <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
-                  <div className="h-10 w-10 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                <div className="flex items-center gap-4 bg-slate-50 dark:bg-white/5 p-4 rounded-3xl border border-slate-100 dark:border-white/5">
+                  <div className="h-10 w-10 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm dark:shadow-black/20">
                      <ShieldCheck className="h-5 w-5 text-emerald-500" />
                   </div>
                   <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -149,7 +149,7 @@ const ParentDashboard = () => {
             
             <div className="xl:col-span-12 space-y-8">
               <div className="flex items-center justify-between px-2">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
+                <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tighter flex items-center gap-3">
                   <Baby className="h-8 w-8 text-indigo-600" />
                   Family Oversight
                 </h2>
@@ -180,10 +180,10 @@ const ParentDashboard = () => {
                         transition={{ delay: idx * 0.1 }}
                         className="group"
                       >
-                        <Card className="h-full border-none shadow-xl shadow-slate-100/50 rounded-[3rem] overflow-hidden bg-white hover:shadow-2xl hover:shadow-indigo-100 transition-all cursor-pointer" onClick={() => navigate(`/parent/children?child=${child.id}`)}>
+                        <Card className="h-full border-none shadow-xl shadow-slate-100/50 dark:shadow-black/60 rounded-[3rem] overflow-hidden bg-white dark:bg-slate-900 hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-indigo-500/10 transition-all cursor-pointer" onClick={() => navigate(`/parent/children?child=${child.id}`)}>
                           <CardContent className="p-10 space-y-6">
                             <div className="flex justify-between items-start">
-                              <Avatar className="h-20 w-20 border-4 border-white shadow-2xl">
+                              <Avatar className="h-20 w-20 border-4 border-white dark:border-slate-800 shadow-2xl dark:shadow-black/70">
                                 <AvatarFallback className="bg-indigo-50 text-indigo-600 font-black text-2xl">
                                   {getInitials(child.first_name, child.last_name)}
                                 </AvatarFallback>
@@ -235,7 +235,7 @@ const ParentDashboard = () => {
                   Living Stream
                </h2>
                
-               <div className="bg-white border border-slate-100 rounded-[3rem] overflow-hidden shadow-xl shadow-slate-100/50">
+               <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-[3rem] overflow-hidden shadow-xl shadow-slate-100/50 dark:shadow-black/60">
                   <div className="p-10 space-y-1">
                      {streamItems.length === 0 ? (
                        <div className="py-24 text-center opacity-40">
@@ -256,8 +256,8 @@ const ParentDashboard = () => {
                          >
                             <div className="relative shrink-0">
                                <div className={cn(
-                                 "h-16 w-16 rounded-3xl flex items-center justify-center border-4 border-white shadow-lg",
-                                 item.type === 'attendance' ? "bg-emerald-50 text-emerald-600" : "bg-purple-50 text-purple-600"
+                                 "h-16 w-16 rounded-3xl flex items-center justify-center border-4 border-white dark:border-slate-800 shadow-lg dark:shadow-black/60",
+                                 item.type === 'attendance' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
                                )}>
                                   {item.type === 'attendance' ? <Clock className="h-7 w-7" /> : <MessageSquare className="h-7 w-7" />}
                                </div>
@@ -301,8 +301,8 @@ const ParentDashboard = () => {
                      )}
                   </div>
                   {streamItems.length > 5 && (
-                    <div className="bg-slate-50/50 p-6 border-t border-slate-100 text-center">
-                       <Button variant="ghost" className="font-black text-[10px] uppercase tracking-[0.3em] text-indigo-600 hover:bg-white" onClick={() => navigate('/parent/messages')}>
+                    <div className="bg-slate-50/50 dark:bg-white/5 p-6 border-t border-slate-100 dark:border-white/5 text-center">
+                       <Button variant="ghost" className="font-black text-[10px] uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 hover:bg-white dark:hover:bg-slate-800" onClick={() => navigate('/parent/messages')}>
                           Load Full Communication History
                        </Button>
                     </div>
@@ -311,59 +311,59 @@ const ParentDashboard = () => {
             </div>
 
             <div className="xl:col-span-4 space-y-8">
-               <h2 className="text-3xl font-black text-slate-900 tracking-tighter flex items-center gap-3 px-2 pt-10">
+               <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tighter flex items-center gap-3 px-2 pt-10">
                   <ShieldCheck className="h-8 w-8 text-emerald-500" />
                   Metrics
                </h2>
                
                <div className="grid grid-cols-1 gap-6">
-                  <Card className="border-none shadow-xl shadow-slate-100/50 rounded-[2.5rem] bg-slate-900 text-white overflow-hidden relative">
+                  <Card className="border-none shadow-xl shadow-slate-100/50 dark:shadow-black/60 rounded-[2.5rem] bg-indigo-600 text-white overflow-hidden relative group">
                      <div className="absolute top-0 right-0 p-8 opacity-10">
                         <TrendingUp className="h-24 w-24" />
                      </div>
                      <CardContent className="p-10 space-y-2 relative z-10">
-                        <p className="text-indigo-400 font-black uppercase text-[10px] tracking-widest">Total Managed Lives</p>
+                        <p className="text-indigo-200 font-black uppercase text-[10px] tracking-widest leading-tight">Total Managed Lives</p>
                         <h4 className="text-6xl font-black tracking-tighter">{children.length}</h4>
                         <div className="pt-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/40">
-                           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                           <div className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
                            All systems operational
                         </div>
                      </CardContent>
                   </Card>
 
-                  <Card className="border-none shadow-xl shadow-slate-100/50 rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
+                  <Card className="border-none shadow-xl shadow-slate-100/50 dark:shadow-black/60 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 overflow-hidden transition-all hover:shadow-2xl hover:shadow-indigo-100/20 dark:hover:shadow-indigo-500/10">
                      <CardContent className="p-10 space-y-6">
                         <div className="flex items-center gap-4">
-                           <div className="h-12 w-12 rounded-2xl bg-purple-50 flex items-center justify-center">
-                              <MessageSquare className="h-6 w-6 text-purple-600" />
+                           <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
+                              <MessageSquare className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                            </div>
                            <div>
                               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Response Required</p>
-                              <h4 className="text-2xl font-black text-slate-900 tracking-tighter">
+                              <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tighter">
                                  {recentMessages.filter(m => !m.is_read).length} Unread
                               </h4>
                            </div>
                         </div>
-                        <Button className="w-full rounded-2xl h-14 bg-slate-50 text-slate-900 hover:bg-slate-100 font-bold" onClick={() => navigate('/parent/messages')}>
+                        <Button className="w-full rounded-2xl h-14 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold" onClick={() => navigate('/parent/messages')}>
                            Enter Inbox
                         </Button>
                      </CardContent>
                   </Card>
 
-                  <Card className="border-none shadow-xl shadow-slate-100/50 rounded-[2.5rem] bg-white border border-slate-100 overflow-hidden">
+                  <Card className="border-none shadow-xl shadow-slate-100/50 dark:shadow-black/60 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 overflow-hidden transition-all hover:shadow-2xl hover:shadow-emerald-100/20 dark:hover:shadow-emerald-500/10">
                      <CardContent className="p-10 space-y-6">
                         <div className="flex items-center gap-4">
-                           <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                              <Calendar className="h-6 w-6 text-emerald-600" />
+                           <div className="h-12 w-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                              <Calendar className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                            </div>
                            <div>
                               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Events Active</p>
-                              <h4 className="text-2xl font-black text-slate-900 tracking-tighter">
+                              <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tighter">
                                  Check Schedule
                               </h4>
                            </div>
                         </div>
-                        <Button className="w-full rounded-2xl h-14 bg-slate-50 text-slate-900 hover:bg-slate-100 font-bold" onClick={() => navigate('/events')}>
+                        <Button className="w-full rounded-2xl h-14 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold" onClick={() => navigate('/events')}>
                            View Events
                         </Button>
                      </CardContent>

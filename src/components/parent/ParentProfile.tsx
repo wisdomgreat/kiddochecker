@@ -353,7 +353,7 @@ const ParentProfile = () => {
             </p>
           </div>
 
-          <div className="h-px bg-slate-100 my-2" />
+          <div className="h-px bg-slate-100 dark:bg-white/5 my-2" />
 
           {/* Church Membership Section */}
           <div className="space-y-6">
@@ -368,20 +368,20 @@ const ParentProfile = () => {
                     </div>
                 </div>
                 {myMembership ? (
-                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 px-3 py-1 rounded-full font-black uppercase text-[9px] tracking-tight">
+                    <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40 px-3 py-1 rounded-full font-black uppercase text-[9px] tracking-tight">
                         {myMembership.membership_type} Member
                     </Badge>
                 ) : (
-                    <Badge variant="outline" className="border-slate-200 text-slate-400 font-bold uppercase text-[9px] tracking-tight">
+                    <Badge variant="outline" className="border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500 font-bold uppercase text-[9px] tracking-tight">
                         Non-Registered
                     </Badge>
                 )}
             </div>
 
-            <div className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-slate-50/50 dark:bg-white/5 rounded-3xl p-6 border border-slate-100 dark:border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Joined Since</Label>
-                    <p className="font-bold text-slate-700">{myMembership ? format(new Date(myMembership.joined_at), 'MMMM dd, yyyy') : 'N/A'}</p>
+                    <Label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-tighter">Joined Since</Label>
+                    <p className="font-bold text-slate-700 dark:text-slate-300">{myMembership ? format(new Date(myMembership.joined_at), 'MMMM dd, yyyy') : 'N/A'}</p>
                 </div>
                 <div className="space-y-1">
                     <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Membership Type</Label>
@@ -431,7 +431,7 @@ const ParentProfile = () => {
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.8 }}
                                 >
-                                    <Badge className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-100 font-bold px-3 py-1 rounded-xl flex items-center gap-2">
+                                    <Badge className="bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20 font-bold px-3 py-1 rounded-xl flex items-center gap-2">
                                         <Zap className="h-3 w-3" />
                                         {m.type}: {format(new Date(m.date), 'yyyy')}
                                     </Badge>
@@ -526,11 +526,11 @@ const ParentProfile = () => {
                     </Popover>
                 </div>
             </div>
-            <DialogFooter className="sm:justify-end gap-3 pt-4 border-t border-slate-100">
-                <Button variant="ghost" className="rounded-2xl font-bold h-12 px-6" onClick={() => setIsMilestoneOpen(false)}>
+            <DialogFooter className="sm:justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/5">
+                <Button variant="ghost" className="rounded-2xl font-bold h-12 px-6 dark:hover:bg-white/5" onClick={() => setIsMilestoneOpen(false)}>
                     Cancel
                 </Button>
-                <Button className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black h-12 px-8 shadow-lg shadow-indigo-100" onClick={handleAddMilestone}>
+                <Button className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black h-12 px-8 shadow-lg shadow-indigo-100 dark:shadow-indigo-500/20" onClick={handleAddMilestone}>
                     Save Milestone
                 </Button>
             </DialogFooter>

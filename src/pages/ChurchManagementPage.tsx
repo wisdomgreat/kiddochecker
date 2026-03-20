@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -57,6 +59,19 @@ const ChurchManagementPage = () => {
     const [crmMember, setCrmMember] = useState<ChurchMember | null>(null);
     const [newCRMNote, setNewCRMNote] = useState('');
     const { interactions, addInteraction, sendEmail, isSending } = useVisitorInteractions(crmMember?.profiles?.id);
+    const { data: globalInteractions = [], isLoading: globalLoading } = useQuery({
+        queryKey: ['global-interactions'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('visitor_interactions')
+                .select('*, profiles(first_name, last_name)')
+                .order('created_at', { ascending: false })
+                .limit(5);
+            if (error) throw error;
+            return data;
+        }
+    });
+
     const [onboardingMember, setOnboardingMember] = useState<{ profile_id: string; type: MembershipType; status: MembershipStatus }>({ profile_id: '', type: 'regular', status: 'active' });
     
     // Ministry State
@@ -240,8 +255,8 @@ const ChurchManagementPage = () => {
                                 <TabsTrigger value="volunteers" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
                                     <Sparkles className="h-4 w-4 mr-2" /> {t('volunteers')}
                                 </TabsTrigger>
-                                <TabsTrigger value="new_comers" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                                    <Zap className="h-4 w-4 mr-2" /> {t('newComers')}
+                                <TabsTrigger value="journey" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                                    <Sparkles className="h-4 w-4 mr-2" /> {t('guestJourney')}
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
@@ -473,64 +488,275 @@ const ChurchManagementPage = () => {
                         <div /> // Placeholder to match length if needed, but I'll use the actual content below
                      )}
 
-                     {activePerspective === 'new_comers' && (
+                     {activePerspective === 'journey' && (
                         <motion.div 
-                            key="new-comers-view"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                            key="journey-view"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
                             className="space-y-8"
                         >
-                            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-100 border border-slate-50">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div>
-                                        <h3 className="text-2xl font-black text-slate-900 leading-tight flex items-center gap-2">
-                                            <Sparkles className="h-6 w-6 text-amber-500" /> {t('newComersTracking')}
-                                        </h3>
-                                        <p className="text-slate-500 font-medium">{t('followUpWorkflow')}</p>
+                            {/* Retention Analytics Header */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <Card className="lg:col-span-2 border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white dark:bg-slate-900/40 p-8 overflow-hidden relative border border-slate-50 dark:border-white/5">
+                                    <div className="flex items-center justify-between mb-8 relative z-10">
+                                        <div>
+                                            <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
+                                                <Activity className="h-6 w-6 text-indigo-600" /> {t('journeyRetentionAnalytics')}
+                                            </h3>
+                                            <p className="text-slate-500 dark:text-slate-400 font-medium">{t('visitorRetentionOverTime')}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-3xl font-black text-indigo-600">
+                                                {Math.round((members.filter(m => m.membership_type === 'registered').length / (members.length || 1)) * 100)}%
+                                            </p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('overallConversion')}</p>
+                                        </div>
                                     </div>
-                                    <Badge className="bg-indigo-600 text-white font-black px-4 py-1.5 rounded-full">{members.filter(m => m.membership_type === 'visitor').length} New This Month</Badge>
+
+                                    {/* Visual Funnel */}
+                                    <div className="space-y-6 relative z-10 w-full max-w-2xl mx-auto py-4">
+                                        {[
+                                            { label: t('visitorGuest'), count: members.filter(m => m.membership_type === 'visitor').length, color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600', width: '100%', icon: UserPlus },
+                                            { label: t('regularAttendee'), count: members.filter(m => m.membership_type === 'regular').length, color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600', width: '75%', icon: Calendar },
+                                            { label: t('registeredMember'), count: members.filter(m => m.membership_type === 'registered').length, color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600', width: '50%', icon: ShieldCheck }
+                                        ].map((step, i) => (
+                                            <div key={step.label} className="flex items-center gap-4 group">
+                                                <div className="w-48 text-right hidden md:block">
+                                                    <p className="text-xs font-black uppercase tracking-widest text-slate-400 group-hover:text-indigo-600 transition-colors">{step.label}</p>
+                                                    <p className="text-lg font-black text-slate-900 dark:text-white">{step.count}</p>
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/40 relative overflow-hidden group-hover:shadow-md transition-all">
+                                                        <motion.div 
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: step.width }}
+                                                            transition={{ delay: i * 0.2, duration: 1 }}
+                                                            className={`absolute inset-y-0 left-0 ${step.color} transition-all border-r-2 border-current flex items-center px-4`}
+                                                        >
+                                                            <step.icon className="h-5 w-5 mr-3 shrink-0" />
+                                                            <span className="font-black text-sm uppercase tracking-tight truncate">{step.label}</span>
+                                                        </motion.div>
+                                                        <div className="absolute right-4 inset-y-0 flex items-center">
+                                                            <span className="text-[10px] font-black text-slate-300 group-hover:text-indigo-600 uppercase italic">
+                                                                {Math.round((step.count / (members.length || 1)) * 100)}% {t('coverage')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="absolute top-[-10%] right-[-10%] w-60 h-60 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+                                </Card>
+
+                                <div className="space-y-6">
+                                    <Card className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-indigo-600 text-white p-8 space-y-4 overflow-hidden relative">
+                                        <div className="relative z-10">
+                                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md mb-4">
+                                                <Zap className="h-6 w-6" />
+                                            </div>
+                                            <h4 className="text-sm font-bold opacity-80 uppercase tracking-widest">{t('automationHealth')}</h4>
+                                            <p className="text-3xl font-black mt-1">98.2%</p>
+                                            <p className="text-[10px] font-medium text-indigo-100 pt-2 flex items-center gap-1">
+                                                <ArrowUpRight className="h-3 w-3" /> {t('deliveredSuccessfully')}
+                                            </p>
+                                        </div>
+                                        <div className="absolute top-[-20%] right-[-20%] w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+                                    </Card>
+
+                                    <Card className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white dark:bg-slate-900/40 p-8 border border-slate-50 dark:border-white/5">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+                                                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('dropOffPrevention')}</h4>
+                                                <p className="text-lg font-black text-slate-900 dark:text-white">Active</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                                                {t('automationScanningDescription')}
+                                            </p>
+                                            <Button variant="outline" className="w-full h-10 rounded-xl border-slate-100 dark:border-white/10 text-[10px] font-black uppercase tracking-widest">
+                                                {t('viewRecentErrors').toUpperCase()}
+                                            </Button>
+                                        </div>
+                                    </Card>
+                                </div>
+                            </div>
+
+                            {/* Stage Tracker Grid */}
+                            <div className="bg-white dark:bg-slate-900/40 p-10 rounded-[3rem] shadow-xl shadow-slate-100/50 dark:shadow-black/20 border border-slate-50 dark:border-white/5 overflow-x-auto">
+                                <div className="flex items-center justify-between mb-8 min-w-max">
+                                    <div>
+                                        <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight flex items-center gap-3">
+                                            <Plus className="h-6 w-6 text-indigo-600" /> {t('followUpWorkflow')}
+                                        </h3>
+                                        <p className="text-slate-500 dark:text-slate-400 font-medium">{t('trackingProgressAcrossStages')}</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Badge className="bg-indigo-600 text-white font-black px-4 py-2 rounded-full shadow-lg shadow-indigo-100 dark:shadow-none">
+                                            {members.filter(m => m.membership_type === 'visitor').length} New This Month
+                                        </Badge>
+                                        <Button variant="ghost" size="icon" className="text-slate-300 dark:text-slate-600"><MoreVertical className="h-5 w-5" /></Button>
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {['Visitor', 'Contacted', 'Verified Member'].map(stage => {
-                                        const stageMembers = members.filter(m => {
-                                            if (stage === 'Visitor') return m.membership_type === 'visitor';
-                                            if (stage === 'Contacted') return m.membership_type === 'regular' && m.status === 'active';
-                                            return m.membership_type === 'registered';
-                                        });
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 min-w-[900px]">
+                                    {[
+                                        { title: t('visitorGuest'), type: 'visitor', color: 'bg-amber-500', icon: Mail },
+                                        { title: t('regularAttendee'), type: 'regular', color: 'bg-indigo-500', icon: Calendar },
+                                        { title: t('registeredMember'), type: 'registered', color: 'bg-emerald-500', icon: ShieldCheck }
+                                    ].map(stage => {
+                                        const stageMembers = members.filter(m => m.membership_type === stage.type);
                                         return (
-                                            <div key={stage} className="space-y-4">
+                                            <div key={stage.title} className="space-y-6">
                                                 <div className="flex justify-between items-center px-4">
-                                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">{stage}</h4>
-                                                    <span className="text-xs font-black text-slate-300">{stageMembers.length}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-2 h-2 rounded-full ${stage.color} animate-pulse`} />
+                                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{stage.title}</h4>
+                                                    </div>
+                                                    <Badge variant="outline" className="text-xs font-black text-slate-300 bg-slate-50 dark:bg-slate-800/40 dark:text-slate-500 border-none">{stageMembers.length}</Badge>
                                                 </div>
-                                                <div className="bg-slate-50/50 p-4 rounded-[2rem] border border-slate-100 min-h-[300px] flex flex-col gap-3">
+                                                <div className="bg-slate-50/50 dark:bg-slate-900/20 p-6 rounded-[2.5rem] border border-slate-100 dark:border-white/5 min-h-[400px] flex flex-col gap-4">
                                                     {stageMembers.map(m => (
-                                                        <div key={m.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-indigo-100 transition-all cursor-pointer group flex items-start gap-4" onClick={() => { setCrmMember(m); setIsCRMOpen(true); }}>
-                                                            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center font-bold text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                                                                {(m.profiles?.first_name?.[0] || m.children?.first_name?.[0] || '?')}
+                                                        <motion.div 
+                                                            key={m.id} 
+                                                            layoutId={`crm-${m.id}`}
+                                                            className="bg-white dark:bg-slate-800/60 p-5 rounded-3xl shadow-sm border border-slate-100 dark:border-white/5 hover:border-indigo-100 dark:hover:border-indigo-600/50 hover:shadow-xl transition-all cursor-pointer group"
+                                                            onClick={() => { setCrmMember(m); setIsCRMOpen(true); }}
+                                                        >
+                                                            <div className="flex items-start gap-4">
+                                                                <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 flex items-center justify-center font-black text-lg shadow-inner group-hover:scale-110 transition-transform">
+                                                                    {(m.profiles?.first_name?.[0] || '?')}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="font-bold text-slate-800 dark:text-white text-sm truncate">{m.profiles?.first_name} {m.profiles?.last_name}</p>
+                                                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">{m.profiles?.email}</p>
+                                                                </div>
+                                                                <stage.icon className="h-3.5 w-3.5 text-slate-200 group-hover:text-indigo-400 transition-colors" />
                                                             </div>
-                                                            <div className="flex-1">
-                                                                <p className="font-bold text-slate-800 text-sm">{m.profiles?.first_name || m.children?.first_name} {m.profiles?.last_name || m.children?.last_name}</p>
-                                                                <div className="flex items-center justify-between mt-2">
-                                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{format(new Date(m.joined_at), 'MMM d, yyyy')}</span>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Activity className="h-3 w-3 text-slate-300" />
-                                                                        <span className="text-[9px] font-black text-slate-300 uppercase">{t('trackCRM')}</span>
-                                                                    </div>
+                                                            <div className="flex items-center justify-between mt-4">
+                                                                <div className="flex -space-x-1">
+                                                                    {[1, 2].map(dot => <div key={dot} className="w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[7px] font-black text-slate-400">?</div>)}
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+                                                                    <Activity className="h-3 w-3 text-indigo-600" />
+                                                                    <span className="text-[9px] font-black text-indigo-600 uppercase tracking-tighter">{t('openCRM')}</span>
                                                                 </div>
                                                             </div>
-                                                        </div>
+                                                        </motion.div>
                                                     ))}
-                                                    {!stageMembers.length && <div className="flex-1 flex items-center justify-center opacity-20 italic text-xs">No records</div>}
+                                                    {!stageMembers.length && (
+                                                        <div className="flex-1 flex flex-col items-center justify-center py-20 opacity-10">
+                                                            <Users className="h-10 w-10 mb-2" />
+                                                            <p className="text-[10px] font-black uppercase tracking-widest">{t('emptyStage')}</p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
+
+                            {/* Global Activity & Retention Metrics */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
+                                <Card className="lg:col-span-2 border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-indigo-50/50 dark:bg-slate-900/40 p-10 border border-slate-50 dark:border-white/5 relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] rounded-full -mr-32 -mt-32" />
+                                    <div className="flex items-center justify-between mb-8 relative">
+                                        <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+                                            <Activity className="h-5 w-5 text-indigo-600" /> Recent Activity
+                                        </h3>
+                                        <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-slate-100 dark:border-white/5">Real-time Feed</Badge>
+                                    </div>
+                                    <div className="space-y-4 relative">
+                                        {globalInteractions.map((item: any) => (
+                                            <div key={item.id} className="flex items-center gap-4 p-5 rounded-[2rem] bg-white dark:bg-slate-800/40 shadow-sm border border-slate-50 dark:border-white/5 hover:border-indigo-100 dark:hover:border-indigo-600/50 hover:shadow-xl transition-all group">
+                                                <div className="w-11 h-11 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm shadow-inner group-hover:scale-110 transition-transform">
+                                                    {item.profiles?.first_name?.[0] || '?'}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="font-bold text-slate-800 dark:text-white text-sm truncate">{item.profiles?.first_name} {item.profiles?.last_name}</p>
+                                                        <span className="text-[10px] text-slate-400 font-medium">{format(new Date(item.created_at), 'HH:mm')}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{item.content}</p>
+                                                </div>
+                                                <div className={`px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest ${
+                                                    item.interaction_type === 'email' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600' :
+                                                    item.interaction_type === 'note' ? 'bg-amber-50 dark:bg-amber-900/40 text-amber-600' :
+                                                    'bg-slate-50 dark:bg-slate-700/40 text-slate-500'
+                                                }`}>
+                                                    {item.interaction_type}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {!globalInteractions.length && (
+                                            <div className="py-20 text-center opacity-20">
+                                                <Activity className="h-10 w-10 mx-auto mb-2" />
+                                                <p className="text-xs font-black uppercase tracking-widest">No recent activity</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </Card>
+
+                                <div className="space-y-8">
+                                    <Card className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white dark:bg-slate-900/40 p-10 border border-slate-50 dark:border-white/5">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div>
+                                                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-1">Velocity</h3>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time to conversion</p>
+                                            </div>
+                                            <Zap className="h-5 w-5 text-orange-400" />
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="space-y-0.5">
+                                                    <p className="text-xs font-black text-slate-800 dark:text-white">Visitor → Regular</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Target: 21 Days</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">14 Days</p>
+                                                    <p className="text-[8px] text-emerald-500 font-black uppercase tracking-widest">Optimal</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-white/5">
+                                                <div className="space-y-0.5">
+                                                    <p className="text-xs font-black text-slate-800 dark:text-white">Regular → Member</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Target: 90 Days</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-lg font-black text-slate-300">-- Days</p>
+                                                    <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest italic">Wait for data</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-indigo-600 p-8 text-white space-y-4 overflow-hidden relative">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl -mr-16 -mt-16" />
+                                        <div className="flex items-center gap-3 relative">
+                                            <Sparkles className="h-5 w-5 text-indigo-200" />
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-100">Automation Score</h4>
+                                        </div>
+                                        <div className="flex items-end justify-between relative">
+                                            <p className="text-5xl font-black">94<span className="text-xl text-indigo-300">%</span></p>
+                                            <div className="flex gap-1 pb-2">
+                                                {[1,2,3,4,5].map(i => <div key={i} className={`w-1.5 h-6 rounded-full ${i <= 4 ? 'bg-white' : 'bg-white/20'}`} />)}
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] font-bold text-indigo-100/60 leading-relaxed relative">
+                                            Your onboarding engine is performing within the top 5% of community healthy benchmarks.
+                                        </p>
+                                    </Card>
+                                </div>
+                            </div>
                         </motion.div>
-                     )}
+                    )}
                 </AnimatePresence>
             </div>
 

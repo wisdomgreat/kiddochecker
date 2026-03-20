@@ -123,28 +123,28 @@ const ParentMessages = () => {
   const activeThread = selectedPartnerId ? threads[selectedPartnerId] : null;
 
   return (
-    <div className="flex bg-[#f8fafc] h-[calc(100vh-140px)] min-h-[600px] overflow-hidden rounded-[2.5rem] border border-slate-100 shadow-2xl">
+    <div className="flex bg-[#f8fafc] dark:bg-slate-950 h-[calc(100vh-140px)] min-h-[600px] overflow-hidden rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-2xl dark:shadow-black/60">
       {/* Sidebar - Inbox */}
       <div className={cn(
-        "w-full lg:w-[400px] flex flex-col border-r border-slate-100 bg-white/70 backdrop-blur-xl shrink-0 transition-all",
+        "w-full lg:w-[400px] flex flex-col border-r border-slate-100 dark:border-white/5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shrink-0 transition-all",
         selectedPartnerId && "hidden lg:flex"
       )}>
-        <div className="p-8 border-b border-slate-50 space-y-6">
+        <div className="p-8 border-b border-slate-50 dark:border-white/5 space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
                <Mail className="h-8 w-8 text-indigo-600" />
                Inbox
             </h1>
-            <Button size="icon" className="h-12 w-12 rounded-2xl bg-slate-900 shadow-xl shadow-slate-200" onClick={() => { setIsComposing(true); setSelectedPartnerId(null); }}>
+            <Button size="icon" className="h-12 w-12 rounded-2xl bg-slate-900 dark:bg-indigo-600 shadow-xl shadow-slate-200 dark:shadow-indigo-500/20" onClick={() => { setIsComposing(true); setSelectedPartnerId(null); }}>
               <Plus className="h-6 w-6 text-white" />
             </Button>
           </div>
           
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-600 group-focus-within:text-indigo-600 transition-colors" />
             <Input 
               placeholder="Search conversations..." 
-              className="pl-11 h-12 bg-slate-50/50 border-slate-100 rounded-2xl text-xs font-bold focus-visible:ring-indigo-600 transition-all"
+              className="pl-11 h-12 bg-slate-50/50 dark:bg-white/5 border-slate-100 dark:border-white/10 rounded-2xl text-xs font-bold focus-visible:ring-indigo-600 transition-all text-slate-900 dark:text-slate-100"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -195,8 +195,8 @@ const ParentMessages = () => {
                     className={cn(
                       "w-full flex items-center gap-4 p-4 rounded-3xl transition-all border group relative",
                       selectedPartnerId === partnerId 
-                      ? 'bg-indigo-50/50 border-indigo-100 shadow-sm shadow-indigo-100/50' 
-                      : 'bg-transparent border-transparent hover:bg-slate-50/80 hover:border-slate-100'
+                      ? 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-500/20 shadow-sm shadow-indigo-100/50 dark:shadow-black/20' 
+                      : 'bg-transparent border-transparent hover:bg-slate-50/80 dark:hover:bg-white/5 hover:border-slate-100 dark:hover:border-white/5'
                     )}
                   >
                     <div className="relative">
@@ -212,7 +212,7 @@ const ParentMessages = () => {
                         </AvatarFallback>
                       </Avatar>
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] text-white font-black border-2 border-white">
+                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] text-white font-black border-2 border-white dark:border-slate-800">
                           {unreadCount}
                         </span>
                       )}
@@ -220,22 +220,22 @@ const ParentMessages = () => {
 
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex justify-between items-center mb-1">
-                        <h4 className="font-bold text-slate-900 truncate pr-2 tracking-tight">
+                        <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 tracking-tight">
                           {partnerName}
                         </h4>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-tighter">
                           {format(new Date(latest.created_at), "MMM d")}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <p className={cn(
                           "text-xs truncate flex-1",
-                          unreadCount > 0 ? "font-black text-slate-900" : "text-slate-500 font-medium"
+                          unreadCount > 0 ? "font-black text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400 font-medium"
                         )}>
                           {latest.subject}
                         </p>
                       </div>
-                      <p className="text-[10px] text-slate-400 truncate font-medium">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate font-medium">
                          {latest.content}
                       </p>
                     </div>
@@ -253,7 +253,7 @@ const ParentMessages = () => {
 
       {/* Main Chat Stream */}
       <div className={cn(
-        "flex-1 flex flex-col bg-white overflow-hidden relative",
+        "flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden relative",
         !selectedPartnerId && !isComposing && "hidden lg:flex"
       )}>
         <AnimatePresence mode="wait">
@@ -326,7 +326,7 @@ const ParentMessages = () => {
               <div className="p-8 border-t border-slate-100 bg-white flex justify-end gap-3">
                 <Button variant="outline" className="h-12 rounded-2xl border-slate-200 font-bold px-6" onClick={() => setIsComposing(false)}>Discard</Button>
                 <Button 
-                  className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 shadow-xl shadow-indigo-100 disabled:opacity-50"
+                  className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 shadow-xl shadow-indigo-100 dark:shadow-indigo-500/20 disabled:opacity-50"
                   onClick={async () => {
                      if (!newMsg.recipientId || !newMsg.content.trim()) return;
                      await sendMessage({
@@ -351,7 +351,7 @@ const ParentMessages = () => {
                className="flex-1 flex flex-col h-full bg-[#f8fafc]/30"
             >
                {/* Chat Header */}
-               <div className="p-6 lg:p-8 border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
+               <div className="p-6 lg:p-8 border-b border-slate-100 dark:border-white/5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" className="lg:hidden rounded-2xl -ml-2" onClick={() => setSelectedPartnerId(null)}>
                       <ChevronLeft className="h-6 w-6" />
@@ -429,7 +429,7 @@ const ParentMessages = () => {
                                 "flex items-end px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap",
                                 isMine ? "mr-1" : "ml-1"
                               )}>
-                                <span className="text-[9px] font-bold text-slate-400">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500">
                                    {format(new Date(msg.created_at), "h:mm a")}
                                 </span>
                               </div>
@@ -437,7 +437,7 @@ const ParentMessages = () => {
                            
                            {/* Show timestamp if significant gap or last message */}
                            {(idx === activeThread.length - 1) && (
-                              <span className="text-[9px] font-bold text-slate-300 mt-1 mx-2">
+                              <span className="text-[9px] font-bold text-slate-300 dark:text-slate-600 mt-1 mx-2">
                                 Delivered • {format(new Date(msg.created_at), "MMM d, h:mm a")}
                               </span>
                            )}
@@ -487,7 +487,7 @@ const ParentMessages = () => {
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                     className="absolute inset-0 bg-indigo-500/10 rounded-full blur-2xl" 
                   />
-                  <div className="relative bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/30">
+                  <div className="relative bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/30 dark:shadow-black/60">
                     <MessageSquare className="h-16 w-16 text-indigo-600" />
                   </div>
                 </div>
