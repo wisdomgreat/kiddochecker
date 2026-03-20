@@ -29,10 +29,12 @@ const UnifiedDashboardLayout = ({ children }: UnifiedDashboardLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background relative overflow-hidden font-sans">
+      <div className="min-h-screen flex w-full bg-background relative overflow-hidden font-sans transition-colors duration-500">
         {/* Background Decor */}
-        <div className="absolute top-[-5%] right-[-5%] w-[40%] h-[40%] bg-indigo-500/5 dark:bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none z-0" />
-        <div className="absolute bottom-[-5%] left-[-5%] w-[35%] h-[35%] bg-purple-500/5 dark:bg-purple-500/10 blur-[80px] rounded-full pointer-events-none z-0" />
+        <div className="absolute top-[-5%] right-[-5%] w-[40%] h-[40%] bg-indigo-500/5 dark:bg-indigo-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
+        <div className="absolute bottom-[-5%] left-[-5%] w-[35%] h-[35%] bg-purple-500/5 dark:bg-purple-500/15 blur-[120px] rounded-full pointer-events-none z-0" />
+        <div className="absolute top-[20%] left-[10%] w-[20%] h-[20%] bg-blue-500/5 dark:bg-blue-600/5 blur-[100px] rounded-full pointer-events-none z-0" />
+        <div className="absolute bottom-[20%] right-[10%] w-[25%] h-[25%] bg-indigo-500/5 dark:bg-indigo-400/5 blur-[100px] rounded-full pointer-events-none z-0" />
         
         <AppSidebar />
         

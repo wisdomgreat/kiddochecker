@@ -49,41 +49,41 @@
   }
 
   .dark {
-    --background: 222 47% 11%;
+    --background: 222 47% 4%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 15%;
+    --card: 222 47% 8%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 15%;
+    --popover: 222 47% 8%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 252 95% 60%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 217 33% 22%;
+    --secondary: 222 47% 12%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 20%;
+    --muted: 222 47% 10%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 238 60% 25%;
-    --accent-foreground: 238 100% 90%;
+    --accent: 252 80% 15%;
+    --accent-foreground: 252 100% 95%;
 
     --destructive: 0 62% 31%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 217 33% 25%;
-    --input: 217 33% 25%;
+    --border: 222 47% 15%;
+    --input: 222 47% 15%;
     --ring: 252 95% 65%;
 
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 222 47% 3%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-primary: 252 95% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 20%;
+    --sidebar-accent: 222 47% 12%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 25%;
+    --sidebar-border: 222 47% 10%;
     --sidebar-ring: 252 95% 65%;
   }
 
@@ -210,6 +210,10 @@
 
   .glass-card {
     @apply bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-2xl dark:shadow-black/40;
+  }
+
+  .glass-panel {
+    @apply bg-white/10 dark:bg-black/20 backdrop-blur-3xl border border-white/20 dark:border-white/5;
   }
 
   .isometric-tilt {

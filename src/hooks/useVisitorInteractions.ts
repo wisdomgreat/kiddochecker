@@ -7,6 +7,7 @@ export interface VisitorInteraction {
   visitor_id: string;
   interaction_type: 'email' | 'phone' | 'text' | 'note' | 'meeting';
   content: string;
+  metadata?: Record<string, any>;
   created_at: string;
   created_by: string;
 }

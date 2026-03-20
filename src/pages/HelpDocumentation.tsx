@@ -20,7 +20,12 @@ import {
   QrCode,
   CheckCircle,
   AlertTriangle,
-  Phone
+  Phone,
+  LayoutDashboard,
+  Kanban,
+  UserCheck,
+  Zap,
+  Sparkles
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
@@ -131,6 +136,29 @@ const HelpDocumentation = () => {
           roles: ['admin']
         }
       ]
+    },
+    {
+      category: "guest-journey",
+      title: "Guest Journey & CRM",
+      icon: Zap,
+      authorizedRoles: ['admin', 'super_admin', 'staff'],
+      questions: [
+        {
+          question: "How do I track a new visitor's progress?",
+          answer: "Navigate to 'Church Management' > 'Guest Journey'. Use the Funnel View to see overall retention, and the Stage Tracker to see exactly where each person is (First Visit, Contacted, etc.).",
+          roles: ['admin', 'staff']
+        },
+        {
+          question: "How do I log a pastoral note or email?",
+          answer: "Open the Guest Journey, click on a member's card to open their CRM profile. From there, you can click 'Log Note' or 'Send Email' to keep a history of every interaction.",
+          roles: ['admin', 'staff']
+        },
+        {
+          question: "Can I automate follow-up emails?",
+          answer: "Yes! The system tracks visitor status. If a visitor hasn't been contacted in 7 days, they appear in the 'Drop-off Prevention' alert on your dashboard.",
+          roles: ['admin']
+        }
+      ]
     }
   ];
 
@@ -168,6 +196,19 @@ const HelpDocumentation = () => {
         "Check printer paper levels",
         "Review expected attendance from registrations",
         "Ensure all class teachers are checked in"
+      ]
+    },
+    {
+      title: "Visitor Onboarding Flow",
+      icon: UserCheck,
+      roles: ['admin', 'staff'],
+      steps: [
+        "Monitor New Arrivals in the 'Guest Journey' tab",
+        "Move visitors to 'Initial Contact' after first follow-up",
+        "Open the **Dual-Pane CRM profile** to see the full interaction history",
+        "Log pastoral observations using the **Rapid Insight Log**",
+        "Send an automated **Welcome Email** using one of the pre-built templates",
+        "Transition to 'Regular Attendee' once consistency is achieved"
       ]
     }
   ];
@@ -212,9 +253,10 @@ const HelpDocumentation = () => {
         </div>
 
         <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
             <TabsTrigger value="guides">Quick Guides</TabsTrigger>
+            <TabsTrigger value="walkthroughs">Walkthroughs</TabsTrigger>
             <TabsTrigger value="faq">FAQ</TabsTrigger>
           </TabsList>
 
@@ -357,6 +399,77 @@ const HelpDocumentation = () => {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="walkthroughs" className="space-y-12">
+            <div className="space-y-4">
+               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-black uppercase tracking-widest">
+                  <Sparkles className="h-3 w-3" /> Visual Interface Guide
+               </div>
+               <h2 className="text-3xl font-black text-slate-900 tracking-tight">Learn the new Dashboard</h2>
+            </div>
+
+            <div className="space-y-20">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                  <div className="space-y-6">
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-xl">1</div>
+                     <h3 className="text-2xl font-black text-slate-900">Guest Journey Analytics</h3>
+                     <p className="text-slate-600 leading-relaxed font-medium">
+                        The journey dashboard provides a bird's eye view of your community's growth. 
+                        Track **Retention Velocity** to see how fast visitors become members and monitor **Automation Health** to ensure no one falls through the cracks.
+                     </p>
+                     <div className="flex gap-4">
+                        <Badge className="bg-emerald-50 text-emerald-600 border-none px-3 py-1">Funnel View</Badge>
+                        <Badge className="bg-indigo-50 text-indigo-600 border-none px-3 py-1">Real-time Activity</Badge>
+                     </div>
+                  </div>
+                  <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white p-2">
+                     <img src="/docs/images/guest_journey_dashboard.png" className="rounded-[2rem] w-full h-auto" alt="Dashboard Walkthrough" />
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                  <div className="order-2 lg:order-1 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white p-2">
+                     <img src="/docs/images/visitor_stage_tracker.png" className="rounded-[2rem] w-full h-auto" alt="Kanban Tracker" />
+                  </div>
+                  <div className="order-1 lg:order-2 space-y-6">
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-xl">2</div>
+                     <h3 className="text-2xl font-black text-slate-900">The Stage Tracker</h3>
+                     <p className="text-slate-600 leading-relaxed font-medium">
+                        Visualize your newcomers as they move through onboarding stages. 
+                        Each card represents a soul being cared for. Click any card to open the **Admin CRM** for detailed management.
+                     </p>
+                     <ul className="space-y-3">
+                        <li className="flex items-center gap-3 text-sm font-bold text-slate-700">
+                           <Kanban className="h-4 w-4 text-indigo-500" /> Multi-column Workflow
+                        </li>
+                        <li className="flex items-center gap-3 text-sm font-bold text-slate-700">
+                           <Users className="h-4 w-4 text-indigo-500" /> Demographic insights at a glance
+                        </li>
+                     </ul>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pb-12">
+                  <div className="space-y-6">
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-xl">3</div>
+                     <h3 className="text-2xl font-black text-slate-900">Full CRM Profiles</h3>
+                     <p className="text-slate-600 leading-relaxed font-medium">
+                        Log pastoral notes, send automated follow-up emails, and track every interaction. 
+                        The **Interaction Timeline** ensures that every touchpoint is recorded for consistent care.
+                     </p>
+                     <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
+                        <h4 className="font-black text-xs uppercase tracking-widest text-indigo-600">Pro Tip</h4>
+                        <p className="text-xs font-bold text-slate-500 leading-relaxed">
+                           Use the "Send Email" action to use pre-built templates for Welcome messages and missing notifications.
+                        </p>
+                     </div>
+                  </div>
+                  <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white p-2">
+                     <img src="/docs/images/crm_profile_interaction.png" className="rounded-[2rem] w-full h-auto" alt="CRM Overview" />
+                  </div>
+               </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="faq" className="space-y-6">
