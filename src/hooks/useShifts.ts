@@ -4,7 +4,10 @@ import { format } from 'date-fns';
 
 export interface Shift {
   id: string;
-  staff_id: string;
+  staff_id?: string;
+  event_id?: string;
+  volunteer_role_id?: string;
+  ministry_id?: string;
   class_id?: string;
   start_time: string;
   end_time: string;
@@ -20,27 +23,35 @@ export interface Shift {
   classes?: {
     name: string;
   };
+  volunteer_roles?: {
+    name: string;
+  };
 }
 
-export const useShifts = (dateRange?: { from: Date; to: Date }) => {
+export const useShifts = (filters?: { from?: Date; to?: Date; event_id?: string }) => {
   const queryClient = useQueryClient();
 
   const { data: shifts, isLoading, error } = useQuery({
-    queryKey: ['shifts', dateRange],
+    queryKey: ['shifts', filters],
     queryFn: async () => {
       let query = supabase
         .from('shifts')
         .select(`
           *,
           profiles:staff_id (first_name, last_name, avatar_url),
-          classes:class_id (name)
+          classes:class_id (name),
+          volunteer_roles:volunteer_role_id (name)
         `)
         .order('start_time', { ascending: true });
 
-      if (dateRange) {
-        query = query
-          .gte('start_time', dateRange.from.toISOString())
-          .lte('start_time', dateRange.to.toISOString());
+      if (filters?.from) {
+        query = query.gte('start_time', filters.from.toISOString());
+      }
+      if (filters?.to) {
+        query = query.lte('start_time', filters.to.toISOString());
+      }
+      if (filters?.event_id) {
+        query = query.eq('event_id', filters.event_id);
       }
 
       const { data, error } = await query;

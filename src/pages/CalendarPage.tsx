@@ -17,7 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 
 const CalendarPage = () => {
-  const { events, isLoading, addEvent, updateEvent, deleteEvent, isAddingEvent } = useEvents();
+  const { events, isLoading, addEvent, updateEvent, deleteEvent, isAddingEvent, isUpdatingEvent, isDeletingEvent } = useEvents();
   const { toast } = useToast();
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -354,11 +354,34 @@ const CalendarPage = () => {
                   <Label className="font-black text-sm ml-1">End Time</Label>
                   <Input type="datetime-local" value={formData.end_date} onChange={e => setFormData({ ...formData, end_date: e.target.value })} className="h-12 rounded-xl" />
                </div>
-               {/* Rest of inputs... keeping it identical to Add for consistency */}
+               <div className="space-y-2 text-slate-900">
+                  <Label className="font-black text-sm ml-1">Location</Label>
+                  <Input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. Building A, Room 4" className="h-12 rounded-xl" />
+               </div>
+
+               <div className="space-y-2 text-slate-900">
+                  <Label className="font-black text-sm ml-1">Organizer</Label>
+                  <Input value={formData.organizer} onChange={e => setFormData({ ...formData, organizer: e.target.value })} placeholder="e.g. Staff Team" className="h-12 rounded-xl" />
+               </div>
+
+               <div className="md:col-span-2 space-y-2 text-slate-900">
+                  <Label className="font-black text-sm ml-1">Description</Label>
+                  <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="What should people know about this?" rows={3} className="rounded-xl" />
+               </div>
+
+               <div className="md:col-span-2 flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mt-2">
+                  <div className="space-y-0.5">
+                    <Label className="font-black text-slate-900">Public Visibility</Label>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Visible to all parents in app</p>
+                  </div>
+                  <Switch checked={formData.is_public} onCheckedChange={checked => setFormData({ ...formData, is_public: checked })} className="data-[state=checked]:bg-blue-600" />
+               </div>
             </div>
             <DialogFooter className="pt-4 gap-2">
-               <Button type="button" variant="ghost" onClick={() => setIsEditDialogOpen(false)}>Discard</Button>
-               <Button type="submit" className="h-12 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 font-black">Save Changes</Button>
+               <Button type="button" variant="ghost" className="font-bold text-slate-500" onClick={() => setIsEditDialogOpen(false)}>Discard</Button>
+               <Button type="submit" disabled={isUpdatingEvent} className="h-12 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 shadow-blue-100 shadow-lg font-black transition-all hover:scale-[1.02]">
+                  {isUpdatingEvent ? 'Updating...' : 'Save Changes'}
+               </Button>
             </DialogFooter>
           </form>
         </DialogContent>

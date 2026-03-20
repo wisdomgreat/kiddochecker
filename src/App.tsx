@@ -71,6 +71,7 @@ const HelpDocumentation = lazy(() => import("./pages/HelpDocumentation"));
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage"));
 const CentersPage = lazy(() => import("./pages/CentersPage"));
 const ShiftManagementPage = lazy(() => import("./pages/ShiftManagementPage"));
+const ChurchManagementPage = lazy(() => import("./pages/ChurchManagementPage"));
 
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
@@ -144,6 +145,7 @@ function App() {
                       <Route path="/classes" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ClassesPage /></RoleBasedRoute>} />
                       <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']}><AttendancePage /></RoleBasedRoute>} />
                       <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildrenPage /></RoleBasedRoute>} />
+                      <Route path="/admin/church" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChurchManagementPage /></RoleBasedRoute>} />
 
                       {/* All Authenticated */}
                       <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />

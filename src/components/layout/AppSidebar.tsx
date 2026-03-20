@@ -3,7 +3,7 @@ import {
   Calendar, Home, Users, Settings, BarChart3, Building, LogOut,
   Baby, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare,
   QrCode, Printer, Zap, Shield, Activity, ShieldCheck,
-  Trophy, HeartPulse, HelpCircle, LayoutGrid, Globe
+  Trophy, HeartPulse, HelpCircle, LayoutGrid, Globe, Heart
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -61,6 +61,7 @@ export function AppSidebar() {
         { title: t('shiftAutoPlanner'), url: "/staff/schedules", icon: Zap },
         { title: t('classes'), url: "/classes", icon: BookOpen },
         { title: t('verifyStaff'), url: "/admin/verify-staff", icon: Shield },
+        { title: 'Congregation', url: "/admin/church", icon: Heart },
       ]
     },
     {
@@ -100,6 +101,7 @@ export function AppSidebar() {
         ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: t('attendance'), url: "/attendance", icon: ClipboardCheck }] : []),
         { title: t('staffSchedules'), url: "/staff/schedules", icon: Calendar },
         { title: t('classes'), url: "/classes", icon: BookOpen },
+        { title: 'Congregation', url: "/admin/church", icon: Heart },
       ]
     },
     {
