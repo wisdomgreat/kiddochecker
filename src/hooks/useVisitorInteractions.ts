@@ -49,7 +49,7 @@ export const useVisitorInteractions = (visitorId?: string) => {
   });
 
   const sendEmail = useMutation({
-    mutationFn: async ({ to, templateName, templateData }: { to: string, templateName: string, templateData: any }) => {
+    mutationFn: async ({ to, templateName, templateData, visitor_id }: { to: string, templateName: string, templateData: any, visitor_id?: string }) => {
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: { to, templateName, templateData },
       });
@@ -58,7 +58,7 @@ export const useVisitorInteractions = (visitorId?: string) => {
       
       // Also log it as an interaction
       await addInteraction.mutateAsync({
-        visitor_id: visitorId,
+        visitor_id: visitor_id || visitorId,
         interaction_type: 'email',
         content: `Sent email: ${templateName}`,
       });

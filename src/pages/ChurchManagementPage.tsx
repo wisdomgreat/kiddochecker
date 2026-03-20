@@ -16,6 +16,7 @@ import { useMembers, ChurchMember, MembershipType, MembershipStatus, ChurchStats
 import { useMinistries, Ministry, MinistryGroup, useGroupMembers } from '@/hooks/useMinistries';
 import { useVolunteers, VolunteerRole, VolunteerEvent } from '@/hooks/useVolunteers';
 import { useShifts } from '@/hooks/useShifts';
+import { useAllUsers } from '@/hooks/useAllUsers';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -29,25 +30,44 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 
 const ChurchManagementPage = () => {
-    const { members, stats, isLoading: membersLoading, updateMember, isUpdating } = useMembers();
-    const { ministries, isLoading: ministriesLoading, createMinistry, createGroup, assignMember, removeAssignment } = useMinistries();
-    
+    const { t } = useTranslation();
+    const { hasPermission } = useAuth();
+    const { toast } = useToast();
+    const { members, stats, isLoading: membersLoading, updateMember, createMember, createVisitor, isUpdating, isCreating } = useMembers();
+    const { ministries, isLoading: ministriesLoading, createMinistry, updateMinistry, deleteMinistry, createGroup, assignMember, removeAssignment } = useMinistries();
+    const { data: allProfiles = [], isLoading: profilesLoading } = useAllUsers();
+    const { templates } = useEmailTemplates();
+
     const [activePerspective, setActivePerspective] = useState('members');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedMember, setSelectedMember] = useState<ChurchMember | null>(null);
     const [selectedMinistry, setSelectedMinistry] = useState<Ministry | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isEditMinistryOpen, setIsEditMinistryOpen] = useState(false);
+    const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
     const [isOrgDialogOpen, setIsOrgDialogOpen] = useState(false);
     const [isDeleteMinistryOpen, setIsDeleteMinistryOpen] = useState(false);
+    
+    // Quick Register State
+    const [onboardingMode, setOnboardingMode] = useState<'existing' | 'new_guest'>('existing');
+    const [quickGuest, setQuickGuest] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+
+    // CRM State
+    const [isCRMOpen, setIsCRMOpen] = useState(false);
+    const [crmMember, setCrmMember] = useState<ChurchMember | null>(null);
+    const [newCRMNote, setNewCRMNote] = useState('');
+    const { interactions, addInteraction, sendEmail, isSending } = useVisitorInteractions(crmMember?.profiles?.id);
+    const [onboardingMember, setOnboardingMember] = useState<{ profile_id: string; type: MembershipType; status: MembershipStatus }>({ profile_id: '', type: 'regular', status: 'active' });
     
     // Ministry State
     const [isNewMinistryOpen, setIsNewMinistryOpen] = useState(false);
     const [newMinistryName, setNewMinistryName] = useState('');
+    const [newMinistryHeadId, setNewMinistryHeadId] = useState<string | undefined>(undefined);
     const [selectedMinistryId, setSelectedMinistryId] = useState<string | null>(null);
     const [isNewGroupOpen, setIsNewGroupOpen] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
 
-    // Roster State
+    // Group & Roster State
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [isRosterOpen, setIsRosterOpen] = useState(false);
     const [memberSearchTerm, setMemberSearchTerm] = useState('');
@@ -60,16 +80,6 @@ const ChurchManagementPage = () => {
     const [newRole, setNewRole] = useState({ name: '', ministry_id: '', description: '' });
     const [isPositionDialogOpen, setIsPositionDialogOpen] = useState(false);
     const [newPosition, setNewPosition] = useState({ role_id: '', event_id: '', start_time: '', end_time: '' });
-
-    const { toast } = useToast();
-    const { t } = useTranslation();
-    const { hasPermission } = useAuth();
-    const { templates } = useEmailTemplates();
-
-    const [isCRMOpen, setIsCRMOpen] = useState(false);
-    const [crmMember, setCrmMember] = useState<ChurchMember | null>(null);
-    const { interactions, addInteraction, sendEmail, isSending } = useVisitorInteractions(crmMember?.profiles?.id);
-    const [newCRMNote, setNewCRMNote] = useState('');
 
     const filteredMembers = members.filter(m => {
         const name = `${m.profiles?.first_name || ''} ${m.profiles?.last_name || ''} ${m.children?.first_name || ''} ${m.children?.last_name || ''}`.toLowerCase();
@@ -99,7 +109,19 @@ const ChurchManagementPage = () => {
             membership_type: selectedMember.membership_type,
             status: selectedMember.status,
             baptism_date: selectedMember.baptism_date,
-            pastoral_notes: selectedMember.pastoral_notes
+            pastoral_notes: selectedMember.pastoral_notes,
+            profile_id: selectedMember.profiles?.id,
+            profile_updates: {
+                gender: selectedMember.profiles?.gender,
+                date_of_birth: selectedMember.profiles?.date_of_birth,
+                address: selectedMember.profiles?.address,
+                city: selectedMember.profiles?.city,
+                state: selectedMember.profiles?.state,
+                zip_code: selectedMember.profiles?.zip_code,
+                occupation: selectedMember.profiles?.occupation,
+                emergency_contact_name: selectedMember.profiles?.emergency_contact_name,
+                emergency_contact_phone: selectedMember.profiles?.emergency_contact_phone
+            }
         }, {
             onSuccess: () => setIsEditDialogOpen(false)
         });
@@ -107,9 +129,72 @@ const ChurchManagementPage = () => {
 
     const handleCreateMinistry = (e: React.FormEvent) => {
         e.preventDefault();
-        createMinistry({ name: newMinistryName }, {
-            onSuccess: () => { setIsNewMinistryOpen(false); setNewMinistryName(''); }
+        createMinistry({ name: newMinistryName, head_staff_id: newMinistryHeadId }, {
+            onSuccess: () => { 
+                setIsNewMinistryOpen(false); 
+                setNewMinistryName('');
+                setNewMinistryHeadId(undefined);
+            }
         });
+    };
+
+    const handleUpdateMinistry = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedMinistry) return;
+        updateMinistry({ 
+            id: selectedMinistry.id, 
+            name: selectedMinistry.name, 
+            description: selectedMinistry.description,
+            head_staff_id: selectedMinistry.head_staff_id
+        }, {
+            onSuccess: () => setIsEditMinistryOpen(false)
+        });
+    };
+
+    const handleAddMember = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (onboardingMode === 'existing') {
+            if (!onboardingMember.profile_id) {
+                toast({ title: t('selectionRequired' as any), description: "Please select an existing profile.", variant: "destructive" });
+                return;
+            }
+            createMember({
+                profile_id: onboardingMember.profile_id,
+                membership_type: onboardingMember.type,
+                status: onboardingMember.status,
+                joined_at: new Date().toISOString()
+            }, {
+                onSuccess: () => {
+                    setIsAddMemberOpen(false);
+                    setOnboardingMember({ profile_id: '', type: 'regular', status: 'active' });
+                }
+            });
+        } else {
+            if (!quickGuest.first_name || !quickGuest.email) {
+                toast({ title: "Missing Info", description: "First name and email are required for guests.", variant: "destructive" });
+                return;
+            }
+            createVisitor({
+                ...quickGuest,
+                type: onboardingMember.type
+            }, {
+                onSuccess: (data) => {
+                    if (onboardingMember.type === 'visitor' && data?.profile) {
+                        sendEmail({
+                            to: data.profile.email,
+                            templateName: 'visitor_welcome',
+                            templateData: { 
+                                visitorName: data.profile.first_name,
+                                churchName: 'Our Church' // Dynamically get this from config if available
+                            },
+                            visitor_id: data.profile.id
+                        });
+                    }
+                    setIsAddMemberOpen(false);
+                    setQuickGuest({ first_name: '', last_name: '', email: '', phone: '' });
+                }
+            });
+        }
     };
 
     const handleCreateGroup = (e: React.FormEvent) => {
@@ -161,7 +246,7 @@ const ChurchManagementPage = () => {
                         <div className="w-px h-8 bg-slate-200 mx-2" />
                         
                         {activePerspective === 'members' && hasPermission('church_manage_members') && (
-                            <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 shadow-lg font-bold">
+                            <Button onClick={() => setIsAddMemberOpen(true)} className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 shadow-lg font-bold">
                                 <UserPlus className="h-5 w-5 mr-2" /> {t('addMember')}
                             </Button>
                         )}
@@ -323,11 +408,18 @@ const ChurchManagementPage = () => {
                                                         Head: {ministry.head_staff ? `${ministry.head_staff.first_name} ${ministry.head_staff.last_name}` : 'Unassigned'}
                                                     </p>
                                                 </div>
-                                                {hasPermission('church_manage_ministries') && (
-                                                    <Button size="icon" variant="ghost" className="bg-white rounded-xl shadow-sm text-slate-400 hover:text-indigo-600" onClick={() => { setSelectedMinistry(ministry); setIsDeleteMinistryOpen(true); }}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                )}
+                                                <div className="flex gap-1">
+                                                    {hasPermission('church_manage_ministries') && (
+                                                        <Button size="icon" variant="ghost" className="bg-white rounded-xl shadow-sm text-slate-400 hover:text-indigo-600" onClick={() => { setSelectedMinistry(ministry); setIsEditMinistryOpen(true); }}>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    {hasPermission('church_manage_ministries') && (
+                                                        <Button size="icon" variant="ghost" className="bg-white rounded-xl shadow-sm text-slate-400 hover:text-rose-600" onClick={() => { setSelectedMinistry(ministry); setIsDeleteMinistryOpen(true); }}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="p-8 flex-1 space-y-4">
                                                 <div className="flex items-center justify-between">
@@ -445,7 +537,7 @@ const ChurchManagementPage = () => {
                             </DialogDescription>
                         </DialogHeader>
                     </div>
-                    <form onSubmit={handleUpdate} className="p-8 space-y-6">
+                    <form onSubmit={handleUpdate} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('memberType')}</Label>
@@ -459,23 +551,92 @@ const ChurchManagementPage = () => {
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('lifeStatus')}</Label>
+                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('status')}</Label>
                                 <Select value={selectedMember?.status} onValueChange={val => setSelectedMember(selectedMember ? { ...selectedMember, status: val as MembershipStatus } : null)}>
                                     <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="active">Active</SelectItem>
-                                        <SelectItem value="inactive">Inactive</SelectItem>
-                                        <SelectItem value="transferred">Transferred</SelectItem>
+                                        <SelectItem value="active">{t('active')}</SelectItem>
+                                        <SelectItem value="inactive">{t('inactive')}</SelectItem>
+                                        <SelectItem value="deceased">{t('deceased')}</SelectItem>
+                                        <SelectItem value="transferred">{t('transferred')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="col-span-2 space-y-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('pastoralNotes')}</Label>
-                                <textarea className="w-full p-4 bg-slate-50 rounded-2xl border-slate-100 font-medium h-32 focus:bg-white transition-all outline-none" value={selectedMember?.pastoral_notes || ''} onChange={e => setSelectedMember(selectedMember ? { ...selectedMember, pastoral_notes: e.target.value } : null)} />
+                        </div>
+
+                        {selectedMember?.profiles && (
+                            <div className="space-y-6 pt-4 border-t border-slate-100">
+                                <h3 className="text-sm font-black text-indigo-600 uppercase tracking-widest">{t('personalDetails')}</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('gender')}</Label>
+                                        <Select value={selectedMember.profiles.gender} onValueChange={val => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, gender: val } })}>
+                                            <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="male">{t('male')}</SelectItem>
+                                                <SelectItem value="female">{t('female')}</SelectItem>
+                                                <SelectItem value="other">{t('other')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('dateOfBirth')}</Label>
+                                        <Input 
+                                            type="date" 
+                                            value={selectedMember.profiles.date_of_birth || ''} 
+                                            onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, date_of_birth: e.target.value } })}
+                                            className="h-12 rounded-xl border-slate-200 font-bold focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('occupation')}</Label>
+                                    <Input 
+                                        value={selectedMember.profiles.occupation || ''} 
+                                        onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, occupation: e.target.value } })}
+                                        className="h-12 rounded-xl border-slate-200 font-bold focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="e.g. Software Engineer"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('address')}</Label>
+                                    <Input 
+                                        value={selectedMember.profiles.address || ''} 
+                                        onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, address: e.target.value } })}
+                                        className="h-12 rounded-xl border-slate-200 font-bold focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="Street Address"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="space-y-4 pt-4 border-t border-slate-100">
+                             <h3 className="text-sm font-black text-indigo-600 uppercase tracking-widest">{t('spiritualMilestones')}</h3>
+                             <div className="space-y-2">
+                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('baptismDate')}</Label>
+                                <Input 
+                                    type="date" 
+                                    value={selectedMember?.baptism_date || ''} 
+                                    onChange={e => setSelectedMember(selectedMember ? { ...selectedMember, baptism_date: e.target.value } : null)}
+                                    className="h-12 rounded-xl border-slate-200 font-bold focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('pastoralNote')}</Label>
+                                <Textarea 
+                                    value={selectedMember?.pastoral_notes || ''} 
+                                    onChange={e => setSelectedMember(selectedMember ? { ...selectedMember, pastoral_notes: e.target.value } : null)}
+                                    className="min-h-[100px] rounded-2xl border-slate-200 font-medium focus:ring-indigo-500 focus:border-indigo-500"
+                                    placeholder={t('pastoralNotePlaceholder')}
+                                />
                             </div>
                         </div>
-                        <DialogFooter>
-                             <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black shadow-lg shadow-indigo-100">{t('updateProfile')}</Button>
+
+                        <DialogFooter className="pt-4">
+                            <Button type="submit" disabled={isUpdating} className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 font-bold text-lg">
+                                {isUpdating ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <ShieldCheck className="h-5 w-5 mr-2" />}
+                                {t('saveChanges')}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -573,14 +734,31 @@ const ChurchManagementPage = () => {
             </Dialog>
 
             {/* New Ministry Dialog */}
+             {/* New Ministry Dialog */}
             <Dialog open={isNewMinistryOpen} onOpenChange={setIsNewMinistryOpen}>
-                 <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
+                 <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl max-w-lg">
                     <DialogHeader className="mb-4">
                         <DialogTitle className="text-2xl font-black italic tracking-tight">{t('newMinistry')}</DialogTitle>
+                        <DialogDescription className="font-bold text-slate-500">Establish a new department and assign leadership.</DialogDescription>
                     </DialogHeader>
-                     <form onSubmit={handleCreateMinistry} className="space-y-4">
-                        <Input placeholder="Ministry Name (e.g., Youth Ministry)" value={newMinistryName} onChange={e => setNewMinistryName(e.target.value)} className="h-12 rounded-xl font-bold" autoFocus />
-                        <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black">{t('establishMinistry')}</Button>
+                     <form onSubmit={handleCreateMinistry} className="space-y-6">
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Ministry Name</Label>
+                            <Input placeholder="e.g., Youth Ministry" value={newMinistryName} onChange={e => setNewMinistryName(e.target.value)} className="h-12 rounded-xl font-bold" autoFocus />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Ministry Head (Optional)</Label>
+                            <Select value={newMinistryHeadId || 'none'} onValueChange={val => setNewMinistryHeadId(val === 'none' ? undefined : val)}>
+                                <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue placeholder="Select Head Staff" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Unassigned</SelectItem>
+                                    {allProfiles.filter(p => ['staff', 'admin', 'teacher'].includes(p.role) || p.is_super_admin).map(p => (
+                                        <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button type="submit" className="w-full h-14 bg-indigo-600 rounded-2xl font-black text-white shadow-xl shadow-indigo-100 mt-4 italic tracking-tight">{t('establishMinistry')}</Button>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -594,6 +772,116 @@ const ChurchManagementPage = () => {
                     <form onSubmit={handleCreateGroup} className="space-y-4">
                         <Input placeholder="Group Name (e.g., Tuesday Night Prayer)" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} className="h-12 rounded-xl font-bold" autoFocus />
                         <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black">Create Group</Button>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Ministry Dialog */}
+            <Dialog open={isEditMinistryOpen} onOpenChange={setIsEditMinistryOpen}>
+                <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl max-w-lg">
+                    <DialogHeader className="mb-6">
+                        <DialogTitle className="text-2xl font-black italic tracking-tight">Edit Ministry</DialogTitle>
+                        <DialogDescription className="font-bold text-slate-500">Refine department details and leadership.</DialogDescription>
+                    </DialogHeader>
+                    {selectedMinistry && (
+                        <form onSubmit={handleUpdateMinistry} className="space-y-6">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Ministry Name</Label>
+                                <Input value={selectedMinistry.name} onChange={e => setSelectedMinistry({...selectedMinistry, name: e.target.value})} className="h-12 rounded-xl font-bold" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Description</Label>
+                                <Input value={selectedMinistry.description || ''} onChange={e => setSelectedMinistry({...selectedMinistry, description: e.target.value})} className="h-12 rounded-xl font-bold" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Ministry Head</Label>
+                                <Select value={selectedMinistry.head_staff_id || 'none'} onValueChange={val => setSelectedMinistry({...selectedMinistry, head_staff_id: val === 'none' ? undefined : val})}>
+                                    <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue placeholder="Select Head Staff" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Unassigned</SelectItem>
+                                        {allProfiles.filter(p => ['staff', 'admin', 'teacher'].includes(p.role) || p.is_super_admin).map(p => (
+                                            <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black">Save Changes</Button>
+                        </form>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Member Dialog */}
+            <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
+                 <DialogContent className="rounded-[3rem] p-8 border-none shadow-2xl max-w-xl">
+                    <DialogHeader className="mb-8">
+                        <DialogTitle className="text-3xl font-black flex items-center gap-3">
+                            <UserPlus className="h-8 w-8 text-indigo-600" /> {t('addMember')}
+                        </DialogTitle>
+                        <DialogDescription className="font-bold text-slate-500">Register a new profile or select from existing users.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleAddMember} className="space-y-6">
+                         <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-500 ml-1">Step 1: Select Profile</Label>
+                                <Select value={onboardingMember.profile_id} onValueChange={val => setOnboardingMember({...onboardingMember, profile_id: val})}>
+                                    <SelectTrigger className="h-14 rounded-2xl font-bold border-slate-200 bg-slate-50 shadow-none"><SelectValue placeholder="Search existing staff or parents..." /></SelectTrigger>
+                                    <SelectContent className="max-h-[300px]">
+                                        <div className="p-2 sticky top-0 bg-white z-10">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                                <Input placeholder="Filter by name..." value={memberSearchTerm} onChange={e => setMemberSearchTerm(e.target.value)} className="pl-9 h-9 rounded-lg" />
+                                            </div>
+                                        </div>
+                                        {allProfiles.filter(p => !members.some(m => m.profile_id === p.id) && (`${p.first_name} ${p.last_name}`).toLowerCase().includes(memberSearchTerm.toLowerCase())).slice(0, 10).map(p => (
+                                            <SelectItem key={p.id} value={p.id} className="p-3 rounded-xl focus:bg-indigo-50">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                                                        {p.first_name?.[0]}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-900 text-sm">{p.first_name} {p.last_name}</p>
+                                                        <p className="text-[10px] text-slate-400 uppercase font-black">{p.role}</p>
+                                                    </div>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-500 ml-1">{t('memberType')}</Label>
+                                    <Select value={onboardingMember.type} onValueChange={val => setOnboardingMember({...onboardingMember, type: val as MembershipType})}>
+                                        <SelectTrigger className="h-14 rounded-2xl font-bold border-slate-200 bg-slate-50 shadow-none"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="registered">{t('registeredMember')}</SelectItem>
+                                            <SelectItem value="regular">{t('regularAttendee')}</SelectItem>
+                                            <SelectItem value="visitor">{t('visitorGuest')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-500 ml-1">{t('lifeStatus')}</Label>
+                                    <Select value={onboardingMember.status} onValueChange={val => setOnboardingMember({...onboardingMember, status: val as MembershipStatus})}>
+                                        <SelectTrigger className="h-14 rounded-2xl font-bold border-slate-200 bg-slate-50 shadow-none"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="active">Active</SelectItem>
+                                            <SelectItem value="inactive">Inactive</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                            <p className="text-xs text-slate-400 font-medium italic">Cannot find the person? <Button variant="link" className="text-indigo-600 font-black p-0 h-auto" onClick={() => toast({ title: "User Creation", description: "Use the User Management module to create new accounts first." })}>Create New User Account</Button></p>
+                        </div>
+
+                        <Button type="submit" disabled={!onboardingMember.profile_id} className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 rounded-2xl font-black shadow-xl shadow-indigo-100 flex items-center justify-center gap-2">
+                            {t('addMember')} <ChevronRight className="h-4 w-4" />
+                        </Button>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -844,6 +1132,147 @@ const ChurchManagementPage = () => {
                     <DialogFooter className="p-6 bg-slate-50 border-t border-slate-100 shrink-0">
                         <Button variant="ghost" className="w-full h-12 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400" onClick={() => setIsCRMOpen(false)}>{t('closeCRM')}</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Member Dialog */}
+            <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
+                <DialogContent className="rounded-[3rem] p-0 border-none shadow-2xl max-w-xl overflow-hidden bg-white">
+                    <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 text-white relative">
+                        <div className="relative z-10 flex items-center gap-4">
+                            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                                <UserPlus className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-2xl font-black italic tracking-tight">{t('newMemberOnboarding')}</DialogTitle>
+                                <DialogDescription className="text-indigo-100 opacity-80 font-bold">Register a new visitor or connect a regular attendee.</DialogDescription>
+                            </div>
+                        </div>
+                        <div className="absolute top-[-50%] right-[-10%] w-60 h-60 bg-white/10 rounded-full blur-3xl" />
+                    </div>
+
+                    <Tabs value={onboardingMode} onValueChange={(val: any) => setOnboardingMode(val)} className="p-0">
+                        <div className="px-8 pt-6">
+                            <TabsList className="w-full h-12 rounded-xl bg-slate-50 p-1 border-2 border-slate-100">
+                                <TabsTrigger value="existing" className="flex-1 rounded-lg font-black italic tracking-tight data-[state=active]:bg-white data-[state=active]:shadow-sm">EXISTING USER</TabsTrigger>
+                                <TabsTrigger value="new_guest" className="flex-1 rounded-lg font-black italic tracking-tight data-[state=active]:bg-white data-[state=active]:shadow-sm">QUICK GUEST</TabsTrigger>
+                            </TabsList>
+                        </div>
+
+                        <form onSubmit={handleAddMember} className="p-8 space-y-6 bg-white">
+                            <TabsContent value="existing" className="m-0 space-y-6">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('searchExistingProfile')}</Label>
+                                    <Select value={onboardingMember.profile_id} onValueChange={val => setOnboardingMember({ ...onboardingMember, profile_id: val })}>
+                                        <SelectTrigger className="h-14 rounded-2xl font-bold border-slate-100 bg-slate-50/50 hover:bg-slate-50 border-2 transition-all">
+                                            <SelectValue placeholder="Select user profile..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-2xl border-none shadow-2xl">
+                                            {allProfiles.map(p => (
+                                                <SelectItem key={p.id} value={p.id} className="rounded-xl h-12 font-bold focus:bg-indigo-50">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] uppercase font-black">{p.first_name?.[0]}{p.last_name?.[0]}</div>
+                                                        <div>
+                                                            <p className="font-bold text-slate-700 leading-none">{p.first_name} {p.last_name}</p>
+                                                            <p className="text-[9px] text-slate-400 font-bold">{p.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="new_guest" className="m-0 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">First Name</Label>
+                                        <Input value={quickGuest.first_name} onChange={e => setQuickGuest({...quickGuest, first_name: e.target.value})} placeholder="Jane" className="h-12 rounded-xl bg-slate-50/50 border-2 border-slate-100 font-bold" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Last Name</Label>
+                                        <Input value={quickGuest.last_name} onChange={e => setQuickGuest({...quickGuest, last_name: e.target.value})} placeholder="Doe" className="h-12 rounded-xl bg-slate-50/50 border-2 border-slate-100 font-bold" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Email Address</Label>
+                                    <Input type="email" value={quickGuest.email} onChange={e => setQuickGuest({...quickGuest, email: e.target.value})} placeholder="jane@example.com" className="h-12 rounded-xl bg-slate-50/50 border-2 border-slate-100 font-bold" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Phone (Optional)</Label>
+                                    <Input value={quickGuest.phone} onChange={e => setQuickGuest({...quickGuest, phone: e.target.value})} placeholder="+1 234 567 8900" className="h-12 rounded-xl bg-slate-50/50 border-2 border-slate-100 font-bold" />
+                                </div>
+                            </TabsContent>
+
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('membershipType')}</Label>
+                                    <Select value={onboardingMember.type} onValueChange={val => setOnboardingMember({ ...onboardingMember, type: val as MembershipType })}>
+                                        <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 border-2 border-slate-100 font-bold"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="rounded-xl border-none shadow-xl">
+                                            <SelectItem value="regular">{t('regularAttendee')}</SelectItem>
+                                            <SelectItem value="registered">{t('registeredMember')}</SelectItem>
+                                            <SelectItem value="visitor">{t('visitorGuest')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('initialStatus')}</Label>
+                                    <Select value={onboardingMember.status} onValueChange={val => setOnboardingMember({ ...onboardingMember, status: val as MembershipStatus })}>
+                                        <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 border-2 border-slate-100 font-bold"><SelectValue /></SelectTrigger>
+                                        <SelectContent className="rounded-xl border-none shadow-xl">
+                                            <SelectItem value="active">{t('active')}</SelectItem>
+                                            <SelectItem value="inactive">{t('inactive')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <Button type="submit" disabled={isCreating} className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 rounded-2xl font-black text-white shadow-xl shadow-indigo-100 mt-4 italic tracking-tight text-lg transition-all active:scale-95">
+                                {isCreating ? <Loader2 className="h-6 w-6 animate-spin mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
+                                {onboardingMode === 'existing' ? t('confirmEnrolment') : 'REGISTER & START JOURNEY'}
+                            </Button>
+                        </form>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Ministry Confirm Dialog */}
+            <Dialog open={isDeleteMinistryOpen} onOpenChange={setIsDeleteMinistryOpen}>
+                <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white">
+                    <div className="bg-rose-600 p-8 text-white">
+                        <DialogHeader>
+                            <AlertCircle className="h-12 w-12 text-white mb-4 opacity-50" />
+                            <DialogTitle className="text-2xl font-black">{t('deleteMinistryTitle')}</DialogTitle>
+                            <DialogDescription className="text-rose-100 opacity-80 pt-1 font-bold">
+                                {t('deleteMinistryConfirm')} "{selectedMinistry?.name}"?
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+                    <div className="p-8 space-y-6">
+                        <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                            <p className="text-rose-900 text-xs font-bold leading-relaxed italic">{t('deleteMinistryWarning')}</p>
+                        </div>
+                        <div className="flex gap-4">
+                            <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setIsDeleteMinistryOpen(false)}>{t('cancel')}</Button>
+                            <Button 
+                                className="flex-1 h-12 bg-rose-600 hover:bg-rose-700 rounded-xl font-black text-white shadow-lg shadow-rose-100" 
+                                onClick={() => {
+                                    if (selectedMinistry) {
+                                        deleteMinistry(selectedMinistry.id, {
+                                            onSuccess: () => {
+                                                setIsDeleteMinistryOpen(false);
+                                                setSelectedMinistry(null);
+                                            }
+                                        });
+                                    }
+                                }}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" /> {t('confirmDelete')}
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </UnifiedDashboardLayout>

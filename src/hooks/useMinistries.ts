@@ -100,6 +100,29 @@ export const useMinistries = () => {
     },
   });
 
+  const updateMinistry = useMutation({
+    mutationFn: async ({ id, ...vars }: Partial<Ministry> & { id: string }) => {
+      const { data, error } = await supabase.from('ministries').update(vars).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      toast({ title: 'Ministry Updated', description: 'Changes saved successfully.' });
+    },
+  });
+
+  const deleteMinistry = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('ministries').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ministries'] });
+      toast({ title: 'Ministry Deleted', description: 'Department removed.' });
+    },
+  });
+
   return {
     ministries: ministriesQuery.data || [],
     isLoading: ministriesQuery.isLoading,
@@ -109,6 +132,8 @@ export const useMinistries = () => {
     removeAssignment: removeAssignment.mutate,
     isCreatingMinistry: createMinistry.isPending,
     isCreatingGroup: createGroup.isPending,
+    updateMinistry: updateMinistry.mutate,
+    deleteMinistry: deleteMinistry.mutate,
   };
 };
 

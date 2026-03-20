@@ -24,124 +24,111 @@ import {
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const HelpDocumentation = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("getting-started");
+  const { isAdmin, isStaff, isTeacher, isParent, isVolunteer, isSuperAdmin, userRole } = useAuth();
 
   const faqData = [
     {
       category: "getting-started",
       title: "Getting Started",
       icon: Book,
+      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer'],
       questions: [
         {
           question: "How do I check in a child?",
-          answer: "Use the Check-In Kiosk by searching for the child's name, selecting them, choosing a class (optional), and clicking 'Check In'. A QR code will be generated for check-out."
+          answer: "At the tablet or kiosk, search for your child's name, select them, and confirm to check in. A security label will print (if enabled) for the child, and a digital or printed QR code will be provided for your pick-up.",
+          roles: ['parent', 'volunteer', 'staff', 'teacher']
         },
         {
           question: "How do I check out a child?",
-          answer: "Scan the QR code provided during check-in or manually search for the child in the attendance management system and click 'Check Out'."
+          answer: "Simply scan the QR code you received at check-in at the kiosk. If you lost your code, a staff member can manually check out your child after verifying your identity.",
+          roles: ['parent', 'volunteer', 'staff', 'teacher']
         },
         {
-          question: "What roles are available in the system?",
-          answer: "The system has 5 main roles: Parent (manage own children), Staff (full operations), Teacher (class management), Admin (system management), and Volunteer (limited assistance)."
-        },
-        {
-          question: "How do I add a new child?",
-          answer: "Navigate to the Children page, click 'Add Child', fill in the required information including emergency contacts and any allergies or medical information."
+          question: "Can my teenager check themselves in?",
+          answer: "Yes, if they have 'Youth Kiosk Access' enabled on their profile. They can use their own PIN or name search at the kiosk to check in and out independently.",
+          roles: ['parent', 'staff', 'admin']
         }
       ]
     },
     {
       category: "attendance",
-      title: "Attendance Management",
+      title: "Attendance & Reports",
       icon: Clock,
+      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher'],
       questions: [
         {
           question: "How do I view daily attendance?",
-          answer: "Go to Attendance Management to see today's attendance, filter by class or status, and export reports as needed."
-        },
-        {
-          question: "What if a child is marked present but not actually there?",
-          answer: "Staff and admin users can modify attendance records. Go to Attendance Management, find the record, and update the status appropriately."
+          answer: "Go to the Dashboard and select 'Attendance Management'. You can filter by class, date, or status to see exactly who is on-site.",
+          roles: ['staff', 'teacher', 'admin']
         },
         {
           question: "How do I generate attendance reports?",
-          answer: "In Attendance Management, select the date range and filters you want, then click 'Export CSV' to download a detailed report."
-        },
-        {
-          question: "Can parents see their child's attendance history?",
-          answer: "Yes, parents can view their own children's attendance history in their dashboard under 'Recent Attendance'."
+          answer: "In the Attendance section, set your desired date range and click 'Export Report'. This will download a detailed spreadsheet for your records.",
+          roles: ['staff', 'admin']
         }
       ]
     },
     {
       category: "users",
-      title: "User Management",
+      title: "Organization Management",
       icon: Users,
+      authorizedRoles: ['admin', 'super_admin', 'staff'],
       questions: [
         {
-          question: "How do I add a new staff member?",
-          answer: "Admins can go to Users Management, click 'Add User', enter their information, and assign appropriate roles and permissions."
+          question: "How do I add a new staff member or teacher?",
+          answer: "Navigate to the 'Church Management' area or 'Users' page. Click 'Add User', fill in their details, and assign their specific role (Teacher, Staff, etc.).",
+          roles: ['admin', 'staff']
         },
         {
-          question: "How do I change a user's role?",
-          answer: "In Users Management, find the user, click the role assignment button, and select the new role. Changes take effect immediately."
-        },
-        {
-          question: "What permissions does each role have?",
-          answer: "Parents: manage own children only. Staff: check-in/out, attendance, all children. Teachers: assigned classes, attendance. Admins: full system access."
-        },
-        {
-          question: "How do I reset a user's password?",
-          answer: "Currently, users must reset their own passwords using the 'Forgot Password' link on the login page. Admin password reset is coming soon."
+          question: "How do I update a user's permissions?",
+          answer: "In the Users list, click 'Edit Permissions' on any staff member. You can check specific boxes for what they can access, such as CRM, Messaging, or Financials.",
+          roles: ['admin', 'super_admin']
         }
       ]
     },
     {
       category: "security",
-      title: "Security & Permissions",
+      title: "Safety & Security",
       icon: Shield,
+      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer'],
       questions: [
         {
-          question: "Who can check out a child?",
-          answer: "Only authorized individuals listed as emergency contacts can check out a child. Always verify ID and authorization before release."
+          question: "Who is authorized to pick up my child?",
+          answer: "Only the people you list as 'Authorized Pickups' in your family profile can check out your child. Our system cross-references these names at every pick-up.",
+          roles: ['parent']
         },
         {
-          question: "What if someone unauthorized tries to pick up a child?",
-          answer: "Never release a child to unauthorized individuals. Politely explain the policy and ask them to contact the parent to update authorization."
+          question: "How do we handle unauthorized pick-up attempts?",
+          answer: "If an unauthorized person tries to pick up a child, do not release the child. Alert a staff member immediately and contact the parent for confirmation.",
+          roles: ['volunteer', 'staff', 'teacher']
         },
         {
-          question: "How are user permissions managed?",
-          answer: "Permissions are role-based. Each role has specific capabilities built-in. Row-level security ensures users only see data they're authorized to access."
-        },
-        {
-          question: "What data can parents see?",
-          answer: "Parents can only see information about their own children, including attendance, messages, and basic class information."
+          question: "How is my data protected?",
+          answer: "We use banking-level encryption and strict access controls. Only authorized staff members with specific permissions can view sensitive family data.",
+          roles: ['parent', 'volunteer']
         }
       ]
     },
     {
       category: "technical",
-      title: "Technical Support",
+      title: "Advanced System Settings",
       icon: Settings,
+      authorizedRoles: ['admin', 'super_admin'],
       questions: [
         {
-          question: "The QR code isn't scanning properly. What should I do?",
-          answer: "Ensure the QR code is clean and well-lit. Try holding the scanner at different angles. If problems persist, use manual check-out in Attendance Management."
+          question: "The QR printer is not working.",
+          answer: "Check the local printer service connection in 'Settings > Devices'. Ensure the PrintNode or direct print agent is active and the printer is not out of paper.",
+          roles: ['admin']
         },
         {
-          question: "I can't print name tags. How do I fix this?",
-          answer: "Check that your printer is connected and has paper. Ensure your browser allows pop-ups for this site. Contact IT support if issues persist."
-        },
-        {
-          question: "The system is running slowly. What can I do?",
-          answer: "Try refreshing the page or clearing your browser cache. Close unnecessary browser tabs. If problems persist, contact technical support."
-        },
-        {
-          question: "I'm getting permission errors. What's wrong?",
-          answer: "This usually means your role doesn't have access to that feature. Contact your administrator to verify your role and permissions are correct."
+          question: "How are role permissions enforced?",
+          answer: "The platform uses granular RBAC (Role-Based Access Control) enforced at both the UI and database level (RLS), ensuring data isolation between different church perspectives.",
+          roles: ['admin']
         }
       ]
     }
@@ -151,47 +138,53 @@ const HelpDocumentation = () => {
     {
       title: "Daily Check-In Process",
       icon: CheckCircle,
+      roles: ['parent', 'volunteer', 'staff', 'teacher'],
       steps: [
-        "Open Check-In Kiosk",
+        "Find a check-in kiosk tablet",
         "Search for child by name",
-        "Select child from results",
-        "Choose class (if applicable)",
-        "Click 'Check In'",
-        "Print QR code for parent"
+        "Confirm details and allergies",
+        "Pick up printed security label",
+        "Keep your secure pick-up QR code"
       ]
     },
     {
       title: "Emergency Procedures",
       icon: AlertTriangle,
+      roles: ['staff', 'teacher', 'admin', 'volunteer'],
       steps: [
         "Remain calm and assess situation",
         "Call 911 if medical emergency",
         "Notify facility administrator immediately",
-        "Contact child's emergency contacts",
-        "Document incident thoroughly",
-        "Follow up as required"
+        "Contact child's emergency contacts from system dashboard",
+        "Document incident in the child's activity log"
       ]
     },
     {
-      title: "End of Day Checklist",
+      title: "Staff Opening Checklist",
       icon: Clock,
+      roles: ['staff', 'admin'],
       steps: [
-        "Check all children are picked up",
-        "Review attendance records",
-        "Clean and sanitize check-in area",
-        "Secure all equipment",
-        "Log any incidents or notes",
-        "Prepare for next day"
+        "Verify Kiosk devices are charged and online",
+        "Check printer paper levels",
+        "Review expected attendance from registrations",
+        "Ensure all class teachers are checked in"
       ]
     }
   ];
 
-  const filteredFAQ = faqData.filter(category =>
-    category.questions.some(q =>
-      q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.answer.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  );
+  const filteredFAQ = faqData
+    .filter(category => category.authorizedRoles.includes(userRole as any))
+    .map(category => ({
+      ...category,
+      questions: category.questions.filter(q => q.roles.includes(userRole as any))
+    }))
+    .filter(category => 
+      category.questions.length > 0 && 
+      (category.questions.some(q =>
+        q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        q.answer.toLowerCase().includes(searchTerm.toLowerCase())
+      ))
+    );
 
   return (
     <ModernLayout>
@@ -231,66 +224,58 @@ const HelpDocumentation = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <QrCode className="h-5 w-5" />
-                    Check-In System
+                    Kiosk Check-In
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-4">
-                    Learn how to check children in and out of the facility using our QR code system.
+                    {isParent 
+                      ? "Learn how to easily check your children in and out using the kiosk tablets located at the entrance."
+                      : "Instructions for managing the kiosk, printing labels, and helping families with check-in."}
                   </p>
                   <ul className="space-y-2 text-sm">
-                    <li>• Search and select children</li>
-                    <li>• Assign to classes</li>
-                    <li>• Generate QR codes</li>
-                    <li>• Print name tags</li>
+                    <li>• {isParent ? "Search child by name" : "Helper mode activations"}</li>
+                    <li>• {isParent ? "Keep security QR code" : "Manual override codes"}</li>
+                    <li>• {isParent ? "Confirm allergy alerts" : "Printer troubleshooting"}</li>
                   </ul>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    User Roles
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">
-                    Understand the different user roles and their capabilities.
-                  </p>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Parent</Badge>
-                      <span>Manage own children</span>
+              {isAdmin && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Staff Management
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground mb-4">
+                      Administrative tools for adding staff, teachers, and managing organizational roles.
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2"><Badge variant="outline">Staff</Badge><span>Full operations</span></div>
+                      <div className="flex items-center gap-2"><Badge variant="outline">Teacher</Badge><span>Class rosters</span></div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Staff</Badge>
-                      <span>Full operations access</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">Admin</Badge>
-                      <span>System management</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Shield className="h-5 w-5" />
-                    Security Guidelines
+                    Safety Policy
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-4">
-                    Important security measures to keep children safe.
+                    Strict measures to ensure the protection and privacy of every child.
                   </p>
                   <ul className="space-y-2 text-sm">
                     <li>• Always verify pickup authorization</li>
-                    <li>• Check photo ID when required</li>
-                    <li>• Never release children to unauthorized persons</li>
-                    <li>• Report suspicious activity immediately</li>
+                    <li>• {isParent ? "Update your authorized list regularly" : "Check photo ID for new faces"}</li>
+                    <li>• Report any security concerns to {isParent ? "staff" : "the director"}</li>
                   </ul>
                 </CardContent>
               </Card>
@@ -299,18 +284,21 @@ const HelpDocumentation = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Phone className="h-5 w-5" />
-                    Emergency Contacts
+                    Support Contacts
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground mb-4">
-                    Important phone numbers for emergencies and support.
+                    Who to call if you have questions or an emergency.
                   </p>
                   <div className="space-y-2 text-sm">
                     <div><strong>Emergency:</strong> 911</div>
-                    <div><strong>Facility Director:</strong> (555) 123-4567</div>
-                    <div><strong>Technical Support:</strong> (555) 123-4568</div>
-                    <div><strong>Main Office:</strong> (555) 123-4569</div>
+                    {isAdmin || isStaff ? (
+                      <div><strong>Technical Support:</strong> (555) 123-4568</div>
+                    ) : (
+                      <div><strong>Main Office:</strong> (555) 123-4569</div>
+                    )}
+                    <div><strong>Ministry Director:</strong> (555) 123-4567</div>
                   </div>
                 </CardContent>
               </Card>
@@ -319,22 +307,24 @@ const HelpDocumentation = () => {
 
           <TabsContent value="guides" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {quickGuides.map((guide, index) => (
+              {quickGuides
+                .filter(guide => guide.roles.includes(userRole as any))
+                .map((guide, index) => (
                 <Card key={index}>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <guide.icon className="h-5 w-5" />
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <guide.icon className="h-5 w-5 text-blue-600" />
                       {guide.title}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ol className="space-y-2">
+                    <ol className="space-y-3">
                       {guide.steps.map((step, stepIndex) => (
-                        <li key={stepIndex} className="text-sm flex items-start gap-2">
-                          <span className="bg-blue-100 text-blue-800 text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <li key={stepIndex} className="text-sm flex items-start gap-3">
+                          <span className="bg-blue-100 text-blue-800 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
                             {stepIndex + 1}
                           </span>
-                          {step}
+                          <span className="text-gray-700">{step}</span>
                         </li>
                       ))}
                     </ol>
@@ -343,66 +333,56 @@ const HelpDocumentation = () => {
               ))}
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Video className="h-5 w-5" />
-                  Video Tutorials
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 border rounded-lg">
-                    <h4 className="font-medium mb-2">Daily Check-In Process</h4>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Watch a complete walkthrough of the check-in process.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      <Video className="h-4 w-4 mr-2" />
-                      Watch Video
-                    </Button>
+            {isAdmin && (
+              <Card className="border-blue-100 bg-blue-50/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="h-5 w-5" />
+                    Admin Training Videos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 border bg-white rounded-lg shadow-sm">
+                      <h4 className="font-semibold mb-1">Permission Architectures</h4>
+                      <p className="text-xs text-muted-foreground mb-3">Understanding role-based access levels.</p>
+                      <Button variant="outline" size="sm" className="w-full">Watch Lesson</Button>
+                    </div>
+                    <div className="p-4 border bg-white rounded-lg shadow-sm">
+                      <h4 className="font-semibold mb-1">CRM Automation</h4>
+                      <p className="text-xs text-muted-foreground mb-3">Setting up visitor journey triggers.</p>
+                      <Button variant="outline" size="sm" className="w-full">Watch Lesson</Button>
+                    </div>
                   </div>
-                  <div className="p-4 border rounded-lg">
-                    <h4 className="font-medium mb-2">User Management</h4>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Learn how to add and manage user accounts and roles.
-                    </p>
-                    <Button variant="outline" size="sm">
-                      <Video className="h-4 w-4 mr-2" />
-                      Watch Video
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="faq" className="space-y-6">
             <div className="space-y-4">
-              {(searchTerm ? filteredFAQ : faqData).map((category) => (
-                <Card key={category.category}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <category.icon className="h-5 w-5" />
-                      {category.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {category.questions
-                        .filter(q =>
-                          !searchTerm ||
-                          q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          q.answer.toLowerCase().includes(searchTerm.toLowerCase())
-                        )
-                        .map((qa, index) => (
+              {filteredFAQ.map((category) => (
+                <Card key={category.category} className="overflow-hidden border-none shadow-sm bg-gray-50/50">
+                  <div className="p-4 bg-white border-b flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <category.icon className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <h3 className="font-bold text-lg">{category.title}</h3>
+                  </div>
+                  <CardContent className="p-0">
+                    <div className="divide-y">
+                      {category.questions.map((qa, index) => (
                         <Collapsible key={index}>
-                          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 text-left bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <span className="font-medium">{qa.question}</span>
-                            <ChevronDown className="h-4 w-4" />
+                          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 text-left hover:bg-gray-50 transition-colors group">
+                            <span className="font-medium text-gray-800 group-data-[state=open]:text-blue-600 transition-colors">
+                              {qa.question}
+                            </span>
+                            <ChevronDown className="h-4 w-4 text-gray-400 group-data-[state=open]:rotate-180 transition-transform" />
                           </CollapsibleTrigger>
-                          <CollapsibleContent className="p-3 border border-t-0 rounded-b-lg">
-                            <p className="text-muted-foreground">{qa.answer}</p>
+                          <CollapsibleContent className="px-4 pb-4 pt-1">
+                            <div className="p-4 bg-white rounded-xl border border-blue-50 text-gray-600 leading-relaxed shadow-inner">
+                              {qa.answer}
+                            </div>
                           </CollapsibleContent>
                         </Collapsible>
                       ))}
@@ -410,30 +390,35 @@ const HelpDocumentation = () => {
                   </CardContent>
                 </Card>
               ))}
+              {filteredFAQ.length === 0 && (
+                <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed">
+                  <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No help articles found matching "{searchTerm}"</p>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              Need More Help?
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Can't find what you're looking for? Get in touch with our support team.
-            </p>
-            <div className="flex gap-4">
-              <Button>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Contact Support
-              </Button>
-              <Button variant="outline">
-                <Phone className="h-4 w-4 mr-2" />
-                Call: (555) 123-4568
-              </Button>
+        <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-xl">
+          <CardContent className="p-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="text-center md:text-left">
+                <h2 className="text-2xl font-bold mb-2">Still have questions?</h2>
+                <p className="text-blue-100">Our team is available to help you {isParent ? "during service hours" : "24/7 via private support lines"}.</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <Button variant="secondary" className="bg-white text-blue-700 hover:bg-blue-50 font-bold px-6">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  {isParent ? "Message Office" : "Open System Ticket"}
+                </Button>
+                {isAdmin && (
+                  <Button variant="ghost" className="text-white hover:bg-white/10 border border-white/20">
+                    <Settings className="h-4 w-4 mr-2" />
+                    Technical Docs
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
