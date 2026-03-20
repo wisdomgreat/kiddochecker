@@ -100,6 +100,7 @@ const KioskCheckInSystem = () => {
   const [showNearbyDialog, setShowNearbyDialog] = useState(false);
   const [nearbyCenters, setNearbyCenters] = useState<any[]>([]);
   const [isLoadingNearby, setIsLoadingNearby] = useState(false);
+  const [showParentScanner, setShowParentScanner] = useState(false);
 
 
   // ─── Boot ───
@@ -430,12 +431,11 @@ const KioskCheckInSystem = () => {
   };
 
   const handleQRScan = async (rawQRData: string) => {
-    if (!staffAuthed) {
-      toast({ title: "Staff PIN Required", description: "Please enter your staff PIN first.", variant: "destructive" });
-      return;
-    }
     const qrData = rawQRData.trim();
     setIsLoading(true);
+
+    // Some QR scans are restricted to staff (e.g. administrative overrides)
+    // but identifying a FAMILY or a CHILD for checkin/out should be open for parents
     try {
       try {
         const parsed = JSON.parse(qrData);
@@ -508,7 +508,7 @@ const KioskCheckInSystem = () => {
 
   const [currentSpecialInstructions, setCurrentSpecialInstructions] = useState('');
 
-  const handleClassSelected = async (classId: string, specialInstructions: string = '') => {
+  const handleClassSelected = async (classId: string, specialInstructions: string = '', hasFever: boolean = false, hasCough: boolean = false) => {
     if (!selectedChild) return;
     setShowClassDialog(false);
     setIsLoading(true);
@@ -524,14 +524,17 @@ const KioskCheckInSystem = () => {
         checkedInBy: actorId,
         method: youthAuthedChild ? 'youth_self' : 'kiosk',
         station: 'Main Kiosk',
-        specialInstructions
+        specialInstructions,
+        hasFever,
+        hasCough
       });
 
       if (result.success) {
         await logActivity('check_in', {
           child_id: selectedChild.id,
           child_name: `${selectedChild.first_name} ${selectedChild.last_name}`,
-          class_name: classData?.name
+          class_name: classData?.name,
+          health: { fever: hasFever, cough: hasCough }
         });
         const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', selectedChild.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
         const fallbackQR = JSON.stringify({ type: 'CHILD_CHECKIN', id: selectedChild.id, name: `${selectedChild.first_name} ${selectedChild.last_name}`, v: 1 });
@@ -697,6 +700,27 @@ const KioskCheckInSystem = () => {
               </div>
               <h2 className="text-xl font-black italic uppercase tracking-tight text-white mb-2 font-heading">{t('parentPortal')}</h2>
               <div className="space-y-4">
+                {showParentScanner ? (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="relative rounded-3xl overflow-hidden border-2 border-indigo-500/30 shadow-2xl shadow-indigo-500/10">
+                      <QRCodeScanner onScanComplete={(data) => {
+                         handleQRScan(data);
+                         setShowParentScanner(false);
+                      }} darkMode={true} />
+                    </div>
+                    <Button variant="ghost" onClick={() => setShowParentScanner(false)} className="text-white/40 hover:text-white hover:bg-white/5 uppercase text-[10px] font-black tracking-widest">{t('cancel')}</Button>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowParentScanner(true)} 
+                    className="w-full h-24 border-dashed border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/5 flex flex-col gap-2 rounded-3xl group transition-all"
+                  >
+                    <QrCode className="h-8 w-8 text-indigo-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{t('scanQR')}</span>
+                  </Button>
+                )}
+                
                 <div className="relative">
                   <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder={t('phoneNamePlaceholder')} className="h-12 pl-10 bg-white/5 border-white/10" autoFocus />
                   <Phone className="absolute left-3 top-4 w-4 h-4 text-white/20" />

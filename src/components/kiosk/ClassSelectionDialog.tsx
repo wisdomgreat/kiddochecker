@@ -14,12 +14,13 @@ import { Card } from '@/components/ui/card';
 import { useClasses } from '@/hooks/useClasses';
 import { Users, Clock, StickyNote, ActivitySquare, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useSettings } from '@/hooks/useSettings';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface ClassSelectionDialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (classId: string, specialInstructions: string) => void;
+  onConfirm: (classId: string, specialInstructions: string, hasFever: boolean, hasCough: boolean) => void;
   childName: string;
 }
 
@@ -35,13 +36,19 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
   const [hasCough, setHasCough] = useState<boolean | null>(null);
   const { classes, isLoading } = useClasses();
   const { t } = useTranslation();
+  const { settings } = useSettings();
 
   const handleConfirm = () => {
     if (selectedClass) {
-      onConfirm(selectedClass, instructions);
+      onConfirm(selectedClass, instructions, hasFever || false, hasCough || false);
       setInstructions(''); // reset for next time
     }
   };
+
+  const showWellnessCheck = settings?.show_wellness_check !== false;
+  const wellnessPassed = !showWellnessCheck || (hasFever === false && hasCough === false);
+  const wellnessAttempted = !showWellnessCheck || (hasFever !== null && hasCough !== null);
+  const canProceed = selectedClass && wellnessPassed && wellnessAttempted;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -100,55 +107,56 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
               </div>
             </RadioGroup>
 
-            <div className="p-4 bg-muted/10 rounded-lg border border-border space-y-4">
-              <Label className="flex items-center gap-2 text-primary font-semibold text-lg">
-                <ActivitySquare className="w-5 h-5" />
-                {t('wellnessSurvey')}
-              </Label>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">{t('wellnessQuestion1')}</Label>
-                  <RadioGroup 
-                    className="flex gap-4" 
-                    value={hasFever === null ? '' : hasFever.toString()} 
-                    onValueChange={(val) => setHasFever(val === 'true')}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="true" id="fever-yes" />
-                      <Label htmlFor="fever-yes">{t('yes')}</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="false" id="fever-no" />
-                      <Label htmlFor="fever-no">{t('no')}</Label>
-                    </div>
-                  </RadioGroup>
+            {showWellnessCheck && (
+              <div className="p-4 bg-muted/10 rounded-lg border border-border space-y-4">
+                <Label className="flex items-center gap-2 text-primary font-semibold text-lg">
+                  <ActivitySquare className="w-5 h-5" />
+                  {t('wellnessSurvey')}
+                </Label>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">{t('wellnessQuestion1')}</Label>
+                    <RadioGroup 
+                      className="flex gap-4" 
+                      value={hasFever === true ? 'yes' : hasFever === false ? 'no' : ''} 
+                      onValueChange={(v) => setHasFever(v === 'yes')}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="yes" id="fever-yes" />
+                        <Label htmlFor="fever-yes">{t('yes')}</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="no" id="fever-no" />
+                        <Label htmlFor="fever-no">{t('no')}</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">{t('wellnessQuestion2')}</Label>
+                    <RadioGroup 
+                      className="flex gap-4" 
+                      value={hasCough === true ? 'yes' : hasCough === false ? 'no' : ''} 
+                      onValueChange={(v) => setHasCough(v === 'yes')}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="yes" id="cough-yes" />
+                        <Label htmlFor="cough-yes">{t('yes')}</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="no" id="cough-no" />
+                        <Label htmlFor="cough-no">{t('no')}</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">{t('wellnessQuestion2')}</Label>
-                  <RadioGroup 
-                    className="flex gap-4" 
-                    value={hasCough === null ? '' : hasCough.toString()} 
-                    onValueChange={(val) => setHasCough(val === 'true')}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="true" id="cough-yes" />
-                      <Label htmlFor="cough-yes">{t('yes')}</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="false" id="cough-no" />
-                      <Label htmlFor="cough-no">{t('no')}</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+                {(hasFever === true || hasCough === true) && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2 text-destructive mt-4">
+                      <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                      <p className="text-sm font-medium">{t('wellnessFail')}</p>
+                  </div>
+                )}
               </div>
-              
-              {(hasFever === true || hasCough === true) && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-2 text-destructive mt-4">
-                    <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
-                    <p className="text-sm font-medium">{t('wellnessFail')}</p>
-                </div>
-              )}
-            </div>
+            )}
             
             <div className="p-4 bg-muted/30 rounded-lg border border-border space-y-3">
               <Label htmlFor="instructions" className="flex items-center gap-2 text-primary font-semibold">
@@ -177,7 +185,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
           </Button>
           <Button 
             onClick={handleConfirm} 
-            disabled={!selectedClass || hasFever === null || hasCough === null || hasFever || hasCough} 
+            disabled={!canProceed} 
             className="flex-1"
           >
             {hasFever || hasCough ? t('wellnessFail') : t('checkIn')}

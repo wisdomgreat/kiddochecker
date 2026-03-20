@@ -15,8 +15,16 @@ export interface AllUsersData {
   is_active: boolean;
   is_volunteer: boolean;
   created_at: string;
-  user_type: 'staff' | 'parent' | 'admin';
+  user_type: 'staff' | 'parent' | 'admin' | 'volunteer';
   children_count?: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  gender?: string;
+  occupation?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
 }
 
 export const useAllUsers = () => {
@@ -67,7 +75,15 @@ export const useAllUsers = () => {
             is_volunteer: user.is_volunteer || false,
             created_at: user.created_at || new Date().toISOString(),
             user_type,
-            children_count: user.children_count || 0
+            children_count: user.children_count || 0,
+            address: user.address || '',
+            city: user.city || '',
+            state: user.state || '',
+            zip: user.zip || '',
+            gender: user.gender || '',
+            occupation: user.occupation || '',
+            emergency_contact_name: user.emergency_contact_name || '',
+            emergency_contact_phone: user.emergency_contact_phone || '',
           };
         });
 

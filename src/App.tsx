@@ -133,12 +133,12 @@ function App() {
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/landing" element={<LandingPage />} />
                       <Route path="/check-in" element={
-                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk']}>
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk']}>
                           <CheckInPage />
                         </RoleBasedRoute>
                       } />
                       <Route path="/check-out" element={
-                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk']}>
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk']}>
                           <CheckOutPage />
                         </RoleBasedRoute>
                       } />

@@ -3,7 +3,7 @@ import {
   Calendar, Home, Users, Settings, BarChart3, Building, LogOut,
   Baby, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare,
   QrCode, Printer, Zap, Shield, Activity, ShieldCheck,
-  Trophy, HeartPulse, HelpCircle, LayoutGrid, Globe, Heart, Moon, Sun
+  Trophy, HeartPulse, HelpCircle, LayoutGrid, Globe, Heart, Moon, Sun, Mail
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -84,8 +84,11 @@ export function AppSidebar() {
       items: [
         { title: t('userManagement'), url: "/users", icon: Users, requiredPermission: 'manage_users' },
         { title: t('qrManagement'), url: "/qr-management", icon: QrCode, requiredPermission: 'manage_qr_codes' },
-        { title: t('deviceEnrollment'), url: "/devices", icon: Zap },
+        { title: t('emailTemplates'), url: "/admin/email-templates", icon: Mail, requiredPermission: 'manage_system' },
+        { title: t('deviceEnrollment'), url: "/devices", icon: Monitor },
         { title: t('rolesPermissions'), url: "/roles", icon: ShieldCheck, requiredPermission: 'manage_users' },
+        { title: t('auditLog'), url: "/audit-log", icon: Activity, requiredPermission: 'view_audit_logs' },
+        { title: t('systemHealth'), url: "/admin/system-health", icon: HeartPulse, requiredPermission: 'manage_system' },
         { title: t('systemMonitoring'), url: "/reports", icon: BarChart3, requiredPermission: 'view_audit_logs' },
       ]
     },
@@ -113,6 +116,7 @@ export function AppSidebar() {
     {
       label: t('operations'),
       items: [
+        { title: t('kioskStation'), url: "/check-in", icon: Monitor },
         ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: t('attendance'), url: "/attendance", icon: ClipboardCheck }] : []),
         { title: t('staffSchedules'), url: "/staff/schedules", icon: Calendar },
         { title: t('classes'), url: "/classes", icon: BookOpen },

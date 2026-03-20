@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import ModernLayout from "@/components/layout/ModernLayout";
 import RoleGuard from "@/components/security/RoleGuard";
 import AddUserModal from "@/components/admin/AddUserModal";
-import EditUserModal from "@/components/admin/EditUserModal";
+import { EditUserDialog } from "@/components/users/EditUserDialog";
 
 const UserManagementPage = () => {
   const { data: users = [], isLoading, refetch } = useAllUsers();
@@ -36,7 +36,7 @@ const UserManagementPage = () => {
     return matchesSearch && matchesRole && matchesTab;
   });
 
-  const getUsersByType = (type: 'all' | 'staff' | 'parent' | 'admin') => {
+  const getUsersByType = (type: 'all' | 'staff' | 'parent' | 'admin' | 'volunteer') => {
     if (type === 'all') return users;
     return users.filter(user => user.user_type === type);
   };
@@ -146,6 +146,17 @@ const UserManagementPage = () => {
                 </div>
               </CardContent>
             </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <Users className="h-8 w-8 text-indigo-600 mr-3" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Volunteers</p>
+                    <p className="text-2xl font-bold">{getUsersByType('volunteer').length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Search and Filter */}
@@ -181,11 +192,12 @@ const UserManagementPage = () => {
 
           {/* User Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="all">All Users ({users.length})</TabsTrigger>
               <TabsTrigger value="admin">Admins ({getUsersByType('admin').length})</TabsTrigger>
               <TabsTrigger value="staff">Staff ({getUsersByType('staff').length})</TabsTrigger>
               <TabsTrigger value="parent">Parents ({getUsersByType('parent').length})</TabsTrigger>
+              <TabsTrigger value="volunteer">Volunteers ({getUsersByType('volunteer').length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab}>
@@ -283,10 +295,19 @@ const UserManagementPage = () => {
             }}
           />
 
-          <EditUserModal
+          <EditUserDialog
             open={showEditModal}
             onOpenChange={setShowEditModal}
-            user={selectedUser}
+            user={{
+                id: selectedUser?.id || '',
+                email: selectedUser?.email || '',
+                first_name: selectedUser?.first_name || '',
+                last_name: selectedUser?.last_name || '',
+                phone: selectedUser?.phone || '',
+                role: selectedUser?.role || 'parent',
+                is_super_admin: selectedUser?.is_super_admin || false,
+                ...selectedUser // Spread to catch the expanded fields
+            }}
             onSuccess={() => {
               setShowEditModal(false);
               setSelectedUser(null);

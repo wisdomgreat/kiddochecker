@@ -9,6 +9,8 @@ export interface CheckInData {
   method?: string;
   station?: string;
   specialInstructions?: string;
+  hasFever?: boolean;
+  hasCough?: boolean;
 }
 
 export interface CheckOutData {
@@ -34,7 +36,9 @@ export class AttendanceService {
         p_qr_token: data.qrToken || null,
         p_method: data.method || 'app_dashboard',
         p_station: data.station || null,
-        p_special_instructions: data.specialInstructions || null
+        p_special_instructions: data.specialInstructions || null,
+        p_health_fever: data.hasFever || false,
+        p_health_cough: data.hasCough || false
       });
 
       if (error) {

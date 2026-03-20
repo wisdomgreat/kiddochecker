@@ -36,6 +36,14 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
     last_name: '',
     phone: '',
     role: 'parent' as AppRole,
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
+    gender: '',
+    occupation: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
   });
 
   const { user: currentUser } = useAuth();
@@ -51,6 +59,14 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
         last_name: user.last_name || '',
         phone: user.phone || '',
         role: user.role,
+        address: (user as any).address || '',
+        city: (user as any).city || '',
+        state: (user as any).state || '',
+        zip: (user as any).zip || '',
+        gender: (user as any).gender || '',
+        occupation: (user as any).occupation || '',
+        emergency_contact_name: (user as any).emergency_contact_name || '',
+        emergency_contact_phone: (user as any).emergency_contact_phone || '',
       });
       loadStaffPin(user.id);
     }
@@ -72,7 +88,7 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
     if (!user) return;
     setIsGeneratingPin(true);
     try {
-      const { data, error } = await supabase.rpc('generate_staff_pin_rpc' as any, { p_user_id: user.id });
+      const { data, error } = await supabase.rpc('generate_staff_pin_rpc', { p_user_id: user.id });
       if (error) throw error;
       setStaffPin(data as string);
       
@@ -90,6 +106,26 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
     }
   };
 
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast({
+        title: "Reset Link Sent",
+        description: `A password reset email has been sent to ${user.email}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to trigger password reset",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -103,6 +139,14 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
           first_name: formData.first_name,
           last_name: formData.last_name,
           phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          gender: formData.gender,
+          occupation: formData.occupation,
+          emergency_contact_name: formData.emergency_contact_name,
+          emergency_contact_phone: formData.emergency_contact_phone,
         })
         .eq('id', user.id);
 
@@ -139,9 +183,9 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
+          <DialogTitle>Edit User Profile</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto px-1 pr-3 custom-scrollbar">
           <div>
             <Label htmlFor="email">Email (read-only)</Label>
             <Input id="email" value={user?.email || ''} disabled />
@@ -183,6 +227,8 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="parent">Parent</SelectItem>
+                <SelectItem value="regular_user">Regular User (Youth)</SelectItem>
+                <SelectItem value="volunteer">Volunteer</SelectItem>
                 <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="teacher">Teacher</SelectItem>
                 <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
@@ -191,7 +237,89 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
             </Select>
           </div>
 
-          {(currentUserRole?.role === 'super_admin' || currentUserRole?.is_super_admin) && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="gender">Gender</Label>
+              <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
+                <SelectTrigger id="gender">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="occupation">Occupation</Label>
+              <Input
+                id="occupation"
+                value={formData.occupation}
+                onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="state">State</Label>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="zip">ZIP</Label>
+              <Input
+                id="zip"
+                value={formData.zip}
+                onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div>
+              <Label htmlFor="ec_name">Emergency Contact</Label>
+              <Input
+                id="ec_name"
+                placeholder="Name"
+                value={formData.emergency_contact_name}
+                onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="ec_phone">EC Phone</Label>
+              <Input
+                id="ec_phone"
+                placeholder="Phone"
+                value={formData.emergency_contact_phone}
+                onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {(currentUserRole?.role === 'super_admin' || currentUserRole?.is_super_admin) && 
+           ['staff', 'teacher', 'teacher_assistant', 'admin', 'volunteer'].includes(formData.role) && (
             <div className="pt-4 border-t border-gray-100">
               <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-3">
                 <ShieldCheck className="w-3 h-3" /> Staff Identity Auth
@@ -227,6 +355,26 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
               </div>
             </div>
           )}
+
+          <div className="pt-4 border-t border-gray-100">
+             <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-3">
+                Security Administration
+             </Label>
+             <Button 
+                type="button"
+                variant="destructive" 
+                className="w-full h-12 rounded-xl flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 border-red-100"
+                onClick={handlePasswordReset}
+                disabled={currentUserRole?.role === 'admin' && user?.is_super_admin}
+             >
+                <Key className="w-4 h-4" /> Reset Account Password
+             </Button>
+             {currentUserRole?.role === 'admin' && user?.is_super_admin && (
+                <p className="text-[10px] text-red-400 mt-2 italic text-center">
+                   Account Protection: Standard admins cannot reset Super Admin passwords.
+                </p>
+             )}
+          </div>
           <div className="flex justify-end space-x-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

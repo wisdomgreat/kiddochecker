@@ -43,8 +43,13 @@ export interface ChurchMember {
 export interface ChurchStats {
   total_members: number;
   registered_count: number;
+  regular_count: number;
+  visitor_count: number;
+  active_journey: number;
+  first_followup: number;
+  total_ministries: number;
   active_groups: number;
-  attendance_this_week: number;
+  integrations_perc: number;
 }
 
 export const useMembers = () => {

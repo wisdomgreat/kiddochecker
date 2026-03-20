@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 const CheckInPage = () => {
   const { userRole } = useAuth();
 
-  const allowedRoles = ['admin', 'super_admin', 'kiosk'];
+  const allowedRoles = ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk'];
   const hasAccess = userRole && allowedRoles.includes(userRole);
 
   if (!hasAccess) {

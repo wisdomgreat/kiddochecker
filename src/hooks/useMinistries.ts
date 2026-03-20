@@ -37,13 +37,24 @@ export const useMinistries = () => {
           head_staff:profiles!head_staff_id (first_name, last_name),
           groups:ministry_groups (
             *,
-            leader:profiles!leader_profile_id (first_name, last_name)
+            leader:profiles!leader_profile_id (first_name, last_name),
+            member_count:ministry_member_assignments(count)
           )
         `)
         .order('name');
 
       if (error) throw error;
-      return data as Ministry[];
+      
+      // Transform member_count from [{count: n}] to n
+      const transformed = (data as any[]).map(m => ({
+        ...m,
+        groups: m.groups?.map((g: any) => ({
+          ...g,
+          member_count: g.member_count?.[0]?.count || 0
+        }))
+      }));
+      
+      return transformed as Ministry[];
     },
   });
 

@@ -20,7 +20,7 @@ const CheckOutPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showScanner, setShowScanner] = useState(false);
 
-  const allowedRoles = ['admin', 'super_admin', 'kiosk'];
+  const allowedRoles = ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk'];
   const hasAccess = userRole && allowedRoles.includes(userRole);
 
   if (!hasAccess) {

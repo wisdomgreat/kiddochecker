@@ -35,6 +35,7 @@ const OrganizationSettings = () => {
     require_checkout_signature: false,
     google_maps_api_key: '',
     show_center_finder: true,
+    show_wellness_check: true, // Already present in state initialization
     max_upload_size_kb: 200,
     upload_limit_type: 'hard' as 'hard' | 'soft',
     blocked_extensions: 'exe, bat, sh, php, js, py',
@@ -61,6 +62,7 @@ const OrganizationSettings = () => {
         require_checkout_signature: settings.require_checkout_signature || false,
         google_maps_api_key: settings.google_maps_api_key || '',
         show_center_finder: settings.show_center_finder ?? true,
+        show_wellness_check: settings.show_wellness_check ?? true,
         max_upload_size_kb: settings.max_upload_size_kb || 200,
         upload_limit_type: settings.upload_limit_type || 'hard',
         blocked_extensions: settings.blocked_extensions?.join(', ') || 'exe, bat, sh, php, js, py',
@@ -250,6 +252,27 @@ const OrganizationSettings = () => {
                 <CardTitle>Check-in Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl border">
+                      <div className="space-y-0.5">
+                        <Label>Center Finder</Label>
+                        <p className="text-sm text-muted-foreground">Show nearby partner centers on the kiosk</p>
+                      </div>
+                      <Switch
+                        checked={formData.show_center_finder}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_center_finder: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl border">
+                      <div className="space-y-0.5">
+                        <Label>Wellness Screening</Label>
+                        <p className="text-sm text-muted-foreground">Mandatory health check questions before check-in</p>
+                      </div>
+                      <Switch
+                        checked={formData.show_wellness_check}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, show_wellness_check: checked }))}
+                      />
+                    </div>
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Enable Check-in System</Label>

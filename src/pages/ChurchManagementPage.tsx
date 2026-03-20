@@ -29,7 +29,7 @@ const ChurchManagementPage = () => {
     const { hasPermission } = useAuth();
     const { toast } = useToast();
     const { members, stats, isLoading: membersLoading, updateMember, createMember, createVisitor } = useMembers();
-    const { ministries, isLoading: ministriesLoading, deleteMinistry, createMinistry } = useMinistries();
+    const { ministries, isLoading: ministriesLoading, deleteMinistry, createMinistry, createGroup } = useMinistries();
     
     const [activePerspective, setActivePerspective] = useState('members');
     const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +44,9 @@ const ChurchManagementPage = () => {
     const [onboardingMode, setOnboardingMode] = useState<'existing' | 'new_guest'>('existing');
     const [onboardingMember, setOnboardingMember] = useState<{ profile_id: string; type: MembershipType; status: MembershipStatus }>({ profile_id: '', type: 'visitor', status: 'active' });
     const [newMinistry, setNewMinistry] = useState({ name: '', description: '', head_staff_id: '' });
+    const [isAddVisitorOpen, setIsAddVisitorOpen] = useState(false);
+    const [newVisitor, setNewVisitor] = useState({ firstName: '', lastName: '', email: '', phone: '', type: 'visitor' as MembershipType });
+    const [newGroup, setNewGroup] = useState({ name: '', meetingDay: 'Sunday', meetingTime: '10:00' });
 
     const filteredMembers = members.filter(m => {
         const name = `${m.profiles?.first_name || ''} ${m.profiles?.last_name || ''}`.toLowerCase();
@@ -127,8 +130,8 @@ const ChurchManagementPage = () => {
                                                 <p className="text-xs text-slate-400 dark:text-slate-500 font-bold">{member.profiles?.email}</p>
                                             </div>
                                             <div className="flex flex-col gap-2">
-                                                <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-300 hover:text-indigo-600" onClick={() => { setSelectedMember(member); setIsEditDialogOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="sm" className="text-indigo-600 font-black text-[10px] uppercase tracking-widest p-0 h-6" onClick={() => { setCrmMember(member); setIsCRMOpen(true); }}>PROFILE <ChevronRight className="h-3 w-3 inline" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-300 hover:text-indigo-600 rounded-full" onClick={() => { setSelectedMember(member); setIsEditDialogOpen(true); }}><Edit className="h-4 w-4" /></Button>
+                                                <Button size="sm" className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-black text-[10px] uppercase tracking-widest px-3 h-8 rounded-lg transition-all" onClick={() => { setCrmMember(member); setIsCRMOpen(true); }}>PROFILE <ChevronRight className="h-3 w-3 inline ml-1 opacity-50" /></Button>
                                             </div>
                                         </div>
                                     </Card>
@@ -160,22 +163,25 @@ const ChurchManagementPage = () => {
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</p>
                                                 </div>
                                             </div>
-                                            <Button variant="ghost" size="sm" className="text-indigo-600 font-bold text-xs" onClick={() => { setSelectedMinistryId(ministry.id); setIsAddGroupOpen(true); }}>
-                                                <Plus className="h-3 w-3 mr-1" /> GROUP
+                                            <Button variant="outline" size="sm" className="border-indigo-100 text-indigo-600 font-bold text-xs rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition-colors h-8" onClick={() => { setSelectedMinistryId(ministry.id); setIsAddGroupOpen(true); }}>
+                                                <Plus className="h-3.5 w-3.5 mr-1" /> GROUP
                                             </Button>
                                         </div>
                                         
                                         <div className="grid grid-cols-1 gap-4">
                                             {ministry.groups?.map(group => (
-                                                <Card key={group.id} className="p-5 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm group hover:border-indigo-100 transition-all">
+                                                <Card key={group.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900/40 border-none shadow-[0_4px_12px_rgba(0,0,0,0.03)] group hover:shadow-lg transition-all">
                                                     <div className="flex justify-between items-start">
                                                         <div className="space-y-1">
-                                                            <h4 className="font-bold text-slate-900 dark:text-white">{group.name}</h4>
-                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                                                {group.meeting_day} • {group.meeting_time}
-                                                            </p>
+                                                            <h4 className="font-black text-slate-900 dark:text-white text-lg tracking-tight uppercase">{group.name}</h4>
+                                                            <div className="flex items-center gap-2">
+                                                                <Activity className="h-3 w-3 text-indigo-500" />
+                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                                                    {group.meeting_day} • {group.meeting_time}
+                                                                </p>
+                                                            </div>
                                                         </div>
-                                                        <Badge className="bg-slate-50 text-slate-600 border-none font-bold text-[10px]">{group.member_count || 0} Members</Badge>
+                                                        <Badge className="bg-indigo-600/10 text-indigo-600 border-none font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full cursor-help hover:bg-indigo-600 hover:text-white transition-all">{group.member_count || 0} Members</Badge>
                                                     </div>
                                                 </Card>
                                             ))}
@@ -199,8 +205,8 @@ const ChurchManagementPage = () => {
                                         <h3 className="text-3xl font-black">New Guests</h3>
                                     </div>
                                     <div className="mt-8 flex items-end justify-between">
-                                        <span className="text-5xl font-black">{filteredMembers.filter(m => m.membership_type === 'visitor').length}</span>
-                                        <Badge className="bg-white/20 text-white border-none font-bold">+12% this month</Badge>
+                                        <span className="text-5xl font-black">{stats?.visitor_count || 0}</span>
+                                        <Badge className="bg-white/20 text-white border-none font-bold px-3 py-1">+12% this month</Badge>
                                     </div>
                                 </Card>
 
@@ -210,8 +216,8 @@ const ChurchManagementPage = () => {
                                         <h3 className="text-3xl font-black text-slate-900 dark:text-white">Active Journey</h3>
                                     </div>
                                     <div className="mt-8 flex items-end justify-between">
-                                        <span className="text-5xl font-black text-slate-900 dark:text-white">24</span>
-                                        <Badge variant="outline" className="font-bold border-slate-200">Needs Contact</Badge>
+                                        <span className="text-5xl font-black text-slate-900 dark:text-white">{stats?.active_journey || 0}</span>
+                                        <Badge variant="outline" className="font-bold border-slate-200 px-3 py-1 rounded-lg">Needs Contact</Badge>
                                     </div>
                                 </Card>
 
@@ -221,8 +227,8 @@ const ChurchManagementPage = () => {
                                         <h3 className="text-3xl font-black text-slate-900 dark:text-white">Integrations</h3>
                                     </div>
                                     <div className="mt-8 flex items-end justify-between">
-                                        <span className="text-5xl font-black text-slate-900 dark:text-white">88%</span>
-                                        <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold">Excellent</Badge>
+                                        <span className="text-5xl font-black text-slate-900 dark:text-white">{stats?.integrations_perc || 0}%</span>
+                                        <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold px-3 py-1 rounded-lg">Excellent</Badge>
                                     </div>
                                 </Card>
                             </div>
@@ -236,10 +242,10 @@ const ChurchManagementPage = () => {
                                 </div>
                                 <div className="space-y-8">
                                     {[
-                                        { stage: 'Initial Visit', count: 140, color: 'bg-indigo-600' },
-                                        { stage: 'First Follow-up', count: 85, color: 'bg-indigo-500' },
-                                        { stage: 'Regular Attendance', count: 42, color: 'bg-indigo-400' },
-                                        { stage: 'Official Membership', count: 28, color: 'bg-indigo-300' }
+                                        { stage: 'Initial Visit', count: stats?.visitor_count || 0, color: 'bg-indigo-600' },
+                                        { stage: 'First Follow-up', count: stats?.first_followup || 0, color: 'bg-indigo-500' },
+                                        { stage: 'Regular Attendance', count: stats?.regular_count || 0, color: 'bg-indigo-400' },
+                                        { stage: 'Official Membership', count: stats?.registered_count || 0, color: 'bg-indigo-300' }
                                     ].map((step, i) => (
                                         <div key={i} className="flex items-center gap-6">
                                             <div className="w-40 text-left">
@@ -248,7 +254,7 @@ const ChurchManagementPage = () => {
                                             <div className="flex-1 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl overflow-hidden shadow-inner">
                                                 <motion.div 
                                                     initial={{ width: 0 }} 
-                                                    animate={{ width: `${(step.count / 140) * 100}%` }}
+                                                    animate={{ width: `${(step.count / Math.max(stats?.visitor_count || 1, 1)) * 100}%` }}
                                                     className={`h-full ${step.color} shadow-lg`}
                                                 />
                                             </div>
@@ -303,15 +309,108 @@ const ChurchManagementPage = () => {
                         <DialogDescription className="text-indigo-100 font-medium">Add a new guest or register a formal member.</DialogDescription>
                     </div>
                     <div className="p-8 space-y-4">
-                        <Button className="w-full h-16 rounded-2xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-4 p-4 shadow-none" onClick={() => { setIsAddMemberOpen(false); /* Logic for visitor form */ }}>
-                            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center"><Zap className="h-5 w-5 text-orange-600" /></div>
-                            <div className="text-left"><p className="font-bold">New Visitor</p><p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Start Journey</p></div>
+                        <Button className="w-full h-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-5 p-6 shadow-none group" onClick={() => { setIsAddMemberOpen(false); setIsAddVisitorOpen(true); }}>
+                            <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><Zap className="h-6 w-6 text-orange-600" /></div>
+                            <div className="text-left">
+                                <p className="font-black text-xl tracking-tight uppercase">New Visitor</p>
+                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Start Journey</p>
+                            </div>
                         </Button>
-                        <Button className="w-full h-16 rounded-2xl bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-4 p-4 shadow-none" onClick={() => setIsAddMinistryOpen(true)}>
-                            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center"><Layers className="h-5 w-5 text-indigo-600" /></div>
-                            <div className="text-left"><p className="font-bold">New Department</p><p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Organize Ministry</p></div>
+                        <Button className="w-full h-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-5 p-6 shadow-none group" onClick={() => { setIsAddMemberOpen(false); setIsAddMinistryOpen(true); }}>
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><Layers className="h-6 w-6 text-indigo-600" /></div>
+                            <div className="text-left">
+                                <p className="font-black text-xl tracking-tight uppercase">New Department</p>
+                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Organize Ministry</p>
+                            </div>
                         </Button>
                     </div>
+                 </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAddVisitorOpen} onOpenChange={setIsAddVisitorOpen}>
+                 <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+                    <div className="bg-orange-500 p-8 text-white">
+                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Onboard Guest</DialogTitle>
+                        <DialogDescription className="text-orange-50 font-medium">Add a new guest to the database and start tracking their journey.</DialogDescription>
+                    </div>
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!newVisitor.firstName || !newVisitor.lastName) return;
+                        createVisitor({
+                            first_name: newVisitor.firstName,
+                            last_name: newVisitor.lastName,
+                            email: newVisitor.email,
+                            phone: newVisitor.phone,
+                            type: newVisitor.type
+                        }, { onSuccess: () => setIsAddVisitorOpen(false) });
+                    }} className="p-8 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">First Name</Label>
+                                <Input placeholder="John" value={newVisitor.firstName} onChange={e => setNewVisitor({...newVisitor, firstName: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Last Name</Label>
+                                <Input placeholder="Doe" value={newVisitor.lastName} onChange={e => setNewVisitor({...newVisitor, lastName: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Email</Label>
+                            <Input placeholder="john@example.com" type="email" value={newVisitor.email} onChange={e => setNewVisitor({...newVisitor, email: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Phone</Label>
+                            <Input placeholder="(555) 000-0000" value={newVisitor.phone} onChange={e => setNewVisitor({...newVisitor, phone: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" />
+                        </div>
+                        <Button type="submit" className="w-full h-14 bg-orange-500 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-orange-100 mt-4 active:scale-95 transition-all">START JOURNEY</Button>
+                    </form>
+                 </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAddGroupOpen} onOpenChange={setIsAddGroupOpen}>
+                 <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+                    <div className="bg-indigo-600 p-8 text-white">
+                        <DialogTitle className="text-xl font-black uppercase tracking-tight">New Small Group</DialogTitle>
+                        <DialogDescription className="text-indigo-100 font-medium tracking-tight">Create a new group within this department.</DialogDescription>
+                    </div>
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!newGroup.name || !selectedMinistryId) return;
+                        const { createGroup } = await import('@/hooks/useMinistries').then(m => m.useMinistries()); 
+                        // Note: I'll use the hook from the component state instead for better reactivity
+                    }} className="p-8 space-y-4">
+                         <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Group Name</Label>
+                            <Input placeholder="e.g. Mid-week Fellowship" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                        </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Meeting Day</Label>
+                                <Select value={newGroup.meetingDay} onValueChange={val => setNewGroup({...newGroup, meetingDay: val})}>
+                                    <SelectTrigger className="h-12 rounded-2xl bg-slate-50 border-none px-4 font-bold"><SelectValue /></SelectTrigger>
+                                    <SelectContent className="rounded-xl border-none shadow-2xl">
+                                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => <SelectItem key={d} value={d} className="font-bold">{d}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Meeting Time</Label>
+                                <Input type="time" value={newGroup.meetingTime} onChange={e => setNewGroup({...newGroup, meetingTime: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" />
+                            </div>
+                        </div>
+                        <Button type="button" onClick={() => {
+                             if (!newGroup.name || !selectedMinistryId) return;
+                             createGroup({
+                                 ministry_id: selectedMinistryId,
+                                 name: newGroup.name,
+                                 meeting_day: newGroup.meetingDay,
+                                 meeting_time: newGroup.meetingTime + ':00'
+                             }, { onSuccess: () => {
+                                 setIsAddGroupOpen(false);
+                                 setNewGroup({ name: '', meetingDay: 'Sunday', meetingTime: '10:00' });
+                             }});
+                        }} className="w-full h-14 bg-indigo-600 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-indigo-100 mt-4 active:scale-95 transition-all">ESTABLISH GROUP</Button>
+                    </form>
                  </DialogContent>
             </Dialog>
 

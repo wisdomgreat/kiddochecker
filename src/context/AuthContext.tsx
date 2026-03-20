@@ -44,6 +44,7 @@ export interface AuthContextType {
   isTeacherAssistant: boolean;
   isVolunteer: boolean;
   isKiosk: boolean;
+  isRegularUser: boolean;
   verificationStatus: string | null;
   isVerifiedStaff: boolean;
   hasRole: (role: AppRole) => boolean;
@@ -357,6 +358,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isTeacherAssistant = userRole === 'teacher_assistant';
   const isVolunteer = userRole === 'volunteer';
   const isKiosk = userRole === 'kiosk';
+  const isRegularUser = userRole === 'regular_user';
 
   const isVerifiedStaff =
     (isStaff || isTeacher || isTeacherAssistant || isAdmin) &&
@@ -399,6 +401,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isTeacherAssistant,
     isVolunteer,
     isKiosk,
+    isRegularUser,
     verificationStatus,
     isVerifiedStaff,
     mfaLevel,

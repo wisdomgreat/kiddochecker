@@ -173,6 +173,8 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl">
                   <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="regular_user">Regular User (Youth)</SelectItem>
+                  <SelectItem value="volunteer">Volunteer</SelectItem>
                   <SelectItem value="staff">Staff</SelectItem>
                   <SelectItem value="teacher">Teacher</SelectItem>
                   <SelectItem value="teacher_assistant">Teacher Assistant</SelectItem>
