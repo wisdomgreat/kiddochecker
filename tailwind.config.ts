@@ -68,6 +68,18 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        indigo: {
+          50: "#EEF2FF",
+          100: "#E0E7FF",
+          200: "#C7D2FE",
+          300: "#A5B4FC",
+          400: "#818CF8",
+          500: "#6366F1",
+          600: "#28355F", // Deep mockup blue
+          700: "#1E294B",
+          800: "#151C36",
+          900: "#0D1122", // Extra deep navy
+        },
         purple: {
           50: "#F5F3FF",
           100: "#EDE9FE",

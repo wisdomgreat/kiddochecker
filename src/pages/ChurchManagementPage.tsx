@@ -76,10 +76,10 @@ const ChurchManagementPage = () => {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-indigo-100 shadow-xl">
+                            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
                                 <ShieldCheck className="h-6 w-6 text-white" />
                             </div>
-                            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">{t('churchManagement')}</h1>
+                            <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('churchManagement')}</h1>
                         </div>
                     </div>
                     
@@ -91,7 +91,7 @@ const ChurchManagementPage = () => {
                                 <TabsTrigger value="journey" className="rounded-xl px-6 font-bold">{t('guestJourney')}</TabsTrigger>
                             </TabsList>
                         </Tabs>
-                        <Button onClick={() => setIsAddMemberOpen(true)} className="h-12 px-6 rounded-2xl bg-indigo-600 font-bold text-white shadow-lg shadow-indigo-100 dark:shadow-none">
+                        <Button onClick={() => setIsAddMemberOpen(true)} className="h-12 px-6 rounded-xl bg-indigo-600 font-bold text-white shadow-sm">
                             <Plus className="h-5 w-5 mr-2" /> ADD
                         </Button>
                     </div>
@@ -109,7 +109,7 @@ const ChurchManagementPage = () => {
                                 {membersLoading ? (
                                     <div className="col-span-full py-20 text-center"><Loader2 className="h-10 w-10 animate-spin mx-auto text-indigo-600" /></div>
                                 ) : filteredMembers.map(member => (
-                                    <Card key={member.id} className="p-8 rounded-[2.5rem] bg-white dark:bg-slate-900/40 border dark:border-white/5 shadow-xl shadow-slate-100 dark:shadow-none transition-all group overflow-hidden">
+                                    <Card key={member.id} className="p-6 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm transition-all group overflow-hidden">
                                          <div className="flex gap-6">
                                             <div className="w-20 h-20 rounded-[2rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center font-black text-2xl text-slate-400 group-hover:text-indigo-600 transition-colors">
                                                 {member.profiles?.first_name?.[0]}
@@ -141,8 +141,8 @@ const ChurchManagementPage = () => {
             />
 
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="max-w-xl rounded-[3rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
-                    <div className="bg-indigo-600 p-8 text-white"><DialogTitle className="text-2xl font-black uppercase tracking-tight italic">Refine Membership</DialogTitle></div>
+                <DialogContent className="max-w-xl rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-[#F8F9FA] dark:bg-slate-950">
+                    <div className="bg-indigo-600 p-8 text-white"><DialogTitle className="text-xl font-bold uppercase tracking-tight">Refine Membership</DialogTitle></div>
                     {selectedMember && (
                         <form onSubmit={handleUpdate} className="p-10 space-y-6">
                             <div className="grid grid-cols-2 gap-6">
@@ -158,7 +158,7 @@ const ChurchManagementPage = () => {
                                     </Select>
                                 </div>
                             </div>
-                            <Button type="submit" className="w-full h-14 bg-indigo-600 text-white rounded-3xl font-black">SYNC CHANGES</Button>
+                            <Button type="submit" className="w-full h-12 bg-indigo-600 text-white rounded-xl font-bold px-6 shadow-sm">SYNC CHANGES</Button>
                         </form>
                     )}
                 </DialogContent>

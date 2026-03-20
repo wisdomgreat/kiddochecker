@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import ModernLayout from "@/components/layout/ModernLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -231,12 +230,12 @@ const HelpDocumentation = () => {
     <ModernLayout>
       <div className="space-y-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
-            <HelpCircle className="h-8 w-8 text-blue-600" />
-            Help & Documentation
+          <h1 className="text-4xl font-bold flex items-center justify-center gap-2 text-slate-900 tracking-tight">
+            <HelpCircle className="h-10 w-10 text-indigo-600" />
+            Platform Guide
           </h1>
-          <p className="text-muted-foreground mt-2">
-            Find answers to common questions and learn how to use the system
+          <p className="text-slate-500 mt-2 font-medium">
+            Learn how to care for your community with our refined, simple tools.
           </p>
         </div>
 
@@ -355,7 +354,7 @@ const HelpDocumentation = () => {
                 <Card key={index}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <guide.icon className="h-5 w-5 text-blue-600" />
+                      <guide.icon className="h-5 w-5 text-indigo-600" />
                       {guide.title}
                     </CardTitle>
                   </CardHeader>
@@ -363,7 +362,7 @@ const HelpDocumentation = () => {
                     <ol className="space-y-3">
                       {guide.steps.map((step, stepIndex) => (
                         <li key={stepIndex} className="text-sm flex items-start gap-3">
-                          <span className="bg-blue-100 text-blue-800 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="bg-indigo-50 text-indigo-800 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
                             {stepIndex + 1}
                           </span>
                           <span className="text-gray-700">{step}</span>
@@ -376,7 +375,7 @@ const HelpDocumentation = () => {
             </div>
 
             {isAdmin && (
-              <Card className="border-blue-100 bg-blue-50/30">
+              <Card className="border-indigo-100 bg-indigo-50/30">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Video className="h-5 w-5" />
@@ -403,70 +402,73 @@ const HelpDocumentation = () => {
 
           <TabsContent value="walkthroughs" className="space-y-12">
             <div className="space-y-4">
-               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-black uppercase tracking-widest">
-                  <Sparkles className="h-3 w-3" /> Visual Interface Guide
+               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-widest">
+                  <Sparkles className="h-3 w-3" /> Simplified Premium Interface
                </div>
-               <h2 className="text-3xl font-black text-slate-900 tracking-tight">Learn the new Dashboard</h2>
+               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Mastering the Dashboard</h2>
             </div>
 
             <div className="space-y-20">
+               {/* Section 1 */}
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                   <div className="space-y-6">
-                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-xl">1</div>
-                     <h3 className="text-2xl font-black text-slate-900">Guest Journey Analytics</h3>
-                     <p className="text-slate-600 leading-relaxed font-medium">
-                        The journey dashboard provides a bird's eye view of your community's growth. 
-                        Track **Retention Velocity** to see how fast visitors become members and monitor **Automation Health** to ensure no one falls through the cracks.
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">1</div>
+                     <h3 className="text-2xl font-bold text-slate-900">Guest Journey Analytics</h3>
+                     <p className="text-slate-600 leading-relaxed font-normal">
+                        The journey dashboard provides a clear, focused view of your community's growth. 
+                        Track visitors as they transition into members and ensure every guest feels seen and cared for through automated follow-up health metrics.
                      </p>
                      <div className="flex gap-4">
-                        <Badge className="bg-emerald-50 text-emerald-600 border-none px-3 py-1">Funnel View</Badge>
-                        <Badge className="bg-indigo-50 text-indigo-600 border-none px-3 py-1">Real-time Activity</Badge>
+                        <Badge className="bg-slate-100 text-slate-600 border-none px-3 py-1 font-bold">Funnel View</Badge>
+                        <Badge className="bg-slate-100 text-slate-600 border-none px-3 py-1 font-bold">Real-time Activity</Badge>
                      </div>
                   </div>
-                  <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white p-2">
-                     <img src="/docs/images/guest_journey_dashboard.png" className="rounded-[2rem] w-full h-auto" alt="Dashboard Walkthrough" />
+                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white p-2">
+                     <img src="/docs/images/guest_journey_dashboard.png" className="rounded-xl w-full h-auto" alt="Dashboard Walkthrough" />
                   </div>
                </div>
 
+               {/* Section 2 */}
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                  <div className="order-2 lg:order-1 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white p-2">
-                     <img src="/docs/images/visitor_stage_tracker.png" className="rounded-[2rem] w-full h-auto" alt="Kanban Tracker" />
+                  <div className="order-2 lg:order-1 rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white p-2">
+                     <img src="/docs/images/visitor_stage_tracker.png" className="rounded-xl w-full h-auto" alt="Kanban Tracker" />
                   </div>
                   <div className="order-1 lg:order-2 space-y-6">
-                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-xl">2</div>
-                     <h3 className="text-2xl font-black text-slate-900">The Stage Tracker</h3>
-                     <p className="text-slate-600 leading-relaxed font-medium">
-                        Visualize your newcomers as they move through onboarding stages. 
-                        Each card represents a soul being cared for. Click any card to open the **Admin CRM** for detailed management.
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">2</div>
+                     <h3 className="text-2xl font-bold text-slate-900">The Stage Tracker</h3>
+                     <p className="text-slate-600 leading-relaxed font-normal">
+                        Visualize your newcomers as they move through onboarding stages in a simple list view. 
+                        Each card represents a person. Click any card to open the **Member CRM** for detailed notes and contact options.
                      </p>
                      <ul className="space-y-3">
-                        <li className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                           <Kanban className="h-4 w-4 text-indigo-500" /> Multi-column Workflow
+                        <li className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                           <Kanban className="h-4 w-4 text-indigo-600" /> Simple Workflow Stages
                         </li>
-                        <li className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                           <Users className="h-4 w-4 text-indigo-500" /> Demographic insights at a glance
+                        <li className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                           <Users className="h-4 w-4 text-indigo-600" /> Instant engagement history
                         </li>
                      </ul>
                   </div>
                </div>
 
+               {/* Section 3 */}
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pb-12">
                   <div className="space-y-6">
-                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-xl">3</div>
-                     <h3 className="text-2xl font-black text-slate-900">Full CRM Profiles</h3>
-                     <p className="text-slate-600 leading-relaxed font-medium">
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">3</div>
+                     <h3 className="text-2xl font-bold text-slate-900">Member CRM Profiles</h3>
+                     <p className="text-slate-600 leading-relaxed font-normal">
                         Log pastoral notes, send automated follow-up emails, and track every interaction. 
-                        The **Interaction Timeline** ensures that every touchpoint is recorded for consistent care.
+                        The **Interaction Timeline** ensures that every touchpoint is recorded for consistent, high-quality care.
                      </p>
-                     <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-4">
-                        <h4 className="font-black text-xs uppercase tracking-widest text-indigo-600">Pro Tip</h4>
-                        <p className="text-xs font-bold text-slate-500 leading-relaxed">
+                     <div className="p-6 bg-slate-100 rounded-2xl border border-slate-200/50 space-y-4">
+                        <h4 className="font-bold text-xs uppercase tracking-widest text-indigo-600">Pro Tip</h4>
+                        <p className="text-xs font-medium text-slate-500 leading-relaxed">
                            Use the "Send Email" action to use pre-built templates for Welcome messages and missing notifications.
                         </p>
                      </div>
                   </div>
-                  <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white p-2">
-                     <img src="/docs/images/crm_profile_interaction.png" className="rounded-[2rem] w-full h-auto" alt="CRM Overview" />
+                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white p-2">
+                     <img src="/docs/images/crm_profile_interaction.png" className="rounded-xl w-full h-auto" alt="CRM Overview" />
                   </div>
                </div>
             </div>
@@ -477,23 +479,23 @@ const HelpDocumentation = () => {
               {filteredFAQ.map((category) => (
                 <Card key={category.category} className="overflow-hidden border-none shadow-sm bg-gray-50/50">
                   <div className="p-4 bg-white border-b flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 rounded-lg">
-                      <category.icon className="h-5 w-5 text-blue-600" />
+                    <div className="p-2 bg-indigo-50 rounded-lg">
+                      <category.icon className="h-5 w-5 text-indigo-600" />
                     </div>
-                    <h3 className="font-bold text-lg">{category.title}</h3>
+                    <h3 className="font-bold text-lg text-slate-900">{category.title}</h3>
                   </div>
                   <CardContent className="p-0">
                     <div className="divide-y">
                       {category.questions.map((qa, index) => (
                         <Collapsible key={index}>
                           <CollapsibleTrigger className="flex items-center justify-between w-full p-4 text-left hover:bg-gray-50 transition-colors group">
-                            <span className="font-medium text-gray-800 group-data-[state=open]:text-blue-600 transition-colors">
+                            <span className="font-medium text-gray-800 group-data-[state=open]:text-indigo-600 transition-colors">
                               {qa.question}
                             </span>
                             <ChevronDown className="h-4 w-4 text-gray-400 group-data-[state=open]:rotate-180 transition-transform" />
                           </CollapsibleTrigger>
                           <CollapsibleContent className="px-4 pb-4 pt-1">
-                            <div className="p-4 bg-white rounded-xl border border-blue-50 text-gray-600 leading-relaxed shadow-inner">
+                            <div className="p-4 bg-white rounded-xl border border-indigo-50 text-gray-600 leading-relaxed shadow-inner">
                               {qa.answer}
                             </div>
                           </CollapsibleContent>
@@ -513,15 +515,15 @@ const HelpDocumentation = () => {
           </TabsContent>
         </Tabs>
 
-        <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-xl">
+        <Card className="bg-indigo-600 text-white border-none shadow-xl">
           <CardContent className="p-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="text-center md:text-left">
                 <h2 className="text-2xl font-bold mb-2">Still have questions?</h2>
-                <p className="text-blue-100">Our team is available to help you {isParent ? "during service hours" : "24/7 via private support lines"}.</p>
+                <p className="opacity-90 font-medium">Our team is available to help you {isParent ? "during service hours" : "24/7 via private support lines"}.</p>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4">
-                <Button variant="secondary" className="bg-white text-blue-700 hover:bg-blue-50 font-bold px-6">
+                <Button variant="secondary" className="bg-white text-indigo-700 hover:bg-indigo-50 font-bold px-6">
                   <MessageSquare className="h-4 w-4 mr-2" />
                   {isParent ? "Message Office" : "Open System Ticket"}
                 </Button>

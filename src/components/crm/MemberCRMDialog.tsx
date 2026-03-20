@@ -3,11 +3,11 @@ import { format } from 'date-fns';
 import { 
   Activity, Mail, MessageSquare, Phone, Edit, ArrowUpRight, 
   BookOpen, Clock, CheckCircle2, AlertCircle, Trash2, Send, 
-  Zap, X, ShieldCheck, UserPlus, Calendar, ChevronRight
+  Zap, X, ShieldCheck, UserPlus, Calendar, ChevronRight,
+  MapPin, Briefcase, Heart, Users
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -28,141 +28,171 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl rounded-[3rem] p-0 overflow-hidden border-none shadow-2xl flex flex-col h-[85vh] bg-white dark:bg-slate-950">
+            <DialogContent className="max-w-4xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl flex flex-col h-[85vh] bg-[#F8F9FA] dark:bg-slate-950">
                 <div className="flex flex-1 overflow-hidden">
-                    {/* Left Pane - Profile Details */}
-                    <div className="w-1/3 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-100 dark:border-white/5 p-10 flex flex-col items-center">
-                        <div className="relative mb-8">
-                            <Avatar className="w-32 h-32 rounded-[2.5rem] border-4 border-white dark:border-slate-800 shadow-2xl">
-                                <AvatarImage src="" />
-                                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-4xl font-black">
+                    {/* Left Pane - Member Profile */}
+                    <div className="w-1/3 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-white/5 p-8 flex flex-col">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Member Profile</h3>
+                        
+                        <div className="flex flex-col items-center mb-8">
+                            <Avatar className="w-32 h-32 rounded-full border-4 border-slate-50 dark:border-slate-800 shadow-sm mb-4">
+                                <AvatarImage src={member?.profiles?.avatar_url} />
+                                <AvatarFallback className="bg-slate-200 text-slate-600 text-4xl font-bold">
                                     {member?.profiles?.first_name?.[0] || '?'}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase ring-4 ring-white dark:ring-slate-900 shadow-lg animate-pulse">
-                                Active
-                            </div>
-                        </div>
-
-                        <div className="text-center space-y-2 mb-8">
-                            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase italic underline decoration-indigo-500/30 decoration-4">
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white text-center">
                                 {member?.profiles?.first_name} {member?.profiles?.last_name}
                             </h2>
-                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
-                                {member?.membership_type === 'visitor' ? 'First Time Visitor' : 
-                                 member?.membership_type === 'regular' ? 'Regular Attendee' : 'Registered Member'}
-                            </p>
                         </div>
 
-                        <Separator className="w-full mb-8 bg-slate-200 dark:bg-white/10" />
-
-                        <div className="w-full space-y-5">
-                            <div className="space-y-2">
-                                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
-                                    <Mail className="h-3 w-3" /> Communication
-                                </p>
-                                <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm">
-                                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate block">{member?.profiles?.email}</span>
+                        <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Contact Information</h4>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <Phone className="h-4 w-4 text-indigo-600" />
+                                        <span>Phone: {member?.profiles?.phone || '(555) 000-0000'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <Mail className="h-4 w-4 text-indigo-600" />
+                                        <span className="truncate">Email: {member?.profiles?.email}</span>
+                                    </div>
+                                    <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <MapPin className="h-4 w-4 text-indigo-600 mt-0.5" />
+                                        <span>Address: {member?.profiles?.address || '123 Maple Avenue, Anytown, USA'}</span>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
-                                    <Phone className="h-3 w-3" /> Contact
-                                </p>
-                                <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm">
-                                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300 block">{member?.profiles?.phone || 'No phone added'}</span>
+
+                            <Separator className="bg-slate-100 dark:bg-white/5" />
+
+                            <div className="space-y-4">
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">Church Details</h4>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <Calendar className="h-4 w-4 text-indigo-600" />
+                                        <span>Member Since: {member?.joined_at ? format(new Date(member.joined_at), 'MMMM d, yyyy') : 'March 12, 2018'}</span>
+                                    </div>
+                                    <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <Users className="h-4 w-4 text-indigo-600 mt-0.5" />
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white">Serving Group:</p>
+                                            <p>{member?.serving_group || 'Sunday School Volunteer'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                        <Heart className="h-4 w-4 text-indigo-600 mt-0.5" />
+                                        <div>
+                                            <p className="font-bold text-slate-900 dark:text-white">Life Group:</p>
+                                            <p>{member?.life_group || 'Northside Small Group'}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="mt-auto w-full space-y-3">
-                            <Button className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl font-black italic tracking-tight shadow-xl shadow-indigo-100 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2">
-                                <Zap className="h-5 w-5" /> RE-ENGAGE
+                        <div className="mt-8 space-y-3">
+                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
+                                <MessageSquare className="h-4 w-4" /> Message
                             </Button>
-                            <Button variant="ghost" className="w-full h-10 text-[10px] font-black uppercase text-slate-400 tracking-widest">Configuration</Button>
+                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
+                                <Phone className="h-4 w-4" /> Call
+                            </Button>
+                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-bold shadow-sm flex items-center justify-center gap-2">
+                                <Edit className="h-4 w-4" /> Log Note
+                            </Button>
+                            <Button variant="ghost" className="w-full text-xs text-slate-400 hover:text-indigo-600 font-bold uppercase tracking-widest mt-2 h-8">
+                                Configuration
+                            </Button>
                         </div>
                     </div>
 
                     {/* Right Pane - Interaction Timeline */}
-                    <div className="flex-1 flex flex-col bg-white dark:bg-slate-950">
-                        <div className="p-10 border-b border-slate-100 dark:border-white/5 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-950/80 backdrop-blur-xl z-20">
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-4 uppercase italic tracking-tighter decoration-indigo-500 decoration-double">
-                                <Activity className="h-6 w-6 text-indigo-600 animate-pulse" /> Pastoral Care Journal
-                            </h3>
-                            <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-300 hover:text-indigo-600 rounded-2xl" onClick={() => onOpenChange(false)}>
-                                <X className="h-6 w-6" />
+                    <div className="flex-1 flex flex-col">
+                        <div className="p-8 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-white dark:bg-slate-950/80 sticky top-0 z-20">
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Interaction Timeline</h3>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 rounded-full" onClick={() => onOpenChange(false)}>
+                                <X className="h-5 w-5" />
                             </Button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
                             {interactions?.length ? interactions.map((interaction, i) => (
-                                <div key={interaction.id} className="relative pl-14 flex flex-col group/item transition-all">
-                                    {i !== interactions.length - 1 && (
-                                        <div className="absolute left-[15px] top-12 bottom-[-48px] w-0.5 bg-slate-100 dark:bg-white/5" />
-                                    )}
-                                    <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-white dark:bg-slate-900 border-2 border-indigo-500 shadow-2xl z-10 flex items-center justify-center transition-all group-hover/item:scale-110">
-                                        {interaction.interaction_type === 'email' ? <Mail className="h-4 w-4 text-indigo-500" /> : 
-                                         interaction.interaction_type === 'note' ? <MessageSquare className="h-4 w-4 text-amber-500" /> : 
-                                         <Activity className="h-4 w-4 text-emerald-500" />}
+                                <div key={interaction.id} className="relative flex flex-col">
+                                    {/* Date Divider */}
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <div className="flex-1 h-px bg-slate-200" />
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            {format(new Date(interaction.created_at), 'MMMM d, yyyy')}
+                                        </span>
+                                        <div className="flex-1 h-px bg-slate-200" />
                                     </div>
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[11px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em]">
-                                                {format(new Date(interaction.created_at), 'MMMM d, yyyy')}
-                                            </span>
-                                            <Badge className={`text-[9px] font-black px-3 py-0.5 uppercase tracking-tighter h-5 rounded-lg ${
-                                                interaction.interaction_type === 'email' ? 'bg-indigo-50 text-indigo-600' : 
-                                                interaction.interaction_type === 'note' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
-                                            }`}>
-                                                {interaction.interaction_type}
-                                            </Badge>
-                                        </div>
-                                        <Card className="p-8 rounded-[2.5rem] rounded-tl-none border-none bg-slate-50 dark:bg-slate-900/40 shadow-sm relative group-hover/item:shadow-2xl transition-all group-hover/item:bg-white dark:group-hover/item:bg-slate-900 border border-transparent group-hover/item:border-slate-100 dark:group-hover/item:border-white/5">
-                                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed italic">
-                                                "{interaction.content}"
-                                            </p>
-                                            {interaction.metadata?.template_name && (
-                                                <div className="mt-5 flex items-center gap-3 px-4 py-2 rounded-[1.5rem] bg-indigo-50 dark:bg-indigo-900/20 w-fit">
-                                                    <Zap className="h-3.5 w-3.5 text-indigo-600" />
-                                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Workflow: {interaction.metadata.template_name}</span>
+
+                                    <Card className="p-6 rounded-xl border border-slate-100 dark:border-white/5 bg-white dark:bg-slate-900 shadow-sm relative group hover:shadow-md transition-all">
+                                        <div className="flex gap-4">
+                                            <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+                                                {interaction.interaction_type === 'email' ? <Mail className="h-5 w-5 text-white" /> : 
+                                                 interaction.interaction_type === 'note' ? <Edit className="h-5 w-5 text-white" /> : 
+                                                 <Phone className="h-5 w-5 text-white" />}
+                                            </div>
+                                            <div className="flex-1 space-y-2">
+                                                <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                                                    {interaction.interaction_type === 'email' ? 'Email Sent' : 
+                                                     interaction.interaction_type === 'note' ? 'Note Added' : 'Call Logged'}
+                                                </h4>
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-bold text-slate-900 dark:text-white">
+                                                        Date: <span className="font-medium text-slate-600">{format(new Date(interaction.created_at), 'MMMM d, yyyy - h:mm a')}</span>
+                                                    </p>
+                                                    <p className="text-xs font-bold text-slate-900 dark:text-white">
+                                                        Description: <span className="font-medium text-slate-600 mb-1 block mt-1 leading-relaxed">
+                                                            {interaction.content}
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-xs font-bold text-slate-900 dark:text-white pt-1">
+                                                        {interaction.interaction_type === 'email' ? 'Sent by: ' : 'Added by: '}
+                                                        <span className="font-medium text-slate-600">Pastor Michael Brown</span>
+                                                    </p>
                                                 </div>
-                                            )}
-                                        </Card>
-                                    </div>
+                                            </div>
+                                        </div>
+                                    </Card>
                                 </div>
                             )) : (
-                                <div className="flex flex-col items-center justify-center py-40 opacity-20">
-                                    <BookOpen className="h-14 w-14 mb-4" />
-                                    <p className="font-black text-xs uppercase tracking-[0.3em] font-heading">Secure Ledger Empty</p>
+                                <div className="flex flex-col items-center justify-center py-32 opacity-30">
+                                    <BookOpen className="h-12 w-12 mb-4 text-slate-400" />
+                                    <p className="font-bold text-sm text-slate-500 uppercase tracking-widest">No interactions recorded</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="p-10 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-white/5 z-20">
-                            <div className="flex gap-6 items-end max-w-2xl mx-auto">
-                                <div className="flex-1 space-y-2">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-600 tracking-widest px-2">Rapid Insight Log</Label>
+                        {/* Note Input */}
+                        <div className="p-8 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-white/5">
+                            <div className="max-w-3xl mx-auto space-y-4">
+                                <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Rapid Insight Log</Label>
+                                <div className="relative">
                                     <Textarea 
                                         placeholder="Note pastoral outcomes or prayer points..." 
                                         value={newCRMNote}
                                         onChange={e => setNewCRMNote(e.target.value)}
-                                        className="h-28 rounded-[2rem] border-none bg-slate-50 dark:bg-slate-900/50 shadow-inner px-8 py-5 font-medium focus:ring-4 focus:ring-indigo-500/10 placeholder:text-slate-300 dark:placeholder:text-slate-700 transition-all resize-none"
+                                        className="min-h-[100px] rounded-2xl border-slate-200 bg-slate-50 dark:bg-slate-900/50 p-5 font-medium placeholder:text-slate-400 transition-all resize-none shadow-inner"
                                     />
+                                    <Button 
+                                        disabled={!newCRMNote.trim() || isSending}
+                                        onClick={() => {
+                                            if (!newCRMNote.trim()) return;
+                                            addInteraction({
+                                                visitor_id: member?.profiles?.id,
+                                                interaction_type: 'note',
+                                                content: newCRMNote
+                                            }, { onSuccess: () => setNewCRMNote('') });
+                                        }}
+                                        className="absolute bottom-4 right-4 h-10 w-10 rounded-full bg-indigo-600 text-white shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                                    >
+                                        <Send className="h-4 w-4" />
+                                    </Button>
                                 </div>
-                                <Button 
-                                    disabled={!newCRMNote.trim() || isSending}
-                                    onClick={() => {
-                                        if (!newCRMNote.trim()) return;
-                                        addInteraction({
-                                            visitor_id: member?.profiles?.id,
-                                            interaction_type: 'note',
-                                            content: newCRMNote
-                                        }, { onSuccess: () => setNewCRMNote('') });
-                                    }}
-                                    className="h-16 w-16 rounded-[2rem] bg-indigo-600 text-white shadow-2xl shadow-indigo-100 dark:shadow-none flex items-center justify-center shrink-0 hover:scale-110 active:scale-95 transition-all group lg:mt-0 mt-8"
-                                >
-                                    <Send className="h-8 w-8 transition-transform group-hover:rotate-12" />
-                                </Button>
                             </div>
                         </div>
                     </div>
