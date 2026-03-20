@@ -12,7 +12,7 @@ import {
   CheckCircle2, AlertCircle, ArrowUpRight, Plus, MapPin,
   ExternalLink, Layers, Trash2, UserCheck, Briefcase, Zap, Activity
 } from 'lucide-react';
-import { useMembers, ChurchMember, MembershipType } from '@/hooks/useMembers';
+import { useMembers, ChurchMember, MembershipType, MembershipStatus, ChurchStats } from '@/hooks/useMembers';
 import { useMinistries, Ministry, MinistryGroup, useGroupMembers } from '@/hooks/useMinistries';
 import { useVolunteers, VolunteerRole, VolunteerEvent } from '@/hooks/useVolunteers';
 import { useShifts } from '@/hooks/useShifts';
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/lib/i18n';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -54,6 +55,7 @@ const ChurchManagementPage = () => {
     const [newPosition, setNewPosition] = useState({ role_id: '', event_id: '', start_time: '', end_time: '' });
 
     const { toast } = useToast();
+    const { t } = useTranslation();
 
     const filteredMembers = members.filter(m => {
         const name = `${m.profiles?.first_name || ''} ${m.profiles?.last_name || ''} ${m.children?.first_name || ''} ${m.children?.last_name || ''}`.toLowerCase();
@@ -68,9 +70,9 @@ const ChurchManagementPage = () => {
 
     const getMembershipBadge = (type: MembershipType) => {
         switch (type) {
-            case 'registered': return <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-bold px-3 py-1">Registered Member</Badge>;
-            case 'regular': return <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-bold px-3 py-1">Regular Member</Badge>;
-            case 'visitor': return <Badge className="bg-amber-50 text-amber-600 border-amber-100 font-bold px-3 py-1">Visitor / Guest</Badge>;
+            case 'registered': return <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-bold px-3 py-1">{t('registeredMember')}</Badge>;
+            case 'regular': return <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-bold px-3 py-1">{t('regularAttendee')}</Badge>;
+            case 'visitor': return <Badge className="bg-amber-50 text-amber-600 border-amber-100 font-bold px-3 py-1">{t('visitorGuest')}</Badge>;
             default: return null;
         }
     };
@@ -119,22 +121,22 @@ const ChurchManagementPage = () => {
                             <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-indigo-100 shadow-xl">
                                 <ShieldCheck className="h-6 w-6 text-white" />
                             </div>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Church Management</h1>
+                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">{t('churchManagement')}</h1>
                         </div>
-                        <p className="text-slate-500 font-medium pl-1">Cultivating our spiritual community and ministry excellence.</p>
+                        <p className="text-slate-500 font-medium pl-1">{t('churchManagementSubtitle')}</p>
                     </div>
                     
                     <div className="flex items-center gap-3">
                         <Tabs value={activePerspective} onValueChange={setActivePerspective} className="w-fit">
                             <TabsList className="bg-slate-100 p-1 rounded-2xl border-none h-12 shadow-inner">
                                 <TabsTrigger value="members" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                                    <Users className="h-4 w-4 mr-2" /> Members
+                                    <Users className="h-4 w-4 mr-2" /> {t('members')}
                                 </TabsTrigger>
                                 <TabsTrigger value="ministries" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                                    <Layers className="h-4 w-4 mr-2" /> Ministries
+                                    <Layers className="h-4 w-4 mr-2" /> {t('ministries')}
                                 </TabsTrigger>
                                 <TabsTrigger value="volunteers" className="rounded-xl px-6 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                                    <Sparkles className="h-4 w-4 mr-2" /> Volunteers
+                                    <Sparkles className="h-4 w-4 mr-2" /> {t('volunteers')}
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
@@ -143,17 +145,17 @@ const ChurchManagementPage = () => {
                         
                         {activePerspective === 'members' && (
                             <Button className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 shadow-lg font-bold">
-                                <UserPlus className="h-5 w-5 mr-2" /> Add Member
+                                <UserPlus className="h-5 w-5 mr-2" /> {t('addMember')}
                             </Button>
                         )}
                         {activePerspective === 'ministries' && (
                             <Button onClick={() => setIsNewMinistryOpen(true)} className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 shadow-lg font-bold">
-                                <Plus className="h-5 w-5 mr-2" /> New Ministry
+                                <Plus className="h-5 w-5 mr-2" /> {t('newMinistryTitle')}
                             </Button>
                         )}
                         {activePerspective === 'volunteers' && (
                             <Button onClick={() => setIsRoleDialogOpen(true)} className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 shadow-lg font-bold">
-                                <Plus className="h-5 w-5 mr-2" /> Create Role
+                                <Plus className="h-5 w-5 mr-2" /> {t('createRole')}
                             </Button>
                         )}
                     </div>
@@ -176,8 +178,8 @@ const ChurchManagementPage = () => {
                                             <Users className="h-6 w-6" />
                                         </div>
                                         <div>
-                                            <h3 className="text-sm font-bold opacity-80 uppercase tracking-widest font-heading">Total Congregation</h3>
-                                            <p className="text-4xl font-black mt-1 leading-none">{(stats as any).total_members || 0}</p>
+                                            <h3 className="text-sm font-bold opacity-80 uppercase tracking-widest font-heading">{t('totalCongregation')}</h3>
+                                            <p className="text-4xl font-black mt-1 leading-none">{stats?.total_members || 0}</p>
                                         </div>
                                     </div>
                                     <div className="absolute top-[-10%] right-[-50%] w-80 h-80 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
@@ -188,8 +190,8 @@ const ChurchManagementPage = () => {
                                         <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-heading">Registered</h3>
-                                        <p className="text-4xl font-black text-slate-900 mt-1">{(stats as any).registered_count || 0}</p>
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-heading">{t('registeredCount')}</h3>
+                                        <p className="text-4xl font-black text-slate-900 mt-1">{stats?.registered_count || 0}</p>
                                     </div>
                                 </Card>
 
@@ -198,7 +200,7 @@ const ChurchManagementPage = () => {
                                         <Layers className="h-6 w-6 text-blue-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-heading">Total Ministries</h3>
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-heading">Total {t('ministries')}</h3>
                                         <p className="text-4xl font-black text-slate-900 mt-1">{ministries.length}</p>
                                     </div>
                                 </Card>
@@ -208,8 +210,8 @@ const ChurchManagementPage = () => {
                                         <Calendar className="h-6 w-6 text-pink-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-heading">Active Groups</h3>
-                                        <p className="text-4xl font-black text-slate-900 mt-1">{(stats as any).active_groups || 0}</p>
+                                        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-heading">{t('activeGroups')}</h3>
+                                        <p className="text-4xl font-black text-slate-900 mt-1">{stats?.active_groups || 0}</p>
                                     </div>
                                 </Card>
                             </div>
@@ -266,9 +268,9 @@ const ChurchManagementPage = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="px-8 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-                                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pastoral Care Tier 1</span>
-                                                     <Button variant="ghost" className="h-8 text-indigo-600 font-black text-[10px] tracking-widest p-0">JOURNEY DETAILS <ChevronRight className="h-3 w-3 ml-1" /></Button>
+                                                 <div className="px-8 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('pastoralCare')} Tier 1</span>
+                                                     <Button variant="ghost" className="h-8 text-indigo-600 font-black text-[10px] tracking-widest p-0">{t('journeyDetails').toUpperCase()} <ChevronRight className="h-3 w-3 ml-1" /></Button>
                                                 </div>
                                             </Card>
                                         </motion.div>
@@ -308,11 +310,11 @@ const ChurchManagementPage = () => {
                                             </div>
                                             <div className="p-8 flex-1 space-y-4">
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">SMALL GROUPS</span>
-                                                    <Button variant="ghost" size="sm" className="h-6 text-indigo-600 text-[10px] font-black tracking-widest" onClick={() => { setSelectedMinistryId(ministry.id); setIsNewGroupOpen(true); }}>
-                                                        <Plus className="h-3 w-3 mr-1" /> ADD GROUP
-                                                    </Button>
-                                                </div>
+                                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('smallGroups').toUpperCase()}</span>
+                                                     <Button variant="ghost" size="sm" className="h-6 text-indigo-600 text-[10px] font-black tracking-widest" onClick={() => { setSelectedMinistryId(ministry.id); setIsNewGroupOpen(true); }}>
+                                                         <Plus className="h-3 w-3 mr-1" /> {t('addGroup').toUpperCase()}
+                                                     </Button>
+                                                 </div>
                                                 <div className="space-y-3">
                                                     {ministry.groups?.length ? ministry.groups.map(group => (
                                                         <div key={group.id} onClick={() => { setSelectedGroupId(group.id); setIsRosterOpen(true); }} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-lg hover:border-indigo-100 transition-all group cursor-pointer">
@@ -325,17 +327,17 @@ const ChurchManagementPage = () => {
                                                             </div>
                                                         </div>
                                                     )) : (
-                                                        <div className="py-8 text-center border-2 border-dashed border-slate-100 rounded-3xl">
-                                                            <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No active groups</p>
-                                                        </div>
+                                                         <div className="py-8 text-center border-2 border-dashed border-slate-100 rounded-3xl">
+                                                             <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">{t('noActiveGroups')}</p>
+                                                         </div>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="p-6 pt-0">
-                                                <Button className="w-full h-12 rounded-2xl border-slate-200 bg-white text-indigo-600 font-bold hover:bg-indigo-50 border shadow-none" variant="outline" onClick={() => setSelectedMinistryId(ministry.id)}>
-                                                    Organization Chart <ChevronRight className="h-4 w-4 ml-2" />
-                                                </Button>
-                                            </div>
+                                             <div className="p-6 pt-0">
+                                                 <Button className="w-full h-12 rounded-2xl border-slate-200 bg-white text-indigo-600 font-bold hover:bg-indigo-50 border shadow-none" variant="outline" onClick={() => setSelectedMinistryId(ministry.id)}>
+                                                     {t('organizationChart')} <ChevronRight className="h-4 w-4 ml-2" />
+                                                 </Button>
+                                             </div>
                                         </Card>
                                     ))}
                                 </div>
@@ -354,12 +356,12 @@ const ChurchManagementPage = () => {
                             {/* Volunteer Stats */}
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <Card className="lg:col-span-1 border-none bg-slate-900 text-white rounded-[3rem] p-10 relative overflow-hidden group shadow-2xl">
-                                    <div className="relative z-10 space-y-8">
-                                        <Badge className="bg-white/10 text-indigo-200 border-white/20 font-black uppercase text-[10px] tracking-widest">Operation Excellence</Badge>
-                                        <div>
-                                            <h3 className="text-3xl font-black italic tracking-tight">Personnel Coverage</h3>
-                                            <p className="text-slate-400 text-xs font-bold mt-2 leading-relaxed opacity-80">Real-time gap analysis across all upcoming weekend services and ministry events.</p>
-                                        </div>
+                                     <div className="relative z-10 space-y-8">
+                                         <Badge className="bg-white/10 text-indigo-200 border-white/20 font-black uppercase text-[10px] tracking-widest">Operation Excellence</Badge>
+                                         <div>
+                                             <h3 className="text-3xl font-black italic tracking-tight">{t('personnelCoverage')}</h3>
+                                             <p className="text-slate-400 text-xs font-bold mt-2 leading-relaxed opacity-80">{t('gapAnalysis')}</p>
+                                         </div>
                                         <div className="space-y-6">
                                             <div className="flex justify-between items-end">
                                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Service Success Rate</span>
@@ -376,27 +378,27 @@ const ChurchManagementPage = () => {
                                 <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <Card className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white p-8 group hover:shadow-indigo-100/50 transition-all">
                                         <div className="flex gap-6 items-start">
-                                            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition-colors">
-                                                <Briefcase className="h-6 w-6 text-indigo-600 group-hover:text-white transition-colors" />
-                                            </div>
-                                            <div>
-                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Volunteer Roles</h4>
-                                                <p className="text-3xl font-black text-slate-900">{volunteerRoles.length}</p>
-                                                <p className="text-xs font-bold text-slate-400 mt-1 italic">Active service positions</p>
-                                            </div>
+                                             <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition-colors">
+                                                 <Briefcase className="h-6 w-6 text-indigo-600 group-hover:text-white transition-colors" />
+                                             </div>
+                                             <div>
+                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('volunteers')} RÔLES</h4>
+                                                 <p className="text-3xl font-black text-slate-900">{volunteerRoles.length}</p>
+                                                 <p className="text-xs font-bold text-slate-400 mt-1 italic">Active service positions</p>
+                                             </div>
                                         </div>
                                     </Card>
 
                                     <Card className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white p-8 group hover:shadow-emerald-100/50 transition-all">
                                         <div className="flex gap-6 items-start">
-                                            <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-emerald-600 transition-colors">
-                                                <Activity className="h-6 w-6 text-emerald-600 group-hover:text-white transition-colors" />
-                                            </div>
-                                            <div>
-                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Total Deployments</h4>
-                                                <p className="text-3xl font-black text-slate-900">42</p>
-                                                <p className="text-xs font-bold text-slate-400 mt-1 italic">Shifts this week</p>
-                                            </div>
+                                             <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-emerald-600 transition-colors">
+                                                 <Activity className="h-6 w-6 text-emerald-600 group-hover:text-white transition-colors" />
+                                             </div>
+                                             <div>
+                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{t('totalDeployments').toUpperCase()}</h4>
+                                                 <p className="text-3xl font-black text-slate-900">42</p>
+                                                 <p className="text-xs font-bold text-slate-400 mt-1 italic">Shifts this week</p>
+                                             </div>
                                         </div>
                                     </Card>
                                 </div>
@@ -404,9 +406,9 @@ const ChurchManagementPage = () => {
 
                             {/* Upcoming Events / Services */}
                             <div className="space-y-6">
-                                <h3 className="text-xl font-black flex items-center gap-2 italic tracking-tight">
-                                    <Calendar className="h-5 w-5 text-indigo-600" /> Weekend Service Manifest
-                                </h3>
+                                 <h3 className="text-xl font-black flex items-center gap-2 italic tracking-tight">
+                                     <Calendar className="h-5 w-5 text-indigo-600" /> {t('serviceManifest')}
+                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                                     {isEventsLoading ? (
                                         <div className="col-span-full h-64 border-2 border-dashed border-slate-100 rounded-[3rem] flex items-center justify-center">
@@ -430,11 +432,11 @@ const ChurchManagementPage = () => {
                                                 </div>
                                             </div>
                                             
-                                            <div className="px-10 py-8 bg-slate-50/50 border-t border-slate-100 space-y-6">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Role Coverage</span>
-                                                    <span className="text-xs font-black text-indigo-600">{(event.stats?.filled_positions || 0)} / {(event.stats?.total_positions || 0)} Filled</span>
-                                                </div>
+                                             <div className="px-10 py-8 bg-slate-50/50 border-t border-slate-100 space-y-6">
+                                                 <div className="flex justify-between items-center">
+                                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('roleCoverage')}</span>
+                                                     <span className="text-xs font-black text-indigo-600">{(event.stats?.filled_positions || 0)} / {(event.stats?.total_positions || 0)} Filled</span>
+                                                 </div>
                                                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                                                     <motion.div 
                                                         initial={{ width: 0 }} 
@@ -442,10 +444,10 @@ const ChurchManagementPage = () => {
                                                         className="h-full bg-indigo-600" 
                                                     />
                                                 </div>
-                                                <Button onClick={() => { setSelectedEventId(event.id); setIsPositionDialogOpen(true); }} className="w-full h-12 bg-white border border-slate-200 rounded-2xl text-indigo-600 font-bold hover:bg-slate-50 shadow-none">
-                                                    Manage Personnel <ArrowUpRight className="h-4 w-4 ml-1" />
-                                                </Button>
-                                            </div>
+                                                 <Button onClick={() => { setSelectedEventId(event.id); setIsPositionDialogOpen(true); }} className="w-full h-12 bg-white border border-slate-200 rounded-2xl text-indigo-600 font-bold hover:bg-slate-50 shadow-none">
+                                                     {t('managePersonnel')} <ArrowUpRight className="h-4 w-4 ml-1" />
+                                                 </Button>
+                                             </div>
                                         </Card>
                                     ))}
                                 </div>
@@ -458,30 +460,30 @@ const ChurchManagementPage = () => {
             {/* Dialogs */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="max-w-xl rounded-[3rem] p-0 overflow-hidden border-none shadow-2xl">
-                    <div className="bg-indigo-600 p-8 text-white">
+                     <div className="bg-indigo-600 p-8 text-white">
                         <DialogHeader>
-                            <DialogTitle className="text-3xl font-black">Spiritual Journey</DialogTitle>
+                            <DialogTitle className="text-3xl font-black">{t('spiritualJourney')}</DialogTitle>
                             <DialogDescription className="text-indigo-100 opacity-80 pt-1">
                                 Managing {selectedMember?.profiles?.first_name || selectedMember?.children?.first_name}'s membership and care.
                             </DialogDescription>
                         </DialogHeader>
                     </div>
                     <form onSubmit={handleUpdate} className="p-8 space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
+                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">Member Type</Label>
-                                <Select value={selectedMember?.membership_type} onValueChange={val => setSelectedMember(selectedMember ? { ...selectedMember, membership_type: val as any } : null)}>
+                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('memberType')}</Label>
+                                <Select value={selectedMember?.membership_type} onValueChange={val => setSelectedMember(selectedMember ? { ...selectedMember, membership_type: val as MembershipType } : null)}>
                                     <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="registered">Registered Member</SelectItem>
-                                        <SelectItem value="regular">Regular Attendee</SelectItem>
-                                        <SelectItem value="visitor">Visitor / Guest</SelectItem>
+                                        <SelectItem value="registered">{t('registeredMember')}</SelectItem>
+                                        <SelectItem value="regular">{t('regularAttendee')}</SelectItem>
+                                        <SelectItem value="visitor">{t('visitorGuest')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">Life Status</Label>
-                                <Select value={selectedMember?.status} onValueChange={val => setSelectedMember(selectedMember ? { ...selectedMember, status: val as any } : null)}>
+                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('lifeStatus')}</Label>
+                                <Select value={selectedMember?.status} onValueChange={val => setSelectedMember(selectedMember ? { ...selectedMember, status: val as MembershipStatus } : null)}>
                                     <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="active">Active</SelectItem>
@@ -491,12 +493,12 @@ const ChurchManagementPage = () => {
                                 </Select>
                             </div>
                             <div className="col-span-2 space-y-2">
-                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">Pastoral Notes</Label>
+                                <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('pastoralNotes')}</Label>
                                 <textarea className="w-full p-4 bg-slate-50 rounded-2xl border-slate-100 font-medium h-32 focus:bg-white transition-all outline-none" value={selectedMember?.pastoral_notes || ''} onChange={e => setSelectedMember(selectedMember ? { ...selectedMember, pastoral_notes: e.target.value } : null)} />
                             </div>
                         </div>
                         <DialogFooter>
-                             <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black shadow-lg shadow-indigo-100">Update Profile</Button>
+                             <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black shadow-lg shadow-indigo-100">{t('updateProfile')}</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -504,11 +506,11 @@ const ChurchManagementPage = () => {
             {/* Manage Roster Dialog */}
             <Dialog open={isRosterOpen} onOpenChange={setIsRosterOpen}>
                 <DialogContent className="max-w-3xl rounded-[3rem] p-0 overflow-hidden border-none shadow-2xl">
-                    <div className="bg-indigo-600 p-8 text-white flex justify-between items-center">
+                     <div className="bg-indigo-600 p-8 text-white flex justify-between items-center">
                         <div>
-                            <DialogTitle className="text-3xl font-black tracking-tight italic">Group Roster</DialogTitle>
+                            <DialogTitle className="text-3xl font-black tracking-tight italic">{t('rosterTitle')}</DialogTitle>
                             <DialogDescription className="text-indigo-100 opacity-80 font-bold">
-                                Members registered for this specific gathering.
+                                {t('rosterDescription')}
                             </DialogDescription>
                         </div>
                         <Users className="h-12 w-12 opacity-20" />
@@ -516,9 +518,9 @@ const ChurchManagementPage = () => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 h-[500px]">
                         {/* Current Members */}
-                        <div className="p-8 border-r border-slate-100 flex flex-col">
+                         <div className="p-8 border-r border-slate-100 flex flex-col">
                             <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                                <UserCheck className="h-3 w-3" /> ACTIVE ROSTER ({groupMembers.length})
+                                <UserCheck className="h-3 w-3" /> {t('activeRoster').toUpperCase()} ({groupMembers.length})
                             </h5>
                             <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                                 {rosterLoading ? (
@@ -549,14 +551,14 @@ const ChurchManagementPage = () => {
                         </div>
 
                         {/* Assign New */}
-                        <div className="p-8 flex flex-col bg-slate-50/50">
+                         <div className="p-8 flex flex-col bg-slate-50/50">
                             <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                                <Plus className="h-3 w-3" /> ASSIGN NEW MEMBER
+                                <Plus className="h-3 w-3" /> {t('assignNewMember').toUpperCase()}
                             </h5>
-                            <div className="relative mb-6">
+                             <div className="relative mb-6">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                                 <Input 
-                                    placeholder="Search congregation..." 
+                                    placeholder={t('searchCongregation')} 
                                     value={memberSearchTerm} 
                                     onChange={e => setMemberSearchTerm(e.target.value)}
                                     className="h-10 pl-9 rounded-xl border-slate-200 bg-white text-xs font-bold"
@@ -587,31 +589,30 @@ const ChurchManagementPage = () => {
                             </div>
                         </div>
                     </div>
-                    
-                    <DialogFooter className="p-6 bg-white border-t border-slate-100">
-                        <Button className="w-full h-12 bg-slate-900 rounded-2xl font-black italic tracking-tight" onClick={() => setIsRosterOpen(false)}>Close Mission Control</Button>
+                                        <DialogFooter className="p-6 bg-white border-t border-slate-100">
+                        <Button className="w-full h-12 bg-slate-900 rounded-2xl font-black italic tracking-tight" onClick={() => setIsRosterOpen(false)}>{t('closeMissionControl')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* New Ministry Dialog */}
             <Dialog open={isNewMinistryOpen} onOpenChange={setIsNewMinistryOpen}>
-                <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
+                 <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
                     <DialogHeader className="mb-4">
-                        <DialogTitle className="text-2xl font-black italic tracking-tight">New Department / Ministry</DialogTitle>
+                        <DialogTitle className="text-2xl font-black italic tracking-tight">{t('newMinistry')}</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleCreateMinistry} className="space-y-4">
+                     <form onSubmit={handleCreateMinistry} className="space-y-4">
                         <Input placeholder="Ministry Name (e.g., Youth Ministry)" value={newMinistryName} onChange={e => setNewMinistryName(e.target.value)} className="h-12 rounded-xl font-bold" autoFocus />
-                        <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black">Establish Ministry</Button>
+                        <Button type="submit" className="w-full h-12 bg-indigo-600 rounded-xl font-black">{t('establishMinistry')}</Button>
                     </form>
                 </DialogContent>
             </Dialog>
 
              {/* New Group Dialog */}
-             <Dialog open={isNewGroupOpen} onOpenChange={setIsNewGroupOpen}>
+              <Dialog open={isNewGroupOpen} onOpenChange={setIsNewGroupOpen}>
                 <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
                     <DialogHeader className="mb-4">
-                        <DialogTitle className="text-2xl font-black italic tracking-tight">Create Small Group</DialogTitle>
+                        <DialogTitle className="text-2xl font-black italic tracking-tight">{t('addGroup')}</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleCreateGroup} className="space-y-4">
                         <Input placeholder="Group Name (e.g., Tuesday Night Prayer)" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} className="h-12 rounded-xl font-bold" autoFocus />
@@ -621,10 +622,10 @@ const ChurchManagementPage = () => {
             </Dialog>
 
             {/* Create Role Dialog */}
-            <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+             <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
                 <DialogContent className="rounded-[2.5rem] p-8 border-none shadow-2xl">
                     <DialogHeader className="mb-6">
-                        <DialogTitle className="text-2xl font-black italic tracking-tight">New Volunteer Role</DialogTitle>
+                        <DialogTitle className="text-2xl font-black italic tracking-tight">{t('newRole')}</DialogTitle>
                         <DialogDescription className="font-bold text-slate-500">Define a new service position for your ministries.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
@@ -639,9 +640,9 @@ const ChurchManagementPage = () => {
                                 <SelectContent>
                                     {ministries.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
                                 </SelectContent>
-                            </Select>
+                             </Select>
                         </div>
-                        <Button onClick={() => createRole(newRole, { onSuccess: () => setIsRoleDialogOpen(false) })} className="w-full h-12 bg-indigo-600 rounded-xl font-black">Establish Role</Button>
+                        <Button onClick={() => createRole(newRole, { onSuccess: () => setIsRoleDialogOpen(false) })} className="w-full h-12 bg-indigo-600 rounded-xl font-black">{t('establishRole')}</Button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -649,48 +650,48 @@ const ChurchManagementPage = () => {
             {/* Manage Event Positions (Volunteer Shift Hub) */}
             <Dialog open={isPositionDialogOpen} onOpenChange={setIsPositionDialogOpen}>
                 <DialogContent className="max-w-4xl rounded-[3rem] p-0 overflow-hidden border-none shadow-2xl">
-                    <div className="bg-slate-900 p-10 text-white flex justify-between items-center">
+                     <div className="bg-slate-900 p-10 text-white flex justify-between items-center">
                         <div>
-                            <Badge className="bg-indigo-600 text-white mb-2 font-black uppercase text-[10px] h-6 px-3">Service Logistics</Badge>
-                            <DialogTitle className="text-3xl font-black italic tracking-tight">Personnel Manifest</DialogTitle>
+                            <Badge className="bg-indigo-600 text-white mb-2 font-black uppercase text-[10px] h-6 px-3">{t('serviceLogistics')}</Badge>
+                            <DialogTitle className="text-3xl font-black italic tracking-tight">{t('personnelManifest')}</DialogTitle>
                         </div>
                         <Activity className="h-12 w-12 text-indigo-500 opacity-50" />
                     </div>
                     <div className="p-10">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-[500px]">
                             {/* Current Positions */}
-                            <div className="flex flex-col">
+                             <div className="flex flex-col">
                                 <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
-                                    <Zap className="h-3 w-3 text-amber-500" /> ACTIVE DEPLOYMENTS
+                                    <Zap className="h-3 w-3 text-amber-500" /> {t('activeDeployments').toUpperCase()}
                                 </h5>
                                 <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-premium">
                                     {/* Using useShifts with event_id filter */}
                                     <EventPositions eventId={selectedEventId || ''} />
                                 </div>
                             </div>
-
-                            {/* Open New Position */}
-                            <div className="bg-slate-50/50 rounded-[2.5rem] p-8 border border-slate-100">
-                                <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">OPEN NEW POSITION</h5>
+ 
+                             {/* Open New Position */}
+                             <div className="bg-slate-50/50 rounded-[2.5rem] p-8 border border-slate-100">
+                                <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">{t('openNewPosition').toUpperCase()}</h5>
                                 <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Select Role</Label>
-                                        <Select onValueChange={val => setNewPosition({...newPosition, role_id: val})}>
-                                            <SelectTrigger className="h-12 rounded-xl bg-white"><SelectValue placeholder="Choose Role..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {volunteerRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                     <div className="space-y-2">
+                                         <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('selectRole')}</Label>
+                                         <Select onValueChange={val => setNewPosition({...newPosition, role_id: val})}>
+                                             <SelectTrigger className="h-12 rounded-xl bg-white"><SelectValue placeholder="Choose Role..." /></SelectTrigger>
+                                             <SelectContent>
+                                                 {volunteerRoles.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                                             </SelectContent>
+                                         </Select>
+                                     </div>
+                                     <div className="grid grid-cols-2 gap-4">
+                                         <div className="space-y-2">
+                                             <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('startTime')}</Label>
+                                             <Input type="time" onChange={e => setNewPosition({...newPosition, start_time: e.target.value})} className="h-12 rounded-xl bg-white font-bold" />
+                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Start Time</Label>
-                                            <Input type="time" onChange={e => setNewPosition({...newPosition, start_time: e.target.value})} className="h-12 rounded-xl bg-white font-bold" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">End Time</Label>
-                                            <Input type="time" onChange={e => setNewPosition({...newPosition, end_time: e.target.value})} className="h-12 rounded-xl bg-white font-bold" />
-                                        </div>
+                                             <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">{t('endTime')}</Label>
+                                             <Input type="time" onChange={e => setNewPosition({...newPosition, end_time: e.target.value})} className="h-12 rounded-xl bg-white font-bold" />
+                                         </div>
                                     </div>
                                     <Button onClick={() => {
                                         if(!selectedEventId) return;
@@ -702,10 +703,10 @@ const ChurchManagementPage = () => {
                                             roleId: newPosition.role_id,
                                             ministryId: role?.ministry_id,
                                             startTime: `${startDt}T${newPosition.start_time}:00`,
-                                            endTime: `${startDt}T${newPosition.end_time}:00`
-                                        });
-                                    }} className="w-full h-14 bg-indigo-600 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">Deploy Position</Button>
-                                </div>
+                                             endTime: `${startDt}T${newPosition.end_time}:00`
+                                         });
+                                     }} className="w-full h-14 bg-indigo-600 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">{t('deployPosition')}</Button>
+                                 </div>
                             </div>
                         </div>
                     </div>

@@ -31,6 +31,8 @@ export interface AuthContextType {
   loading: boolean;
   mfaLevel: 'aal1' | 'aal2';
   isMfaPending: boolean;
+  isMfaEnrolled: boolean;
+  mfaFactors: any[];
   signOut: () => Promise<void>;
   refreshUserRole: () => Promise<void>;
   refreshMfaStatus: () => Promise<void>;
@@ -57,6 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [mfaLevel, setMfaLevel] = useState<'aal1' | 'aal2'>('aal1');
   const [isMfaPending, setIsMfaPending] = useState(false);
+  const [isMfaEnrolled, setIsMfaEnrolled] = useState(false);
+  const [mfaFactors, setMfaFactors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
@@ -67,6 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!error && data) {
         setMfaLevel(data.currentLevel as any || 'aal1');
         setIsMfaPending(data.nextLevel === 'aal2' && data.currentLevel !== 'aal2');
+      }
+
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      if (!factorsError && factors) {
+         setMfaFactors(factors.all || []);
+         setIsMfaEnrolled(factors.all.length > 0);
       }
     } catch (e) {
       console.warn("MFA level fetching failed", e);
@@ -368,6 +378,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isVerifiedStaff,
     mfaLevel,
     isMfaPending,
+    isMfaEnrolled,
+    mfaFactors,
     hasRole,
     hasPermission,
   };

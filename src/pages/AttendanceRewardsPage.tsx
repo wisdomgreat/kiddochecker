@@ -21,7 +21,7 @@ interface Reward {
   id: string;
   name: string;
   description: string;
-  points: number;
+  points_required: number;
   image_url?: string;
   created_at: string;
   updated_at: string;
@@ -30,14 +30,15 @@ interface Reward {
 interface Redemption {
   id: string;
   reward_id: string;
-  child_id: string;
   user_id: string;
-  points_spent: number;
+  points_at_redemption: number;
   status: string;
   redeemed_at: string;
-  reward: { name: string };
-  child: { first_name: string; last_name: string };
-  parent: { first_name: string; last_name: string };
+  reward?: { name: string };
+  profiles?: {
+    first_name: string | null;
+    last_name: string | null;
+  };
 }
 
 const AttendanceRewardsPage = () => {
@@ -49,12 +50,12 @@ const AttendanceRewardsPage = () => {
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
 
   const { data: rewards = [], isLoading: rewardsLoading } = useQuery({
-    queryKey: ["rewards"],
+    queryKey: ['attendance-rewards'],
     queryFn: async (): Promise<Reward[]> => {
       const { data, error } = await supabase
-        .from("rewards")
+        .from("attendance_rewards")
         .select("*")
-        .order("points", { ascending: true });
+        .order("points_required", { ascending: true });
       
       if (error) throw error;
       return data || [];
@@ -62,20 +63,19 @@ const AttendanceRewardsPage = () => {
   });
 
   const { data: redemptions = [], isLoading: redemptionsLoading } = useQuery({
-    queryKey: ["redemptions"],
-    queryFn: async (): Promise<Redemption[]> => {
+    queryKey: ['reward-redemptions'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("reward_redemptions")
         .select(`
           *,
-          reward:rewards(name),
-          child:children(first_name, last_name),
-          parent:profiles(first_name, last_name)
+          reward:reward_id (name),
+          profiles:user_id (first_name, last_name)
         `)
         .order("redeemed_at", { ascending: false });
       
       if (error) throw error;
-      return (data || []) as any;
+      return (data || []) as unknown as Redemption[];
     },
   });
 
@@ -89,7 +89,7 @@ const AttendanceRewardsPage = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["redemptions"] });
+      queryClient.invalidateQueries({ queryKey: ["reward-redemptions"] });
       toast({ title: "Status updated successfully" });
     },
     onError: (error: any) => {
@@ -109,7 +109,7 @@ const AttendanceRewardsPage = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-rewards"] });
       toast({ title: "Reward added successfully" });
       setIsAddOpen(false);
     },
@@ -131,7 +131,7 @@ const AttendanceRewardsPage = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-rewards"] });
       toast({ title: "Reward updated successfully" });
       setSelectedReward(null);
     },
@@ -146,7 +146,7 @@ const AttendanceRewardsPage = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-rewards"] });
       toast({ title: "Reward deleted successfully" });
     },
     onError: (error: any) => {
@@ -194,65 +194,14 @@ const AttendanceRewardsPage = () => {
             <TabsTrigger value="redemptions" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Redemptions</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="available" className="mt-6">
-            {rewardsLoading ? (
-              <div className="flex justify-center py-12">
-                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {rewards.map((reward) => (
-                  <Card key={reward.id} className="hover:shadow-md transition-shadow relative overflow-hidden group border-none shadow-xl shadow-slate-100 rounded-[2rem]">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <Trophy className="h-5 w-5 text-amber-500" />
-                          {reward.name}
-                        </CardTitle>
-                        <div className="flex gap-1 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" onClick={() => setSelectedReward(reward)} className="rounded-xl">
-                            <Edit className="h-4 w-4 text-slate-500" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                            onClick={() => {
-                              if (window.confirm("Are you sure you want to delete this reward?")) {
-                                deleteRewardMutation.mutate(reward.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
-                        {reward.description || "No description provided."}
-                      </p>
-                      <div className="flex items-center justify-between pt-2">
-                        <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-none font-bold px-3 py-1 rounded-lg">
-                          {reward.points} POINTS
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
           <TabsContent value="redemptions" className="mt-6">
             <Card className="border-none shadow-xl shadow-slate-100 rounded-[2rem] overflow-hidden">
               <Table>
                 <TableHeader className="bg-slate-50">
                   <TableRow>
-                    <TableHead className="font-bold">Child</TableHead>
+                    <TableHead className="font-bold">Redeemed By</TableHead>
                     <TableHead className="font-bold">Reward</TableHead>
-                    <TableHead className="font-bold">Parent</TableHead>
-                    <TableHead className="font-bold">Date</TableHead>
+                    <TableHead className="font-bold">Points Spent</TableHead>
                     <TableHead className="font-bold">Status</TableHead>
                     <TableHead className="font-bold text-right">Actions</TableHead>
                   </TableRow>
@@ -263,10 +212,18 @@ const AttendanceRewardsPage = () => {
                   ) : redemptions.length > 0 ? (
                     redemptions.map((redemption) => (
                       <TableRow key={redemption.id}>
-                        <TableCell className="font-medium">{redemption.child?.first_name} {redemption.child?.last_name}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-slate-900 leading-tight">
+                              {redemption.profiles?.first_name || 'Member'} {redemption.profiles?.last_name || ''}
+                            </h4>
+                            <p className="text-xs font-bold text-slate-400">
+                              Redeemed {format(new Date(redemption.redeemed_at), 'MMM d, h:mm a')}
+                            </p>
+                          </div>
+                        </TableCell>
                         <TableCell>{redemption.reward?.name}</TableCell>
-                        <TableCell>{redemption.parent?.first_name} {redemption.parent?.last_name}</TableCell>
-                        <TableCell className="text-slate-500 text-xs">{format(new Date(redemption.redeemed_at), "MMM dd, yyyy")}</TableCell>
+                        <TableCell>{redemption.points_at_redemption}</TableCell>
                         <TableCell>
                           <Badge 
                             variant="outline" 
@@ -309,6 +266,56 @@ const AttendanceRewardsPage = () => {
               </Table>
             </Card>
           </TabsContent>
+
+          <TabsContent value="available" className="mt-6">
+            {rewardsLoading ? (
+              <div className="flex justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {rewards.map((reward) => (
+                  <Card key={reward.id} className="hover:shadow-md transition-shadow relative overflow-hidden group border-none shadow-xl shadow-slate-100 rounded-[2rem]">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-amber-500" />
+                          {reward.name}
+                        </CardTitle>
+                        <div className="flex gap-1 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => setSelectedReward(reward)} className="rounded-xl">
+                            <Edit className="h-4 w-4 text-slate-500" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to delete this reward?")) {
+                                deleteRewardMutation.mutate(reward.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
+                        {reward.description || "No description provided."}
+                      </p>
+                      <div className="flex items-center justify-between pt-2">
+                        <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-none font-bold px-3 py-1 rounded-lg">
+                          {reward.points_required} POINTS
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
 
         {/* Add/Edit Reward Dialog */}
@@ -324,7 +331,7 @@ const AttendanceRewardsPage = () => {
                 const data = {
                   name: formData.get("name") as string,
                   description: formData.get("description") as string,
-                  points: parseInt(formData.get("points") as string),
+                  points_required: parseInt(formData.get("points_required") as string),
                 };
                 if (selectedReward) {
                   updateRewardMutation.mutate({ id: selectedReward.id, ...data });
@@ -344,7 +351,7 @@ const AttendanceRewardsPage = () => {
               </div>
               <div className="space-y-2">
                 <Label className="font-bold">Points Required</Label>
-                <Input name="points" type="number" defaultValue={selectedReward?.points} required className="rounded-xl h-11" />
+                 <Input name="points_required" type="number" defaultValue={selectedReward?.points_required} required className="rounded-xl h-11" />
               </div>
               <Button type="submit" className="w-full h-12 rounded-xl font-bold bg-indigo-600 mt-4">
                 {selectedReward ? "Update Reward" : "Create Reward"}

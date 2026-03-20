@@ -16,9 +16,16 @@ export interface ChurchMember {
   confirmation_date?: string;
   wedding_date?: string;
   pastoral_notes?: string;
-  spiritual_milestones: any[];
+  spiritual_milestones: unknown[];
   profiles?: { first_name: string; last_name: string; email: string };
   children?: { first_name: string; last_name: string };
+}
+
+export interface ChurchStats {
+  total_members: number;
+  registered_count: number;
+  active_groups: number;
+  attendance_this_week: number;
 }
 
 export const useMembers = () => {
@@ -47,7 +54,7 @@ export const useMembers = () => {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_church_stats');
       if (error) throw error;
-      return data;
+      return data as ChurchStats;
     },
   });
 
@@ -69,13 +76,13 @@ export const useMembers = () => {
       queryClient.invalidateQueries({ queryKey: ['church-stats'] });
       toast({ title: 'Profile Updated', description: 'Membership details saved.' });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({ title: 'Update Failed', description: err.message, variant: 'destructive' });
     },
   });
 
   const createMemberMutation = useMutation({
-    mutationFn: async (vars: any) => {
+    mutationFn: async (vars: Partial<ChurchMember>) => {
       const { data, error } = await supabase
         .from('church_memberships')
         .insert(vars)
@@ -89,7 +96,7 @@ export const useMembers = () => {
         queryClient.invalidateQueries({ queryKey: ['church-stats'] });
         toast({ title: 'Member Added', description: 'New church membership record created.' });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
         toast({ title: 'Create Failed', description: err.message, variant: 'destructive' });
     },
   });
@@ -97,7 +104,7 @@ export const useMembers = () => {
   return {
     members: membersQuery.data || [],
     isLoading: membersQuery.isLoading,
-    stats: churchStatsQuery.data || {},
+    stats: churchStatsQuery.data,
     updateMember: updateMemberMutation.mutate,
     createMember: createMemberMutation.mutate,
     isUpdating: updateMemberMutation.isPending,
