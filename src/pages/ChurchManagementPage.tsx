@@ -10,7 +10,7 @@ import {
   Calendar, Star, MoreVertical, Edit, Phone, Mail, 
   ChevronRight, Loader2, Sparkles, BookOpen, Clock, 
   CheckCircle2, AlertCircle, ArrowUpRight, Plus, MapPin,
-  ExternalLink, Layers, Trash2, UserCheck, Briefcase, Zap, Activity
+  ExternalLink, Layers, Trash2, UserCheck, Briefcase, Zap, Activity, PhoneCall
 } from 'lucide-react';
 import { useMembers, ChurchMember, MembershipType, MembershipStatus, ChurchStats } from '@/hooks/useMembers';
 import { useMinistries, Ministry, MinistryGroup, useGroupMembers } from '@/hooks/useMinistries';
@@ -118,6 +118,9 @@ const ChurchManagementPage = () => {
                 city: selectedMember.profiles?.city,
                 state: selectedMember.profiles?.state,
                 zip_code: selectedMember.profiles?.zip_code,
+                secondary_phone: selectedMember.profiles?.secondary_phone,
+                marital_status: selectedMember.profiles?.marital_status,
+                bio: selectedMember.profiles?.bio,
                 occupation: selectedMember.profiles?.occupation,
                 emergency_contact_name: selectedMember.profiles?.emergency_contact_name,
                 emergency_contact_phone: selectedMember.profiles?.emergency_contact_phone
@@ -425,9 +428,14 @@ const ChurchManagementPage = () => {
                                                 <div className="flex items-center justify-between">
                                                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('smallGroups').toUpperCase()}</span>
                                                      {hasPermission('church_manage_ministries') && (
-                                                         <Button variant="ghost" size="sm" className="h-6 text-indigo-600 text-[10px] font-black tracking-widest" onClick={() => { setSelectedMinistryId(ministry.id); setIsNewGroupOpen(true); }}>
-                                                             <Plus className="h-3 w-3 mr-1" /> {t('addGroup').toUpperCase()}
-                                                         </Button>
+                                                         <div className="flex gap-2">
+                                                            <Button variant="ghost" size="sm" className="h-6 text-indigo-600 text-[10px] font-black tracking-widest" onClick={() => { setSelectedMinistryId(ministry.id); setIsNewGroupOpen(true); }}>
+                                                                <Plus className="h-3 w-3 mr-1" /> {t('addGroup').toUpperCase()}
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" className="h-6 text-emerald-600 text-[10px] font-black tracking-widest" onClick={() => toast({ title: "Bulk Message", description: `Drafting message to all ${ministry.name} members` })}>
+                                                                <Mail className="h-3 w-3 mr-1" /> {t('message').toUpperCase()}
+                                                            </Button>
+                                                         </div>
                                                      )}
                                                  </div>
                                                 <div className="space-y-3">
@@ -589,6 +597,52 @@ const ChurchManagementPage = () => {
                                         />
                                     </div>
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                     <div className="space-y-2">
+                                        <Label className="text-xs font-black uppercase text-slate-500 ml-1">Email</Label>
+                                        <Input value={selectedMember.profiles.email || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, email: e.target.value } })} className="h-12 rounded-xl font-bold" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-black uppercase text-slate-500 ml-1">Phone</Label>
+                                        <Input value={selectedMember.profiles.phone || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, phone: e.target.value } })} className="h-12 rounded-xl font-bold" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-black uppercase text-slate-500 ml-1">Secondary Phone</Label>
+                                        <Input value={selectedMember.profiles.secondary_phone || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, secondary_phone: e.target.value } })} className="h-12 rounded-xl font-bold" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-black uppercase text-slate-500 ml-1">Marital Status</Label>
+                                        <Select value={selectedMember.profiles.marital_status || 'single'} onValueChange={val => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, marital_status: val } })}>
+                                            <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="single">Single</SelectItem>
+                                                <SelectItem value="married">Married</SelectItem>
+                                                <SelectItem value="divorced">Divorced</SelectItem>
+                                                <SelectItem value="widowed">Widowed</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black uppercase text-slate-500 ml-1">Home Address</Label>
+                                    <Input value={selectedMember.profiles.address || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, address: e.target.value } })} className="h-12 rounded-xl font-bold" />
+                                </div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400">City</Label>
+                                        <Input value={selectedMember.profiles.city || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, city: e.target.value } })} className="h-10 rounded-lg font-bold" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400">State</Label>
+                                        <Input value={selectedMember.profiles.state || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, state: e.target.value } })} className="h-10 rounded-lg font-bold" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase text-slate-400">Zip Code</Label>
+                                        <Input value={selectedMember.profiles.zip_code || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, zip_code: e.target.value } })} className="h-10 rounded-lg font-bold" />
+                                    </div>
+                                </div>
                                 <div className="space-y-2">
                                     <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('occupation')}</Label>
                                     <Input 
@@ -597,6 +651,30 @@ const ChurchManagementPage = () => {
                                         className="h-12 rounded-xl border-slate-200 font-bold focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g. Software Engineer"
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-black uppercase text-slate-500 ml-1">Bio / Pastoral Bio</Label>
+                                    <Textarea 
+                                        value={selectedMember.profiles.bio || ''} 
+                                        onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, bio: e.target.value } })}
+                                        className="rounded-xl font-medium border-slate-200"
+                                        placeholder="Brief notes about the member..."
+                                    />
+                                </div>
+                                <div className="space-y-4 pt-4 border-t border-slate-100">
+                                    <h3 className="text-xs font-black text-rose-500 uppercase tracking-widest flex items-center gap-2">
+                                        <PhoneCall className="h-3 w-3" /> Emergency Contact
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Contact Name</Label>
+                                            <Input value={selectedMember.profiles.emergency_contact_name || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, emergency_contact_name: e.target.value } })} className="h-10 rounded-lg font-bold" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Contact Phone</Label>
+                                            <Input value={selectedMember.profiles.emergency_contact_phone || ''} onChange={e => setSelectedMember({ ...selectedMember, profiles: { ...selectedMember.profiles!, emergency_contact_phone: e.target.value } })} className="h-10 rounded-lg font-bold" />
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-xs font-black uppercase text-slate-500 ml-1">{t('address')}</Label>
@@ -799,8 +877,11 @@ const ChurchManagementPage = () => {
                                     <SelectTrigger className="h-12 rounded-xl font-bold"><SelectValue placeholder="Select Head Staff" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="none">Unassigned</SelectItem>
-                                        {allProfiles.filter(p => ['staff', 'admin', 'teacher'].includes(p.role) || p.is_super_admin).map(p => (
-                                            <SelectItem key={p.id} value={p.id}>{p.first_name} {p.last_name}</SelectItem>
+                                        {allProfiles.sort((a,b) => a.first_name.localeCompare(b.first_name)).map(p => (
+                                            <SelectItem key={p.id} value={p.id} className="flex items-center justify-between">
+                                                <span>{p.first_name} {p.last_name}</span>
+                                                <span className="text-[9px] opacity-40 ml-2 uppercase font-black bg-slate-100 px-1 rounded">{p.role === 'parent' ? 'Member' : p.role}</span>
+                                            </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

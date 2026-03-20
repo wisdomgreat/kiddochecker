@@ -17,22 +17,26 @@ export interface ChurchMember {
   wedding_date?: string;
   pastoral_notes?: string;
   spiritual_milestones: unknown[];
-  profiles?: { 
-    id: string; 
-    first_name: string; 
-    last_name: string; 
-    email: string; 
-    phone?: string;
-    gender?: string;
-    date_of_birth?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    zip_code?: string;
-    occupation?: string;
-    emergency_contact_name?: string;
-    emergency_contact_phone?: string;
-  };
+    profiles?: { 
+      id: string; 
+      first_name: string; 
+      last_name: string; 
+      email: string; 
+      phone?: string;
+      secondary_phone?: string;
+      gender?: string;
+      date_of_birth?: string;
+      marital_status?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      zip_code?: string;
+      occupation?: string;
+      bio?: string;
+      emergency_contact_name?: string;
+      emergency_contact_phone?: string;
+      website?: string;
+    };
   children?: { first_name: string; last_name: string };
 }
 
@@ -55,9 +59,9 @@ export const useMembers = () => {
         .select(`
           *,
           profiles (
-            id, first_name, last_name, email, phone, 
-            gender, date_of_birth, address, city, state, zip_code,
-            occupation, emergency_contact_name, emergency_contact_phone
+            id, first_name, last_name, email, phone, secondary_phone,
+            gender, date_of_birth, marital_status, address, city, state, zip_code,
+            occupation, bio, emergency_contact_name, emergency_contact_phone
           ),
           children (first_name, last_name)
         `)
