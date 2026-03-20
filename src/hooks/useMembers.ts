@@ -140,8 +140,7 @@ export const useMembers = () => {
             first_name: vars.first_name, 
             last_name: vars.last_name, 
             email: vars.email, 
-            phone: vars.phone,
-            role: 'user'
+            phone: vars.phone
         })
         .select()
         .single();
