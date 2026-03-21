@@ -150,7 +150,7 @@ export const useMembers = () => {
           lastName: vars.last_name,
           email: vars.email || `guest_${crypto.randomUUID().substring(0,8)}@kiddochecker.local`,
           password: crypto.randomUUID(), // Random secure password they will never use
-          role: 'visitor',
+          role: 'regular_user',
           phone: vars.phone
         }
       });

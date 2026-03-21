@@ -152,7 +152,7 @@ const CheckOutStation = () => {
         } else {
           toast({ title: "Invalid QR Code", description: "QR code format not recognized.", variant: "destructive" });
         }
-      } else if (typeof qrData === 'string' && qrData.startsWith('child:')) {
+      } else if (typeof qrData === 'string' && qrData.toLowerCase().startsWith('child:')) {
         const parts = qrData.split(':');
         if (parts.length >= 2) {
           const childId = parts[1];

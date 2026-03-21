@@ -120,11 +120,37 @@ const CheckOutPage = () => {
     setShowScanner(false);
 
     try {
-      // Look up secure QR token
+      const scannedData = qrData.trim();
+      let token = scannedData;
+      let offlineMatchId = null;
+
+      // Handle raw "child:ID..." prefixed static offline formats from the parent app
+      if (scannedData.toLowerCase().startsWith('child:')) {
+        const parts = scannedData.split(':');
+        if (parts.length >= 2) {
+          offlineMatchId = parts[1];
+        }
+      }
+
+      if (offlineMatchId) {
+         // Attempt offline format bypass mapping directly into attendance arrays
+         const attendanceRecord = presentChildren.find((record: any) =>
+           record.child_id === offlineMatchId
+         );
+
+         if (attendanceRecord) {
+           handleCheckOut(attendanceRecord.id, scannedData);
+         } else {
+           toast({ title: "Child Not Found", description: "This child is not currently checked in.", variant: "destructive" });
+         }
+         return;
+      }
+
+      // Default: Look up secure QR database token explicitly
       const { data: qrRecord, error } = await supabase
         .from('qr_codes')
         .select('*, child:children(*)')
-        .eq('qr_data', qrData)
+        .eq('qr_data', token)
         .eq('is_active', true)
         .single();
 
