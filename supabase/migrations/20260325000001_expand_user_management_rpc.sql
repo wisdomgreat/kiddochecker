@@ -1,5 +1,5 @@
--- 📈 Expand User Management RPC
--- Description: Updates the get_users_with_roles function to include expanded profile data for administrative use.
+-- 📈 REPAIR: Expand User Management RPC
+-- Description: Fixes the structural mismatch by using the correct column name 'zip_code' and adding back 'children_count'.
 
 DROP FUNCTION IF EXISTS public.get_users_with_roles();
 
@@ -22,7 +22,8 @@ RETURNS TABLE(
   gender text,
   occupation text,
   emergency_contact_name text,
-  emergency_contact_phone text
+  emergency_contact_phone text,
+  children_count integer
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -44,11 +45,12 @@ BEGIN
       p.address::text,
       p.city::text,
       p.state::text,
-      p.zip::text,
+      p.zip_code::text as zip, -- Correct column is zip_code
       p.gender::text,
       p.occupation::text,
       p.emergency_contact_name::text,
-      p.emergency_contact_phone::text
+      p.emergency_contact_phone::text,
+      (SELECT count(*)::integer FROM public.children c WHERE c.parent_id = ur.user_id) as children_count
     FROM 
       public.user_roles ur
     JOIN 

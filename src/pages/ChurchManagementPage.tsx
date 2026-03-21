@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { 
-  Users, ShieldCheck, Search, Plus, Loader2, ChevronRight, Activity, Zap, Layers, Sparkles, Trash2, Edit
+  Users, ShieldCheck, Search, Plus, Loader2, ChevronRight, Activity, Zap, Layers, Sparkles, Trash2, Edit, UserPlus
 } from 'lucide-react';
 import { useMembers, ChurchMember, MembershipType, MembershipStatus } from '@/hooks/useMembers';
 import { useMinistries, Ministry, useGroupMembers } from '@/hooks/useMinistries';
@@ -29,7 +29,7 @@ const ChurchManagementPage = () => {
     const { hasPermission } = useAuth();
     const { toast } = useToast();
     const { members, stats, isLoading: membersLoading, updateMember, createMember, createVisitor } = useMembers();
-    const { ministries, isLoading: ministriesLoading, deleteMinistry, createMinistry, createGroup } = useMinistries();
+    const { ministries, isLoading: ministriesLoading, deleteMinistry, createMinistry, createGroup, assignMember } = useMinistries();
     
     const [activePerspective, setActivePerspective] = useState('members');
     const [searchTerm, setSearchTerm] = useState('');
@@ -47,6 +47,9 @@ const ChurchManagementPage = () => {
     const [isAddVisitorOpen, setIsAddVisitorOpen] = useState(false);
     const [newVisitor, setNewVisitor] = useState({ firstName: '', lastName: '', email: '', phone: '', type: 'visitor' as MembershipType });
     const [newGroup, setNewGroup] = useState({ name: '', meetingDay: 'Sunday', meetingTime: '10:00' });
+    const [isAssignMemberOpen, setIsAssignMemberOpen] = useState(false);
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [selectedMembershipId, setSelectedMembershipId] = useState<string>('');
 
     const filteredMembers = members.filter(m => {
         const name = `${m.profiles?.first_name || ''} ${m.profiles?.last_name || ''}`.toLowerCase();
@@ -181,7 +184,10 @@ const ChurchManagementPage = () => {
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        <Badge className="bg-indigo-600/10 text-indigo-600 border-none font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full cursor-help hover:bg-indigo-600 hover:text-white transition-all">{group.member_count || 0} Members</Badge>
+                                                        <div className="flex gap-2 items-center">
+                                                            <Badge className="bg-indigo-600/10 text-indigo-600 border-none font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full cursor-help hover:bg-indigo-600 hover:text-white transition-all">{group.member_count || 0} Members</Badge>
+                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg shrink-0" onClick={() => { setSelectedGroupId(group.id); setIsAssignMemberOpen(true); }}><UserPlus className="h-4 w-4" /></Button>
+                                                        </div>
                                                     </div>
                                                 </Card>
                                             ))}
@@ -436,6 +442,40 @@ const ChurchManagementPage = () => {
                         </form>
                     )}
                 </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAssignMemberOpen} onOpenChange={setIsAssignMemberOpen}>
+                 <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+                    <div className="bg-indigo-600 p-8 text-white">
+                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Assign Member</DialogTitle>
+                        <DialogDescription className="text-indigo-100 font-medium tracking-tight">Add an individual from the congregation into this small group to accurately measure engagement.</DialogDescription>
+                    </div>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (!selectedGroupId || !selectedMembershipId) return;
+                        assignMember({ membershipId: selectedMembershipId, groupId: selectedGroupId, role: 'member' }, { 
+                            onSuccess: () => {
+                                setIsAssignMemberOpen(false);
+                                setSelectedMembershipId('');
+                            }
+                        });
+                    }} className="p-8 space-y-4">
+                         <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Select Member</Label>
+                            <Select value={selectedMembershipId} onValueChange={setSelectedMembershipId}>
+                                <SelectTrigger className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold"><SelectValue placeholder="Search members..." /></SelectTrigger>
+                                <SelectContent className="max-h-64 rounded-xl border-none shadow-2xl">
+                                    {members.map(m => (
+                                        <SelectItem key={m.id} value={m.id} className="font-bold">
+                                            {m.profiles?.first_name} {m.profiles?.last_name} - {m.membership_type.toUpperCase()}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button type="submit" className="w-full h-14 bg-indigo-600 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-indigo-100 mt-4 active:scale-95 transition-all">CONFIRM ASSIGNMENT</Button>
+                    </form>
+                 </DialogContent>
             </Dialog>
           </TooltipProvider>
         </UnifiedDashboardLayout>

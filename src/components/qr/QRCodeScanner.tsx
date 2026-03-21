@@ -80,9 +80,8 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
       await html5QrCode.start(
         cameraConfig,
         {
-          fps: 15,
+          fps: 10,
           qrbox: { width: qrboxSize, height: qrboxSize },
-          aspectRatio: 1.0,
         },
         (decodedText: string) => {
           if (decodedText !== lastScannedRef.current) {

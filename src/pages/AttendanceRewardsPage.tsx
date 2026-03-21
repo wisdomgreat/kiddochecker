@@ -21,7 +21,7 @@ interface Reward {
   id: string;
   name: string;
   description: string;
-  points_required: number;
+  points: number;
   image_url?: string;
   created_at: string;
   updated_at: string;
@@ -53,9 +53,9 @@ const AttendanceRewardsPage = () => {
     queryKey: ['attendance-rewards'],
     queryFn: async (): Promise<Reward[]> => {
       const { data, error } = await supabase
-        .from("attendance_rewards")
+        .from("rewards")
         .select("*")
-        .order("points_required", { ascending: true });
+        .order("points", { ascending: true });
       
       if (error) throw error;
       return data || [];
@@ -307,7 +307,7 @@ const AttendanceRewardsPage = () => {
                       </p>
                       <div className="flex items-center justify-between pt-2">
                         <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-none font-bold px-3 py-1 rounded-lg">
-                          {reward.points_required} POINTS
+                          {reward.points} POINTS
                         </Badge>
                       </div>
                     </CardContent>
@@ -331,7 +331,7 @@ const AttendanceRewardsPage = () => {
                 const data = {
                   name: formData.get("name") as string,
                   description: formData.get("description") as string,
-                  points_required: parseInt(formData.get("points_required") as string),
+                  points: parseInt(formData.get("points") as string),
                 };
                 if (selectedReward) {
                   updateRewardMutation.mutate({ id: selectedReward.id, ...data });
@@ -351,7 +351,7 @@ const AttendanceRewardsPage = () => {
               </div>
               <div className="space-y-2">
                 <Label className="font-bold">Points Required</Label>
-                 <Input name="points_required" type="number" defaultValue={selectedReward?.points_required} required className="rounded-xl h-11" />
+                 <Input name="points" type="number" defaultValue={selectedReward?.points} required className="rounded-xl h-11" />
               </div>
               <Button type="submit" className="w-full h-12 rounded-xl font-bold bg-indigo-600 mt-4">
                 {selectedReward ? "Update Reward" : "Create Reward"}

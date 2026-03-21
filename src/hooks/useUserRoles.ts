@@ -33,10 +33,10 @@ const useUserRoles = () => {
           role: user.role || 'parent',
           isSuperAdmin: user.is_super_admin || false,
           isActive: user.is_active || false,
-          isVolunteer: false, // Not included in the RPC function
-          phone: '',  // Not included in the RPC function
-          createdAt: new Date().toISOString(),
-          children: 0 // This can be enhanced later to include actual child count
+          isVolunteer: user.is_volunteer || false,
+          phone: user.phone || '',
+          createdAt: user.created_at || new Date().toISOString(),
+          children: user.children_count || 0
         }));
 
         console.log("Formatted users:", formattedUsers);
