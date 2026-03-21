@@ -182,7 +182,8 @@ serve(async (req) => {
           last_name: '(Kiosk)',
           is_device: true,
           device_id: device.id,
-          hardware_id: hardwareId
+          hardware_id: hardwareId,
+          role: 'kiosk'
         }
       });
 
@@ -198,12 +199,11 @@ serve(async (req) => {
         last_name: '(Kiosk)',
       });
 
-      // Assign 'kiosk' role securely using service key
-      await supabaseAdmin.from('user_roles').upsert({
-        user_id: authUser.id,
+      // Assign 'kiosk' role securely using service key explicitly by updating the trigger-created row
+      await supabaseAdmin.from('user_roles').update({
         role: 'kiosk',
         verification_status: 'verified'
-      }, { onConflict: 'user_id' });
+      }).eq('user_id', authUser.id);
     }
 
     // Return the email & password to frontend to sign in

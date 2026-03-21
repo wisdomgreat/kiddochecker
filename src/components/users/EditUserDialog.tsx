@@ -142,7 +142,7 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
           address: formData.address,
           city: formData.city,
           state: formData.state,
-          zip: formData.zip,
+           zip_code: formData.zip,
           gender: formData.gender,
           occupation: formData.occupation,
           emergency_contact_name: formData.emergency_contact_name,

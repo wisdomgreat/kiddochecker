@@ -81,7 +81,11 @@ serve(async (req) => {
       }
     });
 
-    // 3. Verify Admin Authorization
+    // 3. Extract request payload early to check action
+    const { action, ...data } = await req.json();
+    console.log(`Admin user management action: ${action}`, data);
+
+    // 4. Verify Authorization
     const { data: roleData, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role, is_super_admin')
@@ -89,8 +93,9 @@ serve(async (req) => {
       .single();
 
     const isAdmin = roleData?.role === 'admin' || roleData?.role === 'super_admin' || roleData?.is_super_admin === true;
+    const isStaff = roleData?.role === 'staff' || roleData?.role === 'teacher';
 
-    if (roleError || !isAdmin) {
+    if (roleError || (!isAdmin && !(isStaff && action === 'create_visitor'))) {
       console.error('Unauthorized access attempt by:', user.id, 'Role:', roleData?.role);
       return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
         status: 403,
@@ -98,19 +103,16 @@ serve(async (req) => {
       });
     }
 
-    const { action, ...data } = await req.json();
-    console.log(`Admin user management action: ${action}`, data);
-
     switch (action) {
+      case 'create_visitor':
       case 'create_user': {
         const { email, password, firstName, lastName, phone, role, staffGroups } = data as CreateUserRequest;
 
         console.log(`Creating user: ${email} with role: ${role}`);
 
-        // Create user with admin client
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email,
-          password,
+          email: email || `guest_${crypto.randomUUID().substring(0,8)}@kiddochecker.local`,
+          password: password || crypto.randomUUID(),
           email_confirm: true,
           user_metadata: {
             first_name: firstName,
@@ -172,7 +174,7 @@ serve(async (req) => {
             role: role as any,
             is_super_admin: role === 'super_admin',
             is_volunteer: (data as CreateUserRequest).isVolunteer ?? false,
-            verification_status: 'unverified'
+            verification_status: action === 'create_visitor' ? 'verified' : 'unverified'
           }, { onConflict: 'user_id' });
 
         if (roleError) {

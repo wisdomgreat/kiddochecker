@@ -142,21 +142,25 @@ export const useMembers = () => {
 
   const createVisitorProfile = useMutation({
     mutationFn: async (vars: { first_name: string; last_name: string; email: string; phone?: string; type: MembershipType }) => {
-      // 1. Create a profile (using RPC or direct insert if allowed)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .insert({ 
-            first_name: vars.first_name, 
-            last_name: vars.last_name, 
-            email: vars.email, 
-            phone: vars.phone
-        })
-        .select()
-        .single();
-      
-      if (profileError) throw profileError;
+      // 1. Create guest using the secure edge function which generates an auth user bypassing profile FK errors 
+      const { data, error } = await supabase.functions.invoke('admin-user-management', {
+        body: {
+          action: 'create_visitor',
+          firstName: vars.first_name,
+          lastName: vars.last_name,
+          email: vars.email || `guest_${crypto.randomUUID().substring(0,8)}@kiddochecker.local`,
+          password: crypto.randomUUID(), // Random secure password they will never use
+          role: 'visitor',
+          phone: vars.phone
+        }
+      });
 
-      // 2. Create the church membership
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || "Failed to create guest user");
+
+      const profile = data.user;
+
+      // 2. Create the church membership using the newly minted profile
       const { data: member, error: memberError } = await supabase
         .from('church_memberships')
         .insert({ 

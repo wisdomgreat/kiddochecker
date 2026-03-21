@@ -60,10 +60,7 @@ export const useEvents = () => {
       
       const { data, error } = await supabase
         .from('events')
-        .insert({
-          ...eventData,
-          created_by: user.id
-        })
+        .insert(eventData)
         .select()
         .single();
       
