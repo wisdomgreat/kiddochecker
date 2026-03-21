@@ -6,11 +6,11 @@
 
 @layer base {
   :root {
-    /* ── Updated Core tokens (Softened Restful Palette) ─────────── */
-    --background: 210 25% 94%; /* Deeper, softer slate/gray (less glare) */
-    --foreground: 222 50% 18%; /* Darker foreground for sharper contrast */
+    /* ── Updated Core tokens (Crisp & Clean Palette) ─────────── */
+    --background: 210 20% 98%; /* Reverted to clean, light background */
+    --foreground: 222 50% 18%;
 
-    --card: 0 0% 100%; /* Pure white cards pop off darker background */
+    --card: 0 0% 100%;
     --card-foreground: 222 50% 18%;
 
     --popover: 0 0% 100%;

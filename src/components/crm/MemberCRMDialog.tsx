@@ -65,10 +65,10 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl flex flex-col h-[85vh] bg-[#F3F4F6] dark:bg-slate-950">
+        <DialogContent className="max-w-4xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl flex flex-col h-[85vh] bg-white dark:bg-slate-950">
                 <div className="flex flex-1 overflow-hidden">
                     {/* Left Pane - Member Profile */}
-                    <div className="w-1/3 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-white/5 p-8 flex flex-col shadow-[2px_0_8px_rgba(0,0,0,0.02)]">
+                    <div className="w-1/3 bg-slate-50/50 dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 p-8 flex flex-col pt-10">
                         <h3 className="text-xl font-black text-slate-900 dark:text-white mb-8 tracking-tight">Member Profile</h3>
                         
                         <div className="flex flex-col items-center mb-8">
@@ -118,16 +118,36 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                     <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
                                         <Users className="h-4 w-4 text-[#2B3481] mt-0.5" />
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-slate-900">Serving Group:</span>
-                                            <span>{assignments?.find(a => (a.group as any).ministry.name.toLowerCase().includes('serving') || a.role.toLowerCase().includes('volunteer'))?.group?.name || 'Assigned Member'}</span>
+                                            <span className="font-bold text-slate-900">Departments & Roles:</span>
+                                            {assignments && assignments.length > 0 ? (
+                                                <div className="flex flex-col mt-1 space-y-1">
+                                                    {assignments.map((a, idx) => (
+                                                        <span key={idx} className="leading-tight">
+                                                            {a.role.charAt(0).toUpperCase() + a.role.slice(1)} - {(a.group as any).ministry.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 italic">No department active</span>
+                                            )}
                                         </div>
                                     </div>
 
                                     <div className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
                                         <BookOpen className="h-4 w-4 text-[#2B3481] mt-0.5" />
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-slate-900">Life Group:</span>
-                                            <span>{assignments?.find(a => (a.group as any).ministry.name.toLowerCase().includes('life') || (a.group as any).ministry.name.toLowerCase().includes('small'))?.group?.name || 'Northside Small Group'}</span>
+                                            <span className="font-bold text-slate-900">Small Groups:</span>
+                                            {assignments && assignments.length > 0 ? (
+                                                <div className="flex flex-col mt-1 space-y-1">
+                                                    {assignments.map((a, idx) => (
+                                                        <span key={idx} className="leading-tight">
+                                                            {(a.group as any).name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-400 italic">No assigned groups</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -160,10 +180,10 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                     </div>
 
                     {/* Right Pane - Interaction Timeline */}
-                    <div className="flex-1 flex flex-col bg-[#F3F4F6] transition-colors overflow-hidden">
-                        <div className="p-8 pb-4 flex items-center justify-between sticky top-0 z-20">
+                    <div className="flex-1 flex flex-col bg-white transition-colors overflow-hidden">
+                        <div className="p-8 pb-4 flex items-center justify-between sticky top-0 z-20 bg-white">
                             <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Interaction Timeline</h3>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 rounded-full hover:bg-white/50" onClick={() => onOpenChange(false)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100" onClick={() => onOpenChange(false)}>
                                 <X className="h-5 w-5" />
                             </Button>
                         </div>
@@ -187,7 +207,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                             </div>
                                         )}
 
-                                        <Card className="p-7 rounded-2xl border-none bg-white dark:bg-slate-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] relative group hover:shadow-lg transition-all border-l-4 border-l-transparent hover:border-l-[#353D8C]">
+                                        <Card className="p-7 rounded-2xl border border-slate-100 bg-white dark:bg-slate-900 shadow-sm relative group hover:shadow-md transition-all">
                                             <div className="flex gap-6">
                                                 <div className="w-14 h-14 rounded-full bg-[#353D8C] flex items-center justify-center shrink-0 shadow-inner">
                                                     {interaction.interaction_type === 'email' ? <Mail className="h-6 w-6 text-white" /> : 
@@ -234,7 +254,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                         </div>
 
                         {/* Note Input */}
-                        <div className="p-8 bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-white/5 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
+                        <div className="p-8 bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-white/5">
                             <div className="max-w-3xl mx-auto space-y-4">
                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Engagement Log</Label>
                                 <div className="relative group">

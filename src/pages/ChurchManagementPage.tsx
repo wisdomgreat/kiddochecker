@@ -288,23 +288,21 @@ const ChurchManagementPage = () => {
                         <DialogTitle className="text-xl font-black uppercase tracking-tight">New Department</DialogTitle>
                         <DialogDescription className="text-indigo-100 font-medium">Create a new ministry area to organize your teams.</DialogDescription>
                     </div>
-                    <form onSubmit={async (e) => {
+                    <form onSubmit={(e) => {
                         e.preventDefault();
                         if (!newMinistry.name) return;
-                        createMinistry({ name: newMinistry.name });
-                        setIsAddMinistryOpen(false);
-                        setNewMinistry({ name: '', description: '', head_staff_id: '' });
+                        createMinistry({ name: newMinistry.name }, {
+                            onSuccess: () => {
+                                setIsAddMinistryOpen(false);
+                                setNewMinistry({ name: '', description: '', head_staff_id: '' });
+                            }
+                        });
                     }} className="p-8 space-y-4">
                         <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Department Name</Label>
-                            <Input placeholder="e.g. Media & Production" value={newMinistry.name} onChange={e => setNewMinistry({...newMinistry, name: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" />
+                            <Input placeholder="e.g. Media & Production" value={newMinistry.name} onChange={e => setNewMinistry({...newMinistry, name: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
                         </div>
-                        <Button type="button" onClick={() => {
-                             // I'll use the mutate from props/hook instead
-                             // For now just closing to allow the user to see the state
-                             setIsAddMinistryOpen(false);
-                             toast({ title: 'Ready to sync', description: 'Department details captured.' });
-                        }} className="w-full h-12 bg-indigo-600 text-white rounded-xl font-bold shadow-sm">CREATE MINISTRY</Button>
+                        <Button type="submit" className="w-full h-12 bg-indigo-600 text-white rounded-xl font-bold shadow-sm">CREATE MINISTRY</Button>
                     </form>
                  </DialogContent>
             </Dialog>
@@ -379,11 +377,18 @@ const ChurchManagementPage = () => {
                         <DialogTitle className="text-xl font-black uppercase tracking-tight">New Small Group</DialogTitle>
                         <DialogDescription className="text-indigo-100 font-medium tracking-tight">Create a new group within this department.</DialogDescription>
                     </div>
-                    <form onSubmit={async (e) => {
+                    <form onSubmit={(e) => {
                         e.preventDefault();
                         if (!newGroup.name || !selectedMinistryId) return;
-                        const { createGroup } = await import('@/hooks/useMinistries').then(m => m.useMinistries()); 
-                        // Note: I'll use the hook from the component state instead for better reactivity
+                        createGroup({
+                            ministry_id: selectedMinistryId,
+                            name: newGroup.name,
+                            meeting_day: newGroup.meetingDay,
+                            meeting_time: newGroup.meetingTime + ':00'
+                        }, { onSuccess: () => {
+                            setIsAddGroupOpen(false);
+                            setNewGroup({ name: '', meetingDay: 'Sunday', meetingTime: '10:00' });
+                        }});
                     }} className="p-8 space-y-4">
                          <div className="space-y-2">
                             <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Group Name</Label>
@@ -401,21 +406,10 @@ const ChurchManagementPage = () => {
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Meeting Time</Label>
-                                <Input type="time" value={newGroup.meetingTime} onChange={e => setNewGroup({...newGroup, meetingTime: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" />
+                                <Input type="time" value={newGroup.meetingTime} onChange={e => setNewGroup({...newGroup, meetingTime: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
                             </div>
                         </div>
-                        <Button type="button" onClick={() => {
-                             if (!newGroup.name || !selectedMinistryId) return;
-                             createGroup({
-                                 ministry_id: selectedMinistryId,
-                                 name: newGroup.name,
-                                 meeting_day: newGroup.meetingDay,
-                                 meeting_time: newGroup.meetingTime + ':00'
-                             }, { onSuccess: () => {
-                                 setIsAddGroupOpen(false);
-                                 setNewGroup({ name: '', meetingDay: 'Sunday', meetingTime: '10:00' });
-                             }});
-                        }} className="w-full h-14 bg-indigo-600 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-indigo-100 mt-4 active:scale-95 transition-all">ESTABLISH GROUP</Button>
+                        <Button type="submit" className="w-full h-14 bg-indigo-600 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-indigo-100 mt-4 active:scale-95 transition-all">ESTABLISH GROUP</Button>
                     </form>
                  </DialogContent>
             </Dialog>
