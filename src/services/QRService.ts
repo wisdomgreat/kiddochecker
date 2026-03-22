@@ -85,7 +85,7 @@ export const QRService = {
     if (profile) return { type: 'parent', id: profile.id };
 
     // If we have an ID but it's not in either table, it's a dead reference
-    return { type: 'error', message: `ID ${detectedId.substring(0,8)}... not found in database.` };
+    return { type: 'error', message: `ID (${detectedId.substring(0,8)}...) recognized but not found in church records. Profile may have been deleted.` };
   },
 
   /**
