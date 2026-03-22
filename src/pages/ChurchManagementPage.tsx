@@ -29,11 +29,11 @@ import {
   BarChart3, 
   LayoutGrid, 
   CircleDollarSign, 
-  ClipboardList,
-  Sparkle
+  ClipboardList
 } from 'lucide-react';
 import VisitorJourneyBoard from '@/components/crm/VisitorJourneyBoard';
 import { Sparkles as SparklesIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const ChurchManagementPage = () => {
     const { t } = useTranslation();
@@ -92,44 +92,70 @@ const ChurchManagementPage = () => {
     return (
         <UnifiedDashboardLayout>
           <TooltipProvider>
-            <div className="space-y-8 pb-20 p-8">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
-                                <ShieldCheck className="h-6 w-6 text-white" />
+            <div className="space-y-10 pb-20 p-8">
+                {/* Header with Growth Stats */}
+                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-200 rotate-3 transition-transform hover:rotate-0">
+                                <ShieldCheck className="h-8 w-8 text-white" />
                             </div>
-                            <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">{t('churchManagement')}</h1>
+                            <div>
+                                <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">{t('churchManagement')}</h1>
+                                <div className="flex items-center gap-2">
+                                    <div className="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-md text-[9px] font-black uppercase tracking-widest">Growth Phase</div>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">{members.length} Faithful Souls</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-4">
                         <Tabs value={activePerspective} onValueChange={setActivePerspective} className="w-fit">
-                            <TabsList className="bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl border-none h-14">
-                                <TabsTrigger value="members" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                            <TabsList className="bg-slate-200/60 dark:bg-slate-800/80 p-1.5 rounded-[1.5rem] border border-white dark:border-white/5 h-16 shadow-inner backdrop-blur-md">
+                                <TabsTrigger value="members" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <Users className="h-4 w-4 mr-2" /> {t('members')}
                                 </TabsTrigger>
-                                <TabsTrigger value="ministries" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                <TabsTrigger value="ministries" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <LayoutGrid className="h-4 w-4 mr-2" /> {t('ministries')}
                                 </TabsTrigger>
-                                <TabsTrigger value="visitor_crm" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
-                                    <SparklesIcon className="h-4 w-4 mr-2" /> Visitor CRM
+                                <TabsTrigger value="visitor_crm" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
+                                    <SparklesIcon className="h-4 w-4 mr-2" /> CRM Board
                                 </TabsTrigger>
-                                <TabsTrigger value="kanban" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                <TabsTrigger value="kanban" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <ClipboardList className="h-4 w-4 mr-2" /> {t('kanban')}
                                 </TabsTrigger>
-                                <TabsTrigger value="journey" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                <TabsTrigger value="journey" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <BarChart3 className="h-4 w-4 mr-2" /> {t('analysis')}
-                                </TabsTrigger>
-                                <TabsTrigger value="giving" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
-                                    <CircleDollarSign className="h-4 w-4 mr-2" /> {t('giving')}
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
-                        <Button onClick={() => setIsAddMemberOpen(true)} className="h-12 px-6 rounded-xl bg-indigo-600 font-bold text-white shadow-sm">
-                            <Plus className="h-5 w-5 mr-2" /> ADD
+                        <Button onClick={() => setIsAddMemberOpen(true)} className="h-16 px-8 rounded-3xl bg-slate-900 dark:bg-indigo-600 font-black text-[11px] uppercase tracking-[0.2em] text-white shadow-xl hover:scale-105 active:scale-95 transition-all">
+                            <Plus className="h-5 w-5 mr-1" /> Add Person
                         </Button>
                     </div>
+                </div>
+
+                {/* Growth Pulse Header */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {[
+                        { label: 'Congregation', value: stats?.total_members || 0, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                        { label: 'New Guests', value: stats?.visitor_count || 0, icon: SparklesIcon, color: 'text-orange-600', bg: 'bg-orange-50' },
+                        { label: 'In Discipleship', value: stats?.regular_count || 0, icon: Zap, color: 'text-sky-600', bg: 'bg-sky-50' },
+                        { label: 'Retention Rate', value: `${stats?.integrations_perc || 0}%`, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' }
+                    ].map((stat, i) => (
+                        <Card key={i} className="p-6 rounded-[2.5rem] bg-white dark:bg-slate-900 border-none shadow-[0_4px_24px_rgba(0,0,0,0.02)] group hover:shadow-xl transition-all border border-transparent hover:border-indigo-100 dark:hover:border-white/10">
+                            <div className="flex items-center gap-5">
+                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:-rotate-6", stat.bg)}>
+                                    <stat.icon className={cn("h-6 w-6", stat.color)} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{stat.label}</p>
+                                    <h4 className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-0.5">{stat.value}</h4>
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
                 </div>
 
                 <AnimatePresence mode="wait">

@@ -7,16 +7,16 @@
 @layer base {
   :root {
     /* ── Updated Core tokens (Crisp & Clean Palette) ─────────── */
-    --background: 210 20% 98%; /* Reverted to clean, light background */
-    --foreground: 222 50% 18%;
+    --background: 226 40% 96%; /* Soft cool grey-blue for better card contrast */
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 50% 18%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 231 48% 30%; /* Deep professional Indigo */
+    --primary: 231 48% 30%; 
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -31,28 +31,28 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 85%; /* Slightly darker border for separation */
-    --input: 214.3 31.8% 85%;
+    --border: 214.3 31.8% 88%; /* Slightly darker for better separation */
+    --input: 214.3 31.8% 88%;
     --ring: 231 48% 30%;
 
-    --radius: 0.75rem;
+    --radius: 1.25rem; /* More modern, consistent rounding */
 
     /* ── Sidebar ─────────────────────────────────────────────────── */
-    --sidebar-background: 210 20% 96%; /* Softer sidebar */
-    --sidebar-foreground: 222 50% 18%;
-    --sidebar-primary: 231 48% 30%;
+    --sidebar-background: 222 47% 10%; /* Darker professional sidebar by default */
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 231 48% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 214 32% 95%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 231 48% 30%;
+    --sidebar-accent: 222 47% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 47% 20%;
+    --sidebar-ring: 231 48% 50%;
   }
 
   .dark {
     --background: 222 47% 4%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 8%;
+    --card: 222 47% 7%;
     --card-foreground: 210 40% 98%;
 
     --popover: 222 47% 8%;
