@@ -93,10 +93,6 @@ const ParentDashboardNew = () => {
                                 {unreadMessages} {t('new')}
                             </Button>
                         )}
-                        <Button onClick={() => navigate("/check-in")} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2">
-                            <QrCode className="h-4 w-4" />
-                            {t('quickCheckIn')}
-                        </Button>
                     </div>
                 </div>
             </motion.div>
@@ -111,7 +107,7 @@ const ParentDashboardNew = () => {
                 ].map(({ label, value, icon: Icon, color, bg, border, index, path }) => (
                     <motion.div key={label} custom={index} variants={cardVariants} initial="hidden" animate="show">
                         <div
-                            className={`bg-white rounded-2xl p-5 shadow-sm border ${border} hover:shadow-md transition-all cursor-pointer group`}
+                            className={`bg-white rounded-2xl p-5 shadow-sm border ${border} vcard-accent hover:shadow-md transition-all cursor-pointer group`}
                             onClick={() => navigate(path)}
                         >
                             <div className={`${bg} w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>

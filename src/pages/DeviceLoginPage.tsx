@@ -40,6 +40,19 @@ const DeviceLogin = () => {
         await executeLogin(true);
     };
 
+    // --- SILENT RE-AUTH ---
+    // On mount, we try to see if the server recognizes this hardware fingerprint automatically.
+    // If it does, we skip the code entry.
+    React.useEffect(() => {
+        const attemptSilentReauth = async () => {
+            setLoading(true);
+            // Give the browser a moment to stabilize forensics
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            await executeLogin(false, true); // Silent mode
+        };
+        attemptSilentReauth();
+    }, []);
+
     const getDeviceForensics = () => {
         const ua = navigator.userAgent;
         const platform = navigator.platform;
@@ -84,12 +97,12 @@ const DeviceLogin = () => {
         };
     };
 
-    const executeLogin = async (withPin: boolean) => {
-        setLoading(true);
+    const executeLogin = async (withPin: boolean, silent: boolean = false) => {
+        if (!silent) setLoading(true);
         try {
             const forensics = getDeviceForensics();
             const body: any = {
-                code: code.trim(),
+                code: silent ? undefined : code.trim(),
                 forensics
             };
             if (withPin) body.pin = pin.trim();
@@ -99,6 +112,10 @@ const DeviceLogin = () => {
             });
 
             if (error) {
+                if (silent) {
+                    setLoading(false);
+                    return; // Fail silently on re-auth
+                }
                 // Determine if it tells us we need a PIN
                 if (error.message === "Master PIN required") {
                     setNeedPin(true);
@@ -109,6 +126,10 @@ const DeviceLogin = () => {
             }
 
             if (data.error) {
+                if (silent) {
+                    setLoading(false);
+                    return; // Fail silently on re-auth
+                }
                 if (data.error === "Master PIN required") {
                     setNeedPin(true);
                     setLoading(false);

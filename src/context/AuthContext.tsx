@@ -160,19 +160,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: `Error: ${error.message} (Code: ${error.code}). Please refresh your page.`,
           variant: "destructive",
         });
-        // We do NOT set offline fallback here anymore, just let it fail so they see the issue
-        setUserRole('parent');
+        // Remove fallback to parent - let determination check show determination is still pending
+        setUserRole(null);
         return;
       }
 
       if (!data) {
         console.warn('No role found in DB for user record:', user.id);
         toast({
-          title: "Role Missing",
-          description: "Your account is missing role permissions in our database. Contact support.",
+          title: "Account Restricted",
+          description: "Your account has no assigned role. Contact support.",
           variant: "destructive",
         });
-        setUserRole('parent');
+        setUserRole(null);
         return;
       }
 
@@ -212,7 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: err.message || "Unknown error occurred.",
           variant: "destructive",
       });
-      setUserRole('parent');
+      setUserRole(null);
     }
   }, [user?.id, toast]);
 

@@ -34,18 +34,35 @@ serve(async (req) => {
       }
     });
 
-    // 1. Verify Device Code
-    console.log(`[Device Login] Verifying code: ${code}`);
-    const { data: device, error: deviceError } = await supabaseAdmin
-      .from('enrolled_devices')
-      .select('*')
-      .eq('enrollment_code', code)
-      .eq('status', 'active')
-      .single();
+    // 1. Verify Device Identity
+    let device;
+    let deviceError;
+
+    if (code) {
+      console.log(`[Device Login] Activation attempt with code: ${code}`);
+      const { data, error } = await supabaseAdmin
+        .from('enrolled_devices')
+        .select('*')
+        .eq('enrollment_code', code)
+        .eq('status', 'active')
+        .single();
+      device = data;
+      deviceError = error;
+    } else if (hardwareId) {
+      console.log(`[Device Login] Re-auth attempt for hardware: ${hardwareId}`);
+      const { data, error } = await supabaseAdmin
+        .from('enrolled_devices')
+        .select('*')
+        .eq('hardware_id', hardwareId)
+        .eq('status', 'active')
+        .single();
+      device = data;
+      deviceError = error;
+    }
 
     if (deviceError || !device) {
-      console.error(`[Device Login Error] Code: ${code}, Error:`, deviceError, 'Device:', device);
-      return new Response(JSON.stringify({ error: 'Invalid or inactive device code' }), {
+      console.error(`[Device Login Error] Identity not found. Code: ${code}, HW: ${hardwareId}`);
+      return new Response(JSON.stringify({ error: code ? 'Invalid or inactive device code' : 'Terminal unauthorized. Please re-enroll.' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -64,7 +81,7 @@ serve(async (req) => {
 
     // If the device already has a hardware_id, the current hardwareId must match.
     if (device.hardware_id && hardwareId && device.hardware_id !== hardwareId) {
-      console.warn(`[Security Alert] Hardware mismatch for code ${code}. Stored: ${device.hardware_id}, Received: ${hardwareId}`);
+      console.warn(`[Security Alert] Hardware mismatch for record ${device.id}. Stored: ${device.hardware_id}, Received: ${hardwareId}`);
 
       // Log Security Violation
       await supabaseAdmin.rpc('log_device_security_event', {
@@ -80,20 +97,23 @@ serve(async (req) => {
       });
 
       return new Response(JSON.stringify({
-        error: 'Security Alert: This code is registered to another physical unit. An incident report has been logged.'
+        error: 'Security Alert: Unauthorized hardware detected. An incident report has been logged.'
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // If it doesn't have a hardware_id yet, lock it now (First Login)
+    // If it doesn't have a hardware_id yet (Activation Phase)
     if (!device.hardware_id && hardwareId) {
-      console.log(`[Device Login] Initial lock for code ${code} to hardware ${hardwareId}`);
+      console.log(`[Device Login] Initial activation for ${device.name}. Burning code: ${code}`);
+      
+      // Update device record: Set hardware_id and BURN the enrollment_code
       await supabaseAdmin
         .from('enrolled_devices')
         .update({
           hardware_id: hardwareId,
+          enrollment_code: null, // BURN THE CODE - CANNOT BE USED AGAIN
           os_info: os,
           browser_info: browser,
           device_fingerprint: fingerprint,
@@ -110,7 +130,7 @@ serve(async (req) => {
         p_metadata: { ip: clientIp, os: os, browser: browser }
       });
     } else {
-      // Just update last seen
+      // Re-authorization: Just update last seen
       await supabaseAdmin
         .from('enrolled_devices')
         .update({
@@ -120,7 +140,7 @@ serve(async (req) => {
         .eq('id', device.id);
     }
 
-    console.log(`[Device Login] Device authorized:`, device.id, device.name);
+    console.log(`[Device Login] Access Granted:`, device.id, device.name);
 
     // 2. Verify PIN Security Settings
     const { data: requirePinSetting } = await supabaseAdmin

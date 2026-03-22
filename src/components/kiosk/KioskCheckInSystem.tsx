@@ -173,17 +173,29 @@ const KioskCheckInSystem = () => {
     if (!kioskId && settings?.kiosk_id) kioskId = settings.kiosk_id;
 
     const updateHeartbeat = async () => {
-      if (!user?.id || userRole !== 'kiosk' || !kioskId) return;
+      // 1. Terminal Record Update (Administrative Visibility)
+      if (user?.id && userRole === 'kiosk' && kioskId) {
+        try {
+          await supabase
+            .from('enrolled_devices')
+            .update({ last_seen: new Date().toISOString() })
+            .eq('id', kioskId);
+        } catch (err) { }
+      }
+
+      // 2. Auth Session Refresh (Prevents auto-logout)
       try {
-        await supabase
-          .from('enrolled_devices')
-          .update({ last_seen: new Date().toISOString() })
-          .eq('id', kioskId);
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!session && userRole === 'kiosk') {
+           console.warn("[Kiosk] Session lost during heartbeat. Re-authenticating...");
+           // The DeviceLoginPage will handle silent re-auth on next load
+        }
       } catch (err) {
-        console.error('[Kiosk] Heartbeat failed:', err);
+        console.error('[Kiosk] Session refresh failed:', err);
       }
     };
-    const interval = setInterval(updateHeartbeat, 1000 * 60 * 5);
+    const interval = setInterval(updateHeartbeat, 1000 * 60 * 5); // Every 5 minutes
     updateHeartbeat();
     return () => clearInterval(interval);
   }, [user, userRole, settings]);

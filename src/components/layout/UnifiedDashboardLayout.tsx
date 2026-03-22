@@ -29,7 +29,7 @@ const UnifiedDashboardLayout = ({ children }: UnifiedDashboardLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-[#F8F9FA] dark:bg-slate-950 relative overflow-hidden font-sans transition-colors duration-500">
+      <div className="min-h-screen flex w-full bg-background dark:bg-slate-950 relative overflow-hidden font-sans transition-colors duration-500">
         <AppSidebar />
         
         <main className="flex-1 overflow-auto relative z-10 custom-scrollbar">
