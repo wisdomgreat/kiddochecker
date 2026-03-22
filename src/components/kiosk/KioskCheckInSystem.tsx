@@ -247,6 +247,8 @@ const KioskCheckInSystem = () => {
     handleParentLogout();
     handleStaffLogout();
     handleYouthLogout();
+    window.localStorage.removeItem('kiosk_active_parent_id');
+    window.localStorage.removeItem('kiosk_active_parent_name');
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
   };
 
@@ -273,11 +275,18 @@ const KioskCheckInSystem = () => {
         p_parent_id: parent.id,
         p_pin: parentPin
       }) as any);
+      
       setParentName(`${parent.first_name} ${parent.last_name}`);
       setParentChildren(kids || []);
       setParentLoggedIn(true);
-      await logActivity('parent_login', { parent_id: parent.id, parent_name: parentName });
-      startAutoLogoutTimer(60);
+      
+      // Ensure we record the specific profile ID as the actor
+      const profileId = parent.id;
+      window.localStorage.setItem('kiosk_active_parent_id', profileId);
+      window.localStorage.setItem('kiosk_active_parent_name', `${parent.first_name} ${parent.last_name}`);
+
+      await logActivity('parent_login', { parent_id: profileId, parent_name: `${parent.first_name} ${parent.last_name}` });
+      startAutoLogoutTimer(120); // Give them more time
     } catch (e: any) {
       setParentLoginError(e.message || t('loginError'));
     } finally { setIsLoading(false); }
@@ -481,14 +490,22 @@ const KioskCheckInSystem = () => {
     setIsLoading(true);
     try {
       const { data: classData } = await supabase.from('classes').select('name').eq('id', classId).single();
-      let actorId = (await supabase.auth.getUser()).data.user?.id;
-      if (parentLoggedIn && parentChildren.length > 0) actorId = parentChildren[0].parent_id;
-      else if (youthAuthedChild) actorId = youthAuthedChild.id;
+      
+      // CRITICAL FIX: Determine the actual adult checking them in
+      let actorId = (user as any)?.id; // Default to staff user if logged in
+      
+      // If parent is logged in via PIN, use their specific profile ID
+      const storedParentId = window.localStorage.getItem('kiosk_active_parent_id');
+      if (parentLoggedIn && storedParentId) {
+        actorId = storedParentId;
+      } else if (youthAuthedChild) {
+        actorId = youthAuthedChild.id;
+      }
 
       const result = await AttendanceService.checkInChild({
         childId: selectedChild.id,
         classId,
-        checkedInBy: actorId,
+        checkedInBy: actorId, 
         method: youthAuthedChild ? 'youth_self' : 'kiosk',
         station: 'Main Kiosk',
         specialInstructions,

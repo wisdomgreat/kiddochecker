@@ -186,9 +186,17 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
           <Button 
             onClick={handleConfirm} 
             disabled={!canProceed} 
-            className="flex-1"
+            className={`flex-1 h-14 text-lg font-black uppercase tracking-widest rounded-2xl transition-all ${
+              !canProceed ? 'bg-slate-200 text-slate-400' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg'
+            }`}
           >
-            {hasFever || hasCough ? t('wellnessFail') : t('checkIn')}
+            {hasFever || hasCough 
+              ? t('wellnessFail') 
+              : !selectedClass 
+                ? "Select a Class First" 
+                : showWellnessCheck && !wellnessAttempted 
+                  ? "Answer Health Questions" 
+                  : t('checkIn')}
           </Button>
         </div>
       </DialogContent>
