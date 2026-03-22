@@ -19,77 +19,73 @@ export const QRService = {
     const data = rawQRData.trim();
     console.log("[QRService] Parsing:", data);
 
+    let detectedId: string | null = null;
+    let suspectedType: 'child' | 'parent' | null = null;
+
     // 1. Try JSON
     try {
       if (data.startsWith('{')) {
         const parsed = JSON.parse(data);
-        const id = parsed.id || parsed.child_id || parsed.parentId;
-        if (id) {
-          if (parsed.type?.includes('CHILD') || parsed.type === 'CHECKIN' || parsed.type === 'CHECKOUT') {
-            return { type: 'child', id };
-          }
-          if (parsed.type?.includes('FAMILY') || parsed.type === 'PARENT') {
-            return { type: 'parent', id };
-          }
+        detectedId = parsed.id || parsed.child_id || parsed.parentId;
+        
+        const type = String(parsed.type || '').toUpperCase();
+        if (type.includes('CHILD') || type.includes('CHECK') || type.includes('YOUTH')) {
+          suspectedType = 'child';
+        } else if (type.includes('PARENT') || type.includes('FAMILY') || type.includes('KIOSK')) {
+          suspectedType = 'parent';
         }
       }
     } catch { }
 
-    // 2. Try child: prefix (Static Offline)
-    if (data.toLowerCase().startsWith('child:')) {
-      const id = data.split(':')[1];
-      if (id) return { type: 'child', id };
-    }
-
-    // 3. Try Database Lookup (Dynamic Token)
-    const { data: qrRecord } = await supabase
-      .from('qr_codes')
-      .select('child_id, is_active')
-      .eq('qr_data', data)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (qrRecord) {
-      return { type: 'child', id: qrRecord.child_id };
-    }
-
-    // 4. Try Raw UUID direct match to child
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(data)) {
-      console.log("[QRService] Matched UUID pattern, checking tables...");
-      // Check if it's a child ID
-      const { data: child } = await supabase
-        .from('children')
-        .select('id')
-        .eq('id', data)
-        .maybeSingle();
-      
-      if (child) {
-        console.log("[QRService] Found direct child match:", child.id);
-        return { type: 'child', id: child.id };
+    // 2. Try prefixed strings
+    if (!detectedId) {
+      if (data.toLowerCase().startsWith('child:')) {
+        detectedId = data.split(':')[1];
+        suspectedType = 'child';
+      } else if (data.toLowerCase().startsWith('parent:')) {
+        detectedId = data.split(':')[1];
+        suspectedType = 'parent';
       }
+    }
 
-      // Check if it's a parent profile ID
-      const { data: parent } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data)
-        .maybeSingle();
-      
-      if (parent) {
-        console.log("[QRService] Found direct parent match:", parent.id);
-        return { type: 'parent', id: parent.id };
+    // 3. Try UUID direct match or Token Lookup
+    if (!detectedId) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(data)) {
+        detectedId = data;
+      } else {
+        // Assume dynamic token
+        const { data: qrRecord } = await supabase
+          .from('qr_codes')
+          .select('child_id')
+          .eq('qr_data', data)
+          .eq('is_active', true)
+          .maybeSingle();
+        
+        if (qrRecord) {
+          detectedId = qrRecord.child_id;
+          suspectedType = 'child';
+        }
       }
-      
-      return { type: 'error', message: `ID ${data.substring(0,8)}... not found in system` };
     }
 
-    // 5. Final attempt: Fuzzy check for some old JSON patterns that might be missing quotes
-    if (data.includes('"id":') || data.includes('id:')) {
-        return { type: 'error', message: 'Broken JSON code. Please regenerate.' };
+    if (!detectedId) {
+      return { type: 'error', message: `Unrecognized Code Format` };
     }
 
-    return { type: 'error', message: `Unrecognized Code: ${data.substring(0, 10)}...` };
+    // VERIFICATION STEP: Crucial to avoid "Profile Not Found" errors in UI
+    console.log("[QRService] Verifying detected ID:", detectedId);
+    
+    // Check children table
+    const { data: child } = await supabase.from('children').select('id').eq('id', detectedId).maybeSingle();
+    if (child) return { type: 'child', id: child.id };
+
+    // Check profiles table
+    const { data: profile } = await supabase.from('profiles').select('id').eq('id', detectedId).maybeSingle();
+    if (profile) return { type: 'parent', id: profile.id };
+
+    // If we have an ID but it's not in either table, it's a dead reference
+    return { type: 'error', message: `ID ${detectedId.substring(0,8)}... not found in database.` };
   },
 
   /**

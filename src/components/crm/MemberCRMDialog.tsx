@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
+import { motion } from 'framer-motion';
 import { 
   Activity, Mail, MessageSquare, Phone, Edit, ArrowUpRight, 
   BookOpen, Clock, CheckCircle2, AlertCircle, Trash2, Send, 
   Zap, X, ShieldCheck, UserPlus, Calendar, ChevronRight,
   MapPin, Briefcase, Heart, Users,
-  Trophy, CircleDollarSign, ClipboardList, TrendingUp, PlusCircle
+  Trophy, CircleDollarSign, ClipboardList, TrendingUp, PlusCircle,
+  Sparkles as SparklesIcon
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -36,7 +38,7 @@ interface MemberCRMDialogProps {
 const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpenChange }) => {
     const { user } = useAuth();
     const [newCRMNote, setNewCRMNote] = useState('');
-    const { interactions, addInteraction, isSending } = useVisitorInteractions(member?.profiles?.id);
+    const { interactions, addInteraction, sendEmail, isSending } = useVisitorInteractions(member?.profiles?.id);
     
     // Fetch group assignments for this member
     const { data: assignments } = useQuery({
@@ -190,27 +192,37 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                             </div>
                         </div>
 
-                        <div className="mt-8 space-y-4">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button className="w-full bg-[#353D8C] hover:bg-[#2B3481] text-white rounded-xl h-14 font-black shadow-lg flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
-                                        <MessageSquare className="h-5 w-5" /> Message
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-[240px] rounded-2xl p-2 shadow-2xl border-none">
-                                    <DropdownMenuItem onClick={contactActions.messageEmail} className="gap-3 p-4 cursor-pointer rounded-xl font-bold">
-                                        <Mail className="h-5 w-5 text-[#353D8C]" /> Send Email
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={contactActions.messageSMS} className="gap-3 p-4 cursor-pointer rounded-xl font-bold">
-                                        <MessageSquare className="h-5 w-5 text-[#353D8C]" /> Send SMS / Text
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            <Button onClick={contactActions.call} className="w-full bg-[#353D8C] hover:bg-[#2B3481] text-white rounded-xl h-14 font-black shadow-lg flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
-                                <Phone className="h-5 w-5" /> Call
+                        <div className="mt-8 space-y-3 px-2">
+                            <div className="flex gap-2">
+                                <Button 
+                                    onClick={() => contactActions.call()}
+                                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl h-12 font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Phone className="h-4 w-4" /> Call
+                                </Button>
+                                <Button 
+                                    onClick={() => contactActions.messageSMS()}
+                                    className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl h-12 font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+                                >
+                                    <MessageSquare className="h-4 w-4" /> Text
+                                </Button>
+                            </div>
+                            
+                            <Button 
+                                onClick={() => sendEmail({
+                                    to: member?.profiles?.email,
+                                    templateName: 'visitor_welcome',
+                                    templateData: { firstName: member?.profiles?.first_name },
+                                    visitor_id: member?.profiles?.id
+                                })}
+                                disabled={isSending}
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-12 font-black shadow-lg flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
+                            >
+                                <SparklesIcon className="h-5 w-5" /> {isSending ? 'SENDING...' : 'SEND WELCOME VIP SERIES'}
                             </Button>
-                            <Button onClick={() => document.getElementById('crm-note-field')?.focus()} className="w-full bg-[#353D8C] hover:bg-[#2B3481] text-white rounded-xl h-14 font-black shadow-lg flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
-                                <Edit className="h-5 w-5" /> Log Note
+                            
+                            <Button onClick={() => setActiveTab('overview')} variant="outline" className="w-full border-slate-100 hover:bg-slate-50 rounded-xl h-10 font-bold text-slate-400 text-[10px] uppercase tracking-widest">
+                                <Edit className="h-3.5 w-3.5 mr-2" /> View Detailed Log
                             </Button>
                         </div>
                     </div>
@@ -239,22 +251,45 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                             <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Interaction History</h3>
                                         </div>
                                         {interactions?.length ? interactions.map((interaction, i) => (
-                                            <div key={interaction.id} className="relative flex flex-col">
-                                                <Card className="p-6 rounded-[1.5rem] border border-slate-100 bg-white dark:bg-slate-900 shadow-sm transition-all hover:shadow-md">
-                                                    <div className="flex gap-4">
-                                                        <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                                                            {interaction.interaction_type === 'email' ? <Mail className="h-5 w-5 text-indigo-600" /> : <Edit className="h-5 w-5 text-indigo-600" />}
+                                            <motion.div 
+                                                key={interaction.id} 
+                                                initial={{ opacity: 0, x: -10 }} 
+                                                animate={{ opacity: 1, x: 0 }}
+                                                className="relative flex flex-col group/item"
+                                            >
+                                                <Card className="p-7 rounded-[2rem] border border-slate-100 bg-white dark:bg-slate-900 shadow-sm transition-all hover:shadow-xl hover:scale-[1.01]">
+                                                    <div className="flex gap-6">
+                                                        <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 shadow-inner group-hover/item:bg-indigo-600 group-hover/item:text-white transition-all">
+                                                            {interaction.interaction_type === 'email' ? <Mail className="h-6 w-6" /> : 
+                                                             interaction.interaction_type === 'phone' ? <Phone className="h-6 w-6" /> :
+                                                             interaction.interaction_type === 'text' ? <MessageSquare className="h-6 w-6" /> :
+                                                             <Edit className="h-6 w-6" />}
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <h4 className="font-bold text-slate-900 dark:text-white capitalize">{interaction.interaction_type} Logged</h4>
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{format(new Date(interaction.created_at), 'MMM d, h:mm a')}</span>
+                                                        <div className="flex-1 space-y-2">
+                                                            <div className="flex justify-between items-start">
+                                                                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                                                                    {interaction.interaction_type === 'email' ? 'Follow-up Email Dispatched' : 
+                                                                     interaction.interaction_type === 'phone' ? 'Phone Outreach Logged' : 
+                                                                     interaction.interaction_type === 'text' ? 'Direct SMS Communication' :
+                                                                     'Engagement Note Added'}
+                                                                </h4>
+                                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{format(new Date(interaction.created_at), 'MMM d, h:mm a')}</span>
                                                             </div>
-                                                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{interaction.content}</p>
+                                                            <p className="text-[13px] text-slate-600 dark:text-slate-400 font-medium leading-relaxed bg-slate-50/50 dark:bg-white/5 p-4 rounded-xl">
+                                                                {interaction.content}
+                                                            </p>
+                                                            <div className="flex items-center gap-2 pt-1">
+                                                                <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-500">
+                                                                    {(interaction as any).author?.first_name?.[0]}
+                                                                </div>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                                    {(interaction as any).author ? `${(interaction as any).author.first_name} ${(interaction as any).author.last_name || ''}` : 'CHURCH OFFICE'}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </Card>
-                                            </div>
+                                            </motion.div>
                                         )) : (
                                             <div className="py-20 text-center opacity-20">
                                                 <Activity className="h-10 w-10 mx-auto mb-4" />

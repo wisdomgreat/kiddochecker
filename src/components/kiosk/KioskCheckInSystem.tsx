@@ -447,35 +447,27 @@ const KioskCheckInSystem = () => {
           setParentChildren(kids as any);
           setParentLoggedIn(true);
           setActiveTab('parent');
-          toast({ title: "Family Identified", description: `Hi! Please select who to check in/out.` });
-          return;
+          toast({ title: t('welcome' as any), description: `Family profile identified. Select children to check in.` });
         } else {
-          toast({ title: "No Children Found", description: "You are recognized, but no children are registered to your account.", variant: "destructive" });
-          return;
+          toast({ title: "Profile Found", description: "You are recognized, but no children are currently linked to your profile.", variant: "destructive" });
         }
+        return;
       }
 
       if (result.type === 'child') {
-        const childId = result.id;
-        if (checkedInChildIds.has(childId)) {
-          const record = checkedInChildren.find((r: any) => r.child_id === childId);
-          if (record) { handleCheckOut(record); return; }
-        }
-        
-        const { data: child } = await supabase.from('children').select('*').eq('id', childId).maybeSingle();
+        const { data: child } = await supabase.from('children').select('*').eq('id', result.id).maybeSingle();
         if (child) {
+          if (checkedInChildIds.has(child.id)) {
+            const record = checkedInChildren.find((r: any) => r.child_id === child.id);
+            if (record) { handleCheckOut(record); return; }
+          }
           handleStaffCheckIn(child as any);
-          return;
-        } else {
-          toast({ title: "Child Not Found", description: "This child ID recognized but the profile was not found in the database.", variant: "destructive" });
-          return;
         }
+        return;
       }
-
-      toast({ title: t('invalidQR'), description: t('codeNotRecognized'), variant: "destructive" });
     } catch (error: any) {
-      console.error("QR Scan critical error:", error);
-      toast({ title: "Error", description: "Failed to process scan.", variant: "destructive" }); 
+      console.error("QR Scan error:", error);
+      toast({ title: "Error", description: "Feedback processing failed.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
