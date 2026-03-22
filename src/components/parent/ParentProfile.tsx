@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/CleanAuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Zap } from "lucide-react";
+import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Zap, QrCode } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { useMembers } from "@/hooks/useMembers";
 import { format } from "date-fns";
@@ -351,6 +352,32 @@ const ParentProfile = () => {
             <p className="text-xs text-muted-foreground">
               This 6-digit PIN will be used to check in your children at the kiosk station.
             </p>
+          </div>
+
+          {/* Kiosk QR Access */}
+          <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-6 flex flex-col items-center gap-4">
+             <div className="flex items-center gap-3 self-start mb-2">
+                <div className="p-2 bg-indigo-100 rounded-xl">
+                    <QrCode className="h-5 w-5 text-indigo-700" />
+                </div>
+                <h4 className="font-black text-slate-900 leading-tight">Kiosk Access QR</h4>
+             </div>
+             
+             <div className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-50">
+                {user?.id ? (
+                    <QRCodeSVG 
+                      value={user.id} 
+                      size={140} 
+                      className="transition-all hover:scale-110 duration-500"
+                    />
+                ) : (
+                    <div className="h-[140px] w-[140px] flex items-center justify-center text-slate-300">Loading...</div>
+                )}
+             </div>
+             
+             <p className="text-center text-[11px] font-bold text-slate-500 max-w-xs">
+                Scan this code at any check-in kiosk to instantly identify your family and begin check-in.
+             </p>
           </div>
 
           <div className="h-px bg-slate-100 dark:bg-white/5 my-2" />

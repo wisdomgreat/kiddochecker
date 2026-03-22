@@ -56,6 +56,7 @@ export const QRService = {
     // 4. Try Raw UUID direct match to child
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(data)) {
+      console.log("[QRService] Matched UUID pattern, checking tables...");
       // Check if it's a child ID
       const { data: child } = await supabase
         .from('children')
@@ -63,7 +64,10 @@ export const QRService = {
         .eq('id', data)
         .maybeSingle();
       
-      if (child) return { type: 'child', id: child.id };
+      if (child) {
+        console.log("[QRService] Found direct child match:", child.id);
+        return { type: 'child', id: child.id };
+      }
 
       // Check if it's a parent profile ID
       const { data: parent } = await supabase
@@ -72,10 +76,20 @@ export const QRService = {
         .eq('id', data)
         .maybeSingle();
       
-      if (parent) return { type: 'parent', id: parent.id };
+      if (parent) {
+        console.log("[QRService] Found direct parent match:", parent.id);
+        return { type: 'parent', id: parent.id };
+      }
+      
+      return { type: 'error', message: `ID ${data.substring(0,8)}... not found in system` };
     }
 
-    return { type: 'error', message: 'QR Code not recognized in system' };
+    // 5. Final attempt: Fuzzy check for some old JSON patterns that might be missing quotes
+    if (data.includes('"id":') || data.includes('id:')) {
+        return { type: 'error', message: 'Broken JSON code. Please regenerate.' };
+    }
+
+    return { type: 'error', message: `Unrecognized Code: ${data.substring(0, 10)}...` };
   },
 
   /**

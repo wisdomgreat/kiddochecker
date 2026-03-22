@@ -447,7 +447,10 @@ const KioskCheckInSystem = () => {
           setParentChildren(kids as any);
           setParentLoggedIn(true);
           setActiveTab('parent');
-          toast({ title: "Family Identified", description: `Hi family! Please select who to check in/out.` });
+          toast({ title: "Family Identified", description: `Hi! Please select who to check in/out.` });
+          return;
+        } else {
+          toast({ title: "No Children Found", description: "You are recognized, but no children are registered to your account.", variant: "destructive" });
           return;
         }
       }
@@ -459,9 +462,12 @@ const KioskCheckInSystem = () => {
           if (record) { handleCheckOut(record); return; }
         }
         
-        const { data: child } = await supabase.from('children').select('*').eq('id', childId).single();
+        const { data: child } = await supabase.from('children').select('*').eq('id', childId).maybeSingle();
         if (child) {
           handleStaffCheckIn(child as any);
+          return;
+        } else {
+          toast({ title: "Child Not Found", description: "This child ID recognized but the profile was not found in the database.", variant: "destructive" });
           return;
         }
       }
