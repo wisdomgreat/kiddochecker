@@ -95,6 +95,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_visitor_created ON public.church_memberships;
 CREATE TRIGGER on_visitor_created
 AFTER INSERT ON public.church_memberships
 FOR EACH ROW EXECUTE FUNCTION public.auto_start_visitor_journey();

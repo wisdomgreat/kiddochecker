@@ -23,6 +23,7 @@ import SignatureCanvas from 'react-signature-canvas';
 import ClassSelectionDialog from './ClassSelectionDialog';
 import NameTagPrintDialog from './NameTagPrintDialog';
 import { useTranslation, Language } from '@/lib/i18n';
+import { QRService } from '@/services/QRService';
 import { useLanguage } from '@/context/LanguageContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -431,79 +432,47 @@ const KioskCheckInSystem = () => {
   };
 
   const handleQRScan = async (rawQRData: string) => {
-    const qrData = rawQRData.trim();
     setIsLoading(true);
-
-    // Some QR scans are restricted to staff (e.g. administrative overrides)
-    // but identifying a FAMILY or a CHILD for checkin/out should be open for parents
     try {
-      try {
-        const parsed = JSON.parse(qrData);
-        if (parsed.type === 'CHECKOUT' && parsed.attendanceId) {
-          const { data: att } = await supabase.from('attendance').select('*, child:children(*)').eq('id', parsed.attendanceId).maybeSingle();
-          if (att) { handleCheckOut(att); return; }
-        }
-        const childId = parsed.id || parsed.child_id;
-        if (childId && (parsed.type === 'CHILD_CHECKIN' || parsed.type === 'CHECKIN')) {
-          if (checkedInChildIds.has(childId)) {
-            const record = checkedInChildren.find((r: any) => r.child_id === childId);
-            if (record) { handleCheckOut(record); return; }
-          }
-          const { data: child } = await supabase.from('children').select('*').eq('id', childId).single();
-          if (child) { handleStaffCheckIn(child as any); return; }
-        }
-
-        if (parsed.type === 'FAMILY_CHECKIN' && parsed.parentId) {
-           const { data: kids } = await supabase.from('children').select('*').eq('parent_id', parsed.parentId);
-           if (kids && kids.length > 0) {
-              setParentChildren(kids as any);
-              setParentLoggedIn(true);
-              setActiveTab('parent');
-              toast({ title: "Family Identified", description: `Hi family! Please select who to check in/out.` });
-              return;
-           }
-        }
-
-      } catch { }
-
-      if (qrData.toLowerCase().startsWith('child:')) {
-        const parts = qrData.split(':');
-        if (parts.length >= 2) {
-          const childId = parts[1];
-          if (checkedInChildIds.has(childId)) {
-            const record = checkedInChildren.find((r: any) => r.child_id === childId);
-            if (record) { handleCheckOut(record); return; }
-          }
-          const { data: child } = await supabase.from('children').select('*').eq('id', childId).single();
-          if (child) { handleStaffCheckIn(child as any); return; }
-        }
-      }
-
-      const { data: rec } = await supabase.from('qr_codes').select('*, child:children(*)').eq('qr_data', qrData).eq('is_active', true).maybeSingle();
-      if (rec && rec.child) {
-        if (checkedInChildIds.has(rec.child_id)) {
-          const record = checkedInChildren.find((r: any) => r.child_id === rec.child_id);
-          if (record) { handleCheckOut(record); return; }
-        }
-        handleStaffCheckIn(rec.child as any);
+      const result = await QRService.parseAndVerify(rawQRData);
+      
+      if (result.type === 'error') {
+        toast({ title: t('invalidQR'), description: result.message, variant: "destructive" });
         return;
       }
 
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (uuidRegex.test(qrData)) {
-        const { data: child } = await supabase.from('children').select('*').eq('id', qrData).single();
+      if (result.type === 'parent') {
+        const { data: kids } = await supabase.from('children').select('*').eq('parent_id', result.id);
+        if (kids && kids.length > 0) {
+          setParentChildren(kids as any);
+          setParentLoggedIn(true);
+          setActiveTab('parent');
+          toast({ title: "Family Identified", description: `Hi family! Please select who to check in/out.` });
+          return;
+        }
+      }
+
+      if (result.type === 'child') {
+        const childId = result.id;
+        if (checkedInChildIds.has(childId)) {
+          const record = checkedInChildren.find((r: any) => r.child_id === childId);
+          if (record) { handleCheckOut(record); return; }
+        }
+        
+        const { data: child } = await supabase.from('children').select('*').eq('id', childId).single();
         if (child) {
-          if (checkedInChildIds.has(child.id)) {
-            const record = checkedInChildren.find((r: any) => r.child_id === child.id);
-            if (record) { handleCheckOut(record); return; }
-          }
           handleStaffCheckIn(child as any);
           return;
         }
       }
+
       toast({ title: t('invalidQR'), description: t('codeNotRecognized'), variant: "destructive" });
-    } catch { toast({ title: "Error", description: "Failed to process scan.", variant: "destructive" }); }
-    finally { setIsLoading(false); }
+    } catch (error: any) {
+      console.error("QR Scan critical error:", error);
+      toast({ title: "Error", description: "Failed to process scan.", variant: "destructive" }); 
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const [currentSpecialInstructions, setCurrentSpecialInstructions] = useState('');

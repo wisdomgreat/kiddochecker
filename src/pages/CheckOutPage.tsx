@@ -10,6 +10,7 @@ import { Search, Users, LogOut, Clock, QrCode, CheckCircle, AlertTriangle, Loade
 import { format } from "date-fns";
 import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
+import { QRService } from "@/services/QRService";
 import { AttendanceService } from "@/services/attendanceService";
 import { useAuth } from "@/context/AuthContext";
 
@@ -120,62 +121,28 @@ const CheckOutPage = () => {
     setShowScanner(false);
 
     try {
-      const scannedData = qrData.trim();
-      let token = scannedData;
-      let offlineMatchId = null;
-
-      // Handle raw "child:ID..." prefixed static offline formats from the parent app
-      if (scannedData.toLowerCase().startsWith('child:')) {
-        const parts = scannedData.split(':');
-        if (parts.length >= 2) {
-          offlineMatchId = parts[1];
-        }
+      const result = await QRService.parseAndVerify(qrData);
+      
+      if (result.type === 'error') {
+        toast({ title: "Scan Failed", description: result.message, variant: "destructive" });
+        return;
       }
 
-      if (offlineMatchId) {
-         // Attempt offline format bypass mapping directly into attendance arrays
-         const attendanceRecord = presentChildren.find((record: any) =>
-           record.child_id === offlineMatchId
-         );
-
-         if (attendanceRecord) {
-           handleCheckOut(attendanceRecord.id, scannedData);
-         } else {
-           toast({ title: "Child Not Found", description: "This child is not currently checked in.", variant: "destructive" });
-         }
-         return;
-      }
-
-      // Default: Look up secure QR database token explicitly
-      const { data: qrRecord, error } = await supabase
-        .from('qr_codes')
-        .select('*, child:children(*)')
-        .eq('qr_data', token)
-        .eq('is_active', true)
-        .single();
-
-      if (qrRecord) {
-        // Find current attendance record for this child
+      if (result.type === 'child') {
+        const childId = result.id;
         const attendanceRecord = presentChildren.find((record: any) =>
-          record.child_id === qrRecord.child_id
+          record.child_id === childId
         );
 
         if (attendanceRecord) {
           handleCheckOut(attendanceRecord.id, qrData);
         } else {
-          toast({
-            title: "Child Not Found",
-            description: "This child is not currently checked in.",
-            variant: "destructive",
-          });
+          toast({ title: "Child Not Found", description: "This child is not currently checked in.", variant: "destructive" });
         }
-      } else {
-        toast({
-          title: "Invalid QR Code",
-          description: "This QR code is not valid or has expired.",
-          variant: "destructive",
-        });
+        return;
       }
+
+      toast({ title: "Scan Failed", description: "Code not recognized.", variant: "destructive" });
     } catch (error) {
       console.error("Error processing QR:", error);
       toast({

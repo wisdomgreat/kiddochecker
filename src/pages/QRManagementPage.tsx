@@ -25,6 +25,7 @@ import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import { format } from "date-fns";
 import DOMPurify from "dompurify";
 import useQRCodes from "@/hooks/useQRCodes";
+import { QRService } from "@/services/QRService";
 
 interface Child {
     id: string;
@@ -92,6 +93,7 @@ const QRManagementPage = () => {
     const [isRegenDialogOpen, setIsRegenDialogOpen] = useState(false);
     const [manualCode, setManualCode] = useState("");
     const [isSavingCode, setIsSavingCode] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
     const printRef = useRef<HTMLDivElement>(null);
 
     const { qrCodes, generateQRCode, isLoading: qrLoading } = useQRCodes();
@@ -118,6 +120,38 @@ const QRManagementPage = () => {
             toast({ title: "Error", description: err.message, variant: "destructive" });
         } finally {
             setIsSavingCode(false);
+        }
+    };
+
+    const handleSyncAll = async () => {
+        setIsSyncing(true);
+        try {
+            const result = await QRService.syncAllChildren();
+            if (result.success) {
+                toast({ title: "Sync Complete", description: `Generated ${result.count} new tokens for children missing them.` });
+                setQrSourceType("token");
+            }
+        } catch (err: any) {
+            toast({ title: "Sync Failed", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handleRegenerateAll = async () => {
+        if (!window.confirm("CRITICAL WARNING: This will DEACTIVATE all existing QR codes. Any labels you have already printed will no longer scan. Are you sure you want to proceed?")) return;
+        
+        setIsSyncing(true);
+        try {
+            const result = await QRService.regenerateAll();
+            if (result.success) {
+                toast({ title: "Nuclear Reset Complete", description: `Deactivated all old codes and generated ${result.count} fresh tokens.` });
+                setQrSourceType("token");
+            }
+        } catch (err: any) {
+            toast({ title: "Reset Failed", description: err.message, variant: "destructive" });
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -262,9 +296,29 @@ const QRManagementPage = () => {
                                 <button className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${qrSourceType === 'standard' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`} onClick={() => setQrSourceType('standard')}>JSON</button>
                                 <button className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${qrSourceType === 'token' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`} onClick={() => setQrSourceType('token')}>DB Match</button>
                             </div>
-                            <Button onClick={handlePrint} disabled={isPrinting} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2">
+                            <Button onClick={handlePrint} disabled={isPrinting} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2 shadow-lg shadow-indigo-200">
                                 {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                                 {selectedChildren.size > 0 ? `Print ${selectedChildren.size}` : `Print All`}
+                            </Button>
+                            <Button 
+                                variant="outline" 
+                                onClick={handleSyncAll} 
+                                disabled={isSyncing}
+                                className="rounded-xl border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                                title="Ensure all children have DB tokens"
+                            >
+                                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                                Sync DB Tokens
+                            </Button>
+                            <Button 
+                                variant="ghost" 
+                                onClick={handleRegenerateAll} 
+                                disabled={isSyncing}
+                                className="rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100"
+                                title="Reset everything from scratch"
+                            >
+                                <ShieldAlert className="h-4 w-4 mr-2" />
+                                Reset All
                             </Button>
                         </div>
                     </div>
