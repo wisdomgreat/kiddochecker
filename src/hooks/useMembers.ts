@@ -12,11 +12,8 @@ export interface ChurchMember {
   membership_type: MembershipType;
   status: MembershipStatus;
   joined_at: string;
-  baptism_date?: string;
-  confirmation_date?: string;
-  wedding_date?: string;
-  pastoral_notes?: string;
-  spiritual_milestones: unknown[];
+  journey_stage?: 'initial_visit' | 'followed_up' | 'connected' | 'member' | 'leader' | 'inactive';
+  spiritual_milestones: { id: string; milestone_type: string; attained_at: string; notes?: string }[];
     profiles?: { 
       id: string; 
       first_name: string; 
@@ -68,7 +65,8 @@ export const useMembers = () => {
             gender, date_of_birth, marital_status, address, city, state, zip_code,
             occupation, bio, emergency_contact_name, emergency_contact_phone
           ),
-          children (first_name, last_name)
+          children (first_name, last_name),
+          spiritual_milestones: milestones (*)
         `)
         .order('joined_at', { ascending: false });
 
@@ -120,6 +118,21 @@ export const useMembers = () => {
     },
   });
 
+  const updateJourneyStage = useMutation({
+    mutationFn: async ({ id, stage }: { id: string; stage: string }) => {
+      const { error } = await supabase
+        .from('church_memberships')
+        .update({ journey_stage: stage })
+        .eq('id', id);
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['church-members'] });
+      toast({ title: 'Journey Updated', description: 'Stage changed successfully.' });
+    },
+  });
+
   const createMemberMutation = useMutation({
     mutationFn: async (vars: Partial<ChurchMember>) => {
       const { data, error } = await supabase
@@ -167,6 +180,7 @@ export const useMembers = () => {
             profile_id: profile.id, 
             membership_type: vars.type, 
             status: 'active',
+            journey_stage: 'initial_visit',
             joined_at: new Date().toISOString()
         })
         .select()
@@ -191,6 +205,7 @@ export const useMembers = () => {
     isLoading: membersQuery.isLoading,
     stats: churchStatsQuery.data,
     updateMember: updateMemberMutation.mutate,
+    updateJourneyStage: updateJourneyStage.mutate,
     createMember: createMemberMutation.mutate,
     createVisitor: createVisitorProfile.mutate,
     isUpdating: updateMemberMutation.isPending,

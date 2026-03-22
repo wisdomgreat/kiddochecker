@@ -29,8 +29,11 @@ import {
   BarChart3, 
   LayoutGrid, 
   CircleDollarSign, 
-  ClipboardList 
+  ClipboardList,
+  Sparkle
 } from 'lucide-react';
+import VisitorJourneyBoard from '@/components/crm/VisitorJourneyBoard';
+import { Sparkles as SparklesIcon } from 'lucide-react';
 
 const ChurchManagementPage = () => {
     const { t } = useTranslation();
@@ -71,7 +74,6 @@ const ChurchManagementPage = () => {
             id: selectedMember.id,
             membership_type: selectedMember.membership_type,
             status: selectedMember.status,
-            pastoral_notes: selectedMember.pastoral_notes,
             profile_id: selectedMember.profiles?.id
         }, { onSuccess: () => setIsEditDialogOpen(false) });
     };
@@ -109,6 +111,9 @@ const ChurchManagementPage = () => {
                                 </TabsTrigger>
                                 <TabsTrigger value="ministries" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
                                     <LayoutGrid className="h-4 w-4 mr-2" /> {t('ministries')}
+                                </TabsTrigger>
+                                <TabsTrigger value="visitor_crm" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                    <SparklesIcon className="h-4 w-4 mr-2" /> Visitor CRM
                                 </TabsTrigger>
                                 <TabsTrigger value="kanban" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
                                     <ClipboardList className="h-4 w-4 mr-2" /> {t('kanban')}
@@ -291,6 +296,12 @@ const ChurchManagementPage = () => {
                                     ))}
                                 </div>
                             </div>
+                        </motion.div>
+                    )}
+
+                    {activePerspective === 'visitor_crm' && (
+                        <motion.div key="visitor_crm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                            <VisitorJourneyBoard />
                         </motion.div>
                     )}
 
