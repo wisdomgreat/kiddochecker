@@ -343,7 +343,10 @@ export const translations = {
     trackingProgressAcrossStages: "Tracking progress across stages",
     emptyStage: "Empty Stage",
     openCRM: "Open CRM",
-    message: "Message"
+    message: "Message",
+    kanban: "Follow-ups",
+    giving: "Giving",
+    analysis: "Analysis"
   },
   fr: {
     welcome: "Bienvenue à KiddoChecker",

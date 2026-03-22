@@ -23,6 +23,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import MemberCRMDialog from '@/components/crm/MemberCRMDialog';
+import JourneyKanbanBoard from '@/components/crm/JourneyKanbanBoard';
+import DonationTracker from '@/components/crm/DonationTracker';
+import { 
+  BarChart3, 
+  LayoutGrid, 
+  CircleDollarSign, 
+  ClipboardList 
+} from 'lucide-react';
 
 const ChurchManagementPage = () => {
     const { t } = useTranslation();
@@ -95,10 +103,22 @@ const ChurchManagementPage = () => {
                     
                     <div className="flex items-center gap-3">
                         <Tabs value={activePerspective} onValueChange={setActivePerspective} className="w-fit">
-                            <TabsList className="bg-slate-100 dark:bg-slate-800/50 p-1 rounded-2xl border-none h-12">
-                                <TabsTrigger value="members" className="rounded-xl px-6 font-bold">{t('members')}</TabsTrigger>
-                                <TabsTrigger value="ministries" className="rounded-xl px-6 font-bold">{t('ministries')}</TabsTrigger>
-                                <TabsTrigger value="journey" className="rounded-xl px-6 font-bold">{t('guestJourney')}</TabsTrigger>
+                            <TabsList className="bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl border-none h-14">
+                                <TabsTrigger value="members" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                    <Users className="h-4 w-4 mr-2" /> {t('members')}
+                                </TabsTrigger>
+                                <TabsTrigger value="ministries" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                    <LayoutGrid className="h-4 w-4 mr-2" /> {t('ministries')}
+                                </TabsTrigger>
+                                <TabsTrigger value="kanban" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                    <ClipboardList className="h-4 w-4 mr-2" /> {t('kanban')}
+                                </TabsTrigger>
+                                <TabsTrigger value="journey" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                    <BarChart3 className="h-4 w-4 mr-2" /> {t('analysis')}
+                                </TabsTrigger>
+                                <TabsTrigger value="giving" className="rounded-xl px-6 font-bold h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm">
+                                    <CircleDollarSign className="h-4 w-4 mr-2" /> {t('giving')}
+                                </TabsTrigger>
                             </TabsList>
                         </Tabs>
                         <Button onClick={() => setIsAddMemberOpen(true)} className="h-12 px-6 rounded-xl bg-indigo-600 font-bold text-white shadow-sm">
@@ -271,6 +291,18 @@ const ChurchManagementPage = () => {
                                     ))}
                                 </div>
                             </div>
+                        </motion.div>
+                    )}
+
+                    {activePerspective === 'kanban' && (
+                        <motion.div key="kanban" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                            <JourneyKanbanBoard />
+                        </motion.div>
+                    )}
+
+                    {activePerspective === 'giving' && (
+                        <motion.div key="giving" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                            <DonationTracker />
                         </motion.div>
                     )}
                 </AnimatePresence>
