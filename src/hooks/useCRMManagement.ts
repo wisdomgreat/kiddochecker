@@ -148,11 +148,28 @@ export const useCRMManagement = () => {
     },
   });
 
+  const addTaskMutation = useMutation({
+    mutationFn: async (task: any) => {
+      const { data, error } = await supabase
+        .from('engagement_tasks')
+        .insert([task])
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['engagement-tasks'] });
+      toast({ title: 'Task Created', description: 'Outreach item added to board.' });
+    },
+  });
+
   return {
     tasks,
     tasksLoading,
     updateTaskStatus: updateTaskStatusMutation.mutate,
     assignTask: assignTaskMutation.mutate,
+    addTask: addTaskMutation.mutate,
     journeys,
     journeysLoading,
     donations,

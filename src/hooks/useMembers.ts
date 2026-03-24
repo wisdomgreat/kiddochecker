@@ -187,7 +187,18 @@ export const useMembers = () => {
         .single();
       
       if (memberError) throw memberError;
-
+      
+      // 3. Create initial outreach task
+      await supabase
+        .from('engagement_tasks')
+        .insert({
+          member_id: member.id,
+          title: `Welcome ${vars.first_name}`,
+          description: `Initial visitor outreach. Reach out and welcome them to our community!`,
+          status: 'todo',
+          priority: 'medium'
+        });
+        
       return { profile, member };
     },
     onSuccess: () => {
@@ -200,6 +211,24 @@ export const useMembers = () => {
     },
   });
 
+  const recordMilestone = useMutation({
+    mutationFn: async (vars: { member_id: string; milestone_type: string; attained_at: string; notes?: string }) => {
+      const { error } = await supabase
+        .from('milestones')
+        .insert(vars);
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['church-members'] });
+      queryClient.invalidateQueries({ queryKey: ['member-milestones'] });
+      toast({ title: 'Milestone Recorded', description: 'The spiritual milestone has been logged.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  });
+
   return {
     members: membersQuery.data || [],
     isLoading: membersQuery.isLoading,
@@ -208,7 +237,9 @@ export const useMembers = () => {
     updateJourneyStage: updateJourneyStage.mutate,
     createMember: createMemberMutation.mutate,
     createVisitor: createVisitorProfile.mutate,
+    recordMilestone: recordMilestone.mutate,
     isUpdating: updateMemberMutation.isPending,
     isCreating: createMemberMutation.isPending || createVisitorProfile.isPending,
+    isRecording: recordMilestone.isPending
   };
  };

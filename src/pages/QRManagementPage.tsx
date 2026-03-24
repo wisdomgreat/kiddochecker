@@ -42,7 +42,7 @@ interface Child {
 const QR_SIZE = 160;
 
 interface QRLabelProps {
-    child: Child;
+    child: Child & { class?: { name: string } };
     orgName?: string;
     useToken?: boolean;
     tokenData?: string;
@@ -60,16 +60,21 @@ const QRLabel = ({ child, orgName = "KiddoChecker", useToken = false, tokenData 
 
     return (
         <div className="qr-print-label bg-white border-2 border-slate-800 rounded-xl p-4 w-[240px] text-center">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{orgName}</p>
+            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{orgName}</p>
             <div className="bg-white inline-block p-2 border border-slate-200 rounded-lg">
                 <QRCodeSVG value={qrData} size={QR_SIZE} level="H" includeMargin={false} />
             </div>
             <p className="font-black text-slate-900 text-base mt-2 leading-tight">{child.first_name} {child.last_name}</p>
-            {child.age && <p className="text-xs text-slate-500">{child.age} years old</p>}
+            <div className="flex items-center justify-center gap-2 mt-1">
+                {child.age && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{child.age} yrs</p>}
+                {(child as any).class?.name && (
+                    <Badge className="bg-indigo-50 text-indigo-600 border-none text-[9px] font-black uppercase px-2 py-0">{(child as any).class.name}</Badge>
+                )}
+            </div>
             {child.allergies && (
                 <div className="mt-2 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1">
-                    <p className="text-[9px] font-bold text-amber-700 uppercase">⚠ Allergy Alert</p>
-                    <p className="text-[10px] text-amber-700 font-medium leading-tight">{child.allergies}</p>
+                    <p className="text-xs font-black text-amber-700 uppercase tracking-tighter">⚠ Allergy Alert</p>
+                    <p className="text-sm text-amber-900 font-bold leading-tight uppercase">{child.allergies}</p>
                 </div>
             )}
             {child.emergency_contact_phone && (
@@ -174,8 +179,8 @@ const QRManagementPage = () => {
     const { data: children = [], isLoading: childrenLoading } = useQuery({
         queryKey: ["qr-children"],
         queryFn: async () => {
-            const { data } = await supabase.from("children").select("*").order("first_name");
-            return (data || []) as Child[];
+            const { data } = await supabase.from("children").select("*, class:classes(name)").order("first_name");
+            return (data || []) as any[];
         },
     });
 
@@ -235,7 +240,10 @@ const QRManagementPage = () => {
             <p class="org">KiddoChecker</p>
             <div class="qr-placeholder" data-value="${encodeURIComponent(qrVal)}"></div>
             <p class="name">${safeFirstName} ${safeLastName}</p>
-            <p class="age">${child.age ? child.age + " years old" : ""}</p>
+            <div style="display: flex; justify-items: center; justify-content: center; gap: 8px; margin-top: 4px;">
+              <p class="age">${child.age ? child.age + "y" : ""}</p>
+              ${(child as any).class?.name ? `<p class="class-label">${(child as any).class.name}</p>` : ""}
+            </div>
             ${safeAllergies ? `<div class="allergy">⚠ ${safeAllergies}</div>` : ""}
             ${child.emergency_contact_phone ? `<p class="phone">📞 ${DOMPurify.sanitize(child.emergency_contact_phone)}</p>` : ""}
             <p class="id">${child.id.substring(0, 12).toUpperCase()}</p>
@@ -254,7 +262,8 @@ const QRManagementPage = () => {
             .label { border: 2px solid #1e293b; border-radius: 12px; padding: 16px; width: 200px; text-align: center; page-break-inside: avoid; }
             .org { font-size: 8px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 8px; }
             .name { font-size: 14px; font-weight: 900; color: #0f172a; margin: 8px 0 2px; }
-            .age { font-size: 11px; color: #94a3b8; margin: 0 0 4px; }
+            .age { font-size: 11px; color: #94a3b8; font-weight: bold; }
+            .class-label { font-size: 10px; font-weight: 800; color: #4f46e5; text-transform: uppercase; background: #f5f3ff; padding: 2px 6px; border-radius: 4px; }
             .allergy { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 4px 8px; font-size: 9px; font-weight: 700; color: #92400e; margin: 6px 0 2px; }
             .phone { font-size: 9px; color: #94a3b8; margin: 4px 0; }
             .id { font-size: 8px; color: #cbd5e1; font-family: monospace; margin: 4px 0 0; }

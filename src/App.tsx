@@ -73,6 +73,7 @@ const AboutUsPage = lazy(() => import("./pages/AboutUsPage"));
 const CentersPage = lazy(() => import("./pages/CentersPage"));
 const ShiftManagementPage = lazy(() => import("./pages/ShiftManagementPage"));
 const ChurchManagementPage = lazy(() => import("./pages/ChurchManagementPage"));
+const InstallPWABanner = lazy(() => import("./components/mobile/InstallPWABanner"));
 
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <InstallPWABanner />
           <BrowserRouter>
             <AuthErrorBoundary>
               <LanguageProvider>

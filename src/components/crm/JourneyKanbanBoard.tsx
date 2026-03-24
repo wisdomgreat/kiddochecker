@@ -17,7 +17,15 @@ import {
 import { useCRMManagement, EngagementTask } from '@/hooks/useCRMManagement';
 import { useAuth } from '@/context/AuthContext';
 import { useAllUsers } from '@/hooks/useAllUsers';
+import { useMembers } from '@/hooks/useMembers';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const KANBAN_STAGES = [
   { id: 'todo', name: 'Backlog / New', color: 'bg-slate-100 text-slate-600', icon: Clock },
@@ -26,9 +34,20 @@ const KANBAN_STAGES = [
 ];
 
 const JourneyKanbanBoard = () => {
-    const { tasks, tasksLoading, updateTaskStatus, assignTask } = useCRMManagement();
+    const { tasks, tasksLoading, updateTaskStatus, assignTask, addTask } = useCRMManagement();
     const { data: allUsers } = useAllUsers();
+    const { members } = useMembers();
     const { user } = useAuth();
+    const { toast } = useToast();
+    
+    const [isAddTaskOpen, setIsAddTaskOpen] = React.useState(false);
+    const [selectedStage, setSelectedStage] = React.useState('todo');
+    const [newTask, setNewTask] = React.useState({
+        member_id: '',
+        title: '',
+        description: '',
+        priority: 'medium' as any
+    });
     
     const staffMembers = allUsers?.filter(u => ['admin', 'super_admin', 'staff', 'teacher'].includes(u.role)) || [];
 
@@ -37,7 +56,8 @@ const JourneyKanbanBoard = () => {
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 h-full min-h-[600px]">
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 h-full min-h-[600px]">
             {KANBAN_STAGES.map((stage) => (
                 <div key={stage.id} className="flex flex-col gap-6">
                     <div className="flex items-center justify-between px-2">
@@ -47,9 +67,20 @@ const JourneyKanbanBoard = () => {
                             </div>
                             <div>
                                 <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{stage.name}</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tasks.filter(t => t.status === stage.id).length} Active Items</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tasks.filter(t => t.status === stage.id).length} Items</p>
                             </div>
                         </div>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-full border border-slate-100 hover:bg-slate-50"
+                            onClick={() => {
+                                setSelectedStage(stage.id);
+                                setIsAddTaskOpen(true);
+                            }}
+                        >
+                            <Plus className="h-4 w-4 text-slate-400" />
+                        </Button>
                     </div>
 
                     <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/40 rounded-[2.5rem] p-6 space-y-4 border border-slate-100 dark:border-white/5 shadow-inner min-h-[500px]">
@@ -131,6 +162,84 @@ const JourneyKanbanBoard = () => {
                 </div>
             ))}
         </div>
+
+        <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+            <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+                <div className="bg-indigo-600 p-8 text-white">
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">New Outreach Task</DialogTitle>
+                    <DialogDescription className="text-indigo-100 font-medium">Assign a new action item for a community member.</DialogDescription>
+                </div>
+                <div className="p-8 space-y-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Select Member</Label>
+                        <Select value={newTask.member_id} onValueChange={(v) => setNewTask({...newTask, member_id: v})}>
+                            <SelectTrigger className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold">
+                                <SelectValue placeholder="Search member..." />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-2xl border-none shadow-2xl">
+                                {members.map(m => (
+                                    <SelectItem key={m.id} value={m.id}>
+                                        {m.profiles?.first_name} {m.profiles?.last_name} ({m.membership_type})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Task Title</Label>
+                        <Input 
+                            placeholder="e.g. Pastoral visit requested" 
+                            value={newTask.title} 
+                            onChange={e => setNewTask({...newTask, title: e.target.value})}
+                            className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" 
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Priority</Label>
+                        <Select value={newTask.priority} onValueChange={(v: any) => setNewTask({...newTask, priority: v})}>
+                            <SelectTrigger className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-2xl border-none shadow-2xl">
+                                <SelectItem value="low">Low Priority</SelectItem>
+                                <SelectItem value="medium">Medium Priority</SelectItem>
+                                <SelectItem value="high">High Priority</SelectItem>
+                                <SelectItem value="urgent">Urgent Action</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Context / Notes</Label>
+                        <Textarea 
+                            placeholder="Details about the outreach need..." 
+                            value={newTask.description}
+                            onChange={e => setNewTask({...newTask, description: e.target.value})}
+                            className="min-h-[100px] rounded-2xl bg-slate-50 dark:bg-slate-900 border-none p-4 font-medium" 
+                        />
+                    </div>
+
+                    <Button 
+                        disabled={!newTask.member_id || !newTask.title}
+                        onClick={() => {
+                            addTask({
+                                ...newTask,
+                                status: selectedStage
+                            }, { onSuccess: () => {
+                                setIsAddTaskOpen(false);
+                                setNewTask({ member_id: '', title: '', description: '', priority: 'medium' });
+                            }});
+                        }}
+                        className="w-full h-14 bg-indigo-600 text-white rounded-[1.5rem] font-bold shadow-xl active:scale-95 transition-all mt-4"
+                    >
+                        CREATE OUTREACH TASK
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+      </>
     );
 };
 

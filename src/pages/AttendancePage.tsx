@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckSquare, TrendingUp, Calendar, Download, Loader2, Clock, RefreshCw } from 'lucide-react';
+import { Calendar, CheckSquare, Clock, Download, Loader2, RefreshCw, TrendingUp, Users } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';
 import { useAuth } from '@/context/AuthContext';
@@ -210,63 +210,55 @@ const AttendancePage = () => {
             initial="hidden"
             animate="show"
           >
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Today's Check-ins</CardTitle>
-                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.todayCheckins}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Total checked in today</p>
-                </CardContent>
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+              <Card className="vcard-accent bg-emerald-50 dark:bg-emerald-500/5 border-none p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Today's Check-ins</p>
+                  <CheckSquare className="h-5 w-5 text-emerald-600" />
+                </div>
+                <h3 className="text-3xl font-black tracking-tighter text-emerald-900 dark:text-emerald-300">
+                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.todayCheckins}
+                </h3>
+                <p className="text-[10px] font-bold text-emerald-600/60 uppercase tracking-widest mt-1">Total entries today</p>
               </Card>
             </motion.div>
 
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Currently Present</CardTitle>
-                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.currentlyPresent}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Still checked in</p>
-                </CardContent>
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+              <Card className="vcard-accent-blue bg-indigo-50 dark:bg-indigo-500/5 border-none p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest">Currently Present</p>
+                  <Users className="h-5 w-5 text-indigo-600" />
+                </div>
+                <h3 className="text-3xl font-black tracking-tighter text-indigo-900 dark:text-indigo-300">
+                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.currentlyPresent}
+                </h3>
+                <p className="text-[10px] font-bold text-indigo-600/60 uppercase tracking-widest mt-1">Still in session</p>
               </Card>
             </motion.div>
 
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Checked Out</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-600">
-                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.checkedOut}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Completed today</p>
-                </CardContent>
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+              <Card className="vcard-accent bg-slate-100 dark:bg-white/5 border-none p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest">Checked Out</p>
+                  <TrendingUp className="h-5 w-5 text-slate-600" />
+                </div>
+                <h3 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">
+                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.checkedOut}
+                </h3>
+                <p className="text-[10px] font-bold text-slate-500/60 uppercase tracking-widest mt-1">Completed today</p>
               </Card>
             </motion.div>
 
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Late Check-outs</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
-                    {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.lateCheckouts}
-                  </div>
-                  <p className="text-xs text-muted-foreground">After 6:00 PM</p>
-                </CardContent>
+            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
+              <Card className="vcard-accent-blue bg-amber-50 dark:bg-amber-500/5 border-none p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Late Check-outs</p>
+                  <Clock className="h-5 w-5 text-amber-600" />
+                </div>
+                <h3 className="text-3xl font-black tracking-tighter text-amber-900 dark:text-amber-300">
+                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.lateCheckouts}
+                </h3>
+                <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-widest mt-1">After 6:00 PM</p>
               </Card>
             </motion.div>
           </motion.div>
@@ -339,8 +331,8 @@ const AttendancePage = () => {
                               }
                             </div>
                             {record.special_instructions && (
-                              <div className="text-[10px] text-muted-foreground bg-muted/30 border p-1.5 rounded mt-1.5 leading-snug">
-                                <span className="font-semibold text-primary">Note:</span> {record.special_instructions}
+                              <div className="text-xs text-muted-foreground bg-muted/50 border border-muted-foreground/10 p-2.5 rounded-xl mt-2 leading-relaxed shadow-sm">
+                                <span className="font-black text-indigo-600 uppercase tracking-widest text-[10px] mr-1.5">Note:</span> {record.special_instructions}
                               </div>
                             )}
                           </TableCell>
@@ -349,9 +341,9 @@ const AttendancePage = () => {
                           <TableCell>{formatTime(record.checked_out_at)}</TableCell>
                           <TableCell>
                             {record.checked_out_at ? (
-                              <Badge variant="secondary">Checked Out</Badge>
+                              <Badge variant="secondary" className="px-3 h-6 rounded-full text-[10px] font-black uppercase tracking-widest">Checked Out</Badge>
                             ) : (
-                              <Badge className="bg-green-600">Present</Badge>
+                              <Badge className="bg-emerald-500 hover:bg-emerald-600 px-3 h-6 rounded-full text-[10px] font-black uppercase tracking-widest">Present</Badge>
                             )}
                           </TableCell>
                           <TableCell>

@@ -23,13 +23,13 @@ const PeopleManagementPage = () => {
 
           <Tabs defaultValue="users" className="space-y-6" onValueChange={setActiveTab}>
             <TabsList className="bg-slate-100/50 p-1 rounded-2xl w-full md:w-auto h-auto gap-1">
-              <TabsTrigger value="users" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all gap-2">
+              <TabsTrigger value="users" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
                 <Users className="h-4 w-4" /> All Users
               </TabsTrigger>
-              <TabsTrigger value="staff" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all gap-2">
+              <TabsTrigger value="staff" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
                 <UserCheck className="h-4 w-4" /> Staff & Volunteers
               </TabsTrigger>
-              <TabsTrigger value="children" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all gap-2">
+              <TabsTrigger value="children" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
                 <Baby className="h-4 w-4" /> Children
               </TabsTrigger>
             </TabsList>

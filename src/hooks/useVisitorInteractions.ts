@@ -81,11 +81,53 @@ export const useVisitorInteractions = (visitorId?: string) => {
     }
   });
 
+  const startVIPSeries = useMutation({
+    mutationFn: async ({ membership_id, email, firstName }: { membership_id: string, email: string, firstName: string }) => {
+      // 1. Send the first email immediately
+      await sendEmail.mutateAsync({
+        to: email,
+        templateName: 'visitor_welcome',
+        templateData: { firstName },
+        visitor_id: visitorId
+      });
+
+      // 2. Start the automated journey in Supabase
+      const { error } = await supabase
+        .from('journey_progress')
+        .insert({
+          membership_id,
+          journey_type: 'visitor_welcome',
+          status: 'active',
+          current_step: 1, // Step 0 was sent above (welcome)
+          next_run_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // Next step in 7 days
+        });
+
+      if (error) throw error;
+
+      // 3. Update journey stage to reflect movement
+      await supabase
+        .from('church_memberships')
+        .update({ journey_stage: 'followed_up' })
+        .eq('id', membership_id);
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visitor-interactions', visitorId] });
+      queryClient.invalidateQueries({ queryKey: ['church-members'] });
+      toast({ title: 'VIP Series Started', description: 'Automated welcome sequence is now active.' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error Starting Series', description: err.message, variant: 'destructive' });
+    }
+  });
+
   return {
     interactions,
     isLoading,
     addInteraction: addInteraction.mutate,
     sendEmail: sendEmail.mutate,
-    isSending: sendEmail.isPending
+    startVIPSeries: startVIPSeries.mutate,
+    isSending: sendEmail.isPending || startVIPSeries.isPending
   };
 };

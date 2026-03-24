@@ -9,13 +9,38 @@ import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
-import {
-    Users, UserCheck, UserX, Baby, ClipboardCheck, TrendingUp,
-    TrendingDown, QrCode, Printer, Shield, AlertTriangle, Activity,
-    BookOpen, MessageSquare, Calendar, Settings, ChevronRight,
-    Clock, CheckCircle2, XCircle, BarChart3, Bell, LogIn, LogOut,
-    ArrowUpRight, ArrowDownRight, Zap, Star, Award, Globe
-} from "lucide-react";
+import { cn } from '@/lib/utils';
+import { 
+    Users, 
+    Baby, 
+    Calendar, 
+    Shield, 
+    MessageSquare, 
+    TrendingUp, 
+    TrendingDown,
+    ArrowUpRight, 
+    ArrowDownRight, 
+    Clock, 
+    Activity, 
+    UserCheck,
+    ChevronRight,
+    MapPin,
+    GraduationCap,
+    HeartPulse,
+    LayoutDashboard,
+    QrCode,
+    Printer,
+    Zap,
+    Globe,
+    BarChart3,
+    Settings,
+    ClipboardCheck,
+    LogOut,
+    LogIn,
+    Bell,
+    Star,
+    Award
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,54 +91,42 @@ const StatCard = ({ title, value, icon: Icon, gradient, change, changeType, subt
         className="h-full cursor-pointer group"
         onClick={onClick}
     >
-        <div className={`kpi-card text-white ${gradient} h-full flex flex-col justify-between min-h-[160px] transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-1`}>
-            <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                    <p className="text-white/80 text-xs font-bold uppercase tracking-wider">{title}</p>
-                    <p className="text-4xl font-extrabold tracking-tight">{value}</p>
-                    {subtitle && <p className="text-white/70 text-xs font-medium leading-relaxed mt-1">{subtitle}</p>}
+        <Card className={cn("relative overflow-hidden group transition-all duration-300 hover:shadow-2xl border-none p-6", gradient)}>
+            <div className="flex items-center justify-between mb-4">
+                <div className={cn("p-4 rounded-2xl transition-all duration-500 bg-white/20 backdrop-blur-md")}>
+                    <Icon className={cn("w-7 h-7 text-white")} />
                 </div>
-                <div className="bg-white/20 backdrop-blur-md rounded-2xl p-3 flex-shrink-0">
-                    <Icon className="h-6 w-6 text-white" />
-                </div>
-            </div>
-            {change && (
-                <div className="mt-4 flex items-center gap-1.5 pt-4 border-t border-white/10">
-                    {changeType === "up" ? (
-                        <div className="p-0.5 bg-emerald-400/20 rounded-md">
-                            <ArrowUpRight className="h-4 w-4 text-emerald-300" />
-                        </div>
-                    ) : changeType === "down" ? (
-                        <div className="p-0.5 bg-red-400/20 rounded-md">
-                            <ArrowDownRight className="h-4 w-4 text-red-300" />
-                        </div>
-                    ) : null}
-                    <span className={`text-sm font-semibold tracking-wide ${changeType === "up" ? "text-emerald-300" : changeType === "down" ? "text-red-300" : "text-white/70"}`}>
+                {change && (
+                    <div className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-sm",
+                        changeType === "up" ? "bg-emerald-400/20 text-emerald-300" :
+                        changeType === "down" ? "bg-red-400/20 text-red-300" : "text-white/70 bg-white/10"
+                    )}>
+                        {changeType === "up" && <TrendingUp className="w-4 h-4" />}
+                        {changeType === "down" && <TrendingDown className="w-4 h-4" />}
                         {change}
-                    </span>
+                    </div>
+                )}
+            </div>
+            <div>
+                <p className="text-sm font-black text-white/80 uppercase tracking-[0.15em] mb-1">{title}</p>
+                <div className="flex items-baseline gap-2">
+                    <h3 className="text-4xl font-black tracking-tighter text-white">{value}</h3>
                 </div>
-            )}
-        </div>
+                {subtitle && <p className="text-xs font-medium text-white/70 leading-relaxed mt-1">{subtitle}</p>}
+            </div>
+        </Card>
     </motion.div>
 );
 
 const ActionCard = ({ title, description, icon: Icon, color, onClick, index }: any) => (
     <motion.div custom={index} variants={cardVariants} initial="hidden" animate="show">
-        <button
-            onClick={onClick}
-            className="w-full bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left group"
-        >
-            <div className="flex items-center gap-4">
-                <div className={`rounded-xl p-3 ${color}`}>
-                    <Icon className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-800 text-sm">{title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 truncate">{description}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+        <Card className={cn("relative overflow-hidden p-8 flex flex-col items-center text-center group cursor-pointer border-none shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-2")}>
+            <div className={cn("w-16 h-16 rounded-3xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-lg", color)}>
+                <Icon className={cn("w-8 h-8 text-white")} />
             </div>
-        </button>
+            <h4 className="text-lg font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tight">{title}</h4>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 leading-relaxed uppercase tracking-widest">{description}</p>
+        </Card>
     </motion.div>
 );
 
@@ -257,28 +270,28 @@ const AdminDashboardNew = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     index={0} title={t('totalChildren')} value={children.length}
-                    icon={Baby} gradient="gradient-primary"
+                    icon={Baby} gradient="vcard-accent-primary"
                     change={t('enrolledSystem')} changeType="neutral"
                     subtitle={`${children.filter((c: any) => c.allergies).length} with allergies`}
                     onClick={() => navigate("/children")}
                 />
                 <StatCard
                     index={1} title={t('presentNow')} value={presentNow}
-                    icon={UserCheck} gradient="gradient-success"
+                    icon={UserCheck} gradient="vcard-accent-success"
                     change={`${attendanceRate}% attendance rate`} changeType="up"
                     subtitle={`${totalCheckins} total check-ins today`}
                     onClick={() => navigate("/attendance")}
                 />
                 <StatCard
                     index={2} title={t('staffMembersCount')} value={staff.length}
-                    icon={Shield} gradient="gradient-info"
+                    icon={Shield} gradient="vcard-accent-info"
                     change={t('activeTeamMembers')} changeType="neutral"
                     subtitle={`${classes.length} active classes`}
                     onClick={() => navigate("/staff")}
                 />
                 <StatCard
                     index={3} title={t('messages')} value={messages.length}
-                    icon={MessageSquare} gradient="gradient-warning"
+                    icon={MessageSquare} gradient="vcard-accent-warning"
                     change={t('unreadMessages')} changeType={messages.length > 0 ? "down" : "neutral"}
                     subtitle={t('officialInbox')}
                     onClick={() => navigate("/messages")}
@@ -294,15 +307,6 @@ const AdminDashboardNew = () => {
                     transition={{ delay: 0.3 }}
                     className="lg:col-span-2 chart-container"
                 >
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800">{t('weeklyAttendance')}</h3>
-                            <p className="text-sm text-slate-500">Check-in activity over the last 7 days</p>
-                        </div>
-                        <Badge className="bg-indigo-50 text-indigo-600 border-indigo-200">
-                            <Activity className="h-3 w-3 mr-1" /> {t('systemLive')}
-                        </Badge>
-                    </div>
                     <ResponsiveContainer width="100%" height={220}>
                         <AreaChart data={weeklyAttendance}>
                             <defs>

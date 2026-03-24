@@ -229,13 +229,13 @@ const RolesPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="pt-4 mt-4 border-t border-slate-50">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Core Permissions</p>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Core Permissions</p>
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="rounded-full bg-slate-50/50 text-[11px] px-3 font-medium border-slate-200 text-slate-600">
-                      Standard {role.base_role}
+                    <Badge variant="outline" className="rounded-full bg-slate-50/50 text-xs px-3 py-1 font-medium border-slate-200 text-slate-600">
+                      View
                     </Badge>
-                    <Badge variant="outline" className="rounded-full bg-emerald-50 text-emerald-700 border-emerald-100 text-[11px] px-3 font-bold">
-                      + Custom Rules
+                    <Badge variant="outline" className="rounded-full bg-emerald-50 text-emerald-700 border-emerald-100 text-xs px-3 py-1 font-bold">
+                      Full Access
                     </Badge>
                   </div>
                 </div>

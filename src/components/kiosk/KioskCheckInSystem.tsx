@@ -34,6 +34,7 @@ interface Child {
   parent_id: string;
   age?: number;
   allergies?: string;
+  class_id?: string;
 }
 
 interface GeoLocation { latitude: number; longitude: number; accuracy: number; }
@@ -288,8 +289,13 @@ const KioskCheckInSystem = () => {
         p_pin: parentPin
       }) as any);
       
+      const kidsWithClasses = await Promise.all((kids || []).map(async (k: any) => {
+        const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
+        return { ...k, class_id: c?.class_id };
+      }));
+      
       setParentName(`${parent.first_name} ${parent.last_name}`);
-      setParentChildren(kids || []);
+      setParentChildren(kidsWithClasses || []);
       setParentLoggedIn(true);
       
       // Ensure we record the specific profile ID as the actor
@@ -476,7 +482,7 @@ const KioskCheckInSystem = () => {
       }
 
       if (result.type === 'child') {
-        const { data: child } = await supabase.from('children').select('*').eq('id', result.id).maybeSingle();
+        const { data: child } = await supabase.from('children').select('*, class_id').eq('id', result.id).maybeSingle();
         if (child) {
           if (checkedInChildIds.has(child.id)) {
             const record = checkedInChildren.find((r: any) => r.child_id === child.id);
@@ -717,16 +723,16 @@ const KioskCheckInSystem = () => {
                   </Button>
                 )}
                 
-                <div className="relative">
-                  <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder={t('phoneNamePlaceholder')} className="h-12 pl-10 bg-white/5 border-white/10" autoFocus />
-                  <Phone className="absolute left-3 top-4 w-4 h-4 text-white/20" />
+                <div className="relative group">
+                  <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder={t('phoneNamePlaceholder')} className="h-14 pl-12 bg-white/5 border-white/10 text-lg rounded-2xl focus:ring-indigo-500/50" autoFocus />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-indigo-400 transition-colors" />
                 </div>
-                <div className="relative">
-                  <Input type="password" value={parentPin} onChange={e => setParentPin(e.target.value)} placeholder={t('pinPlaceholder')} className="h-12 pl-10 bg-white/5 border-white/10 tracking-[0.5em]" maxLength={8} />
-                  <Shield className="absolute left-3 top-4 w-4 h-4 text-white/20" />
+                <div className="relative group">
+                  <Input type="password" value={parentPin} onChange={e => setParentPin(e.target.value)} placeholder={t('pinPlaceholder')} className="h-14 pl-12 bg-white/5 border-white/10 tracking-[0.5em] text-lg rounded-2xl focus:ring-indigo-500/50" maxLength={8} />
+                  <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-indigo-400 transition-colors" />
                 </div>
-                {parentLoginError && <p className="text-red-400 text-xs">{parentLoginError}</p>}
-                <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 font-bold">{t('search')}</Button>
+                {parentLoginError && <p className="text-red-400 text-sm font-bold animate-shake">{parentLoginError}</p>}
+                <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-14 bg-indigo-600 hover:bg-indigo-500 font-black uppercase tracking-widest rounded-2xl shadow-xl">{t('search')}</Button>
               </div>
             </div>
           </div>
@@ -747,8 +753,8 @@ const KioskCheckInSystem = () => {
                       {checked ? <CheckCircle /> : child.first_name[0]}
                     </div>
                     <div className="text-left flex-1">
-                      <p className="font-bold">{child.first_name} {child.last_name}</p>
-                      <p className="text-[10px] text-white/40">{checked ? t('currentlyInSession') : t('readyCheckIn')}</p>
+                      <p className="font-bold text-lg">{child.first_name} {child.last_name}</p>
+                      <p className="text-xs uppercase tracking-wider text-white/50">{checked ? t('currentlyInSession') : t('readyCheckIn')}</p>
                     </div>
                   </button>
                 );
@@ -763,8 +769,8 @@ const KioskCheckInSystem = () => {
               <div className="w-16 h-16 mx-auto bg-amber-500/10 rounded-2xl flex items-center justify-center mb-4">
                 <User className="w-8 h-8 text-amber-400" />
               </div>
-              <h2 className="text-xl font-black italic uppercase tracking-tight text-white mb-2">Youth Self-Check</h2>
-              <p className="text-white/40 text-[10px] px-8 uppercase tracking-widest font-black">Individual PIN Access</p>
+              <h2 className="text-2xl font-black italic uppercase tracking-tight text-white mb-2">Youth Self-Check</h2>
+              <p className="text-white/40 text-xs px-8 uppercase tracking-widest font-black">Individual PIN Access</p>
             </div>
 
             <div className="space-y-4">
@@ -785,7 +791,7 @@ const KioskCheckInSystem = () => {
                 />
               </div>
 
-              {youthLoginError && <p className="text-rose-400 text-center text-[10px] font-bold animate-shake">{youthLoginError}</p>}
+              {youthLoginError && <p className="text-rose-400 text-center text-xs font-bold animate-shake">{youthLoginError}</p>}
 
               <Button
                 onClick={handleYouthLogin}
@@ -812,13 +818,13 @@ const KioskCheckInSystem = () => {
                       <div>
                         <p className="font-bold text-sm">Staff: {staffName}</p>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={handleStaffLogout} className="text-white/40 h-8 uppercase text-[10px] font-black tracking-widest">{t('signOut')}</Button>
+                      <Button variant="ghost" size="sm" onClick={handleStaffLogout} className="text-white/40 h-10 uppercase text-xs font-black tracking-widest">{t('signOut')}</Button>
                     </div>
 
                     <Tabs defaultValue="search" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 rounded-xl mb-4">
-                        <TabsTrigger value="search" className="rounded-lg text-[10px] font-black uppercase tracking-widest">{t('search')}</TabsTrigger>
-                        <TabsTrigger value="shifts" className="rounded-lg text-[10px] font-black uppercase tracking-widest">{t('staffShifts')}</TabsTrigger>
+                      <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1.5 rounded-2xl mb-6 h-14">
+                        <TabsTrigger value="search" className="rounded-xl text-xs font-black uppercase tracking-widest">{t('search')}</TabsTrigger>
+                        <TabsTrigger value="shifts" className="rounded-xl text-xs font-black uppercase tracking-widest">{t('staffShifts')}</TabsTrigger>
                       </TabsList>
 
                       <TabsContent value="search" className="mt-0 space-y-4">
@@ -920,7 +926,13 @@ const KioskCheckInSystem = () => {
         )}
       </div>
 
-      <ClassSelectionDialog open={showClassDialog} onClose={() => setShowClassDialog(false)} onConfirm={handleClassSelected} childName={selectedChild?.first_name || ''} />
+      <ClassSelectionDialog 
+        open={showClassDialog} 
+        onClose={() => setShowClassDialog(false)} 
+        onConfirm={handleClassSelected} 
+        childName={selectedChild?.first_name || ''} 
+        initialClassId={selectedChild?.class_id}
+      />
       {selectedChild && <NameTagPrintDialog open={showNameTagDialog} onClose={() => setShowNameTagDialog(false)} child={selectedChild} qrData={checkInQRData} className={selectedClassName} specialInstructions={currentSpecialInstructions} />}
 
       {/* Signature Dialog */}

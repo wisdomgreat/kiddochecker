@@ -231,9 +231,9 @@ const ShiftManagementPage = () => {
           <CardHeader className="p-8 border-b border-slate-50 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-xl font-black text-slate-800">Daily Coverage</CardTitle>
-              <CardDescription className="uppercase text-[9px] font-black tracking-widest text-slate-400">Scheduled staff for this date</CardDescription>
+              <CardDescription className="uppercase text-xs font-black tracking-widest text-slate-400">Scheduled staff for this date</CardDescription>
             </div>
-            <Badge variant="outline" className="bg-slate-50 border-slate-100 text-[10px] font-bold py-1 px-3 rounded-full">{shifts.length} Shifts</Badge>
+            <Badge variant="outline" className="bg-slate-50 border-slate-100 text-xs font-bold py-1 px-3 rounded-full">{shifts.length} Shifts</Badge>
           </CardHeader>
           <CardContent className="p-0">
             {loadingShifts ? (
@@ -242,11 +242,11 @@ const ShiftManagementPage = () => {
               <Table>
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
-                    <TableHead className="pl-8 text-[10px] font-black uppercase tracking-widest">Staff Member</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Timing</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Assigned Class</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Role</TableHead>
-                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-right pr-8">Actions</TableHead>
+                    <TableHead className="pl-8 text-xs font-black uppercase tracking-widest text-slate-400">Staff Member</TableHead>
+                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400">Timing</TableHead>
+                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400">Assigned Class</TableHead>
+                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400">Role</TableHead>
+                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400 text-right pr-8">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -229,12 +229,12 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       )}
 
       <Tabs defaultValue="staff" className="w-full">
-        <TabsList className="bg-slate-100 p-1 rounded-2xl mb-6">
-          <TabsTrigger value="staff" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+        <TabsList className="bg-slate-100 dark:bg-slate-900 border-none h-14 p-1.5 rounded-2xl shadow-inner mb-8">
+          <TabsTrigger value="staff" className="rounded-xl px-10 font-black uppercase text-xs tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
             <Users className="h-4 w-4 mr-2" />
             {t('teamRoster')}
           </TabsTrigger>
-          <TabsTrigger value="groups" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="groups" className="rounded-xl px-10 font-black uppercase text-xs tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
             <Briefcase className="h-4 w-4 mr-2" />
             {t('departmentsGroups')}
           </TabsTrigger>
@@ -273,7 +273,9 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="text-xl font-black text-slate-900">{member.first_name} {member.last_name}</h3>
                             {member.department && (
-                               <Badge className="bg-indigo-50 text-indigo-700 border-none rounded-lg text-[10px] font-bold uppercase tracking-wider">{member.department}</Badge>
+                               <Badge className="bg-indigo-50 text-indigo-700 border-none rounded-lg text-xs font-black uppercase tracking-widest px-3 h-6">
+                                 {member.department}
+                               </Badge>
                             )}
                            </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-400">
@@ -284,7 +286,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1.5 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-[10px] font-black tracking-[0.2em]">
+                                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase shadow-sm">
                                             <Lock className="h-3 w-3" />
                                             {member.user_id === user?.id && member.staff_pin ? member.staff_pin : '••••'}
                                         </div>

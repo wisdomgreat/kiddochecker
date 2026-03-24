@@ -97,24 +97,25 @@ const ParentDashboardNew = () => {
                 </div>
             </motion.div>
 
-            {/* KPI Row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: t('myChildren'), value: myChildren.length, icon: Baby, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", index: 0, path: "/parent/children" },
-                    { label: t('presentToday'), value: presentToday, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", index: 1, path: "/parent/attendance" },
-                    { label: t('rewardsTitle'), value: myChildren.reduce((acc: number, curr: any) => acc + (curr.points_balance || 0), 0), icon: Award, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", index: 2, path: "/parent/rewards" },
-                    { label: t('messages'), value: messages.length, icon: MessageSquare, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100", index: 3, path: "/parent/messages" },
-                ].map(({ label, value, icon: Icon, color, bg, border, index, path }) => (
+                    { label: t('myChildren'), value: myChildren.length, icon: Baby, color: "text-indigo-600", bg: "bg-indigo-50", accentClass: "vcard-accent-blue", index: 0, path: "/parent/children" },
+                    { label: t('presentToday'), value: presentToday, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", accentClass: "vcard-accent", index: 1, path: "/parent/attendance" },
+                    { label: t('rewardsTitle'), value: myChildren.reduce((acc: number, curr: any) => acc + (curr.points_balance || 0), 0), icon: Award, color: "text-amber-600", bg: "bg-amber-50", accentClass: "vcard-accent-warning", index: 2, path: "/parent/rewards" },
+                    { label: t('messages'), value: messages.length, icon: MessageSquare, color: "text-purple-600", bg: "bg-purple-50", accentClass: "vcard-accent-blue", index: 3, path: "/parent/messages" },
+                ].map(({ label, value, icon: Icon, color, bg, accentClass, index, path }) => (
                     <motion.div key={label} custom={index} variants={cardVariants} initial="hidden" animate="show">
                         <div
-                            className={`bg-white rounded-2xl p-5 shadow-sm border ${border} vcard-accent hover:shadow-md transition-all cursor-pointer group`}
+                            className={`bg-white dark:bg-slate-900 rounded-[2rem] p-6 shadow-sm border-none ${accentClass} hover:shadow-2xl transition-all cursor-pointer group h-full flex flex-col justify-between`}
                             onClick={() => navigate(path)}
                         >
-                            <div className={`${bg} w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                                <Icon className={`h-5 w-5 ${color}`} />
+                            <div className={`${bg} dark:bg-white/5 w-14 h-14 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-sm`}>
+                                <Icon className={`h-7 w-7 ${color}`} />
                             </div>
-                            <p className="text-3xl font-bold text-slate-800">{value}</p>
-                            <p className="text-xs text-slate-500 mt-1 font-medium">{label}</p>
+                            <div>
+                                <p className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white">{value}</p>
+                                <p className="text-xs font-black text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-[0.15em]">{label}</p>
+                            </div>
                         </div>
                     </motion.div>
                 ))}
@@ -173,10 +174,10 @@ const ParentDashboardNew = () => {
                                                 <div>
                                                     <p className="font-bold text-slate-800 text-lg">{child.first_name} {child.last_name}</p>
                                                     <p className="text-sm text-slate-500">{child.age ? `${child.age} ${t('yearsOld')}` : t('ageNotSet')}</p>
-                                                    <div className="flex gap-2 mt-1.5">
+                                                    <div className="flex gap-2 mt-1.5 flex-wrap">
                                                         {presentNow && (
-                                                            <Badge className="badge-success text-xs">
-                                                                <CheckCircle2 className="h-3 w-3 mr-1" />{t('presentNow')}
+                                                            <Badge className="badge-success text-[10px] h-6 px-3">
+                                                                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />{t('presentNow')}
                                                             </Badge>
                                                         )}
                                                         {child.allergies && (

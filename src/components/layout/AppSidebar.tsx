@@ -260,7 +260,7 @@ export function AppSidebar() {
                             asChild
                             isActive={isActive}
                             className={cn(
-                              "w-full justify-start text-left rounded-2xl h-10 px-3 hover:scale-[1.02] transition-all duration-300 active:scale-[0.98]",
+                              "w-full justify-start text-left rounded-2xl h-11 px-4 hover:scale-[1.02] transition-all duration-300 active:scale-[0.98]",
                               isActive ? "bg-white/80 dark:bg-white/10 shadow-sm dark:shadow-black/20" : "hover:bg-white/40 dark:hover:bg-white/5"
                             )}
                           >
@@ -271,10 +271,10 @@ export function AppSidebar() {
                                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                                 }`}
                             >
-                              <item.icon className={`h-4.5 w-4.5 flex-shrink-0 ${isActive ? "text-indigo-600 dark:text-indigo-400 animate-pulse" : "text-slate-400 dark:text-slate-600"}`} />
-                              <span className={`text-[13px] tracking-tight ${isActive ? "font-black" : "font-medium"}`}>{item.title}</span>
+                              <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-600"}`} />
+                              <span className={`text-sm tracking-tight ${isActive ? "font-black" : "font-medium"}`}>{item.title}</span>
                               {(item.url === "/messages" || item.url === "/parent/messages") && unreadCount > 0 && (
-                                <Badge className="ml-auto bg-indigo-600 text-[10px] px-1.5 h-4 min-w-[16px] flex items-center justify-center rounded-full animate-bounce">
+                                <Badge className="ml-auto bg-indigo-600 text-xs px-2 h-5 min-w-[20px] flex items-center justify-center rounded-full">
                                   {unreadCount > 99 ? "99+" : unreadCount}
                                 </Badge>
                               )}
@@ -320,24 +320,24 @@ export function AppSidebar() {
             </Button>
           </div>
 
-          <div className="flex items-center gap-3 mb-4 bg-white/40 dark:bg-white/5 backdrop-blur-md rounded-3xl p-4 shadow-inner border border-white/50 dark:border-white/5">
-            <Avatar className="h-9 w-9 flex-shrink-0 rounded-2xl bg-indigo-100 dark:bg-indigo-900 ring-2 ring-white/60 dark:ring-white/10">
+          <div className="flex items-center gap-3 mb-4 bg-slate-50 dark:bg-white/5 rounded-3xl p-4 shadow-inner border border-slate-100 dark:border-white/5">
+            <Avatar className="h-10 w-10 flex-shrink-0 rounded-2xl bg-indigo-100 dark:bg-indigo-900 ring-2 ring-white/60 dark:ring-white/10 shadow-sm">
               <AvatarFallback className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white text-xs font-black">
                 {user.email?.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="text-left flex-1 min-w-0">
-              <p className="text-xs font-black text-slate-800 dark:text-white truncate">{user.email}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-500 font-bold uppercase tracking-widest">{label}</p>
+            <div className="flex flex-col justify-center min-w-0">
+              <p className="text-xs font-black text-slate-900 dark:text-white truncate tracking-tight">{user.email}</p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mt-0.5">{label}</p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="w-full justify-start text-left rounded-2xl h-11 px-4 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 transition-all font-bold text-xs gap-3 group"
+            className="w-full justify-start text-left rounded-2xl h-12 px-4 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 transition-all font-bold text-sm gap-3 group"
           >
-            <LogOut className="h-4 w-4 flex-shrink-0 transition-transform group-hover:translate-x-1" />
+            <LogOut className="h-5 w-5 flex-shrink-0 transition-transform group-hover:translate-x-1" />
             <span>{t('signOut')}</span>
           </Button>
         </SidebarFooter>
