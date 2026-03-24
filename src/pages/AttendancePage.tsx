@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, CheckSquare, Clock, Download, Loader2, RefreshCw, TrendingUp, Users } from 'lucide-react';
+import { Calendar, CheckSquare, Clock, Download, Loader2, RefreshCw, TrendingUp, Users, Sparkles, ChevronRight, Activity, Bell, Baby } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CheckInDialog } from '@/components/attendance/CheckInDialog';
 import { ClassAttendanceReport } from '@/components/attendance/ClassAttendanceReport';
+import { cn } from '@/lib/utils';
 
 const AttendancePage = () => {
   const { attendance, isLoading, error, refetch, checkOut, isCheckingOut } = useAttendance();
@@ -127,33 +128,43 @@ const AttendancePage = () => {
   return (
     <RoleBasedRoute allowedRoles={['admin', 'super_admin' as any, 'staff', 'teacher', 'parent']}>
       <UnifiedDashboardLayout>
-        <div className="space-y-6">
+        <div className="space-y-12 max-w-[1600px] mx-auto py-12 px-6">
           {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                Attendance Tracking
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12"
+          >
+            <div className="space-y-2">
+              <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none flex items-center gap-4">
+                Operations
                 {isConnected && (
-                  <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">
-                    <span className="w-2 h-2 bg-green-600 rounded-full mr-1.5 animate-pulse" />
-                    Live
+                  <Badge className="bg-emerald-500/10 text-emerald-500 border-none font-black text-[10px] uppercase tracking-widest px-4 h-8 rounded-full flex items-center gap-2">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    Live Matrix
                   </Badge>
                 )}
               </h1>
-              <p className="text-muted-foreground mt-1">
-                Monitor attendance and check-in history
-              </p>
+              <div className="flex items-center gap-3">
+                 <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] ml-1">Traffic Hub</p>
+                 <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
+                 <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em]">Surveillance Mode</p>
+              </div>
             </div>
-            <div className="flex gap-2 flex-wrap lg:justify-end">
-              <Button onClick={() => setShowCheckInDialog(true)}>
-                <CheckSquare className="h-4 w-4 mr-2" />
-                Manual Check-In
-              </Button>
+            
+            <div className="flex flex-wrap items-center gap-3">
+                <Button 
+                    onClick={() => setShowCheckInDialog(true)}
+                    className="h-14 px-8 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                >
+                    <Activity className="h-4 w-4" />
+                    Manual Inject
+                </Button>
+
               {stats.currentlyPresent > 0 && (isAdmin || isSuperAdmin) && (
                 <Button 
                   variant="outline" 
-                  className="text-rose-600 border-rose-200 hover:bg-rose-50"
-                  onClick={async () => {
+                   onClick={async () => {
                     if (!window.confirm(`Are you sure you want to sign out ALL ${stats.currentlyPresent} children? This will be logged as an emergency action.`)) return;
                     
                     const actorId = user?.id;
@@ -177,259 +188,295 @@ const AttendancePage = () => {
                     toast({ title: "Bulk Sign-Out Complete", description: `Successfully signed out ${successCount} children.` });
                     refetch();
                   }}
+                  className="h-14 px-8 border-2 border-rose-100 dark:border-rose-900/30 text-rose-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all flex items-center gap-3"
                 >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Sign-Out All({stats.currentlyPresent})
+                  <Bell className="h-4 w-4" />
+                  Erase All({stats.currentlyPresent})
                 </Button>
               )}
-              <Button variant="outline" onClick={() => refetch()}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-              <Button variant="outline" onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button onClick={() => setIsReportDialogOpen(true)}>
-                <Calendar className="h-4 w-4 mr-2" />
-                Today's Report
+              
+              <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/10">
+                <Button variant="ghost" size="icon" onClick={() => refetch()} className="h-11 w-11 rounded-xl hover:bg-white dark:hover:bg-white/5">
+                   <RefreshCw className="h-4 w-4 text-slate-400" />
+                </Button>
+                <div className="w-[1px] h-6 bg-slate-200 dark:bg-white/10 mx-1" />
+                <Button variant="ghost" size="icon" onClick={handleExport} className="h-11 w-11 rounded-xl hover:bg-white dark:hover:bg-white/5">
+                   <Download className="h-4 w-4 text-slate-400" />
+                </Button>
+              </div>
+
+              <Button 
+                onClick={() => setIsReportDialogOpen(true)}
+                className="h-14 px-8 bg-indigo-600 hover:bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+              >
+                  <Calendar className="h-4 w-4" />
+                  Ops Report
               </Button>
             </div>
-          </div>
-
-          {/* Statistics Cards */}
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-4 gap-6"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: { staggerChildren: 0.1 }
-              }
-            }}
-            initial="hidden"
-            animate="show"
-          >
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-              <Card className="vcard-accent bg-emerald-50 dark:bg-emerald-500/5 border-none p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">Today's Check-ins</p>
-                  <CheckSquare className="h-5 w-5 text-emerald-600" />
-                </div>
-                <h3 className="text-3xl font-black tracking-tighter text-emerald-900 dark:text-emerald-300">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.todayCheckins}
-                </h3>
-                <p className="text-[10px] font-bold text-emerald-600/60 uppercase tracking-widest mt-1">Total entries today</p>
-              </Card>
-            </motion.div>
-
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-              <Card className="vcard-accent-blue bg-indigo-50 dark:bg-indigo-500/5 border-none p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest">Currently Present</p>
-                  <Users className="h-5 w-5 text-indigo-600" />
-                </div>
-                <h3 className="text-3xl font-black tracking-tighter text-indigo-900 dark:text-indigo-300">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.currentlyPresent}
-                </h3>
-                <p className="text-[10px] font-bold text-indigo-600/60 uppercase tracking-widest mt-1">Still in session</p>
-              </Card>
-            </motion.div>
-
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-              <Card className="vcard-accent bg-slate-100 dark:bg-white/5 border-none p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-black text-slate-700 dark:text-slate-400 uppercase tracking-widest">Checked Out</p>
-                  <TrendingUp className="h-5 w-5 text-slate-600" />
-                </div>
-                <h3 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.checkedOut}
-                </h3>
-                <p className="text-[10px] font-bold text-slate-500/60 uppercase tracking-widest mt-1">Completed today</p>
-              </Card>
-            </motion.div>
-
-            <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}>
-              <Card className="vcard-accent-blue bg-amber-50 dark:bg-amber-500/5 border-none p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Late Check-outs</p>
-                  <Clock className="h-5 w-5 text-amber-600" />
-                </div>
-                <h3 className="text-3xl font-black tracking-tighter text-amber-900 dark:text-amber-300">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.lateCheckouts}
-                </h3>
-                <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-widest mt-1">After 6:00 PM</p>
-              </Card>
-            </motion.div>
           </motion.div>
 
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                  { label: "Today's Volume", val: stats.todayCheckins, icon: CheckSquare, color: "emerald", desc: "Total entries recorded" },
+                  { label: "Internal Load", val: stats.currentlyPresent, icon: Users, color: "indigo", desc: "Active members detected" },
+                  { label: "Node Clearance", val: stats.checkedOut, icon: TrendingUp, color: "slate", desc: "Completed sessions today" },
+                  { label: "Late Egress", val: stats.lateCheckouts, icon: Clock, color: "amber", desc: "After 6:00 PM standard" }
+              ].map((s, idx) => (
+                  <motion.div 
+                    key={s.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                  >
+                    <Card className={cn(
+                        "floating-island p-8 rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden relative group",
+                        s.color === 'slate' ? 'bg-slate-900 border-none' : ''
+                    )}>
+                        <div className="flex justify-between items-start relative z-10">
+                            <div>
+                                <p className={cn(
+                                    "text-[10px] font-black uppercase tracking-[0.2em] mb-1",
+                                    s.color === 'slate' ? 'text-slate-400' : `text-${s.color}-500`
+                                )}>{s.label}</p>
+                                <h3 className={cn(
+                                    "text-5xl font-black tracking-tighter italic",
+                                    s.color === 'slate' ? 'text-white' : `text-${s.color}-600`
+                                )}>
+                                    {isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : s.val}
+                                </h3>
+                                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2">{s.desc}</p>
+                            </div>
+                            <div className={cn(
+                                "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm",
+                                s.color === 'slate' ? 'bg-white/10' : `bg-${s.color}-50 dark:bg-white/5`
+                            )}>
+                                <s.icon className={cn("h-7 w-7", s.color === 'slate' ? 'text-white' : `text-${s.color}-600`)} />
+                            </div>
+                        </div>
+                        <div className={cn(
+                            "absolute -bottom-6 -right-6 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000",
+                            `bg-${s.color}-500/10`
+                        )} />
+                    </Card>
+                  </motion.div>
+              ))}
+          </div>
+
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="space-y-12"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-muted-foreground mr-2">Filter Reports: </span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-1 flex h-9 w-auto rounded-md border border-input bg-transparent text-sm"
-              />
+            {/* Class Breakdown Section */}
+            <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Class Distribution</h2>
+                    <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm">
+                        <Calendar className="h-4 w-4 text-slate-400" />
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer"
+                        />
+                    </div>
+                </div>
+                <ClassAttendanceReport selectedDate={selectedDate} />
             </div>
 
-            {/* Class Attendance Report */}
-            <ClassAttendanceReport selectedDate={selectedDate} />
-
             {/* Attendance Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Today's Attendance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : error ? (
-                  <div className="py-12 text-left">
-                    <p className="text-lg font-semibold text-destructive">Error loading attendance data</p>
-                    <p className="text-muted-foreground mt-1 mb-4">We couldn't retrieve the latest attendance records.</p>
-                    <Button variant="outline" onClick={() => refetch()} className="gap-2">
-                      <RefreshCw className="h-4 w-4" />
-                      Retry loading
-                    </Button>
-                  </div>
-                ) : todayAttendance.length === 0 ? (
-                  <div className="py-16 text-left max-w-md">
-                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mb-6">
-                      <CheckSquare className="h-6 w-6 text-slate-400" />
+            <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Entry Manifest</h2>
+                    <Badge variant="outline" className="text-slate-400 border-slate-200 dark:border-white/10 font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full">
+                        {todayAttendance.length} Total Data Nodes
+                    </Badge>
+                </div>
+
+                <Card className="floating-island rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl">
+                <CardContent className="p-0">
+                    {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                        <Loader2 className="h-12 w-12 animate-spin mb-4" />
+                        <p className="text-[10px] font-black uppercase tracking-widest">Compiling Attendance Logs...</p>
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800">No attendance records for today</h3>
-                    <p className="text-slate-500 mt-2">Check-ins will appear here automatically in real-time as parents and staff use the kiosk.</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Child Name</TableHead>
-                        <TableHead>Class</TableHead>
-                        <TableHead>Check-in Time</TableHead>
-                        <TableHead>Check-out Time</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {todayAttendance.map((record) => (
-                        <TableRow key={record.id}>
-                          <TableCell className="font-medium align-top">
-                            <div>
-                              {record.child ?
-                                `${record.child.first_name} ${record.child.last_name}` :
-                                'Unknown Child'
-                              }
-                            </div>
-                            {record.special_instructions && (
-                              <div className="text-xs text-muted-foreground bg-muted/50 border border-muted-foreground/10 p-2.5 rounded-xl mt-2 leading-relaxed shadow-sm">
-                                <span className="font-black text-indigo-600 uppercase tracking-widest text-[10px] mr-1.5">Note:</span> {record.special_instructions}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>{record.class?.name || 'No Class'}</TableCell>
-                          <TableCell>{formatTime(record.checked_in_at)}</TableCell>
-                          <TableCell>{formatTime(record.checked_out_at)}</TableCell>
-                          <TableCell>
-                            {record.checked_out_at ? (
-                              <Badge variant="secondary" className="px-3 h-6 rounded-full text-[10px] font-black uppercase tracking-widest">Checked Out</Badge>
-                            ) : (
-                              <Badge className="bg-emerald-500 hover:bg-emerald-600 px-3 h-6 rounded-full text-[10px] font-black uppercase tracking-widest">Present</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {!record.checked_out_at && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleCheckOut(record.id)}
-                                disabled={isCheckingOut}
-                              >
-                                <Clock className="h-4 w-4 mr-1" />
-                                {isCheckingOut ? 'Processing...' : 'Check Out'}
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+                    ) : error ? (
+                    <div className="py-24 text-center">
+                        <p className="text-2xl font-black text-rose-500 uppercase italic tracking-tighter">Buffer Sync Failure</p>
+                        <p className="text-xs font-black text-slate-400 mt-2 uppercase tracking-widest">Failed to communicate with the central matrix</p>
+                        <Button variant="outline" onClick={() => refetch()} className="mt-8 rounded-2xl font-black uppercase text-[10px] tracking-widest">
+                        Re-initialize Sync
+                        </Button>
+                    </div>
+                    ) : todayAttendance.length === 0 ? (
+                    <div className="py-32 text-center">
+                        <div className="w-24 h-24 bg-slate-50 dark:bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-slate-100 dark:border-white/10 shadow-inner">
+                            <CheckSquare className="h-10 w-10 text-slate-200" />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-2">Zero Activity Recorded</h3>
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Matrix is currently waiting for first entry</p>
+                    </div>
+                    ) : (
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader className="bg-slate-50 dark:bg-white/5 border-none">
+                            <TableRow className="border-none hover:bg-transparent">
+                                <TableHead className="px-10 h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Identity</TableHead>
+                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Node Location</TableHead>
+                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Ingress</TableHead>
+                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Egress</TableHead>
+                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">State</TableHead>
+                                <TableHead className="px-10 h-16 text-right font-black text-[10px] uppercase tracking-widest text-slate-400">Control</TableHead>
+                            </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {todayAttendance.map((record) => (
+                                <TableRow key={record.id} className="border-b border-slate-50 dark:border-white/5 hover:bg-white dark:hover:bg-white/5 transition-colors group">
+                                <TableCell className="px-10 py-8 align-top">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-14 w-14 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-white/10 group-hover:scale-105 transition-transform">
+                                            {(record.child as any)?.photo_url ? (
+                                                <img src={(record.child as any).photo_url} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <Baby className="h-6 w-6 text-slate-300" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="text-lg font-black text-slate-900 dark:text-white italic tracking-tighter leading-none mb-1">
+                                            {record.child ?
+                                                `${record.child.first_name} ${record.child.last_name}` :
+                                                'Unknown Node'
+                                            }
+                                            </div>
+                                            {record.special_instructions && (
+                                            <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                                <Bell className="h-3 w-3 text-indigo-500" /> {record.special_instructions}
+                                            </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="py-8 align-top">
+                                    <div className="h-10 px-4 bg-slate-100 dark:bg-white/5 rounded-xl inline-flex items-center text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                                        {record.class?.name || 'Unassigned Cluster'}
+                                    </div>
+                                </TableCell>
+                                <TableCell className="py-8 align-top">
+                                    <div className="text-sm font-black text-slate-700 dark:text-slate-200">{formatTime(record.checked_in_at)}</div>
+                                </TableCell>
+                                <TableCell className="py-8 align-top">
+                                    <div className="text-sm font-black text-slate-400 dark:text-slate-500">{formatTime(record.checked_out_at)}</div>
+                                </TableCell>
+                                <TableCell className="py-8 align-top">
+                                    {record.checked_out_at ? (
+                                    <Badge className="bg-slate-100 text-slate-400 border-none px-4 h-8 rounded-full text-[9px] font-black uppercase tracking-widest">Egress Success</Badge>
+                                    ) : (
+                                    <Badge className="bg-emerald-500 text-white border-none px-4 h-8 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 dark:shadow-none">Station Active</Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell className="px-10 py-8 text-right align-top">
+                                    {!record.checked_out_at && (
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleCheckOut(record.id)}
+                                        disabled={isCheckingOut}
+                                        className="h-12 px-6 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-white/10 text-slate-900 dark:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all shadow-sm"
+                                    >
+                                        Check Out
+                                    </Button>
+                                    )}
+                                </TableCell>
+                                </TableRow>
+                            ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    )}
+                </CardContent>
+                </Card>
+            </div>
           </motion.div>
         </div>
 
-        {/* Today's Report Dialog */}
+        {/* Today's Report Dialog Upgrade */}
         <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Today's Attendance Report - {format(new Date(), 'MMMM d, yyyy')}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Total Check-ins</p>
-                  <p className="text-2xl font-bold">{stats.todayCheckins}</p>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Currently Present</p>
-                  <p className="text-2xl font-bold">{stats.currentlyPresent}</p>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Checked Out</p>
-                  <p className="text-2xl font-bold">{stats.checkedOut}</p>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Late Check-outs</p>
-                  <p className="text-2xl font-bold">{stats.lateCheckouts}</p>
-                </div>
-              </div>
+          <DialogContent className="max-w-3xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+            <div className="bg-slate-900 p-12 text-white relative overflow-hidden">
+               <motion.div 
+                 initial={{ opacity: 0, scale: 0.5 }}
+                 animate={{ opacity: 0.1, scale: 1 }}
+                 className="absolute -right-12 -bottom-12"
+               >
+                 <TrendingUp className="w-64 h-64" />
+               </motion.div>
+               <div className="relative z-10 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Intelligence Manifest</p>
+                    <DialogTitle className="text-4xl font-black tracking-tighter uppercase italic leading-none">
+                        Ops Center Report
+                    </DialogTitle>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4">
+                        {format(new Date(), 'MMMM d, yyyy')} • {todayAttendance.length} Total Nodes Detected
+                    </p>
+               </div>
+            </div>
 
-              <div className="max-h-[300px] overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Child</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead>In</TableHead>
-                      <TableHead>Out</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {todayAttendance.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">
-                          {record.child ?
-                            `${record.child.first_name} ${record.child.last_name}` :
-                            'Unknown'
-                          }
-                        </TableCell>
-                        <TableCell>{record.class?.name || '-'}</TableCell>
-                        <TableCell>{formatTime(record.checked_in_at)}</TableCell>
-                        <TableCell>{formatTime(record.checked_out_at)}</TableCell>
-                      </TableRow>
+            <div className="p-12 space-y-10 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[
+                        { label: 'Check-ins', val: stats.todayCheckins, color: 'emerald' },
+                        { label: 'Active', val: stats.currentlyPresent, color: 'indigo' },
+                        { label: 'Cleared', val: stats.checkedOut, color: 'slate' },
+                        { label: 'Delayed', val: stats.lateCheckouts, color: 'rose' }
+                    ].map(s => (
+                        <div key={s.label} className="p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
+                            <p className={cn(
+                                "text-3xl font-black tracking-tighter italic",
+                                s.color === 'emerald' ? 'text-emerald-500' : 
+                                s.color === 'indigo' ? 'text-indigo-500' : 
+                                s.color === 'rose' ? 'text-rose-500' : 'text-slate-900 dark:text-white'
+                            )}>{s.val}</p>
+                        </div>
                     ))}
-                  </TableBody>
-                </Table>
               </div>
 
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsReportDialogOpen(false)}>
-                  Close
+              <div className="space-y-4">
+                  <h4 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Live Node Feed</h4>
+                  <div className="rounded-[2rem] border border-slate-100 dark:border-white/10 overflow-hidden">
+                    <Table>
+                    <TableHeader className="bg-slate-50 dark:bg-white/5">
+                        <TableRow className="border-none">
+                        <TableHead className="px-6 h-12 text-[9px] font-black text-slate-400 uppercase">Child Node</TableHead>
+                        <TableHead className="h-12 text-[9px] font-black text-slate-400 uppercase">Cluster</TableHead>
+                        <TableHead className="h-12 text-[9px] font-black text-slate-400 uppercase">In</TableHead>
+                        <TableHead className="px-6 h-12 text-right text-[9px] font-black text-slate-400 uppercase">Out</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {todayAttendance.map((record) => (
+                        <TableRow key={record.id} className="border-b border-slate-50 dark:border-white/5">
+                            <TableCell className="px-6 py-4 font-black text-slate-900 dark:text-white text-xs italic">
+                            {record.child ? `${record.child.first_name} ${record.child.last_name}` : 'Unknown'}
+                            </TableCell>
+                            <TableCell className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{record.class?.name || '-'}</TableCell>
+                            <TableCell className="text-xs font-bold text-slate-600 dark:text-slate-300">{formatTime(record.checked_in_at)}</TableCell>
+                            <TableCell className="px-6 text-right text-xs font-bold text-slate-400">{formatTime(record.checked_out_at)}</TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
+                  </div>
+              </div>
+
+              <div className="flex justify-end gap-4 pt-6">
+                <Button variant="ghost" onClick={() => setIsReportDialogOpen(false)} className="h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest">
+                  Close Manifest
                 </Button>
-                <Button onClick={handleExport}>
+                <Button onClick={handleExport} className="h-14 px-8 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200">
                   <Download className="h-4 w-4 mr-2" />
-                  Export CSV
+                   Download CSV
                 </Button>
               </div>
             </div>

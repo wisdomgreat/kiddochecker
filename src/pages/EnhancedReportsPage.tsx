@@ -18,7 +18,7 @@ import {
 import {
   BarChart3, Download, Calendar as CalendarIcon, TrendingUp, Users, ClipboardCheck,
   FileText, Loader2, Heart, Stethoscope, ShieldAlert, Activity, Clock, ShieldCheck,
-  AlertTriangle, Zap, History, UserCheck, DollarSign, ZapOff, Briefcase, Info, Search,
+  AlertTriangle, History, UserCheck, DollarSign, Briefcase, Info, Search,
   Monitor, ArrowRight, Phone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -122,13 +122,9 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
   const { data: staffStats } = useQuery({
     queryKey: ['staff-utilization', dateRange],
     queryFn: async () => {
-      // Logic for staff utilization - simplified for now
-      // Aggregate attendance records by checked_in_by
       const { data } = await supabase.from('attendance')
         .select('checked_in_by, profiles!checked_in_by(first_name, last_name)')
         .not('checked_in_by', 'is', null);
-
-
 
       const counts: Record<string, { name: string, count: number }> = {};
       data?.forEach((r: any) => {
@@ -256,7 +252,7 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <SummaryCard title="Total Volume" value={loadingAttendance ? '--' : attendanceReport?.reduce((a: any, b: any) => a + Number(b.total_checked_in), 0)} sub="Check-ins" icon={Users} color="bg-indigo-600" />
           <SummaryCard title="Staff Impact" value={staffStats?.length || 0} sub="Active Staff" icon={Briefcase} color="bg-emerald-500" />
-          <SummaryCard title="System Health" value={securityStats?.total_terminals || 0} sub="Active Units" icon={Zap} color="bg-amber-500" />
+          <SummaryCard title="System Status" value={securityStats?.total_terminals || 0} sub="Active Units" icon={Activity} color="bg-amber-500" />
           <SummaryCard title="Safety Alerts" value={securityStats?.alerts_last_24h || 0} sub="Incidents" icon={ShieldAlert} color="bg-rose-500" />
         </div>
 
@@ -264,14 +260,14 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
         {/* Main Intelligence Tabs */}
         <Tabs defaultValue="overview" className="space-y-8 animate-in fade-in duration-500">
           <TabsList className="bg-slate-100/30 p-1 rounded-3xl w-full md:w-auto h-auto gap-1">
-            <TabsTrigger value="overview" className="rounded-2xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all">Intelligence Hub</TabsTrigger>
+            <TabsTrigger value="overview" className="rounded-2xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all">Management Center</TabsTrigger>
             <TabsTrigger value="detailed" className="rounded-2xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all">Audit Trails</TabsTrigger>
             <TabsTrigger value="staff" className="rounded-2xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all">Staff Management</TabsTrigger>
             <TabsTrigger value="security" className="rounded-2xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all">Forensics</TabsTrigger>
             <TabsTrigger value="medical" className="rounded-2xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest transition-all">Health Desk</TabsTrigger>
           </TabsList>
 
-          {/* ─── INTELLIGENCE HUB ─── */}
+          {/* ─── MANAGEMENT CENTER ─── */}
           <TabsContent value="overview" className="space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Volume Trend Chart */}
@@ -304,12 +300,12 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                 </CardContent>
               </Card>
 
-              {/* AI / Quick Insights Card */}
+              {/* Executive Insights Card */}
               <Card className="border-none bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-[2.5rem] shadow-2xl p-8 relative overflow-hidden flex flex-col justify-between">
-                <div className="absolute top-0 right-0 p-10 opacity-10"><Zap className="h-40 w-40" /></div>
+                <div className="absolute top-0 right-0 p-10 opacity-10"><Activity className="h-40 w-40" /></div>
                 <div className="relative">
-                  <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 text-[10px] font-black uppercase mb-4">Operations Intelligence</Badge>
-                  <h3 className="text-2xl font-black mb-2">Smart Insights</h3>
+                  <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 text-[10px] font-black uppercase mb-4">Management Insights</Badge>
+                  <h3 className="text-2xl font-black mb-2">Operational Insights</h3>
                   <div className="space-y-6 mt-8">
                     <div className="flex gap-4">
                       <div className="h-10 w-10 bg-white/10 rounded-2xl flex items-center justify-center shrink-0"><TrendingUp className="h-5 w-5 text-indigo-400" /></div>
@@ -340,7 +336,7 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" className="mt-8 border-white/20 text-white bg-white/5 hover:bg-white/10 rounded-2xl border-none h-12 font-black uppercase text-[10px] tracking-widest">Generate Detailed AI Audit</Button>
+                <Button variant="outline" className="mt-8 border-white/20 text-white bg-white/5 hover:bg-white/10 rounded-2xl border-none h-12 font-black uppercase text-[10px] tracking-widest">Generate Comprehensive Audit</Button>
               </Card>
             </div>
 
@@ -531,7 +527,7 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[
                 { label: 'Authorized Nodes', value: securityStats?.total_terminals || 0, icon: Monitor, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                { label: 'Isolated Units', value: securityStats?.locked_terminals || 0, icon: ZapOff, color: 'text-rose-600', bg: 'bg-rose-50' },
+                { label: 'Isolated Units', value: securityStats?.locked_terminals || 0, icon: ShieldAlert, color: 'text-rose-600', bg: 'bg-rose-50' },
                 { label: 'Auth Incidents', value: securityStats?.alerts_last_24h || 0, icon: ShieldAlert, color: 'text-amber-600', bg: 'bg-amber-50' }
               ].map((s, i) => (
                 <Card key={i} className="border-none shadow-lg rounded-3xl p-6 bg-white flex items-center gap-4">
@@ -577,7 +573,7 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                   <div className="space-y-3 max-h-[250px] overflow-y-auto">
                     {detailedAttendance?.filter((l: any) => l.checked_in_method === 'kiosk').slice(0, 5).map((log: any, i: number) => (
                       <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50/50 border border-slate-50 transition-all hover:bg-slate-50">
-                        <div className="h-10 w-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center shadow-sm"><Zap className="h-5 w-5" /></div>
+                        <div className="h-10 w-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center shadow-sm"><Activity className="h-5 w-5" /></div>
                         <div className="flex-1">
                           <div className="flex justify-between items-start">
                             <p className="text-xs font-black text-slate-700">{log.child_name}</p>

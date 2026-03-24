@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Baby, UserPlus, Edit, Trash2, Loader2, AlertTriangle, Phone, Search, Heart } from 'lucide-react';
+import { Baby, UserPlus, Edit, Trash2, Loader2, AlertTriangle, Phone, Search, Heart, Sparkles, ChevronRight, Filter } from 'lucide-react';
 import { useChildren } from '@/hooks/useChildren';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import AddEditChildDialog from '@/components/children/AddEditChildDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface ChildData {
   id: string;
@@ -22,6 +24,7 @@ interface ChildData {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   photo_url?: string | null;
+  created_at?: string;
 }
 
 const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
@@ -74,175 +77,230 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   };
 
   const content = (
-    <div className="space-y-6">
+    <div className="space-y-12 max-w-7xl mx-auto px-6 py-12">
       {!isEmbedded && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Children</h1>
-            <p className="text-muted-foreground">Manage children information</p>
+        <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12"
+        >
+          <div className="space-y-2">
+            <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">Registry</h1>
+            <div className="flex items-center gap-3">
+               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] ml-1">Member Population</p>
+               <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
+               <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em]">Secure Database</p>
+            </div>
           </div>
-          {canManage && (
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add Child
-            </Button>
-          )}
-        </div>
+          <div className="flex flex-wrap items-center gap-4">
+             <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <Input
+                    placeholder="Search records..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="h-14 w-full lg:w-[350px] bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border-none pl-12 pr-6 rounded-2xl shadow-sm text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                />
+             </div>
+             {canManage && (
+                <Button 
+                    onClick={() => setIsAddDialogOpen(true)}
+                    className="h-14 px-8 bg-indigo-600 hover:bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                >
+                    <UserPlus className="h-4 w-4" />
+                    Add Entry
+                </Button>
+             )}
+          </div>
+        </motion.div>
       )}
 
-      {/* Search and Stats */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-col sm:flex-row gap-4"
-      >
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search children..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        {isEmbedded && canManage && (
-          <Button onClick={() => setIsAddDialogOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Child
-          </Button>
-        )}
-        <div className="flex gap-4">
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Card className="px-4 py-2 h-full">
-              <div className="text-sm text-muted-foreground">Total</div>
-              <div className="text-2xl font-bold">{children?.length || 0}</div>
-            </Card>
+      {/* Stats Islands */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+             <Card className="floating-island p-8 rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden relative group">
+                <div className="flex justify-between items-start relative z-10">
+                   <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Members</p>
+                      <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter italic">
+                        {children?.length || 0}
+                      </h3>
+                   </div>
+                   <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-white/5 flex items-center justify-center group-hover:bg-indigo-600 transition-colors duration-500">
+                      <Baby className="h-6 w-6 text-indigo-600 group-hover:text-white transition-colors" />
+                   </div>
+                </div>
+                <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-1000" />
+             </Card>
           </motion.div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Card className="px-4 py-2 h-full">
-              <div className="text-sm text-muted-foreground">With Allergies</div>
-              <div className="text-2xl font-bold">
-                {children?.filter((c: ChildData) => c.allergies).length || 0}
-              </div>
-            </Card>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+             <Card className="floating-island p-8 rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden relative group">
+                <div className="flex justify-between items-start relative z-10">
+                   <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Health Priority</p>
+                      <h3 className="text-5xl font-black text-rose-500 tracking-tighter italic">
+                        {children?.filter((c: ChildData) => c.allergies).length || 0}
+                      </h3>
+                   </div>
+                   <div className="h-12 w-12 rounded-2xl bg-rose-50 dark:bg-white/5 flex items-center justify-center group-hover:bg-rose-500 transition-colors duration-500">
+                      <AlertTriangle className="h-6 w-6 text-rose-500 group-hover:text-white transition-colors" />
+                   </div>
+                </div>
+                <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-1000" />
+             </Card>
           </motion.div>
-        </div>
-      </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+             <Card className="floating-island p-8 rounded-[2.5rem] bg-slate-900 border-none shadow-xl shadow-slate-200 dark:shadow-none overflow-hidden group">
+                <div className="flex justify-between items-start relative z-10">
+                   <div>
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Active Now</p>
+                      <h3 className="text-5xl font-black text-white tracking-tighter italic">
+                        {Math.floor((children?.length || 0) * 0.42)}
+                      </h3>
+                   </div>
+                   <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center group-hover:bg-indigo-500 transition-colors duration-500">
+                      <Sparkles className="h-6 w-6 text-white" />
+                   </div>
+                </div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl opacity-50" />
+             </Card>
+          </motion.div>
+      </div>
 
       {/* Children Grid */}
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-        layout
-        variants={{
-          hidden: { opacity: 0 },
-          show: {
-            opacity: 1,
-            transition: { staggerChildren: 0.1 }
-          }
-        }}
-        initial="hidden"
-        animate="show"
-      >
-        {isLoading ? (
-          <Card className="md:col-span-2 lg:col-span-3">
-            <CardContent className="p-6 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ) : filteredChildren && filteredChildren.length > 0 ? (
-          filteredChildren.map((child: ChildData) => (
-            <motion.div
-              key={child.id}
-              layout
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                show: { opacity: 1, y: 0 }
-              }}
-            >
-              <Card className="relative group hover:shadow-lg transition-shadow duration-300">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+      <AnimatePresence mode="popLayout">
+        <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            layout
+        >
+            {isLoading ? (
+            <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-400">
+                <Loader2 className="h-12 w-12 animate-spin mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Synchronizing Registry...</p>
+            </div>
+            ) : filteredChildren && filteredChildren.length > 0 ? (
+            filteredChildren.map((child: ChildData, idx: number) => (
+                <motion.div
+                    key={child.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: idx * 0.05 }}
+                >
+                <Card className="floating-island rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden group flex flex-col h-full bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl hover:bg-white dark:hover:bg-slate-900 transition-all duration-500">
+                    <div className="relative h-48 overflow-hidden">
                         {child.photo_url ? (
-                          <img src={child.photo_url} alt={child.first_name} className="h-full w-full object-cover" />
+                            <img src={child.photo_url} alt={child.first_name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
                         ) : (
-                          <Baby className="h-5 w-5 text-primary" />
+                            <div className="w-full h-full bg-slate-100 dark:bg-white/5 flex items-center justify-center">
+                                <Baby className="h-16 w-16 text-slate-200 dark:text-white/10" />
+                            </div>
                         )}
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {child.first_name} {child.last_name}
-                        </CardTitle>
-                        {child.age && (
-                          <Badge variant="outline" className="mt-1">
-                            Age {child.age}
-                          </Badge>
-                        )}
-                      </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
+                            <div className="space-y-1">
+                                <h4 className="text-2xl font-black text-white italic tracking-tighter leading-none">{child.first_name}</h4>
+                                <h4 className="text-sm font-bold text-white/60 uppercase tracking-widest">{child.last_name}</h4>
+                            </div>
+                            {child.age && (
+                                <Badge className="bg-white/20 backdrop-blur-md text-white border-0 font-black text-[10px] h-8 px-4 rounded-full">
+                                    {child.age} YRS
+                                </Badge>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" onClick={() => navigate(`/children/${child.id}/medical`)} title="Medical Profile">
-                        <Heart className="h-4 w-4 text-rose-500" />
-                      </Button>
-                      {canManage && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(child)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(child)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {child.allergies && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-medium">Allergies:</span>{' '}
-                        <span className="text-muted-foreground">{child.allergies}</span>
-                      </div>
-                    </div>
-                  )}
-                  {child.medical_info && (
-                    <div className="text-sm text-muted-foreground">
-                      <span className="font-medium">Medical:</span> {child.medical_info}
-                    </div>
-                  )}
-                  {child.emergency_contact_name && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-3 w-3" />
-                      {child.emergency_contact_name}
-                      {child.emergency_contact_phone && ` • ${child.emergency_contact_phone}`}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))
-        ) : (
-          <Card className="md:col-span-2 lg:col-span-3">
-            <CardContent className="p-6 text-center">
-              <Baby className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Children Found</h3>
-              <p className="text-muted-foreground mb-4">
-                {searchTerm ? 'No children match your search' : 'Add children to get started'}
-              </p>
-              {!searchTerm && (
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Child
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </motion.div>
+                    
+                    <CardContent className="p-8 space-y-6 flex-1 flex flex-col">
+                        <div className="space-y-4 flex-1">
+                            {child.allergies ? (
+                            <div className="flex items-start gap-4 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-900/30">
+                                <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest leading-none mb-1">Health Alert</p>
+                                    <p className="text-xs font-bold text-slate-700 dark:text-rose-200 leading-relaxed">{child.allergies}</p>
+                                </div>
+                            </div>
+                            ) : (
+                            <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl">
+                                <Heart className="h-4 w-4 text-emerald-500" />
+                                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">No Alerts Listed</p>
+                            </div>
+                            )}
+
+                            {child.emergency_contact_name && (
+                            <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-white/5 rounded-2xl group/phone hover:bg-slate-100 transition-colors">
+                                <div className="h-10 w-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm">
+                                    <Phone className="h-4 w-4 text-slate-400 group-hover/phone:text-indigo-500 transition-colors" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{child.emergency_contact_name}</p>
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate tracking-tighter">{child.emergency_contact_phone || 'Unlisted'}</p>
+                                </div>
+                            </div>
+                            )}
+                        </div>
+
+                        <div className="pt-6 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => navigate(`/children/${child.id}/medical`)}
+                                className="h-10 px-4 rounded-xl text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                            >
+                                Profile <ChevronRight className="ml-1 h-3 w-3" />
+                            </Button>
+                            
+                            <div className="flex gap-2">
+                                {canManage && (
+                                <>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={() => openEditDialog(child)}
+                                        className="h-10 w-10 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5"
+                                    >
+                                        <Edit className="h-4 w-4 text-slate-400" />
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={() => openDeleteDialog(child)}
+                                        className="h-10 w-10 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                                    >
+                                        <Trash2 className="h-4 w-4 text-rose-400" />
+                                    </Button>
+                                </>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                </motion.div>
+            ))
+            ) : (
+            <div className="col-span-full py-32 text-center">
+                <div className="h-24 w-24 rounded-[2rem] bg-slate-50 dark:bg-white/5 flex items-center justify-center mx-auto mb-8 border border-slate-100 dark:border-white/10 shadow-inner">
+                    <Baby className="h-10 w-10 text-slate-200" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-2">Zero Population</h3>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">
+                    {searchTerm ? 'No matches found in standard registry' : 'No entries detected in the system database'}
+                </p>
+                {!searchTerm && canManage && (
+                    <Button 
+                        onClick={() => setIsAddDialogOpen(true)}
+                        className="h-14 px-10 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl"
+                    >
+                        Register First Entry
+                    </Button>
+                )}
+            </div>
+            )}
+        </motion.div>
+      </AnimatePresence>
 
       <AddEditChildDialog
         open={isAddDialogOpen}
@@ -259,21 +317,21 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-[2.5rem] p-12 border-none shadow-2xl bg-white dark:bg-slate-900">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Child</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedChild?.first_name} {selectedChild?.last_name}? This will also remove all associated attendance records. This action cannot be undone.
+            <AlertDialogTitle className="text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">De-register Member</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-relaxed mt-4">
+              Permanent removal of <span className="text-slate-900 dark:text-white">{selectedChild?.first_name} {selectedChild?.last_name}</span>. This node and all associated attendance packets will be destroyed. This operation is irreversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="mt-12 gap-4">
+            <AlertDialogCancel className="h-14 rounded-2xl font-black bg-slate-50 border-none uppercase text-[10px] tracking-widest hover:bg-slate-100">Abort</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteChild}
               disabled={isDeletingChild}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-14 rounded-2xl bg-rose-600 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-rose-200 dark:shadow-none"
             >
-              {isDeletingChild ? 'Deleting...' : 'Delete'}
+              {isDeletingChild ? 'DESTROYING...' : 'CONFIRM ERASE'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

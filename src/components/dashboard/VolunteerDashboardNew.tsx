@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useMessages } from "@/hooks/useMessages";
 import {
     QrCode, CheckCircle2, XCircle, Users, Clock, ChevronRight,
-    LogIn, LogOut, Baby, AlertTriangle, MessageSquare, Zap
+    LogIn, LogOut, Baby, AlertTriangle, MessageSquare, Heart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

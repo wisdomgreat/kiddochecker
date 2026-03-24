@@ -54,6 +54,8 @@ export const useVisitorInteractions = (visitorId?: string) => {
 
   const sendEmail = useMutation({
     mutationFn: async ({ to, templateName, templateData, visitor_id }: { to: string, templateName: string, templateData: any, visitor_id?: string }) => {
+      if (!to) throw new Error("A valid email address is required.");
+      
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: { to, templateName, templateData },
       });
@@ -81,33 +83,96 @@ export const useVisitorInteractions = (visitorId?: string) => {
     }
   });
 
-  const startVIPSeries = useMutation({
-    mutationFn: async ({ membership_id, email, firstName }: { membership_id: string, email: string, firstName: string }) => {
-      // 1. Send the first email immediately
-      await sendEmail.mutateAsync({
-        to: email,
-        templateName: 'visitor_welcome',
-        templateData: { 
-          visitorName: firstName,
-          churchName: 'Green Valley Church' // Default church name for placeholders
-        },
-        visitor_id: visitorId
+  const sendSMS = useMutation({
+    mutationFn: async ({ to, message, visitor_id }: { to: string, message: string, visitor_id?: string }) => {
+      if (!to) throw new Error("A valid phone number is required.");
+      
+      const { data, error } = await supabase.functions.invoke('send-sms', {
+        body: { to, message },
       });
 
-      // 2. Start the automated journey in Supabase
+      if (error) throw error;
+      
+      // Also log it as an interaction
+      await addInteraction.mutateAsync({
+        visitor_id: visitor_id || visitorId,
+        interaction_type: 'text',
+        content: `Sent SMS: ${message.substring(0, 50)}...`,
+      });
+
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: 'SMS Sent', description: 'Text message has been sent successfully.' });
+    },
+    onError: (err: any) => {
+      toast({ 
+        title: 'SMS Failed', 
+        description: err.message || 'Check your Twilio configuration.', 
+        variant: 'destructive' 
+      });
+    }
+  });
+
+  const startVIPSeries = useMutation({
+    mutationFn: async ({ membership_id, email, phone, firstName }: { membership_id: string, email?: string, phone?: string, firstName: string }) => {
+      if (!email && !phone) {
+        throw new Error("Cannot start journey: Both email and phone number are missing.");
+      }
+
+      let successCount = 0;
+
+      // 1. Send the first email if available
+      if (email) {
+        try {
+          await sendEmail.mutateAsync({
+            to: email,
+            templateName: 'visitor_welcome',
+            templateData: { 
+              visitorName: firstName,
+              churchName: 'Green Valley Church'
+            },
+            visitor_id: visitorId
+          });
+          successCount++;
+        } catch (e) {
+          console.error("Email send failed during VIP start:", e);
+        }
+      }
+
+      // 2. Send welcome SMS if phone available
+      if (phone) {
+        try {
+          const welcomeMessage = `Hi ${firstName}, welcome to Green Valley Church! We were so happy to have you join our service today. We hope to see you again soon!`;
+          await sendSMS.mutateAsync({
+            to: phone,
+            message: welcomeMessage,
+            visitor_id: visitorId
+          });
+          successCount++;
+        } catch (e) {
+          console.error("SMS send failed during VIP start:", e);
+        }
+      }
+
+      if (successCount === 0) {
+        throw new Error("Failed to send welcome messages via all channels.");
+      }
+
+      // 3. Start the automated journey in Supabase
       const { error } = await supabase
         .from('journey_progress')
         .insert({
           membership_id,
           journey_type: 'visitor_welcome',
           status: 'active',
-          current_step: 1, // Step 0 was sent above (welcome)
-          next_run_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // Next step in 7 days
+          current_step: 1, 
+          next_run_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() 
         });
 
       if (error) throw error;
 
-      // 3. Update journey stage to reflect movement
+      // 4. Update journey stage to reflect movement
       await supabase
         .from('church_memberships')
         .update({ journey_stage: 'followed_up' })

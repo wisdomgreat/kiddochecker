@@ -49,7 +49,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
     const [newTaskPriority, setNewTaskPriority] = useState<'low'|'medium'|'high'|'urgent'>('medium');
     
     // Milestone Recording State
-    const { recordMilestone, isRecording } = useMembers();
+    const { recordMilestone, isRecording, updateJourneyStage } = useMembers();
     const [isMilestoneDialogOpen, setIsMilestoneDialogOpen] = useState(false);
     const [milestoneType, setMilestoneType] = useState('Salvation');
     const [milestoneDate, setMilestoneDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -122,16 +122,31 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                     <div className="w-1/3 bg-slate-50/50 dark:bg-slate-900 border-r border-slate-100 dark:border-white/5 p-8 flex flex-col pt-10">
                         <h3 className="text-xl font-black text-slate-900 dark:text-white mb-8 tracking-tight">Member Profile</h3>
                         
-                        <div className="flex flex-col items-center mb-8">
-                            <Avatar className="w-32 h-32 rounded-full border-4 border-slate-50 dark:border-slate-800 shadow-sm mb-4">
-                                <AvatarImage src={member?.profiles?.avatar_url} />
-                                <AvatarFallback className="bg-slate-200 text-slate-600 text-4xl font-bold">
-                                    {member?.profiles?.first_name?.[0] || '?'}
-                                </AvatarFallback>
-                            </Avatar>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white text-center">
+                        <div className="flex flex-col items-center mb-10 relative">
+                            <div className="relative group/avatar">
+                                <Avatar className="w-32 h-32 rounded-[2.5rem] border-4 border-white dark:border-slate-800 shadow-2xl transition-all duration-700 group-hover/avatar:scale-105 group-hover/avatar:rotate-3">
+                                    <AvatarImage src={member?.profiles?.avatar_url} />
+                                    <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-4xl font-black">
+                                        {member?.profiles?.first_name?.[0] || '?'}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center border-4 border-white dark:border-slate-900 shadow-lg text-white">
+                                    <CheckCircle2 className="h-5 w-5" />
+                                </div>
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-900 dark:text-white text-center mt-6 tracking-tight leading-tight">
                                 {member?.profiles?.first_name} {member?.profiles?.last_name}
                             </h2>
+                            <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                                <Badge className="bg-indigo-600/10 text-indigo-700 border-none font-black text-[8px] uppercase tracking-[0.2em] px-3 py-1 scale-110">
+                                     {member?.membership_type || 'GUEST'}
+                                </Badge>
+                                {member?.profiles?.role && member.profiles.role !== 'regular_user' && (
+                                    <Badge className="bg-amber-600/10 text-amber-700 border-none font-black text-[8px] uppercase tracking-[0.2em] px-3 py-1 scale-110">
+                                         STAFF
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
 
                         <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -194,24 +209,27 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                             <Button onClick={contactActions.call} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl h-14 font-bold shadow-lg shadow-emerald-100 dark:shadow-none flex flex-col gap-0.5"><Phone className="h-4 w-4" /> <span className="text-[10px] uppercase">Call</span></Button>
                             <Button onClick={contactActions.messageSMS} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl h-14 font-bold shadow-lg shadow-indigo-100 dark:shadow-none flex flex-col gap-0.5"><MessageSquare className="h-4 w-4" /> <span className="text-[10px] uppercase">Text</span></Button>
                             
-                                <div className="space-y-4">
+                                <div className="space-y-4 col-span-2 pt-4">
                                     <Button 
                                         onClick={() => startVIPSeries({
                                             membership_id: member?.id,
                                             email: member?.profiles?.email,
+                                            phone: member?.profiles?.phone,
                                             firstName: member?.profiles?.first_name
                                         })}
-                                        disabled={isSending || member?.journey_stage === 'member'}
-                                        className={`col-span-2 bg-slate-900 border-none text-white rounded-2xl h-14 font-black shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 ${
+                                        disabled={isSending || member?.journey_stage === 'member' || (!member?.profiles?.email && !member?.profiles?.phone)}
+                                        className={`w-full bg-slate-900 border-none text-white rounded-3xl h-14 font-black shadow-2xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 ${
                                             member?.journey_stage === 'member' ? 'opacity-0 pointer-events-none hidden' : ''
                                         }`}
                                     >
-                                        <Heart className="h-5 w-5 text-rose-400 animate-pulse" />
-                                        <span className="text-xs uppercase tracking-tight">{isSending ? 'SENDING...' : 'SEND WELCOME JOURNEY'}</span>
+                                        <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+                                            <Heart className="h-4 w-4 text-rose-400 animate-pulse" />
+                                        </div>
+                                        <span className="text-[10px] uppercase tracking-[0.15em]">{isSending ? 'SENDING...' : 'ACTIVATE WELCOME JOURNEY'}</span>
                                     </Button>
                                     {member?.journey_stage !== 'member' && (
-                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center px-4 leading-relaxed">
-                                            This will send a series of warm, welcoming messages over the next few weeks to help them feel at home.
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] text-center px-6 leading-relaxed opacity-60">
+                                            Automated multi-channel engagement series
                                         </p>
                                     )}
                                 </div>
@@ -243,7 +261,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                     </div>
 
                                     <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-100 before:via-slate-50 before:to-transparent dark:before:from-white/10">
-                                        {interactions?.length > 0 ? interactions.map((interaction, idx) => (
+                                        {interactions && interactions.length > 0 ? interactions.map((interaction, idx) => (
                                             <motion.div 
                                                 key={interaction.id}
                                                 initial={{ opacity: 0, x: -20 }}
@@ -269,7 +287,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                                         {(interaction as any).author && (
                                                             <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center gap-2">
                                                                 <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[8px] font-black text-indigo-600 uppercase">
-                                                                    {(interaction as any).author.first_name[0]}
+                                                                    {(interaction as any).author.first_name?.[0]}
                                                                 </div>
                                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Added by {(interaction as any).author.first_name}</span>
                                                             </div>
@@ -287,14 +305,40 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                 </TabsContent>
 
                                 <TabsContent value="journey" className="mt-0 space-y-8 pb-10">
-                                     <div className="p-10 bg-indigo-600 rounded-[3rem] text-white relative overflow-hidden group shadow-2xl shadow-indigo-200 dark:shadow-none">
+                                     <div className="p-10 bg-indigo-600 rounded-[3rem] text-white relative overflow-hidden group shadow-2xl shadow-indigo-200 dark:shadow-none min-h-[220px] flex flex-col justify-center">
                                          <Heart className="absolute -right-8 -top-8 w-48 h-48 opacity-10 rotate-12 group-hover:rotate-45 transition-transform duration-1000" />
                                         <div className="relative z-10">
-                                            <p className="text-xs font-black uppercase tracking-[0.3em] opacity-60 mb-3">Integration Level</p>
-                                            <h3 className="text-5xl font-black tracking-tighter uppercase mb-6 drop-shadow-sm">{member?.journey_stage?.replace(/_/g, ' ') || 'DISCOVERY'}</h3>
-                                            <div className="flex gap-3">
-                                                <Badge className="bg-white/20 text-white border-none font-black text-xs uppercase h-8 px-5">VIP ONBOARDING</Badge>
-                                                <Badge className="bg-white/20 text-white border-none font-black text-xs uppercase h-8 px-5">READY FOR GROWTH</Badge>
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Journey Momentum</p>
+                                                <div className="h-0.5 flex-1 bg-white/20" />
+                                            </div>
+                                            <div className="flex items-center justify-between gap-6">
+                                                <h3 className="text-5xl font-black tracking-tighter uppercase drop-shadow-sm">{member?.journey_stage?.replace(/_/g, ' ') || 'DISCOVERY'}</h3>
+                                                
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="outline" className="bg-white/10 border-white/20 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white hover:text-indigo-600 h-10 px-6 backdrop-blur-md">
+                                                            Change Stage
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="rounded-2xl border-none shadow-2xl p-2 min-w-[220px]">
+                                                        {['initial_visit', 'followed_up', 'connected', 'member'].map(stage => (
+                                                            <DropdownMenuItem 
+                                                                key={stage} 
+                                                                className="font-black text-[10px] uppercase p-4 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors"
+                                                                onClick={() => {
+                                                                    updateJourneyStage({ id: member.id, stage });
+                                                                }}
+                                                            >
+                                                                Move to {stage.replace(/_/g, ' ')}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                            <div className="flex gap-3 mt-8">
+                                                <Badge className="bg-white/20 text-white border-none font-black text-[9px] uppercase tracking-widest h-8 px-5 rounded-full">VIP TRACKING</Badge>
+                                                <Badge className="bg-white/20 text-white border-none font-black text-[9px] uppercase tracking-widest h-8 px-5 rounded-full">COMMUNITY GROWTH</Badge>
                                             </div>
                                         </div>
                                      </div>
@@ -337,7 +381,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                         <Card className="p-8 rounded-[2.5rem] bg-emerald-500 text-white border-none flex flex-col justify-between h-40 shadow-xl shadow-emerald-100 dark:shadow-none relative overflow-hidden">
                                             <CircleDollarSign className="absolute -right-4 -bottom-4 w-24 h-24 opacity-20" />
                                             <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Heart for the Kingdom</p>
-                                            <h4 className="text-4xl font-black tracking-tighter">${donations?.reduce((acc, d) => acc + Number(d.amount), 0).toLocaleString()}</h4>
+                                            <h4 className="text-4xl font-black tracking-tighter">${donations?.reduce((acc: number, d: any) => acc + Number(d.amount), 0).toLocaleString()}</h4>
                                         </Card>
                                         <Card className="p-8 rounded-[2.5rem] bg-indigo-500 text-white border-none flex flex-col justify-between h-40 shadow-xl shadow-indigo-100 dark:shadow-none relative overflow-hidden">
                                              <TrendingUp className="absolute -right-4 -bottom-4 w-24 h-24 opacity-20" />
@@ -353,7 +397,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                         </div>
                                         
                                         <div className="space-y-4">
-                                            {donations?.map((donation, idx) => (
+                                            {donations?.map((donation: any, idx: number) => (
                                                 <motion.div 
                                                     key={donation.id}
                                                     initial={{ opacity: 0, y: 10 }}

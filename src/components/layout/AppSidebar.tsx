@@ -2,7 +2,7 @@
 import {
   Calendar, Home, Users, Settings, BarChart3, Building, LogOut,
   Baby, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare,
-  QrCode, Printer, Zap, Shield, Activity, ShieldCheck,
+  QrCode, Printer, Shield, Activity, ShieldCheck,
   Trophy, HeartPulse, HelpCircle, LayoutGrid, Globe, Heart, Moon, Sun, Mail
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";

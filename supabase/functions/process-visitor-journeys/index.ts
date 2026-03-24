@@ -64,36 +64,57 @@ serve(async (req) => {
 
       const visitor = journey.membership.profile;
       
-      console.log(`Executing step ${currentStep} (${stepDef.name}) for ${visitor.email}`);
+      console.log(`Executing step ${currentStep} (${stepDef.name}) for ${visitor.email || visitor.phone}`);
 
-      // 2. Trigger Email via send-email function (or direct Resend if set)
+      // 2. Trigger Notifications
       try {
-        const { error: emailError } = await supabaseAdmin.functions.invoke("send-email", {
-          body: {
-            to: visitor.email,
-            templateName: stepDef.name,
-            templateData: {
-              visitorName: visitor.first_name,
-              churchName: "Green Valley Church", // Should be dynamic from settings ideally
-              inviteLink: `${Deno.env.get("PUBLIC_APP_URL") || 'http://localhost:5173'}/register`
-            }
-          }
-        });
-
-        if (emailError) {
-            console.error(`Email send failed for ${visitor.email}:`, emailError);
-            // Log as failure but don't stop the whole loop
-        } else {
-            // Log interaction
-            await supabaseAdmin.from("visitor_interactions").insert({
-                visitor_id: visitor.id,
-                interaction_type: 'email',
-                content: `Automated Journey: Sent ${stepDef.name} email.`,
-                created_by: null // System action
+        // A. Email Channel
+        if (visitor.email) {
+            const { error: emailError } = await supabaseAdmin.functions.invoke("send-email", {
+              body: {
+                to: visitor.email,
+                templateName: stepDef.name,
+                templateData: {
+                  visitorName: visitor.first_name,
+                  churchName: "Green Valley Church",
+                  inviteLink: `${Deno.env.get("PUBLIC_APP_URL") || 'http://localhost:5173'}/register`
+                }
+              }
             });
+
+            if (emailError) {
+                console.error(`Email send failed for ${visitor.email}:`, emailError);
+            } else {
+                await supabaseAdmin.from("visitor_interactions").insert({
+                    visitor_id: visitor.id,
+                    interaction_type: 'email',
+                    content: `Automated Journey: Sent ${stepDef.name} email.`,
+                    created_by: null
+                });
+            }
+        }
+
+        // B. SMS Channel (Optional fallback/complement)
+        if (visitor.phone) {
+            // Simple logic: send SMS for the first step (welcome)
+            if (currentStep === 0) {
+               const welcomeMessage = `Hi ${visitor.first_name}, thank you for visiting Green Valley Church today! We hope you enjoyed the service.`;
+               const { error: smsError } = await supabaseAdmin.functions.invoke("send-sms", {
+                 body: { to: visitor.phone, message: welcomeMessage }
+               });
+
+               if (!smsError) {
+                   await supabaseAdmin.from("visitor_interactions").insert({
+                       visitor_id: visitor.id,
+                       interaction_type: 'text',
+                       content: `Automated Journey: Sent welcome SMS.`,
+                       created_by: null
+                   });
+               }
+            }
         }
       } catch (e) {
-        console.error("Critical error in email step:", e);
+        console.error("Critical error in notification step:", e);
       }
 
       // 3. Schedule next step or complete

@@ -11,13 +11,14 @@ import {
 import {
     Users, Baby, ClipboardCheck, CheckCircle2, XCircle, LogIn, LogOut,
     ChevronRight, Clock, BookOpen, MessageSquare, QrCode, Calendar,
-    AlertTriangle, Activity, Star, Target, Bell
+    AlertTriangle, Activity, Star, Target, Bell, Sparkles, Zap, Shield, Radar
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { format, startOfDay, endOfDay } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -50,7 +51,7 @@ const StaffTeacherDashboard = () => {
         queryFn: async () => {
             const { data } = await supabase
                 .from("attendance")
-                .select("*, children(first_name, last_name, age, allergies)")
+                .select("*, children(first_name, last_name, age, allergies, photo_url)")
                 .gte("attendance_date", format(startOfDay(new Date()), "yyyy-MM-dd"))
                 .lte("attendance_date", format(endOfDay(new Date()), "yyyy-MM-dd"))
                 .order("checked_in_at", { ascending: false });
@@ -116,190 +117,262 @@ const StaffTeacherDashboard = () => {
     });
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-12 max-w-[1600px] mx-auto py-12 px-6">
             {/* Header */}
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-900">{t('staffDashboard')}</h1>
-                        <p className="text-slate-500 mt-1 text-sm flex items-center gap-1.5">
-                            <Calendar className="h-4 w-4" /> {today}
-                        </p>
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
+                    <div className="space-y-2">
+                        <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none flex items-center gap-4">
+                            Field Station
+                            <Badge className="bg-emerald-500/10 text-emerald-500 border-none font-black text-[10px] uppercase tracking-widest px-4 h-8 rounded-full">
+                                Personnel Active
+                            </Badge>
+                        </h1>
+                        <div className="flex items-center gap-3">
+                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] font-mono italic ml-1">{today}</p>
+                            <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
+                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] font-mono">STAFF_AUTH_SUCCESS</p>
+                        </div>
                     </div>
-                    <div className="flex gap-3">
-                        <Button variant="outline" className="rounded-xl gap-2" onClick={() => navigate("/messages")}>
-                            <Bell className="h-4 w-4" />
+                    <div className="flex gap-4">
+                        <Button 
+                            onClick={() => navigate("/messages")}
+                            className="h-14 px-8 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                            Comms Hub
                             {unreadMessages > 0 && (
-                                <Badge className="bg-red-500 text-white text-xs px-1.5 py-0.5 h-auto ml-0.5">{unreadMessages}</Badge>
+                                <span className="bg-rose-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black animate-pulse">
+                                    {unreadMessages}
+                                </span>
                             )}
-                            {t('messages')}
                         </Button>
                     </div>
                 </div>
             </motion.div>
 
             {/* KPI Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: t('presentNow'), value: presentNow, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", index: 0, path: "/attendance" },
-                    { label: t('checkedOut'), value: checkedOut, icon: XCircle, color: "text-slate-500", bg: "bg-slate-50", index: 1, path: "/attendance" },
-                    { label: t('totalToday'), value: todayAttendance.length, icon: ClipboardCheck, color: "text-indigo-600", bg: "bg-indigo-50", index: 2, path: "/attendance" },
-                    { label: t('allergyAlert'), value: withAllergies, icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", index: 3, path: "/children" },
-                ].map(({ label, value, icon: Icon, color, bg, index, path }) => (
-                    <motion.div key={label} custom={index} variants={cardVariants} initial="hidden" animate="show">
-                        <div
-                            className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group"
-                            onClick={() => navigate(path)}
-                        >
-                            <div className={`${bg} w-10 h-10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                                <Icon className={`h-5 w-5 ${color}`} />
+                    { label: t('presentNow'), value: presentNow, icon: CheckCircle2, color: "emerald", desc: "STATION_LOAD_ACTIVE" },
+                    { label: t('checkedOut'), value: checkedOut, icon: XCircle, color: "slate", desc: "EGRESS_SYSCLEAN" },
+                    { label: t('totalToday'), value: todayAttendance.length, icon: ClipboardCheck, color: "indigo", desc: "NODE_TOTAL_FLOW" },
+                    { label: t('allergyAlert'), value: withAllergies, icon: AlertTriangle, color: "amber", desc: "SAFETY_FLAGS_ON" },
+                ].map(({ label, value, icon: Icon, color, desc }, idx) => (
+                    <motion.div 
+                        key={label} 
+                        custom={idx} 
+                        variants={cardVariants} 
+                        initial="hidden" 
+                        animate="show"
+                    >
+                        <Card className={cn(
+                            "floating-island p-8 rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden relative group h-full bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl",
+                            color === 'amber' ? 'ring-2 ring-amber-500/20 bg-amber-50/30' : ''
+                        )}>
+                            <div className="flex justify-between items-start relative z-10">
+                                <div>
+                                    <p className={cn(
+                                        "text-[10px] font-black uppercase tracking-[0.2em] mb-1",
+                                        `text-${color}-500`
+                                    )}>{label}</p>
+                                    <h3 className={cn(
+                                        "text-5xl font-black tracking-tighter italic",
+                                        `text-${color}-600`
+                                    )}>
+                                        {value}
+                                    </h3>
+                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-4 italic">{desc}</p>
+                                </div>
+                                <div className={cn(
+                                    "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm",
+                                    `bg-${color}-50 dark:bg-white/5`
+                                )}>
+                                    <Icon className={cn("h-7 w-7", `text-${color}-600`)} />
+                                </div>
                             </div>
-                            <p className="text-3xl font-bold text-slate-800">{value}</p>
-                            <p className="text-xs text-slate-500 mt-1 font-medium">{label}</p>
-                        </div>
+                        </Card>
                     </motion.div>
                 ))}
             </div>
 
-            {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Check-in Timeline Chart */}
+            {/* Main Content Matrix */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Traffic Pulse Chart */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                    className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-100"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="lg:col-span-2 space-y-6"
                 >
-                    <div className="flex items-center justify-between mb-5">
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800">{t('hourlyCheckinDistribution')}</h3>
-                            <p className="text-sm text-slate-500">{t('checkinActivityByHour')}</p>
-                        </div>
-                        <Badge className="bg-indigo-50 text-indigo-600 border-indigo-200">
-                            <Activity className="h-3 w-3 mr-1" />{t('today')}
+                    <div className="flex items-center justify-between px-2">
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                            <Radar className="h-5 w-5 text-indigo-500" />
+                            Station Pulse
+                        </h2>
+                        <Badge variant="outline" className="text-slate-400 border-slate-200 dark:border-white/10 font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full">
+                            Hourly Egress/Ingress
                         </Badge>
                     </div>
-                    <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={hourlyData} barCategoryGap="40%">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                            <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                            <YAxis allowDecimals={false} tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
-                            <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }} />
-                            <Bar dataKey="count" radius={[6, 6, 0, 0]} name="Check-ins">
-                                {hourlyData.map((_, i) => <Cell key={i} fill={i === new Date().getHours() - 7 ? "#6366f1" : "#c7d2fe"} />)}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                    
+                    <Card className="floating-island p-10 rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl">
+                        <ResponsiveContainer width="100%" height={240}>
+                            <BarChart data={hourlyData} barCategoryGap="40%">
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} opacity={0.5} />
+                                <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
+                                <YAxis allowDecimals={false} tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
+                                <Tooltip cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} contentStyle={{ borderRadius: "20px", border: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }} />
+                                <Bar dataKey="count" radius={[8, 8, 0, 0]} name="Volume">
+                                    {hourlyData.map((_, i) => <Cell key={i} fill={i === new Date().getHours() - 7 ? "#6366f1" : "rgba(99, 102, 241, 0.2)"} />)}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </Card>
                 </motion.div>
 
-                {/* My Classes */}
+                {/* Assigned Clusters */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.35 }}
+                    className="space-y-6"
                 >
-                    <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                        <div>
-                            <h3 className="font-bold text-slate-800">{t('myClasses')}</h3>
-                            <p className="text-xs text-slate-500">{myClasses.length} assigned</p>
+                    <div className="flex items-center justify-between px-2">
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                            <Zap className="h-5 w-5 text-amber-500" />
+                            Cluster Nodes
+                        </h2>
+                    </div>
+
+                    <Card className="floating-island rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl overflow-hidden flex flex-col h-[340px]">
+                        <div className="p-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{myClasses.length} SECTORS DETECTED</h3>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => navigate("/classes")} className="rounded-xl text-xs">
-                            Manage
-                        </Button>
-                    </div>
-                    <div className="divide-y divide-slate-50 max-h-56 overflow-y-auto">
-                        {myClasses.length === 0 ? (
-                            <div className="p-8 text-center">
-                                <BookOpen className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                                <p className="text-slate-500 text-sm">No classes assigned</p>
-                            </div>
-                        ) : (
-                            myClasses.map((cls: any) => (
-                                <div key={cls.id} className="p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate("/classes")}>
-                                    <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                        <BookOpen className="h-4 w-4 text-indigo-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-slate-800 text-sm truncate">{cls.name}</p>
-                                        <p className="text-xs text-slate-500">{cls.age_group || "All ages"}</p>
-                                    </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-50 dark:divide-white/5">
+                            {myClasses.length === 0 ? (
+                                <div className="p-12 text-center">
+                                    <BookOpen className="h-12 w-12 mx-auto text-slate-200 mb-4" />
+                                    <p className="text-[10px] font-black text-slate-400 uppercase italic">ZERO SECTORS ASSIGNED</p>
                                 </div>
-                            ))
-                        )}
-                    </div>
+                            ) : (
+                                myClasses.map((cls: any) => (
+                                    <div key={cls.id} className="p-6 flex items-center gap-4 hover:bg-white dark:hover:bg-slate-900 transition-all cursor-pointer group" onClick={() => navigate("/classes")}>
+                                        <div className="h-12 w-12 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                                            <Shield className="h-5 w-5 text-indigo-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight truncate leading-tight mb-1">{cls.name}</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">{cls.age_group || "Universal Cluster"}</p>
+                                        </div>
+                                        <ChevronRight className="h-4 w-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </Card>
                 </motion.div>
             </div>
 
-            {/* Live Attendance Feed + Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Live Feed */}
+            {/* Field Activity Log */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Live Activity Feed */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-                    className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="lg:col-span-2 space-y-6"
                 >
-                    <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <h3 className="font-bold text-slate-800">{t('liveAttendanceFeed')}</h3>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => navigate("/attendance")} className="rounded-xl text-xs gap-1">
-                            {t('viewAll')} <ChevronRight className="h-3 w-3" />
+                    <div className="flex items-center justify-between px-2">
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-4">
+                            <Activity className="h-6 w-6 text-emerald-500" />
+                            Operations Feed
+                        </h2>
+                        <Button variant="ghost" onClick={() => navigate("/attendance")} className="h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5">
+                             Full Matrix <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                     </div>
-                    <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
-                        {todayAttendance.length === 0 ? (
-                            <div className="p-12 text-center">
-                                <ClipboardCheck className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                                <p className="text-slate-500 text-sm">No entries today yet</p>
-                            </div>
-                        ) : (
-                            todayAttendance.slice(0, 10).map((record: any) => (
-                                <div key={record.id} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${record.checked_out_at ? "bg-slate-100" : "bg-emerald-100"}`}>
-                                        {record.checked_out_at ? <LogOut className="h-3.5 w-3.5 text-slate-500" /> : <LogIn className="h-3.5 w-3.5 text-emerald-600" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-slate-800 text-sm">
-                                            {record.children?.first_name} {record.children?.last_name}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <Clock className="h-3 w-3 text-slate-400" />
-                                            <span className="text-xs text-slate-500">
-                                                {record.checked_out_at
-                                                    ? `Out at ${format(new Date(record.checked_out_at), "HH:mm")}`
-                                                    : `In at ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`}
-                                            </span>
-                                            {record.children?.allergies && (
-                                                <Badge className="badge-warning text-xs px-1 py-0">Allergy</Badge>
+
+                    <Card className="floating-island rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl">
+                        <div className="divide-y divide-slate-50 dark:divide-white/5 max-h-[600px] overflow-y-auto custom-scrollbar">
+                            {todayAttendance.length === 0 ? (
+                                <div className="py-24 text-center">
+                                    <ClipboardCheck className="h-12 w-12 mx-auto text-slate-100 mb-4" />
+                                    <p className="text-[10px] font-black text-slate-300 uppercase italic">WAITING FOR FIELD DATA...</p>
+                                </div>
+                            ) : (
+                                todayAttendance.slice(0, 15).map((record: any) => (
+                                    <div key={record.id} className="p-8 flex items-center gap-6 hover:bg-white dark:hover:bg-slate-900 transition-all group">
+                                        <div className="h-16 w-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center overflow-hidden border border-slate-200 dark:border-white/10 group-hover:scale-105 transition-transform relative">
+                                            {record.children?.photo_url ? (
+                                                <img src={record.children.photo_url} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <Baby className="h-7 w-7 text-slate-300" />
+                                            )}
+                                            {record.checked_out_at ? (
+                                                <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center backdrop-blur-[2px]">
+                                                    <LogOut className="h-5 w-5 text-white" />
+                                                </div>
+                                            ) : (
+                                                <div className="absolute bottom-1 right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
                                             )}
                                         </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xl font-black text-slate-900 dark:text-white italic tracking-tighter truncate leading-none mb-2">
+                                                {record.children?.first_name} {record.children?.last_name}
+                                            </p>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-1.5 font-black text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                                    <Clock className="h-3 w-3 text-indigo-500" />
+                                                    {record.checked_out_at
+                                                        ? `EGRESS: ${format(new Date(record.checked_out_at), "HH:mm")}`
+                                                        : `INGRESS: ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`}
+                                                </div>
+                                                {record.children?.allergies && (
+                                                    <Badge className="bg-rose-500/10 text-rose-500 border-none font-black text-[8px] uppercase tracking-widest animate-pulse h-5 flex items-center">BIO_HAZARD FLAG</Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <Badge className={cn(
+                                            "font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full border-none",
+                                            record.checked_out_at ? "bg-slate-100 text-slate-400" : "bg-emerald-500 text-white shadow-lg shadow-emerald-200 dark:shadow-none"
+                                        )}>
+                                            {record.checked_out_at ? "TERMINATED" : "ACTIVE"}
+                                        </Badge>
                                     </div>
-                                    <Badge className={record.checked_out_at ? "badge-warning" : "badge-success"} variant="outline">
-                                        {record.checked_out_at ? "Out" : "Present"}
-                                    </Badge>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                                ))
+                            )}
+                        </div>
+                    </Card>
                 </motion.div>
 
-                {/* Quick Actions */}
+                {/* Tactical Ops Actions */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-                    className="space-y-3"
+                    className="space-y-6"
                 >
-                    <h3 className="font-bold text-slate-800">{t('quickActions')}</h3>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                        <Zap className="h-5 w-5 text-indigo-500" />
+                        Tactical Actions
+                    </h2>
                     {[
-                        { label: t('children'), icon: Baby, color: "bg-emerald-600 hover:bg-emerald-700", path: "/children" },
-                        { label: t('attendance'), icon: ClipboardCheck, color: "bg-blue-600 hover:bg-blue-700", path: "/attendance" },
-                        { label: t('calendar'), icon: Calendar, color: "bg-purple-600 hover:bg-purple-700", path: "/calendar" },
-                        { label: t('messages'), icon: MessageSquare, color: "bg-orange-500 hover:bg-orange-600", path: "/messages" },
+                        { label: t('children'), icon: Baby, color: "bg-emerald-600 shadow-emerald-100", path: "/children", desc: "Access Node Manifest" },
+                        { label: t('attendance'), icon: ClipboardCheck, color: "bg-indigo-600 shadow-indigo-100", path: "/attendance", desc: "Monitor Live Traffic" },
+                        { label: t('calendar'), icon: Calendar, color: "bg-black shadow-slate-200", path: "/calendar", desc: "Sync Scheduled Events" },
+                        { label: t('messages'), icon: MessageSquare, color: "bg-rose-600 shadow-rose-100", path: "/messages", desc: "Open Comms Buffer" },
                     ].map((action) => (
                         <button
                             key={action.label}
                             onClick={() => navigate(action.path)}
-                            className={`w-full ${action.color} text-white rounded-xl px-4 py-3 flex items-center gap-3 transition-all font-medium text-sm shadow-sm hover:shadow-md`}
+                            className="w-full bg-white dark:bg-slate-900 rounded-[2rem] p-6 flex items-center gap-5 transition-all shadow-sm hover:shadow-xl hover:-translate-y-1 group border border-slate-50 dark:border-white/5"
                         >
-                            <action.icon className="h-4 w-4" />
-                            {action.label}
-                            <ChevronRight className="h-4 w-4 ml-auto" />
+                            <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-500 group-hover:rotate-6 group-hover:scale-110", action.color)}>
+                                <action.icon className="h-6 w-6 text-white" />
+                            </div>
+                            <div className="flex-1 text-left">
+                                <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-1">{action.label}</p>
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">{action.desc}</p>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-slate-200 group-hover:translate-x-1 transition-transform" />
                         </button>
                     ))}
                 </motion.div>

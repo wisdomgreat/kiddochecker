@@ -337,6 +337,60 @@
     }
   }
 
+  /* ── Custom Scrollbar (Antigravity Style) ── */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 dark:bg-white/10 rounded-full hover:bg-slate-300 dark:hover:bg-white/20 transition-colors;
+  }
+
+  /* ── Atmospheric Background ── */
+  .antigravity-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    @apply bg-slate-50 dark:bg-slate-950;
+  }
+
+  .antigravity-bg::before,
+  .antigravity-bg::after {
+    content: "";
+    position: absolute;
+    width: 60vw;
+    height: 60vw;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    will-change: transform;
+    animation: bgFloat 30s ease-in-out infinite;
+  }
+
+  .antigravity-bg::before {
+    background: radial-gradient(circle, #6366f1 0%, transparent 70%);
+    top: -10%;
+    left: -10%;
+  }
+
+  .antigravity-bg::after {
+    background: radial-gradient(circle, #ec4899 0%, transparent 70%);
+    bottom: -10%;
+    right: -10%;
+    animation-delay: -15s;
+  }
+
+  @keyframes bgFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(5%, 5%) scale(1.1); }
+    66% { transform: translate(-5%, 2%) scale(0.95); }
+  }
+
   /* ── Scrollbar ────────────────────────────────────────────────── */
   ::-webkit-scrollbar {
     @apply w-1.5 h-1.5;
@@ -347,11 +401,11 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full;
+    @apply bg-slate-300 dark:bg-white/10 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400;
+    @apply bg-slate-400 dark:bg-white/20;
   }
 
   /* ── Animations ───────────────────────────────────────────────── */

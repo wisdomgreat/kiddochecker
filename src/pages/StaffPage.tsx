@@ -31,6 +31,11 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [isManagingGroup, setIsManagingGroup] = useState(false);
+  const [isEditGroupDialogOpen, setIsEditGroupDialogOpen] = useState(false);
+  const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
+  const [groupToEdit, setGroupToEdit] = useState<any>(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -75,6 +80,33 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-groups'] });
       toast({ title: "Group Created", description: "Department/Group added successfully." });
+    }
+  });
+
+  const updateGroupMutation = useMutation({
+    mutationFn: async (updatedGroup: { id: string, name: string, description: string }) => {
+      const { error } = await supabase.from('staff_groups').update({
+        name: updatedGroup.name,
+        description: updatedGroup.description
+      }).eq('id', updatedGroup.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-groups'] });
+      toast({ title: "Updated", description: "Department details updated." });
+      setIsEditGroupDialogOpen(false);
+    }
+  });
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('staff_groups').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-groups'] });
+      toast({ title: "Deleted", description: "Department removed successfully." });
+      setIsDeleteGroupDialogOpen(false);
     }
   });
 
@@ -323,30 +355,131 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
           </div>
         </TabsContent>
 
-        <TabsContent value="groups" className="space-y-6">
-            {/* Same Groups UI... I will keep this part clean */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[2rem]">
-                 <CardHeader><CardTitle className="text-xl font-black">New Department</CardTitle></CardHeader>
-                 <CardContent className="space-y-4">
-                    <Input id="group-name" placeholder="Department Name" className="rounded-xl h-11" />
-                    <Input id="group-desc" placeholder="Responsibility..." className="rounded-xl h-11" />
-                    <Button className="w-full rounded-xl font-bold h-11 bg-indigo-600" onClick={() => {
+        <TabsContent value="groups" className="space-y-8">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+               <Card className="xl:col-span-1 border-none shadow-2xl shadow-slate-200/40 rounded-[2.5rem] bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 overflow-hidden group">
+                 <div className="h-2 bg-indigo-600 w-full" />
+                 <CardHeader className="pb-4">
+                    <CardTitle className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">New Department</CardTitle>
+                    <p className="text-xs font-semibold text-slate-400 leading-relaxed uppercase tracking-widest">Create a structural unit for your team.</p>
+                 </CardHeader>
+                 <CardContent className="space-y-5">
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="group-name" className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-[0.1em]">Department Name</Label>
+                            <Input id="group-name" placeholder="e.g. Worship Ministry" className="rounded-[1.25rem] h-12 bg-slate-50 border-slate-100 focus:ring-indigo-500/20 font-bold" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="group-desc" className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-[0.1em]">Responsibility</Label>
+                            <Input id="group-desc" placeholder="Primary objective..." className="rounded-[1.25rem] h-12 bg-slate-50 border-slate-100 focus:ring-indigo-500/20 font-medium" />
+                        </div>
+                    </div>
+                    <Button className="w-full rounded-2xl font-black h-14 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 text-xs uppercase tracking-widest" onClick={() => {
                         const name = (document.getElementById('group-name') as HTMLInputElement).value;
                         const desc = (document.getElementById('group-desc') as HTMLInputElement).value;
-                        if (name) createGroupMutation.mutate({ name, description: desc });
-                    }}><Plus className="h-4 w-4 mr-2" />Create</Button>
+                        if (name) {
+                            createGroupMutation.mutate({ name, description: desc });
+                            (document.getElementById('group-name') as HTMLInputElement).value = '';
+                            (document.getElementById('group-desc') as HTMLInputElement).value = '';
+                        }
+                    }}>
+                        <Plus className="h-5 w-5 mr-2" />
+                        Create Unit
+                    </Button>
                  </CardContent>
                </Card>
-               <div className="md:col-span-2 space-y-4">
-                    {groups.map((group: any) => (
-                        <Card key={group.id} className="border-none shadow-xl shadow-slate-100 rounded-[2rem] p-6">
-                            <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 bg-indigo-50 rounded-lg flex items-center justify-center"><Building2 className="h-5 w-5 text-indigo-600" /></div>
-                                <div><h4 className="font-bold">{group.name}</h4><p className="text-xs text-slate-400">{group.description}</p></div>
-                            </div>
-                        </Card>
-                    ))}
+               
+               <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
+                    {groups.map((group: any) => {
+                        const membersInGroup = staff?.filter((s: StaffMember) => 
+                            groupMembers.some((m: any) => m.group_id === group.id && m.profile_id === s.user_id)
+                        ) || [];
+
+                        return (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                key={group.id}
+                            >
+                                <Card 
+                                    className="border-none shadow-xl shadow-slate-100/60 dark:shadow-none rounded-[2.25rem] p-6 bg-white dark:bg-slate-900 border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-100/40 transition-all cursor-pointer group relative overflow-hidden h-full flex flex-col justify-between"
+                                >
+                                    <div className="absolute top-0 right-0 p-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 rounded-full bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setGroupToEdit(group);
+                                                setIsEditGroupDialogOpen(true);
+                                            }}
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8 rounded-full bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setGroupToEdit(group);
+                                                setIsDeleteGroupDialogOpen(true);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+
+                                    <div onClick={() => { setSelectedGroupId(group.id); setIsManagingGroup(true); }} className="flex-1">
+                                        <div className="flex items-start gap-4 mb-6">
+                                            <div className="h-14 w-14 bg-indigo-50 dark:bg-indigo-900/40 rounded-2xl flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-500">
+                                                <Building2 className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                                            </div>
+                                            <div className="pt-1">
+                                                <h4 className="font-black text-2xl text-slate-900 dark:text-white tracking-tight leading-tight">{group.name}</h4>
+                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1 line-clamp-2">{group.description}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50 dark:border-white/5">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex -space-x-2.5">
+                                                    {membersInGroup.slice(0, 4).map((m: StaffMember) => (
+                                                        <div key={m.user_id} className="h-9 w-9 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-black overflow-hidden shadow-sm">
+                                                            {m.photo_url || m.avatar_url ? (
+                                                                <img src={m.photo_url || m.avatar_url} className="h-full w-full object-cover" alt="" />
+                                                            ) : (
+                                                                <span className="text-slate-400">{m.first_name[0]}{m.last_name[0]}</span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                    {membersInGroup.length > 4 && (
+                                                        <div className="h-9 w-9 rounded-full border-2 border-white bg-indigo-600 flex items-center justify-center text-[11px] font-black text-white shadow-md">
+                                                            +{membersInGroup.length - 4}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                                    {membersInGroup.length === 0 ? 'Vacant' : `${membersInGroup.length} Staffed`}
+                                                </span>
+                                            </div>
+                                            <Plus className="h-5 w-5 text-slate-200 group-hover:text-indigo-600 transition-colors" />
+                                        </div>
+                                    </div>
+                                </Card>
+                            </motion.div>
+                        );
+                    })}
+                    {groups.length === 0 && (
+                        <div className="md:col-span-2 py-32 text-center bg-slate-50/50 dark:bg-white/5 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center scale-up-center">
+                             <div className="h-20 w-20 bg-white dark:bg-slate-900 rounded-3xl shadow-xl flex items-center justify-center mb-6">
+                                <Briefcase className="h-10 w-10 text-slate-200" />
+                             </div>
+                             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">Initialize Structure</h3>
+                             <p className="max-w-xs text-slate-400 font-bold text-xs uppercase tracking-widest leading-relaxed">Add departments to organize your team and manage specific rosters.</p>
+                        </div>
+                    )}
                </div>
             </div>
         </TabsContent>
@@ -435,6 +568,163 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteStaff} className="bg-rose-600 rounded-xl">Remove Permanently</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <Dialog open={isManagingGroup} onOpenChange={(o) => { setIsManagingGroup(o); if(!o) setSelectedGroupId(null); }}>
+        <DialogContent className="rounded-[3rem] p-0 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col border-none shadow-2xl">
+          <div className="p-8 bg-slate-900 text-white relative">
+            <div className="absolute top-0 right-0 p-4">
+                <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10" onClick={() => setIsManagingGroup(false)}>
+                    <EyeOff className="h-5 w-5" />
+                </Button>
+            </div>
+            <div className="flex items-center gap-6">
+                <div className="h-20 w-20 bg-indigo-500/20 rounded-[2rem] flex items-center justify-center border border-indigo-500/30">
+                    <Building2 className="h-10 w-10 text-indigo-400" />
+                </div>
+                <div>
+                    <h2 className="text-3xl font-black tracking-tight">{groups.find((g: any) => g.id === selectedGroupId)?.name}</h2>
+                    <p className="text-indigo-300 font-bold text-xs uppercase tracking-[0.2em] mt-2">Departmental Roster</p>
+                </div>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-8 space-y-10 dark:bg-slate-950 bg-white">
+            <div className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Assignments</Label>
+                    <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[10px] uppercase">
+                        {staff?.filter((s: StaffMember) => groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)).length} Members
+                    </Badge>
+                </div>
+                <div className="grid gap-3">
+                    {staff?.filter((s: StaffMember) => 
+                        groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)
+                    ).map((m: StaffMember) => (
+                        <motion.div 
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            key={m.user_id} 
+                            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-[1.5rem] border border-transparent hover:border-slate-100 transition-all group"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm overflow-hidden">
+                                    {m.photo_url || m.avatar_url ? (
+                                        <img src={m.photo_url || m.avatar_url} className="h-full w-full object-cover" alt="" />
+                                    ) : (
+                                        <Users className="h-5 w-5 text-slate-300" />
+                                    )}
+                                </div>
+                                <div>
+                                    <span className="font-extrabold text-slate-900 dark:text-white">{m.first_name} {m.last_name}</span>
+                                    <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">{m.role}</p>
+                                </div>
+                            </div>
+                            <Button variant="ghost" size="sm" className="bg-white hover:bg-rose-50 text-slate-300 hover:text-rose-600 font-black text-[10px] uppercase rounded-xl h-9 px-4 transition-all opacity-0 group-hover:opacity-100" onClick={async () => {
+                                await supabase.from('staff_group_members').delete().eq('group_id', selectedGroupId).eq('profile_id', m.user_id);
+                                queryClient.invalidateQueries({ queryKey: ['staff-group-members-all'] });
+                            }}>Unassign</Button>
+                        </motion.div>
+                    ))}
+                    {staff?.filter((s: StaffMember) => 
+                        groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)
+                    ).length === 0 && (
+                        <div className="py-12 bg-slate-50/50 dark:bg-white/5 rounded-[2rem] border-2 border-dashed border-slate-100 text-center flex flex-col items-center gap-2">
+                             <Users className="h-10 w-10 text-slate-200" />
+                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No members assigned yet</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-[2rem] space-y-4">
+                <div className="flex items-center gap-3 ml-2">
+                    <UserPlus className="h-4 w-4 text-indigo-600" />
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400">Add Available Staff</Label>
+                </div>
+                <Select onValueChange={async (staffId) => {
+                    await supabase.from('staff_group_members').upsert({ group_id: selectedGroupId!, profile_id: staffId });
+                    queryClient.invalidateQueries({ queryKey: ['staff-group-members-all'] });
+                    toast({ title: "Updated", description: "Personnel added to department." });
+                }}>
+                    <SelectTrigger className="h-14 rounded-2xl border-none shadow-sm bg-white dark:bg-slate-900 font-bold px-6">
+                        <SelectValue placeholder="Select staff member..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 rounded-2xl border-none shadow-2xl bg-white dark:bg-slate-950 p-2">
+                        {staff?.filter((s: StaffMember) => 
+                            !groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)
+                        ).map((s: StaffMember) => (
+                            <SelectItem key={s.user_id} value={s.user_id} className="font-bold rounded-xl h-12 focus:bg-indigo-50 focus:text-indigo-600">
+                                {s.first_name} {s.last_name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Group Dialog */}
+      <Dialog open={isEditGroupDialogOpen} onOpenChange={setIsEditGroupDialogOpen}>
+        <DialogContent className="rounded-[2.5rem] p-8 max-w-md">
+            <DialogHeader className="mb-6">
+                <DialogTitle className="text-2xl font-black tracking-tight">Modify Department</DialogTitle>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Update naming and primary responsibilities.</p>
+            </DialogHeader>
+            <div className="space-y-4">
+                <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Title</Label>
+                    <Input 
+                        value={groupToEdit?.name || ''} 
+                        onChange={e => setGroupToEdit({...groupToEdit, name: e.target.value})}
+                        className="h-12 rounded-xl bg-slate-50 border-slate-100 font-bold"
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Function</Label>
+                    <Input 
+                        value={groupToEdit?.description || ''} 
+                        onChange={e => setGroupToEdit({...groupToEdit, description: e.target.value})}
+                        className="h-12 rounded-xl bg-slate-50 border-slate-100 font-medium"
+                    />
+                </div>
+                <DialogFooter className="pt-4">
+                    <Button 
+                        className="w-full h-14 rounded-2xl bg-indigo-600 font-black text-xs uppercase tracking-widest"
+                        onClick={() => updateGroupMutation.mutate(groupToEdit)}
+                    >
+                        Save Corrections
+                    </Button>
+                </DialogFooter>
+            </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Group Alert */}
+      <AlertDialog open={isDeleteGroupDialogOpen} onOpenChange={setIsDeleteGroupDialogOpen}>
+        <AlertDialogContent className="rounded-[2.5rem] p-8 border-none overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 text-rose-100 -mr-4 -mt-4 opacity-50 rotate-12">
+            <Shield className="h-24 w-24 fill-current" />
+          </div>
+          <AlertDialogHeader className="relative z-10">
+            <div className="h-16 w-16 bg-rose-50 rounded-3xl flex items-center justify-center mb-6">
+                <Trash2 className="h-8 w-8 text-rose-500" />
+            </div>
+            <AlertDialogTitle className="text-2xl font-black text-slate-900 tracking-tight">Dissolve Department?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm font-bold text-slate-500 leading-relaxed uppercase tracking-widest">
+                This will permanently remove the <span className="text-rose-600">"{groupToEdit?.name}"</span> unit. Staff members will remain in the system but their assignments to this group will be cleared.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="pt-8">
+            <AlertDialogCancel className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest border-slate-100">Abort</AlertDialogCancel>
+            <AlertDialogAction 
+                onClick={() => deleteGroupMutation.mutate(groupToEdit.id)} 
+                className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest bg-rose-600 hover:bg-rose-700 shadow-xl shadow-rose-100"
+            >
+                Confirm Dissolution
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

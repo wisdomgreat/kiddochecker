@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { 
-  Users, ShieldCheck, Search, Plus, Loader2, ChevronRight, Activity, Zap, Layers, Sparkles, Trash2, Edit, UserPlus, Heart
+  Users, ShieldCheck, Search, Plus, Loader2, ChevronRight, Activity, Handshake, Layers, Heart, Trash2, Edit, UserPlus
 } from 'lucide-react';
 import { useMembers, ChurchMember, MembershipType, MembershipStatus } from '@/hooks/useMembers';
 import { useMinistries, Ministry, useGroupMembers } from '@/hooks/useMinistries';
@@ -32,7 +32,7 @@ import {
   ClipboardList
 } from 'lucide-react';
 import VisitorJourneyBoard from '@/components/crm/VisitorJourneyBoard';
-import { Sparkles as SparklesIcon } from 'lucide-react';
+import { Heart as HeartIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ChurchManagementPage = () => {
@@ -389,11 +389,11 @@ const ChurchManagementPage = () => {
                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Start Journey</p>
                             </div>
                         </Button>
-                        <Button className="w-full h-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-5 p-6 shadow-none group" onClick={() => { setIsAddMemberOpen(false); setIsAddMinistryOpen(true); }}>
-                            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><Layers className="h-6 w-6 text-indigo-600" /></div>
+                        <Button className="w-full h-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-5 p-6 shadow-none group" onClick={() => { setIsAddMemberOpen(false); window.location.href='/staff'; }}>
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><ShieldCheck className="h-6 w-6 text-indigo-600" /></div>
                             <div className="text-left">
-                                <p className="font-black text-xl tracking-tight uppercase">New Department</p>
-                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Organize Ministry</p>
+                                <p className="font-black text-xl tracking-tight uppercase">Internal Team</p>
+                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Staff & Volunteers</p>
                             </div>
                         </Button>
                     </div>

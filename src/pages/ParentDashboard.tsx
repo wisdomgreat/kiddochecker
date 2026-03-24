@@ -14,11 +14,12 @@ import {
   MessageSquare,
   AlertTriangle,
   Plus,
-  Sparkles,
+  Star,
   ArrowRight,
   TrendingUp,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Heart
 } from "lucide-react";
 import { useAuth } from "@/context/CleanAuthContext";
 import { format } from "date-fns";
@@ -119,7 +120,7 @@ const ParentDashboard = () => {
                   <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border-none px-4 py-1.5 rounded-full font-black text-[10px] uppercase tracking-widest">
                     Family Dashboard Active
                   </Badge>
-                  <Sparkles className="h-5 w-5 text-indigo-500 animate-pulse" />
+                  <Heart className="h-5 w-5 text-rose-500 animate-pulse" />
                 </div>
                 <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter">
                   Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">{user?.user_metadata?.first_name || 'Parent'}</span>
@@ -239,7 +240,7 @@ const ParentDashboard = () => {
                   <div className="p-10 space-y-1">
                      {streamItems.length === 0 ? (
                        <div className="py-24 text-center opacity-40">
-                          <Sparkles className="h-10 w-10 mx-auto mb-4 text-slate-300" />
+                          <Star className="h-10 w-10 mx-auto mb-4 text-slate-300" />
                           <p className="font-black uppercase tracking-widest text-[10px]">Awaiting First Entry</p>
                        </div>
                      ) : (
@@ -287,7 +288,7 @@ const ParentDashboard = () => {
                             <div className="text-right hidden sm:block">
                                <p className="text-xs font-black text-slate-900 tracking-tighter">
                                   {format(new Date(item.timestamp), "MMM dd, yyyy")}
-                               </p>
+                                </p>
                                <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-1">
                                   {format(new Date(item.timestamp), "h:mm a")}
                                </p>

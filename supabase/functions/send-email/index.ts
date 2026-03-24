@@ -150,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Special case for staff_pin_reset if template not in DB yet
+    // Special case for staff_pin_reset or visitor_welcome if template not in DB yet
     if (templateName === 'staff_pin_reset' && !finalHtml) {
       finalSubject = "Secret Staff Identity PIN - DO NOT SHARE";
       const staffName = templateData?.staffName || "Staff Member";
@@ -169,6 +169,24 @@ const handler = async (req: Request): Promise<Response> => {
           <p>You can also view this PIN anytime by visiting your profile in the dashboard.</p>
         </div>
       `;
+    }
+
+    if (templateName === 'visitor_welcome' && !finalHtml) {
+       finalSubject = `Welcome to ${templateData?.churchName || 'Green Valley Church'}!`;
+       const visitorName = templateData?.visitorName || "Guest";
+       finalHtml = `
+          <div style="font-family: sans-serif; max-width: 600px; padding: 40px; border: 1px solid #e2e8f0; border-radius: 24px; margin: 0 auto;">
+            <h1 style="color: #6366f1; font-size: 28px; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 24px;">Welcome Home, ${escapeHtml(visitorName)}!</h1>
+            <p style="font-size: 16px; line-height: 1.6; color: #475569; margin-bottom: 24px;">It was such a joy to have you with us today. We hope you felt the warmth of our community and the presence of God.</p>
+            <div style="background: #f8fafc; padding: 24px; border-radius: 20px; border: 1px solid #f1f5f9; margin-bottom: 24px;">
+              <p style="font-size: 14px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">JOIN US AGAIN</p>
+              <p style="font-size: 18px; font-weight: 700; color: #1e293b; margin: 0;">Next Sunday at 10:00 AM</p>
+            </div>
+            <p style="font-size: 16px; line-height: 1.6; color: #475569; margin-bottom: 40px;">If there is anything we can pray for or if you would like to learn more about our ministries, simply reply to this email. We would love to connect with you.</p>
+            <p style="font-size: 14px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">GOD BLESS,</p>
+            <p style="font-size: 16px; font-weight: 800; color: #6366f1; margin: 0;">The ${escapeHtml(templateData?.churchName || 'Green Valley Church')} Team</p>
+          </div>
+       `;
     }
 
     if (!finalHtml && message) {
