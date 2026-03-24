@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { 
-  Users, ShieldCheck, Search, Plus, Loader2, ChevronRight, Activity, Zap, Layers, Sparkles, Trash2, Edit, UserPlus
+  Users, ShieldCheck, Search, Plus, Loader2, ChevronRight, Activity, Zap, Layers, Sparkles, Trash2, Edit, UserPlus, Heart
 } from 'lucide-react';
 import { useMembers, ChurchMember, MembershipType, MembershipStatus } from '@/hooks/useMembers';
 import { useMinistries, Ministry, useGroupMembers } from '@/hooks/useMinistries';
@@ -103,8 +103,8 @@ const ChurchManagementPage = () => {
                             <div>
                                 <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">{t('churchManagement')}</h1>
                                 <div className="flex items-center gap-2">
-                                    <div className="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-md text-[9px] font-black uppercase tracking-widest">Growth Phase</div>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">{members.length} Faithful Souls</span>
+                                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-black uppercase tracking-widest">Growing Together</div>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">{members.length} Members</span>
                                 </div>
                             </div>
                         </div>
@@ -120,7 +120,7 @@ const ChurchManagementPage = () => {
                                     <LayoutGrid className="h-4 w-4 mr-2" /> {t('ministries')}
                                 </TabsTrigger>
                                 <TabsTrigger value="visitor_crm" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
-                                    <SparklesIcon className="h-4 w-4 mr-2" /> CRM Board
+                                    <Heart className="h-4 w-4 mr-2" /> Care Board
                                 </TabsTrigger>
                                 <TabsTrigger value="kanban" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <ClipboardList className="h-4 w-4 mr-2" /> {t('kanban')}
@@ -140,9 +140,9 @@ const ChurchManagementPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {[
                         { label: 'Congregation', value: stats?.total_members || 0, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                        { label: 'New Guests', value: stats?.visitor_count || 0, icon: SparklesIcon, color: 'text-orange-600', bg: 'bg-orange-50' },
-                        { label: 'In Discipleship', value: stats?.regular_count || 0, icon: Zap, color: 'text-sky-600', bg: 'bg-sky-50' },
-                        { label: 'Retention Rate', value: `${stats?.integrations_perc || 0}%`, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' }
+                        { label: 'New Guests', value: stats?.visitor_count || 0, icon: SparklesIcon, color: 'text-amber-500', bg: 'bg-amber-50' },
+                        { label: 'In Discipleship', value: stats?.regular_count || 0, icon: Heart, color: 'text-rose-500', bg: 'bg-rose-50' },
+                        { label: 'Relationship Pulse', value: `${stats?.integrations_perc || 0}%`, icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-50' }
                     ].map((stat, i) => (
                         <Card key={i} className="p-6 rounded-[2.5rem] bg-white dark:bg-slate-900 border-none shadow-[0_4px_24px_rgba(0,0,0,0.02)] group hover:shadow-xl transition-all border border-transparent hover:border-indigo-100 dark:hover:border-white/10">
                             <div className="flex items-center gap-5">
@@ -166,7 +166,7 @@ const ChurchManagementPage = () => {
                                 <Input placeholder="Search congregation..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-12 h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/40 font-bold" />
                             </div>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {membersLoading ? (
                                     <div className="col-span-full py-20 text-center"><Loader2 className="h-10 w-10 animate-spin mx-auto text-indigo-600" /></div>
                                 ) : filteredMembers.map(member => (

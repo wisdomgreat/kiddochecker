@@ -41,7 +41,7 @@ const VisitorJourneyBoard = () => {
                 <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center animate-bounce">
                     <Sparkles className="h-8 w-8 text-indigo-600" />
                 </div>
-                <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Awaiting Divine Data...</p>
+                <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Connecting with congregation...</p>
             </div>
         );
     }
@@ -170,7 +170,7 @@ const VisitorJourneyBoard = () => {
                                 className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-white/10 rounded-[2.5rem] bg-slate-50/30"
                             >
                                 <Zap className="h-5 w-5 text-slate-400 mb-2 opacity-20" />
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Stable Stage</span>
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Currently Balanced</span>
                             </motion.div>
                         )}
                     </div>

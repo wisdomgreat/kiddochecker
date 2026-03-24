@@ -73,7 +73,7 @@ export function AppSidebar() {
       items: [
         { title: t('children'), url: "/children", icon: Baby },
         { title: t('staff'), url: "/staff", icon: UserCheck },
-        { title: t('shiftAutoPlanner'), url: "/staff/schedules", icon: Zap },
+        { title: t('shiftAutoPlanner'), url: "/staff/schedules", icon: ClipboardCheck },
         { title: t('classes'), url: "/classes", icon: BookOpen },
         { title: t('verifyStaff'), url: "/admin/verify-staff", icon: Shield },
         { title: 'Congregation', url: "/admin/church", icon: Heart },

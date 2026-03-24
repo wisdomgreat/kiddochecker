@@ -195,20 +195,27 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                             <Button onClick={contactActions.call} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl h-14 font-bold shadow-lg shadow-emerald-100 dark:shadow-none flex flex-col gap-0.5"><Phone className="h-4 w-4" /> <span className="text-[10px] uppercase">Call</span></Button>
                             <Button onClick={contactActions.messageSMS} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl h-14 font-bold shadow-lg shadow-indigo-100 dark:shadow-none flex flex-col gap-0.5"><MessageSquare className="h-4 w-4" /> <span className="text-[10px] uppercase">Text</span></Button>
                             
-                            <Button 
-                                onClick={() => startVIPSeries({
-                                    membership_id: member?.id,
-                                    email: member?.profiles?.email,
-                                    firstName: member?.profiles?.first_name
-                                })}
-                                disabled={isSending || member?.journey_stage === 'member'}
-                                className={`col-span-2 bg-slate-900 border-none text-white rounded-2xl h-14 font-black shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 ${
-                                    member?.journey_stage === 'member' ? 'opacity-0 pointer-events-none hidden' : ''
-                                }`}
-                            >
-                                <SparklesIcon className="h-5 w-5 text-amber-400 animate-pulse" />
-                                <span className="text-xs uppercase tracking-tight">{isSending ? 'SENDING...' : 'SEND WELCOME VIP SERIES'}</span>
-                            </Button>
+                                <div className="space-y-4">
+                                    <Button 
+                                        onClick={() => startVIPSeries({
+                                            membership_id: member?.id,
+                                            email: member?.profiles?.email,
+                                            firstName: member?.profiles?.first_name
+                                        })}
+                                        disabled={isSending || member?.journey_stage === 'member'}
+                                        className={`col-span-2 bg-slate-900 border-none text-white rounded-2xl h-14 font-black shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 ${
+                                            member?.journey_stage === 'member' ? 'opacity-0 pointer-events-none hidden' : ''
+                                        }`}
+                                    >
+                                        <Heart className="h-5 w-5 text-rose-400 animate-pulse" />
+                                        <span className="text-xs uppercase tracking-tight">{isSending ? 'SENDING...' : 'SEND WELCOME JOURNEY'}</span>
+                                    </Button>
+                                    {member?.journey_stage !== 'member' && (
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center px-4 leading-relaxed">
+                                            This will send a series of warm, welcoming messages over the next few weeks to help them feel at home.
+                                        </p>
+                                    )}
+                                </div>
 
                             <Button variant="outline" className="col-span-2 rounded-2xl h-12 border-slate-100 font-bold text-xs uppercase tracking-widest text-slate-400 hover:bg-slate-50"><Edit className="h-3.5 w-3.5 mr-2" /> View Detailed Log</Button>
                         </div>
@@ -222,7 +229,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                     <TabsTrigger value="overview" className="rounded-xl px-6 font-black text-xs uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-lg transition-all">Timeline</TabsTrigger>
                                     <TabsTrigger value="journey" className="rounded-xl px-6 font-black text-xs uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-lg transition-all">Journey</TabsTrigger>
                                     <TabsTrigger value="giving" className="rounded-xl px-6 font-black text-xs uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-lg transition-all">Giving</TabsTrigger>
-                                    <TabsTrigger value="tasks" className="rounded-xl px-6 font-black text-xs uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-lg transition-all">Assign Tasks</TabsTrigger>
+                                    <TabsTrigger value="tasks" className="rounded-xl px-6 font-black text-xs uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:shadow-lg transition-all">Planning & Care</TabsTrigger>
                                 </TabsList>
                                 <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-all" onClick={() => onOpenChange(false)}>
                                     <X className="h-5 w-5" />
@@ -374,7 +381,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
 
                                 <TabsContent value="tasks" className="mt-0 space-y-6 pb-10">
                                     <div className="flex items-center justify-between px-2">
-                                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">Automated Outreach</h4>
+                                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">Care Follow-ups</h4>
                                         <Badge className="bg-indigo-50 text-indigo-600 border-none font-bold">{memberTasks.length} Active</Badge>
                                     </div>
 

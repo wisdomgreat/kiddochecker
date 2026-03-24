@@ -181,7 +181,7 @@ const AttendanceRewardsPage = () => {
              <div className="space-y-1">
                 <h3 className="font-bold text-indigo-900">{t('howDoPointsWork')}</h3>
                 <p className="text-sm text-indigo-700 leading-relaxed">
-                  Reward points are <strong>automatically assigned</strong> to a child's balance upon every successful check-in (5 points per session). 
+                  Reward points are <strong>granted and thoughtfully tracked</strong> against a child's balance upon every successful check-in (5 points per session). 
                   Parents can view and redeem these points via the Parent Portal. Admins then approve or fulfill redemptions from the "{t('redemptions')}" tab below.
                 </p>
              </div>
