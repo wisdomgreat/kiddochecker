@@ -162,11 +162,11 @@ const EnhancedLoginForm = () => {
           <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-xl">
              <Shield className="h-6 w-6 text-white" />
           </div>
-          <span className="font-black text-white text-2xl tracking-tighter">KiddoChecker</span>
+          <span className="font-bold text-white text-2xl tracking-tight">KiddoChecker</span>
         </div>
 
         <div className="relative z-10 space-y-8 max-w-xl">
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-6xl font-black text-white leading-[1.05] tracking-tight">
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-5xl font-bold text-white leading-[1.1] tracking-tight">
              Securing the <span className="text-indigo-200">Future</span> of Childcare.
           </motion.h1>
           <p className="text-indigo-100 text-xl font-medium leading-relaxed opacity-90">
@@ -198,23 +198,23 @@ const EnhancedLoginForm = () => {
                   <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center mb-6">
                     <Smartphone className="h-8 w-8 text-indigo-600" />
                   </div>
-                  <h2 className="text-4xl font-black text-slate-900 tracking-tight">Two-Factor Auth</h2>
+                  <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Two-Factor Auth</h2>
                   <p className="text-slate-500 font-medium">Please enter the 6-digit code from your authenticator app to continue.</p>
                 </div>
 
                 <form onSubmit={handleMfaVerify} className="space-y-6">
                    <div className="space-y-2">
-                      <Label className="text-slate-900 font-black text-sm ml-1">Authentication Code</Label>
+                      <Label className="text-slate-900 font-bold text-sm ml-1">Authentication Code</Label>
                       <Input
                         value={mfaCode}
                         onChange={(e) => setMfaCode(e.target.value)}
                         placeholder="000000"
                         maxLength={6}
                         required
-                        className="h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-center text-3xl font-black tracking-[0.5em]"
+                        className="h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all text-center text-3xl font-bold tracking-widest"
                       />
                    </div>
-                   <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl font-black text-lg bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all">
+                   <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl font-bold text-lg bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all">
                       {isLoading ? <Loader2 className="animate-spin" /> : 'Verify & Sign In'}
                    </Button>
                    <button type="button" onClick={() => setMode('login')} className="w-full text-slate-400 font-bold text-sm hover:text-slate-600 flex items-center justify-center gap-2">
@@ -225,10 +225,10 @@ const EnhancedLoginForm = () => {
             ) : (
               <motion.div key="auth" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
                 <div className="space-y-3">
-                  <Badge variant="outline" className="rounded-full px-4 py-1 border-indigo-100 bg-indigo-50 text-indigo-600 font-bold uppercase tracking-widest text-[10px]">
+                  <Badge variant="outline" className="rounded-full px-4 py-1 border-indigo-100 bg-indigo-50 text-indigo-600 font-bold tracking-tight text-[10px]">
                     {mode === 'login' ? 'Authentication' : 'Registration'}
                   </Badge>
-                  <h2 className="text-4xl font-black text-slate-900 tracking-tight">
+                  <h2 className="text-3xl font-bold text-slate-900 tracking-tight">
                     {mode === 'login' ? 'Welcome Back' : 'Join KiddoChecker'}
                   </h2>
                 </div>
@@ -241,13 +241,13 @@ const EnhancedLoginForm = () => {
                 <form onSubmit={mode === 'login' ? handleLogin : handleSignup} className="space-y-5">
                   {mode === 'signup' && (
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label className="font-black text-sm ml-1">First Name</Label><Input value={firstName} onChange={e => setFirstName(e.target.value)} required className="h-12 rounded-xl" placeholder="John" /></div>
-                      <div className="space-y-2"><Label className="font-black text-sm ml-1">Last Name</Label><Input value={lastName} onChange={e => setLastName(e.target.value)} required className="h-12 rounded-xl" placeholder="Doe" /></div>
+                      <div className="space-y-2"><Label className="font-bold text-sm ml-1">First Name</Label><Input value={firstName} onChange={e => setFirstName(e.target.value)} required className="h-12 rounded-xl" placeholder="John" /></div>
+                      <div className="space-y-2"><Label className="font-bold text-sm ml-1">Last Name</Label><Input value={lastName} onChange={e => setLastName(e.target.value)} required className="h-12 rounded-xl" placeholder="Doe" /></div>
                     </div>
                   )}
 
                   <div className="space-y-2">
-                    <Label className="font-black text-sm ml-1">Email Address</Label>
+                    <Label className="font-bold text-sm ml-1">Email Address</Label>
                     <div className="relative group">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
                       <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="pl-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-lg" placeholder="name@organization.com" />
@@ -256,8 +256,8 @@ const EnhancedLoginForm = () => {
 
                   <div className="space-y-2">
                     <div className="flex justify-between items-center ml-1">
-                      <Label className="font-black text-sm">{t('password')}</Label>
-                      {mode === 'login' && <Link to="/forgot-password" title={t('forgot')} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-wider">{t('forgot')}</Link>}
+                      <Label className="font-bold text-sm">{t('password')}</Label>
+                      {mode === 'login' && <Link to="/forgot-password" title={t('forgot')} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors tracking-tight">{t('forgot')}</Link>}
                     </div>
                     <div className="relative group">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
@@ -270,7 +270,7 @@ const EnhancedLoginForm = () => {
 
                   {mode === 'signup' && (
                     <div className="space-y-2 animate-in slide-in-from-top-2">
-                      <Label className="font-black text-sm ml-1">Confirm Password</Label>
+                      <Label className="font-bold text-sm ml-1">Confirm Password</Label>
                       <div className="relative group">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors z-10" />
                         <Input type={showPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium text-lg" placeholder="Repeat password" />
@@ -283,8 +283,8 @@ const EnhancedLoginForm = () => {
 
                   {error && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="p-4 bg-rose-50 text-rose-600 text-sm font-bold rounded-2xl border border-rose-100 flex items-center gap-3"><AlertTriangle className="h-4 w-4 shrink-0" />{error}</motion.div>}
 
-                  <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl font-black text-lg bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all">
-                    {isLoading ? <Loader2 className="animate-spin" /> : mode === 'login' ? 'Sign In Now' : 'Create Account'}
+                  <Button type="submit" disabled={isLoading} className="w-full h-14 rounded-2xl font-bold text-lg bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all">
+                    {isLoading ? <Loader2 className="animate-spin" /> : mode === 'login' ? 'Sign In' : 'Create Account'}
                   </Button>
                 </form>
               </motion.div>

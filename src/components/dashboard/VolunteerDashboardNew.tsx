@@ -53,7 +53,7 @@ const VolunteerDashboardNew = () => {
                     <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                         <Users className="h-8 w-8 text-white" />
                     </div>
-                    <h1 className="text-3xl font-bold text-slate-900">Volunteer Station</h1>
+                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Volunteer Dashboard</h1>
                     <p className="text-slate-500 mt-1">{today}</p>
                 </div>
             </motion.div>
@@ -64,16 +64,16 @@ const VolunteerDashboardNew = () => {
                 className="grid grid-cols-3 gap-4"
             >
                 <div className="gradient-primary rounded-2xl p-6 text-white text-center shadow-lg">
-                    <p className="text-5xl font-black">{presentNow}</p>
-                    <p className="text-white/80 text-sm mt-1 font-medium">Present Now</p>
+                    <p className="text-4xl font-bold tracking-tight">{presentNow}</p>
+                    <p className="text-white/80 text-xs mt-1 font-semibold uppercase tracking-wider">Present Now</p>
                 </div>
                 <div className="gradient-success rounded-2xl p-6 text-white text-center shadow-lg">
-                    <p className="text-5xl font-black">{todayAttendance.length}</p>
-                    <p className="text-white/80 text-sm mt-1 font-medium">Total Check-ins</p>
+                    <p className="text-4xl font-bold tracking-tight">{todayAttendance.length}</p>
+                    <p className="text-white/80 text-xs mt-1 font-semibold uppercase tracking-wider">Total Check-ins</p>
                 </div>
                 <div className="gradient-warning rounded-2xl p-6 text-white text-center shadow-lg">
-                    <p className="text-5xl font-black">{checkedOut}</p>
-                    <p className="text-white/80 text-sm mt-1 font-medium">Checked Out</p>
+                    <p className="text-4xl font-bold tracking-tight">{checkedOut}</p>
+                    <p className="text-white/80 text-xs mt-1 font-semibold uppercase tracking-wider">Checked Out</p>
                 </div>
             </motion.div>
 
@@ -110,7 +110,7 @@ const VolunteerDashboardNew = () => {
                     </div>
                     <div className="text-left">
                         <p className="font-bold text-slate-800 text-sm">Check-Out Station</p>
-                        <p className="text-xs text-slate-500">Process departures</p>
+                        <p className="text-xs text-slate-500 font-medium">Process departures</p>
                     </div>
                 </button>
                 <button
@@ -127,7 +127,7 @@ const VolunteerDashboardNew = () => {
                                 <Badge className="bg-purple-600 text-[10px] h-4 px-1">{unreadCount}</Badge>
                             )}
                         </div>
-                        <p className="text-xs text-slate-500">Staff communication</p>
+                        <p className="text-xs text-slate-500 font-medium">Staff communication</p>
                     </div>
                 </button>
             </motion.div>
@@ -140,7 +140,7 @@ const VolunteerDashboardNew = () => {
                 >
                     <div className="flex items-center gap-2 mb-3">
                         <AlertTriangle className="h-5 w-5 text-amber-600" />
-                        <h3 className="font-bold text-amber-800">Allergy Alerts — Children Present</h3>
+                        <h3 className="font-bold text-amber-800 tracking-tight">Medical Alerts — Present Now</h3>
                     </div>
                     <div className="space-y-2">
                         {allergyAlerts.map((record: any) => (
@@ -163,8 +163,8 @@ const VolunteerDashboardNew = () => {
             >
                 <div className="p-5 border-b border-slate-100 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <h3 className="font-bold text-slate-800">Live Feed</h3>
-                    <Badge variant="outline" className="ml-auto text-xs">Updates every 15s</Badge>
+                    <h3 className="font-bold text-slate-800 tracking-tight">Recent Activity</h3>
+                    <Badge variant="outline" className="ml-auto text-[10px] font-bold">Auto-updates</Badge>
                 </div>
                 <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
                     {todayAttendance.length === 0 ? (

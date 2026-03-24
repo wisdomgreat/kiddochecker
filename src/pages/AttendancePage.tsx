@@ -135,30 +135,30 @@ const AttendancePage = () => {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12"
           >
-            <div className="space-y-2">
-              <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none flex items-center gap-4">
-                Operations
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                Attendance
                 {isConnected && (
-                  <Badge className="bg-emerald-500/10 text-emerald-500 border-none font-black text-[10px] uppercase tracking-widest px-4 h-8 rounded-full flex items-center gap-2">
+                  <Badge className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none font-bold text-[11px] px-3 h-6 rounded-full flex items-center gap-2">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                    Live Matrix
+                    Live Update
                   </Badge>
                 )}
               </h1>
-              <div className="flex items-center gap-3">
-                 <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] ml-1">Traffic Hub</p>
+              <div className="flex items-center gap-2">
+                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Daily Logs</p>
                  <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
-                 <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em]">Surveillance Mode</p>
+                 <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-500">Monitoring active</p>
               </div>
             </div>
             
             <div className="flex flex-wrap items-center gap-3">
                 <Button 
                     onClick={() => setShowCheckInDialog(true)}
-                    className="h-14 px-8 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                    className="h-14 px-8 bg-slate-900 dark:bg-white text-white dark:text-black rounded-2xl font-bold text-xs tracking-tight shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
                 >
                     <Activity className="h-4 w-4" />
-                    Manual Inject
+                    Manual Check-in
                 </Button>
 
               {stats.currentlyPresent > 0 && (isAdmin || isSuperAdmin) && (
@@ -188,10 +188,10 @@ const AttendancePage = () => {
                     toast({ title: "Bulk Sign-Out Complete", description: `Successfully signed out ${successCount} children.` });
                     refetch();
                   }}
-                  className="h-14 px-8 border-2 border-rose-100 dark:border-rose-900/30 text-rose-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all flex items-center gap-3"
+                  className="h-14 px-8 border-2 border-rose-100 dark:border-rose-900/30 text-rose-600 rounded-2xl font-bold text-xs tracking-tight hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-all flex items-center gap-3"
                 >
                   <Bell className="h-4 w-4" />
-                  Erase All({stats.currentlyPresent})
+                  Bulk Sign-out ({stats.currentlyPresent})
                 </Button>
               )}
               
@@ -207,10 +207,10 @@ const AttendancePage = () => {
 
               <Button 
                 onClick={() => setIsReportDialogOpen(true)}
-                className="h-14 px-8 bg-indigo-600 hover:bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                className="h-14 px-8 bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl font-bold text-xs tracking-tight shadow-xl shadow-indigo-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
               >
                   <Calendar className="h-4 w-4" />
-                  Ops Report
+                  Full Report
               </Button>
             </div>
           </motion.div>
@@ -218,10 +218,10 @@ const AttendancePage = () => {
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                  { label: "Today's Volume", val: stats.todayCheckins, icon: CheckSquare, color: "emerald", desc: "Total entries recorded" },
-                  { label: "Internal Load", val: stats.currentlyPresent, icon: Users, color: "indigo", desc: "Active members detected" },
-                  { label: "Node Clearance", val: stats.checkedOut, icon: TrendingUp, color: "slate", desc: "Completed sessions today" },
-                  { label: "Late Egress", val: stats.lateCheckouts, icon: Clock, color: "amber", desc: "After 6:00 PM standard" }
+                  { label: "Check-ins Today", val: stats.todayCheckins, icon: CheckSquare, color: "emerald", desc: "Total entries recorded" },
+                  { label: "Present Now", val: stats.currentlyPresent, icon: Users, color: "indigo", desc: "Children at center" },
+                  { label: "Safe Departures", val: stats.checkedOut, icon: TrendingUp, color: "slate", desc: "Check-outs completed" },
+                  { label: "Late Pick-ups", val: stats.lateCheckouts, icon: Clock, color: "amber", desc: "After 6:00 PM standard" }
               ].map((s, idx) => (
                   <motion.div 
                     key={s.label}
@@ -236,16 +236,16 @@ const AttendancePage = () => {
                         <div className="flex justify-between items-start relative z-10">
                             <div>
                                 <p className={cn(
-                                    "text-[10px] font-black uppercase tracking-[0.2em] mb-1",
+                                    "text-xs font-semibold tracking-tight mb-1",
                                     s.color === 'slate' ? 'text-slate-400' : `text-${s.color}-500`
                                 )}>{s.label}</p>
                                 <h3 className={cn(
-                                    "text-5xl font-black tracking-tighter italic",
+                                    "text-3xl font-bold tracking-tight",
                                     s.color === 'slate' ? 'text-white' : `text-${s.color}-600`
                                 )}>
                                     {isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : s.val}
                                 </h3>
-                                <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2">{s.desc}</p>
+                                <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-3">{s.desc}</p>
                             </div>
                             <div className={cn(
                                 "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm",
@@ -272,14 +272,14 @@ const AttendancePage = () => {
             {/* Class Breakdown Section */}
             <div className="space-y-6">
                 <div className="flex items-center justify-between px-2">
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Class Distribution</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">By Class</h2>
                     <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-sm">
                         <Calendar className="h-4 w-4 text-slate-400" />
                         <input
                             type="date"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest focus:ring-0 cursor-pointer"
+                            className="bg-transparent border-none text-xs font-bold tracking-tight focus:ring-0 cursor-pointer text-slate-600 dark:text-slate-400"
                         />
                     </div>
                 </div>
@@ -289,25 +289,25 @@ const AttendancePage = () => {
             {/* Attendance Table */}
             <div className="space-y-6">
                 <div className="flex items-center justify-between px-2">
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Entry Manifest</h2>
-                    <Badge variant="outline" className="text-slate-400 border-slate-200 dark:border-white/10 font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full">
-                        {todayAttendance.length} Total Data Nodes
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">Check-in Log</h2>
+                    <Badge variant="outline" className="text-slate-500 border-slate-200 dark:border-white/10 font-medium text-[10px] px-3 h-6 rounded-full">
+                        {todayAttendance.length} Records
                     </Badge>
                 </div>
 
                 <Card className="floating-island rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl">
                 <CardContent className="p-0">
                     {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+                     <div className="flex flex-col items-center justify-center py-24 text-slate-500">
                         <Loader2 className="h-12 w-12 animate-spin mb-4" />
-                        <p className="text-[10px] font-black uppercase tracking-widest">Compiling Attendance Logs...</p>
+                        <p className="text-xs font-bold">Loading attendance...</p>
                     </div>
                     ) : error ? (
                     <div className="py-24 text-center">
-                        <p className="text-2xl font-black text-rose-500 uppercase italic tracking-tighter">Buffer Sync Failure</p>
-                        <p className="text-xs font-black text-slate-400 mt-2 uppercase tracking-widest">Failed to communicate with the central matrix</p>
-                        <Button variant="outline" onClick={() => refetch()} className="mt-8 rounded-2xl font-black uppercase text-[10px] tracking-widest">
-                        Re-initialize Sync
+                        <p className="text-xl font-bold text-rose-500 tracking-tight">Syncing Issue</p>
+                        <p className="text-xs font-semibold text-slate-400 mt-2 tracking-tight">We're having trouble reaching the server. Please try again.</p>
+                        <Button variant="outline" onClick={() => refetch()} className="mt-8 rounded-2xl font-bold text-[10px]">
+                        Retry Connection
                         </Button>
                     </div>
                     ) : todayAttendance.length === 0 ? (
@@ -315,20 +315,20 @@ const AttendancePage = () => {
                         <div className="w-24 h-24 bg-slate-50 dark:bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto mb-8 border border-slate-100 dark:border-white/10 shadow-inner">
                             <CheckSquare className="h-10 w-10 text-slate-200" />
                         </div>
-                        <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-2">Zero Activity Recorded</h3>
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Matrix is currently waiting for first entry</p>
+                        <h3 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight mb-1">No activity yet</h3>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Waiting for the first check-in today</p>
                     </div>
                     ) : (
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader className="bg-slate-50 dark:bg-white/5 border-none">
                             <TableRow className="border-none hover:bg-transparent">
-                                <TableHead className="px-10 h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Identity</TableHead>
-                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Node Location</TableHead>
-                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Ingress</TableHead>
-                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">Egress</TableHead>
-                                <TableHead className="h-16 font-black text-[10px] uppercase tracking-widest text-slate-400">State</TableHead>
-                                <TableHead className="px-10 h-16 text-right font-black text-[10px] uppercase tracking-widest text-slate-400">Control</TableHead>
+                                <TableHead className="px-10 h-16 font-bold text-xs text-slate-500">Child</TableHead>
+                                <TableHead className="h-16 font-bold text-xs text-slate-500">Class</TableHead>
+                                <TableHead className="h-16 font-bold text-xs text-slate-500">Arrival</TableHead>
+                                <TableHead className="h-16 font-bold text-xs text-slate-500">Departure</TableHead>
+                                <TableHead className="h-16 font-bold text-xs text-slate-500">Status</TableHead>
+                                <TableHead className="px-10 h-16 text-right font-bold text-xs text-slate-500">Actions</TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -344,14 +344,14 @@ const AttendancePage = () => {
                                             )}
                                         </div>
                                         <div>
-                                            <div className="text-lg font-black text-slate-900 dark:text-white italic tracking-tighter leading-none mb-1">
+                                            <div className="text-lg font-bold text-slate-900 dark:text-white tracking-tight leading-none mb-1">
                                             {record.child ?
                                                 `${record.child.first_name} ${record.child.last_name}` :
-                                                'Unknown Node'
+                                                'Unknown Child'
                                             }
                                             </div>
                                             {record.special_instructions && (
-                                            <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                            <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
                                                 <Bell className="h-3 w-3 text-indigo-500" /> {record.special_instructions}
                                             </div>
                                             )}
@@ -359,30 +359,30 @@ const AttendancePage = () => {
                                     </div>
                                 </TableCell>
                                 <TableCell className="py-8 align-top">
-                                    <div className="h-10 px-4 bg-slate-100 dark:bg-white/5 rounded-xl inline-flex items-center text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                                        {record.class?.name || 'Unassigned Cluster'}
+                                    <div className="h-10 px-4 bg-slate-100 dark:bg-white/5 rounded-xl inline-flex items-center text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                                        {record.class?.name || 'Unassigned'}
                                     </div>
                                 </TableCell>
                                 <TableCell className="py-8 align-top">
-                                    <div className="text-sm font-black text-slate-700 dark:text-slate-200">{formatTime(record.checked_in_at)}</div>
+                                    <div className="text-sm font-bold text-slate-700 dark:text-slate-200">{formatTime(record.checked_in_at)}</div>
                                 </TableCell>
                                 <TableCell className="py-8 align-top">
-                                    <div className="text-sm font-black text-slate-400 dark:text-slate-500">{formatTime(record.checked_out_at)}</div>
+                                    <div className="text-sm font-bold text-slate-400 dark:text-slate-500">{formatTime(record.checked_out_at)}</div>
                                 </TableCell>
                                 <TableCell className="py-8 align-top">
                                     {record.checked_out_at ? (
-                                    <Badge className="bg-slate-100 text-slate-400 border-none px-4 h-8 rounded-full text-[9px] font-black uppercase tracking-widest">Egress Success</Badge>
+                                    <Badge className="bg-slate-100 dark:bg-white/5 text-slate-500 border-none px-4 h-8 rounded-full text-[10px] font-bold">Checked Out</Badge>
                                     ) : (
-                                    <Badge className="bg-emerald-500 text-white border-none px-4 h-8 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg shadow-emerald-200 dark:shadow-none">Station Active</Badge>
+                                    <Badge className="bg-emerald-500 text-white border-none px-4 h-8 rounded-full text-[10px] font-bold shadow-lg shadow-emerald-200 dark:shadow-none">Present</Badge>
                                     )}
                                 </TableCell>
                                 <TableCell className="px-10 py-8 text-right align-top">
                                     {!record.checked_out_at && (
-                                    <Button
+                                        <Button
                                         size="sm"
                                         onClick={() => handleCheckOut(record.id)}
                                         disabled={isCheckingOut}
-                                        className="h-12 px-6 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-white/10 text-slate-900 dark:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all shadow-sm"
+                                        className="h-12 px-6 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-white/10 text-slate-900 dark:text-white rounded-2xl font-bold text-xs tracking-tight hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-black transition-all shadow-sm"
                                     >
                                         Check Out
                                     </Button>
@@ -412,12 +412,12 @@ const AttendancePage = () => {
                  <TrendingUp className="w-64 h-64" />
                </motion.div>
                <div className="relative z-10 space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-400">Intelligence Manifest</p>
-                    <DialogTitle className="text-4xl font-black tracking-tighter uppercase italic leading-none">
-                        Ops Center Report
+                     <p className="text-[10px] font-bold text-indigo-400">Activity Report</p>
+                     <DialogTitle className="text-3xl font-bold tracking-tight leading-none text-white">
+                        Daily Summary
                     </DialogTitle>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4">
-                        {format(new Date(), 'MMMM d, yyyy')} • {todayAttendance.length} Total Nodes Detected
+                     <p className="text-xs font-medium text-slate-400 mt-4">
+                        {format(new Date(), 'MMMM d, yyyy')} • {todayAttendance.length} records detected
                     </p>
                </div>
             </div>
@@ -426,14 +426,14 @@ const AttendancePage = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                         { label: 'Check-ins', val: stats.todayCheckins, color: 'emerald' },
-                        { label: 'Active', val: stats.currentlyPresent, color: 'indigo' },
-                        { label: 'Cleared', val: stats.checkedOut, color: 'slate' },
-                        { label: 'Delayed', val: stats.lateCheckouts, color: 'rose' }
+                        { label: 'Present', val: stats.currentlyPresent, color: 'indigo' },
+                        { label: 'Out', val: stats.checkedOut, color: 'slate' },
+                        { label: 'Late', val: stats.lateCheckouts, color: 'rose' }
                     ].map(s => (
                         <div key={s.label} className="p-6 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
+                            <p className="text-[9px] font-bold text-slate-400 tracking-tight mb-1">{s.label}</p>
                             <p className={cn(
-                                "text-3xl font-black tracking-tighter italic",
+                                "text-3xl font-bold tracking-tight",
                                 s.color === 'emerald' ? 'text-emerald-500' : 
                                 s.color === 'indigo' ? 'text-indigo-500' : 
                                 s.color === 'rose' ? 'text-rose-500' : 'text-slate-900 dark:text-white'
@@ -443,26 +443,26 @@ const AttendancePage = () => {
               </div>
 
               <div className="space-y-4">
-                  <h4 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Live Node Feed</h4>
+                   <h4 className="text-xs font-bold text-slate-900 dark:text-white">Recent Entries</h4>
                   <div className="rounded-[2rem] border border-slate-100 dark:border-white/10 overflow-hidden">
                     <Table>
                     <TableHeader className="bg-slate-50 dark:bg-white/5">
                         <TableRow className="border-none">
-                        <TableHead className="px-6 h-12 text-[9px] font-black text-slate-400 uppercase">Child Node</TableHead>
-                        <TableHead className="h-12 text-[9px] font-black text-slate-400 uppercase">Cluster</TableHead>
-                        <TableHead className="h-12 text-[9px] font-black text-slate-400 uppercase">In</TableHead>
-                        <TableHead className="px-6 h-12 text-right text-[9px] font-black text-slate-400 uppercase">Out</TableHead>
+                        <TableHead className="px-6 h-12 text-[9px] font-bold text-slate-400 uppercase tracking-tight">Child Name</TableHead>
+                        <TableHead className="h-12 text-[9px] font-bold text-slate-400 uppercase tracking-tight">Class</TableHead>
+                        <TableHead className="h-12 text-[9px] font-bold text-slate-400 uppercase tracking-tight">Arrival</TableHead>
+                        <TableHead className="px-6 h-12 text-right text-[9px] font-bold text-slate-400 uppercase tracking-tight">Departure</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {todayAttendance.map((record) => (
+                         {todayAttendance.map((record) => (
                         <TableRow key={record.id} className="border-b border-slate-50 dark:border-white/5">
-                            <TableCell className="px-6 py-4 font-black text-slate-900 dark:text-white text-xs italic">
+                            <TableCell className="px-6 py-4 font-bold text-slate-900 dark:text-white text-sm">
                             {record.child ? `${record.child.first_name} ${record.child.last_name}` : 'Unknown'}
                             </TableCell>
-                            <TableCell className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{record.class?.name || '-'}</TableCell>
-                            <TableCell className="text-xs font-bold text-slate-600 dark:text-slate-300">{formatTime(record.checked_in_at)}</TableCell>
-                            <TableCell className="px-6 text-right text-xs font-bold text-slate-400">{formatTime(record.checked_out_at)}</TableCell>
+                            <TableCell className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{record.class?.name || '-'}</TableCell>
+                            <TableCell className="text-xs font-semibold text-slate-800 dark:text-slate-200">{formatTime(record.checked_in_at)}</TableCell>
+                            <TableCell className="px-6 text-right text-xs font-semibold text-slate-500">{formatTime(record.checked_out_at)}</TableCell>
                         </TableRow>
                         ))}
                     </TableBody>
@@ -470,11 +470,11 @@ const AttendancePage = () => {
                   </div>
               </div>
 
-              <div className="flex justify-end gap-4 pt-6">
-                <Button variant="ghost" onClick={() => setIsReportDialogOpen(false)} className="h-14 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest">
-                  Close Manifest
+               <div className="flex justify-end gap-4 pt-6">
+                <Button variant="ghost" onClick={() => setIsReportDialogOpen(false)} className="h-14 px-8 rounded-2xl font-bold text-xs">
+                  Close
                 </Button>
-                <Button onClick={handleExport} className="h-14 px-8 bg-indigo-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200">
+                <Button onClick={handleExport} className="h-14 px-8 bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl font-bold text-xs shadow-xl shadow-indigo-200">
                   <Download className="h-4 w-4 mr-2" />
                    Download CSV
                 </Button>

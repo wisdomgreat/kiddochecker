@@ -39,13 +39,13 @@ const StatCard: React.FC<StatCardProps> = ({
                 <Icon className={cn('h-5 w-5', iconColor)} />
               </div>
               <div>
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">{title}</h3>
-                {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
+                <h3 className="text-xs font-bold text-slate-500 tracking-tight">{title}</h3>
+                {subtitle && <p className="text-[10px] text-slate-400 font-medium">{subtitle}</p>}
               </div>
             </div>
             
             <div className="space-y-2">
-              <p className="text-3xl font-bold text-gray-900">{value}</p>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
               {trend && (
                 <div className="flex items-center gap-1">
                   <span className={cn(

@@ -121,28 +121,28 @@ const StaffTeacherDashboard = () => {
             {/* Header */}
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
-                    <div className="space-y-2">
-                        <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none flex items-center gap-4">
-                            Field Station
-                            <Badge className="bg-emerald-500/10 text-emerald-500 border-none font-black text-[10px] uppercase tracking-widest px-4 h-8 rounded-full">
-                                Personnel Active
+                    <div className="space-y-1">
+                        <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                            Teacher Overview
+                            <Badge className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none font-bold text-[11px] px-3 h-6 rounded-full">
+                                Staff Active
                             </Badge>
                         </h1>
-                        <div className="flex items-center gap-3">
-                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] font-mono italic ml-1">{today}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{today}</p>
                             <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
-                            <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] font-mono">STAFF_AUTH_SUCCESS</p>
+                            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-500">Welcome back, {user?.email?.split('@')[0]}</p>
                         </div>
                     </div>
                     <div className="flex gap-4">
                         <Button 
                             onClick={() => navigate("/messages")}
-                            className="h-14 px-8 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                            className="h-14 px-8 bg-slate-900 dark:bg-white text-white dark:text-black rounded-2xl font-bold text-xs tracking-tight shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
                         >
                             <MessageSquare className="h-4 w-4" />
-                            Comms Hub
+                            {t('messages')}
                             {unreadMessages > 0 && (
-                                <span className="bg-rose-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black animate-pulse">
+                                <span className="bg-rose-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold">
                                     {unreadMessages}
                                 </span>
                             )}
@@ -154,10 +154,10 @@ const StaffTeacherDashboard = () => {
             {/* KPI Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: t('presentNow'), value: presentNow, icon: CheckCircle2, color: "emerald", desc: "STATION_LOAD_ACTIVE" },
-                    { label: t('checkedOut'), value: checkedOut, icon: XCircle, color: "slate", desc: "EGRESS_SYSCLEAN" },
-                    { label: t('totalToday'), value: todayAttendance.length, icon: ClipboardCheck, color: "indigo", desc: "NODE_TOTAL_FLOW" },
-                    { label: t('allergyAlert'), value: withAllergies, icon: AlertTriangle, color: "amber", desc: "SAFETY_FLAGS_ON" },
+                    { label: t('presentNow'), value: presentNow, icon: CheckCircle2, color: "emerald", desc: "Children present" },
+                    { label: t('checkedOut'), value: checkedOut, icon: XCircle, color: "slate", desc: "Safe departures" },
+                    { label: t('totalToday'), value: todayAttendance.length, icon: ClipboardCheck, color: "indigo", desc: "Total daily activity" },
+                    { label: t('allergyAlert'), value: withAllergies, icon: AlertTriangle, color: "amber", desc: "Health alerts" },
                 ].map(({ label, value, icon: Icon, color, desc }, idx) => (
                     <motion.div 
                         key={label} 
@@ -173,16 +173,16 @@ const StaffTeacherDashboard = () => {
                             <div className="flex justify-between items-start relative z-10">
                                 <div>
                                     <p className={cn(
-                                        "text-[10px] font-black uppercase tracking-[0.2em] mb-1",
+                                        "text-xs font-semibold tracking-tight mb-1",
                                         `text-${color}-500`
                                     )}>{label}</p>
                                     <h3 className={cn(
-                                        "text-5xl font-black tracking-tighter italic",
+                                        "text-4xl font-bold tracking-tight",
                                         `text-${color}-600`
                                     )}>
                                         {value}
                                     </h3>
-                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-4 italic">{desc}</p>
+                                    <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-3">{desc}</p>
                                 </div>
                                 <div className={cn(
                                     "h-14 w-14 rounded-2xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-sm",
@@ -206,12 +206,12 @@ const StaffTeacherDashboard = () => {
                     className="lg:col-span-2 space-y-6"
                 >
                     <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                             <Radar className="h-5 w-5 text-indigo-500" />
-                            Station Pulse
+                            Attendance Pulse
                         </h2>
-                        <Badge variant="outline" className="text-slate-400 border-slate-200 dark:border-white/10 font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full">
-                            Hourly Egress/Ingress
+                        <Badge variant="outline" className="text-slate-500 border-slate-200 dark:border-white/10 font-medium text-[10px] px-3 h-6 rounded-full">
+                            Hourly Flow
                         </Badge>
                     </div>
                     
@@ -219,8 +219,8 @@ const StaffTeacherDashboard = () => {
                         <ResponsiveContainer width="100%" height={240}>
                             <BarChart data={hourlyData} barCategoryGap="40%">
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} opacity={0.5} />
-                                <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
-                                <YAxis allowDecimals={false} tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
+                                <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                                <YAxis allowDecimals={false} tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
                                 <Tooltip cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }} contentStyle={{ borderRadius: "20px", border: "none", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }} />
                                 <Bar dataKey="count" radius={[8, 8, 0, 0]} name="Volume">
                                     {hourlyData.map((_, i) => <Cell key={i} fill={i === new Date().getHours() - 7 ? "#6366f1" : "rgba(99, 102, 241, 0.2)"} />)}
@@ -238,21 +238,21 @@ const StaffTeacherDashboard = () => {
                     className="space-y-6"
                 >
                     <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                             <Zap className="h-5 w-5 text-amber-500" />
-                            Cluster Nodes
+                            My Classes
                         </h2>
                     </div>
 
                     <Card className="floating-island rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl overflow-hidden flex flex-col h-[340px]">
                         <div className="p-8 border-b border-slate-50 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{myClasses.length} SECTORS DETECTED</h3>
+                            <h3 className="text-xs font-bold text-slate-500 tracking-tight">{myClasses.length} active classes</h3>
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-50 dark:divide-white/5">
                             {myClasses.length === 0 ? (
                                 <div className="p-12 text-center">
                                     <BookOpen className="h-12 w-12 mx-auto text-slate-200 mb-4" />
-                                    <p className="text-[10px] font-black text-slate-400 uppercase italic">ZERO SECTORS ASSIGNED</p>
+                                    <p className="text-[10px] font-bold text-slate-400">No classes assigned</p>
                                 </div>
                             ) : (
                                 myClasses.map((cls: any) => (
@@ -261,8 +261,8 @@ const StaffTeacherDashboard = () => {
                                             <Shield className="h-5 w-5 text-indigo-600" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight truncate leading-tight mb-1">{cls.name}</p>
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">{cls.age_group || "Universal Cluster"}</p>
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate leading-tight mb-1">{cls.name}</p>
+                                            <p className="text-[9px] font-medium text-slate-400">{cls.age_group || "General class"}</p>
                                         </div>
                                         <ChevronRight className="h-4 w-4 text-slate-300 group-hover:translate-x-1 transition-transform" />
                                     </div>
@@ -283,12 +283,12 @@ const StaffTeacherDashboard = () => {
                     className="lg:col-span-2 space-y-6"
                 >
                     <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-4">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-4">
                             <Activity className="h-6 w-6 text-emerald-500" />
-                            Operations Feed
+                            Recent Activity
                         </h2>
-                        <Button variant="ghost" onClick={() => navigate("/attendance")} className="h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5">
-                             Full Matrix <ChevronRight className="ml-2 h-4 w-4" />
+                        <Button variant="ghost" onClick={() => navigate("/attendance")} className="h-10 px-6 rounded-xl font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500">
+                             View All <ChevronRight className="ml-2 h-4 w-4" />
                         </Button>
                     </div>
 
@@ -297,7 +297,7 @@ const StaffTeacherDashboard = () => {
                             {todayAttendance.length === 0 ? (
                                 <div className="py-24 text-center">
                                     <ClipboardCheck className="h-12 w-12 mx-auto text-slate-100 mb-4" />
-                                    <p className="text-[10px] font-black text-slate-300 uppercase italic">WAITING FOR FIELD DATA...</p>
+                                    <p className="text-sm font-bold text-slate-400">Waiting for activity...</p>
                                 </div>
                             ) : (
                                 todayAttendance.slice(0, 15).map((record: any) => (
@@ -317,26 +317,26 @@ const StaffTeacherDashboard = () => {
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-xl font-black text-slate-900 dark:text-white italic tracking-tighter truncate leading-none mb-2">
+                                            <p className="text-lg font-bold text-slate-900 dark:text-white tracking-tight truncate mb-1">
                                                 {record.children?.first_name} {record.children?.last_name}
                                             </p>
                                             <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-1.5 font-black text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                                <div className="flex items-center gap-1.5 font-bold text-[10px] text-slate-500 dark:text-slate-400">
                                                     <Clock className="h-3 w-3 text-indigo-500" />
                                                     {record.checked_out_at
-                                                        ? `EGRESS: ${format(new Date(record.checked_out_at), "HH:mm")}`
-                                                        : `INGRESS: ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`}
+                                                        ? `Departure: ${format(new Date(record.checked_out_at), "HH:mm")}`
+                                                        : `Arrival: ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`}
                                                 </div>
                                                 {record.children?.allergies && (
-                                                    <Badge className="bg-rose-500/10 text-rose-500 border-none font-black text-[8px] uppercase tracking-widest animate-pulse h-5 flex items-center">BIO_HAZARD FLAG</Badge>
+                                                    <Badge className="bg-rose-500/10 text-rose-500 border-none font-bold text-[9px] h-5 flex items-center">Allergy Alert</Badge>
                                                 )}
                                             </div>
                                         </div>
                                         <Badge className={cn(
-                                            "font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full border-none",
+                                            "font-bold text-[10px] tracking-tight px-4 h-8 rounded-full border-none",
                                             record.checked_out_at ? "bg-slate-100 text-slate-400" : "bg-emerald-500 text-white shadow-lg shadow-emerald-200 dark:shadow-none"
                                         )}>
-                                            {record.checked_out_at ? "TERMINATED" : "ACTIVE"}
+                                            {record.checked_out_at ? "Checked out" : "Present"}
                                         </Badge>
                                     </div>
                                 ))
@@ -350,15 +350,15 @@ const StaffTeacherDashboard = () => {
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
                     className="space-y-6"
                 >
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
                         <Zap className="h-5 w-5 text-indigo-500" />
-                        Tactical Actions
+                        Quick Links
                     </h2>
                     {[
-                        { label: t('children'), icon: Baby, color: "bg-emerald-600 shadow-emerald-100", path: "/children", desc: "Access Node Manifest" },
-                        { label: t('attendance'), icon: ClipboardCheck, color: "bg-indigo-600 shadow-indigo-100", path: "/attendance", desc: "Monitor Live Traffic" },
-                        { label: t('calendar'), icon: Calendar, color: "bg-black shadow-slate-200", path: "/calendar", desc: "Sync Scheduled Events" },
-                        { label: t('messages'), icon: MessageSquare, color: "bg-rose-600 shadow-rose-100", path: "/messages", desc: "Open Comms Buffer" },
+                        { label: t('children'), icon: Baby, color: "bg-emerald-600 shadow-emerald-100", path: "/children", desc: "Manage students" },
+                        { label: t('attendance'), icon: ClipboardCheck, color: "bg-indigo-600 shadow-indigo-100", path: "/attendance", desc: "Attendance log" },
+                        { label: t('calendar'), icon: Calendar, color: "bg-slate-800 shadow-slate-200", path: "/calendar", desc: "View schedule" },
+                        { label: t('messages'), icon: MessageSquare, color: "bg-rose-600 shadow-rose-100", path: "/messages", desc: "Messages" },
                     ].map((action) => (
                         <button
                             key={action.label}
@@ -369,8 +369,8 @@ const StaffTeacherDashboard = () => {
                                 <action.icon className="h-6 w-6 text-white" />
                             </div>
                             <div className="flex-1 text-left">
-                                <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none mb-1">{action.label}</p>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">{action.desc}</p>
+                                <p className="font-bold text-slate-900 dark:text-white tracking-tight leading-none mb-1">{action.label}</p>
+                                <p className="text-[10px] font-medium text-slate-400">{action.desc}</p>
                             </div>
                             <ChevronRight className="h-5 w-5 text-slate-200 group-hover:translate-x-1 transition-transform" />
                         </button>

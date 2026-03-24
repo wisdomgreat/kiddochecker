@@ -35,7 +35,7 @@ const UnifiedDashboard = () => {
             <ShieldAlert className="h-8 w-8" />
           </div>
           <div className="relative z-10">
-            <h1 className="text-3xl font-black italic tracking-tight text-slate-900 mb-2 font-heading uppercase">High Security Alert: MFA Requried</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">Security Setup Required</h1>
             <p className="text-slate-600 font-medium text-lg leading-relaxed max-w-2xl">
               To protect sensitive child data and organizational records, all personnel with elevated access are <span className="text-indigo-600 font-bold">required</span> to enable Two-Factor Authentication (MFA). 
               <br />

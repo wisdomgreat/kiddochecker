@@ -113,7 +113,7 @@ const StatCard = ({ title, value, icon: Icon, gradient, change, changeType, subt
                 </div>
                 {change && (
                     <Badge className={cn(
-                        "font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full border-none",
+                        "font-bold text-[10px] tracking-tight px-4 h-8 rounded-full border-none",
                         changeType === "up" ? "bg-emerald-500/10 text-emerald-500" :
                         changeType === "down" ? "bg-rose-500/10 text-rose-500" : "bg-slate-100 text-slate-500"
                     )}>
@@ -124,9 +124,9 @@ const StatCard = ({ title, value, icon: Icon, gradient, change, changeType, subt
                 )}
             </div>
             <div>
-                <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.25em] mb-2">{title}</p>
-                <h3 className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white italic leading-none group-hover:scale-105 origin-left transition-transform duration-500">{value}</h3>
-                {subtitle && <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-4 opacity-60 italic">{subtitle}</p>}
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">{title}</p>
+                <h3 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white leading-none group-hover:scale-105 origin-left transition-transform duration-500">{value}</h3>
+                {subtitle && <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-3 opacity-80">{subtitle}</p>}
             </div>
             
             <div className={cn(
@@ -150,8 +150,8 @@ const ActionCard = ({ title, description, icon: Icon, color, onClick, index }: a
             <div className={cn("w-20 h-20 rounded-[2rem] flex items-center justify-center mb-8 transition-all duration-700 group-hover:scale-110 group-hover:rotate-12 shadow-2xl relative z-10", color)}>
                 <Icon className={cn("w-10 h-10 text-white")} />
             </div>
-            <h4 className="text-xl font-black text-white mb-3 uppercase tracking-tighter italic relative z-10">{title}</h4>
-            <p className="text-[9px] font-black text-slate-400 dark:text-indigo-300 leading-relaxed uppercase tracking-[0.15em] relative z-10 italic max-w-[200px]">{description}</p>
+            <h4 className="text-xl font-bold text-white mb-2 tracking-tight relative z-10">{title}</h4>
+            <p className="text-xs font-medium text-slate-300 leading-relaxed relative z-10 opacity-90 max-w-[200px]">{description}</p>
             
             <div className={cn("absolute -bottom-10 -right-10 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-1000 bg-indigo-500/20")} />
         </Card>
@@ -278,17 +278,17 @@ const AdminDashboardNew = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12"
             >
-                <div className="space-y-2">
-                    <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none flex items-center gap-4">
-                        Headquarters
-                        <Badge className="bg-indigo-500/10 text-indigo-500 border-none font-black text-[10px] uppercase tracking-widest px-4 h-8 rounded-full">
-                            Command Center
+                <div className="space-y-1">
+                    <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                        Admin Overview
+                        <Badge className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-bold text-[11px] px-3 h-6 rounded-full">
+                            Dashboard
                         </Badge>
                     </h1>
-                    <div className="flex items-center gap-3">
-                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] font-mono italic ml-1">{today}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{today}</p>
                         <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
-                        <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] font-mono">{totalCheckins} SIGNAL EVENTS DETECTED</p>
+                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-500">{totalCheckins} check-ins today</p>
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-4">
@@ -297,12 +297,12 @@ const AdminDashboardNew = () => {
                             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
                             <div className="absolute inset-0 w-3 h-3 rounded-full bg-emerald-500 blur-sm animate-pulse" />
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">{t('systemLive')}</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white tracking-tight">{t('systemLive')}</span>
                     </div>
                     
                     <Button 
                         onClick={() => navigate("/check-in")} 
-                        className="h-14 px-8 bg-indigo-600 hover:bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                        className="h-14 px-8 bg-indigo-600 hover:bg-slate-900 text-white rounded-2xl font-bold text-xs tracking-tight shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
                     >
                         <QrCode className="h-5 w-5" />
                         {t('launchKiosk')}
@@ -316,28 +316,28 @@ const AdminDashboardNew = () => {
                     index={0} title={t('totalChildren')} value={children.length}
                     icon={Baby} gradient="vcard-accent-primary"
                     change={t('enrolledSystem')} changeType="neutral"
-                    subtitle={`${children.filter((c: any) => c.allergies).length} SAFETY FLAGS`}
+                    subtitle={`${children.filter((c: any) => c.allergies).length} health alerts`}
                     onClick={() => navigate("/children")}
                 />
                 <StatCard
                     index={1} title={t('presentNow')} value={presentNow}
                     icon={UserCheck} gradient="vcard-accent-success"
                     change={`${attendanceRate}% RATE`} changeType="up"
-                    subtitle={`${totalCheckins} TOTAL INGRESS`}
+                    subtitle={`${totalCheckins} check-ins today`}
                     onClick={() => navigate("/attendance")}
                 />
                 <StatCard
                     index={2} title="Operational Staff" value={staff.length}
                     icon={Shield} gradient="vcard-accent-info"
                     change={t('activeTeamMembers')} changeType="neutral"
-                    subtitle={`${classes.length} ACTIVE CLUSTERS`}
+                    subtitle={`${classes.length} active classes`}
                     onClick={() => navigate("/staff")}
                 />
                 <StatCard
                     index={3} title={t('messages')} value={messages.length}
                     icon={MessageSquare} gradient="vcard-accent-warning"
                     change={t('unreadMessages')} changeType={messages.length > 0 ? "down" : "neutral"}
-                    subtitle="COMMS BUFFER"
+                    subtitle="Inbox messages"
                     onClick={() => navigate("/messages")}
                 />
             </div>
@@ -352,12 +352,12 @@ const AdminDashboardNew = () => {
                     className="lg:col-span-2 space-y-6"
                 >
                     <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                             <Activity className="h-5 w-5 text-indigo-500" />
-                            Activity Matrix
+                            Attendance Trends
                         </h2>
-                        <Badge variant="outline" className="text-slate-400 border-slate-200 dark:border-white/10 font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full">
-                            Last 7 Cycles
+                        <Badge variant="outline" className="text-slate-500 border-slate-200 dark:border-white/10 font-medium text-[10px] px-3 h-6 rounded-full">
+                            Last 7 Days
                         </Badge>
                     </div>
                     
@@ -371,8 +371,8 @@ const AdminDashboardNew = () => {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} opacity={0.5} />
-                                <XAxis dataKey="day" tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 900 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                                <XAxis dataKey="day" tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fill: "#94a3b8", fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} allowDecimals={false} />
                                 <Tooltip
                                     contentStyle={{ 
                                         borderRadius: "20px", 
@@ -382,7 +382,7 @@ const AdminDashboardNew = () => {
                                         padding: "16px"
                                     }}
                                 />
-                                <Area type="monotone" dataKey="checkins" stroke={COLORS.primary} strokeWidth={4} fill="url(#attendanceGrad)" dot={{ fill: COLORS.primary, strokeWidth: 0, r: 4 }} activeDot={{ r: 8, strokeWidth: 0 }} name="Events" />
+                                <Area type="monotone" dataKey="checkins" stroke={COLORS.primary} strokeWidth={4} fill="url(#attendanceGrad)" dot={{ fill: COLORS.primary, strokeWidth: 0, r: 4 }} activeDot={{ r: 8, strokeWidth: 0 }} name="Check-ins" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </Card>
@@ -396,9 +396,9 @@ const AdminDashboardNew = () => {
                     className="space-y-6"
                 >
                     <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                             <Cpu className="h-5 w-5 text-emerald-500" />
-                            Live Distribution
+                            Attendance Ratio
                         </h2>
                     </div>
 
@@ -414,8 +414,8 @@ const AdminDashboardNew = () => {
                         <div className="grid grid-cols-2 gap-4 w-full mt-8">
                             {pieData.map((item, i) => (
                                 <div key={i} className="p-4 bg-slate-50 dark:bg-white/5 rounded-3xl border border-slate-100 dark:border-white/5">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.name}</p>
-                                    <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter italic">{item.value}</p>
+                                    <p className="text-[9px] font-bold text-slate-400 tracking-tight mb-1">{item.name}</p>
+                                    <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{item.value}</p>
                                 </div>
                             ))}
                         </div>
@@ -426,9 +426,9 @@ const AdminDashboardNew = () => {
             {/* Systems Row */}
             <div className="space-y-8">
                 <div className="flex items-center justify-between px-2">
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                         <Zap className="h-5 w-5 text-amber-500" />
-                        System Integration
+                        Quick Actions
                     </h2>
                 </div>
                 
@@ -442,12 +442,12 @@ const AdminDashboardNew = () => {
             {/* Telemetry Log */}
             <div className="space-y-6 pb-24">
                 <div className="flex items-center justify-between px-2">
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-4">
+                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight flex items-center gap-4">
                         <Activity className="h-6 w-6 text-indigo-500" />
-                        Telemetry Log
+                        Recent Activity
                     </h2>
-                    <Button variant="ghost" onClick={() => navigate("/attendance")} className="h-10 px-6 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
-                        Full Stream <ChevronRight className="ml-2 h-4 w-4" />
+                    <Button variant="ghost" onClick={() => navigate("/attendance")} className="h-10 px-6 rounded-xl font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 transition-all text-slate-500">
+                        View All <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
                 </div>
 
@@ -456,7 +456,7 @@ const AdminDashboardNew = () => {
                         {attendance.length === 0 ? (
                             <div className="col-span-2 py-32 text-center">
                                 <Activity className="h-16 w-16 text-slate-100 mx-auto mb-6" />
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No active telemetry found</p>
+                                <p className="text-sm font-bold text-slate-400">No activity today</p>
                             </div>
                         ) : (
                             attendance.slice(0, 10).map((record: any, idx: number) => (
@@ -482,26 +482,26 @@ const AdminDashboardNew = () => {
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xl font-black text-slate-900 dark:text-white italic tracking-tighter truncate leading-none mb-2">
+                                        <p className="text-lg font-bold text-slate-900 dark:text-white tracking-tight truncate mb-1">
                                             {record.children?.first_name} {record.children?.last_name}
                                         </p>
                                         <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-1.5 font-black text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                                            <div className="flex items-center gap-1.5 font-bold text-[10px] text-slate-500 dark:text-slate-400">
                                                 <Clock className="h-3 w-3 text-indigo-500" />
                                                 {record.checked_out_at
-                                                    ? `EGRESS: ${format(new Date(record.checked_out_at), "HH:mm")}`
-                                                    : `INGRESS: ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`}
+                                                    ? `Departure: ${format(new Date(record.checked_out_at), "HH:mm")}`
+                                                    : `Arrival: ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`}
                                             </div>
-                                            {record.children?.age && <span className="font-black text-[9px] text-slate-300 uppercase tracking-widest italic">NODE_{record.children.age}Y</span>}
+                                            {record.children?.age && <span className="font-bold text-[10px] text-slate-400 dark:text-slate-500">Age: {record.children.age}y</span>}
                                         </div>
                                     </div>
                                     <Badge
                                         className={cn(
-                                            "font-black text-[9px] uppercase tracking-widest px-4 h-8 rounded-full border-none", 
+                                            "font-bold text-[10px] tracking-tight px-4 h-8 rounded-full border-none", 
                                             record.checked_out_at ? "bg-slate-100 text-slate-400" : "bg-emerald-500/10 text-emerald-500 shadow-lg shadow-emerald-200 dark:shadow-none"
                                         )}
                                     >
-                                        {record.checked_out_at ? "TERMINATED" : "ACTIVE"}
+                                        {record.checked_out_at ? "Checked out" : "Present"}
                                     </Badge>
                                 </motion.div>
                             ))

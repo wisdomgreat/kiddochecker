@@ -84,31 +84,31 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12"
         >
-          <div className="space-y-2">
-            <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">Registry</h1>
-            <div className="flex items-center gap-3">
-               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] ml-1">Member Population</p>
+          <div className="space-y-1">
+            <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">Children</h1>
+            <div className="flex items-center gap-2">
+               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Registered children</p>
                <div className="h-1 w-1 rounded-full bg-slate-300 dark:bg-white/10" />
-               <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em]">Secure Database</p>
+               <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-500">Records</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
              <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                 <Input
-                    placeholder="Search records..."
+                    placeholder="Search children..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="h-14 w-full lg:w-[350px] bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border-none pl-12 pr-6 rounded-2xl shadow-sm text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    className="h-14 w-full lg:w-[350px] bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border-none pl-12 pr-6 rounded-2xl shadow-sm text-sm font-medium focus:ring-4 focus:ring-indigo-500/10 transition-all"
                 />
              </div>
              {canManage && (
                 <Button 
                     onClick={() => setIsAddDialogOpen(true)}
-                    className="h-14 px-8 bg-indigo-600 hover:bg-black text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-200 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
+                    className="h-14 px-8 bg-slate-900 dark:bg-white text-white dark:text-black rounded-2xl font-bold text-xs tracking-tight shadow-xl transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-3"
                 >
                     <UserPlus className="h-4 w-4" />
-                    Add Entry
+                    Add Child
                 </Button>
              )}
           </div>
@@ -121,11 +121,11 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
              <Card className="floating-island p-8 rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden relative group">
                 <div className="flex justify-between items-start relative z-10">
                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Members</p>
-                      <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter italic">
-                        {children?.length || 0}
-                      </h3>
-                   </div>
+                       <p className="text-[10px] font-bold text-slate-400 font-sans tracking-tight mb-1">Total Children</p>
+                       <h3 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight">
+                         {children?.length || 0}
+                       </h3>
+                    </div>
                    <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-white/5 flex items-center justify-center group-hover:bg-indigo-600 transition-colors duration-500">
                       <Baby className="h-6 w-6 text-indigo-600 group-hover:text-white transition-colors" />
                    </div>
@@ -138,8 +138,8 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
              <Card className="floating-island p-8 rounded-[2.5rem] border-none shadow-sm dark:shadow-black/40 overflow-hidden relative group">
                 <div className="flex justify-between items-start relative z-10">
                    <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Health Priority</p>
-                      <h3 className="text-5xl font-black text-rose-500 tracking-tighter italic">
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-tight mb-1">Medical Alerts</p>
+                      <h3 className="text-4xl font-bold text-rose-500 tracking-tight">
                         {children?.filter((c: ChildData) => c.allergies).length || 0}
                       </h3>
                    </div>
@@ -155,8 +155,8 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
              <Card className="floating-island p-8 rounded-[2.5rem] bg-slate-900 border-none shadow-xl shadow-slate-200 dark:shadow-none overflow-hidden group">
                 <div className="flex justify-between items-start relative z-10">
                    <div>
-                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Active Now</p>
-                      <h3 className="text-5xl font-black text-white tracking-tighter italic">
+                      <p className="text-xs font-semibold text-indigo-400 tracking-tight mb-1">Checked In</p>
+                      <h3 className="text-4xl font-bold text-white tracking-tight">
                         {Math.floor((children?.length || 0) * 0.42)}
                       </h3>
                    </div>
@@ -176,9 +176,9 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
             layout
         >
             {isLoading ? (
-            <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-400">
+            <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-500">
                 <Loader2 className="h-12 w-12 animate-spin mb-4" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">Synchronizing Registry...</p>
+                <p className="text-xs font-bold">Loading children...</p>
             </div>
             ) : filteredChildren && filteredChildren.length > 0 ? (
             filteredChildren.map((child: ChildData, idx: number) => (
@@ -201,13 +201,13 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                         <div className="absolute bottom-6 left-8 right-8 flex items-end justify-between">
-                            <div className="space-y-1">
-                                <h4 className="text-2xl font-black text-white italic tracking-tighter leading-none">{child.first_name}</h4>
-                                <h4 className="text-sm font-bold text-white/60 uppercase tracking-widest">{child.last_name}</h4>
+                            <div className="space-y-0.5">
+                                <h4 className="text-xl font-bold text-white tracking-tight leading-none">{child.first_name}</h4>
+                                <h4 className="text-xs font-medium text-white/70 tracking-tight">{child.last_name}</h4>
                             </div>
                             {child.age && (
-                                <Badge className="bg-white/20 backdrop-blur-md text-white border-0 font-black text-[10px] h-8 px-4 rounded-full">
-                                    {child.age} YRS
+                                <Badge className="bg-white/20 backdrop-blur-md text-white border-0 font-bold text-[10px] h-7 px-3 rounded-full">
+                                    {child.age} years
                                 </Badge>
                             )}
                         </div>
@@ -215,18 +215,18 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                     
                     <CardContent className="p-8 space-y-6 flex-1 flex flex-col">
                         <div className="space-y-4 flex-1">
-                            {child.allergies ? (
+                             {child.allergies ? (
                             <div className="flex items-start gap-4 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-900/30">
                                 <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
                                 <div>
-                                    <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest leading-none mb-1">Health Alert</p>
-                                    <p className="text-xs font-bold text-slate-700 dark:text-rose-200 leading-relaxed">{child.allergies}</p>
+                                     <p className="text-[10px] font-bold text-rose-500 tracking-tight mb-1">Medical Alert</p>
+                                     <p className="text-xs font-semibold text-slate-700 dark:text-rose-200 leading-relaxed">{child.allergies}</p>
                                 </div>
                             </div>
                             ) : (
                             <div className="flex items-center gap-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl">
                                 <Heart className="h-4 w-4 text-emerald-500" />
-                                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">No Alerts Listed</p>
+                                <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">No medical alerts</p>
                             </div>
                             )}
 
@@ -236,8 +236,8 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                                     <Phone className="h-4 w-4 text-slate-400 group-hover/phone:text-indigo-500 transition-colors" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{child.emergency_contact_name}</p>
-                                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate tracking-tighter">{child.emergency_contact_phone || 'Unlisted'}</p>
+                                     <p className="text-[9px] font-bold text-slate-400 tracking-tight mb-1">{child.emergency_contact_name}</p>
+                                     <p className="text-xs font-semibold text-slate-900 dark:text-white truncate tracking-tight">{child.emergency_contact_phone || 'Unlisted'}</p>
                                 </div>
                             </div>
                             )}
@@ -248,9 +248,9 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                                 variant="ghost" 
                                 size="sm" 
                                 onClick={() => navigate(`/children/${child.id}/medical`)}
-                                className="h-10 px-4 rounded-xl text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                                className="h-10 px-4 rounded-xl text-indigo-600 dark:text-indigo-400 font-bold text-xs tracking-tight hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                             >
-                                Profile <ChevronRight className="ml-1 h-3 w-3" />
+                                View Profile <ChevronRight className="ml-1 h-3 w-3" />
                             </Button>
                             
                             <div className="flex gap-2">
@@ -285,16 +285,16 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                 <div className="h-24 w-24 rounded-[2rem] bg-slate-50 dark:bg-white/5 flex items-center justify-center mx-auto mb-8 border border-slate-100 dark:border-white/10 shadow-inner">
                     <Baby className="h-10 w-10 text-slate-200" />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-2">Zero Population</h3>
-                <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">
-                    {searchTerm ? 'No matches found in standard registry' : 'No entries detected in the system database'}
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">No Children Found</h3>
+                <p className="text-xs font-medium text-slate-400 tracking-tight mb-8">
+                    {searchTerm ? "We couldn't find any children matching your search." : "There are currently no children registered in the system."}
                 </p>
                 {!searchTerm && canManage && (
                     <Button 
                         onClick={() => setIsAddDialogOpen(true)}
-                        className="h-14 px-10 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl"
+                        className="h-14 px-10 bg-indigo-600 text-white rounded-2xl font-bold text-xs tracking-tight shadow-xl"
                     >
-                        Register First Entry
+                        Register First Child
                     </Button>
                 )}
             </div>
@@ -319,19 +319,20 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="rounded-[2.5rem] p-12 border-none shadow-2xl bg-white dark:bg-slate-900">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">De-register Member</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-relaxed mt-4">
-              Permanent removal of <span className="text-slate-900 dark:text-white">{selectedChild?.first_name} {selectedChild?.last_name}</span>. This node and all associated attendance packets will be destroyed. This operation is irreversible.
+            <AlertDialogTitle className="text-3xl font-bold tracking-tight">Remove Child</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed mt-4">
+              Are you sure you want to remove <span className="text-slate-900 dark:text-white font-bold">{selectedChild?.first_name} {selectedChild?.last_name}</span>? 
+              All attendance records for this child will also be permanently deleted. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-12 gap-4">
-            <AlertDialogCancel className="h-14 rounded-2xl font-black bg-slate-50 border-none uppercase text-[10px] tracking-widest hover:bg-slate-100">Abort</AlertDialogCancel>
+            <AlertDialogCancel className="h-14 rounded-2xl font-bold bg-slate-50 border-none text-xs hover:bg-slate-100 dark:bg-white/5 dark:text-white">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteChild}
               disabled={isDeletingChild}
-              className="h-14 rounded-2xl bg-rose-600 hover:bg-black text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-rose-200 dark:shadow-none"
+              className="h-14 rounded-2xl bg-rose-600 hover:bg-slate-900 text-white font-bold text-xs shadow-xl shadow-rose-200 dark:shadow-none"
             >
-              {isDeletingChild ? 'DESTROYING...' : 'CONFIRM ERASE'}
+              {isDeletingChild ? 'Deleting...' : 'Delete Child'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

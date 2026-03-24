@@ -185,10 +185,10 @@ export function AppSidebar() {
     menuGroups = isVerifiedStaff ? staffMenuGroups : unverifiedStaffMenuGroups;
   }
   const portalLabel = isAdmin
-    ? 'Admin Portal'
+    ? 'Admin Dashboard'
     : isStaffRole
-      ? userRole === 'teacher' ? 'Teacher Portal' : userRole === 'volunteer' ? 'Volunteer Station' : 'Staff Portal'
-      : 'Parent Portal';
+      ? userRole === 'teacher' ? 'Teacher Dashboard' : userRole === 'volunteer' ? 'Volunteer Station' : 'Staff Dashboard'
+      : 'Parent Dashboard';
 
   if (!user) return null;
 
@@ -222,10 +222,10 @@ export function AppSidebar() {
               </div>
             )}
             <div className="text-left flex-1 min-w-0">
-              <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white truncate">
+              <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate">
                 {settings?.name || "KiddoChecker"}
               </h2>
-              <Badge variant="outline" className={`text-[9px] px-2 py-0 h-4 font-black uppercase tracking-widest border-0 shadow-none ${color}`}>
+              <Badge variant="outline" className={`text-[10px] px-2 py-0 h-4 font-bold border-0 shadow-none ${color}`}>
                 {label}
               </Badge>
             </div>
@@ -247,7 +247,7 @@ export function AppSidebar() {
 
             return (
               <SidebarGroup key={groupIdx} className="mb-4">
-                <SidebarGroupLabel className="text-left mb-2 px-3 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 font-black opacity-60">
+                <SidebarGroupLabel className="text-left mb-2 px-3 text-[11px] font-bold text-slate-500 dark:text-slate-400">
                   {groupIdx === 0 ? portalLabel : group.label}
                 </SidebarGroupLabel>
                 <SidebarGroupContent>
@@ -271,8 +271,8 @@ export function AppSidebar() {
                                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                                 }`}
                             >
-                              <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-600"}`} />
-                              <span className={`text-sm tracking-tight ${isActive ? "font-black" : "font-medium"}`}>{item.title}</span>
+                              <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                <span className={`text-sm tracking-tight font-semibold`}>{item.title}</span>
                               {(item.url === "/messages" || item.url === "/parent/messages") && unreadCount > 0 && (
                                 <Badge className="ml-auto bg-indigo-600 text-xs px-2 h-5 min-w-[20px] flex items-center justify-center rounded-full">
                                   {unreadCount > 99 ? "99+" : unreadCount}
@@ -296,7 +296,7 @@ export function AppSidebar() {
             <div className="flex-1 flex items-center gap-2 bg-white/30 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-2 border border-white/40 dark:border-white/5">
               <Globe className="h-4 w-4 text-slate-400 dark:text-slate-600 ml-2" />
               <Select value={language} onValueChange={(val: Language) => setLanguage(val)}>
-                <SelectTrigger className="h-8 border-none bg-transparent shadow-none focus:ring-0 text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                <SelectTrigger className="h-8 border-none bg-transparent shadow-none focus:ring-0 text-[11px] font-bold text-slate-600 dark:text-slate-400">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-none shadow-2xl dark:shadow-black/60 bg-white dark:bg-slate-900">
@@ -322,13 +322,13 @@ export function AppSidebar() {
 
           <div className="flex items-center gap-3 mb-4 bg-slate-50 dark:bg-white/5 rounded-3xl p-4 shadow-inner border border-slate-100 dark:border-white/5">
             <Avatar className="h-10 w-10 flex-shrink-0 rounded-2xl bg-indigo-100 dark:bg-indigo-900 ring-2 ring-white/60 dark:ring-white/10 shadow-sm">
-              <AvatarFallback className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white text-xs font-black">
+              <AvatarFallback className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white text-xs font-bold">
                 {user.email?.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col justify-center min-w-0">
-              <p className="text-xs font-black text-slate-900 dark:text-white truncate tracking-tight">{user.email}</p>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mt-0.5">{label}</p>
+              <p className="text-xs font-bold text-slate-900 dark:text-white truncate tracking-tight">{user.email}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-tight mt-0.5">{label}</p>
             </div>
           </div>
           <Button

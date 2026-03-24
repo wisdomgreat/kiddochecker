@@ -250,8 +250,8 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       {!isEmbedded && (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Personnel & Teams</h1>
-            <p className="text-slate-500 font-medium">Securely manage your organizational structure and staff identity.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Team Management</h1>
+            <p className="text-slate-500 font-medium">Manage your organizational structure and staff profiles.</p>
           </div>
           <Button onClick={() => { resetForm(); setIsAddDialogOpen(true); }} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100">
             <UserPlus className="h-4 w-4 mr-2" />
@@ -262,11 +262,11 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 
       <Tabs defaultValue="staff" className="w-full">
         <TabsList className="bg-slate-100 dark:bg-slate-900 border-none h-14 p-1.5 rounded-2xl shadow-inner mb-8">
-          <TabsTrigger value="staff" className="rounded-xl px-10 font-black uppercase text-xs tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
+          <TabsTrigger value="staff" className="rounded-xl px-10 font-bold text-xs tracking-tight data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
             <Users className="h-4 w-4 mr-2" />
             {t('teamRoster')}
           </TabsTrigger>
-          <TabsTrigger value="groups" className="rounded-xl px-10 font-black uppercase text-xs tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
+          <TabsTrigger value="groups" className="rounded-xl px-10 font-bold text-xs tracking-tight data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
             <Briefcase className="h-4 w-4 mr-2" />
             {t('departmentsGroups')}
           </TabsTrigger>
@@ -303,9 +303,9 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-black text-slate-900">{member.first_name} {member.last_name}</h3>
+                            <h3 className="text-xl font-bold text-slate-900">{member.first_name} {member.last_name}</h3>
                             {member.department && (
-                               <Badge className="bg-indigo-50 text-indigo-700 border-none rounded-lg text-xs font-black uppercase tracking-widest px-3 h-6">
+                               <Badge className="bg-indigo-50 text-indigo-700 border-none rounded-lg text-xs font-bold px-3 h-6">
                                  {member.department}
                                </Badge>
                             )}
@@ -318,7 +318,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full text-xs font-black tracking-widest uppercase shadow-sm">
+                                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full text-xs font-bold tracking-tight shadow-sm">
                                             <Lock className="h-3 w-3" />
                                             {member.user_id === user?.id && member.staff_pin ? member.staff_pin : '••••'}
                                         </div>
@@ -360,21 +360,21 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                <Card className="xl:col-span-1 border-none shadow-2xl shadow-slate-200/40 rounded-[2.5rem] bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 overflow-hidden group">
                  <div className="h-2 bg-indigo-600 w-full" />
                  <CardHeader className="pb-4">
-                    <CardTitle className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">New Department</CardTitle>
-                    <p className="text-xs font-semibold text-slate-400 leading-relaxed uppercase tracking-widest">Create a structural unit for your team.</p>
+                    <CardTitle className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">New Group</CardTitle>
+                    <p className="text-xs font-semibold text-slate-400 leading-relaxed tracking-tight">Create a unit for your team.</p>
                  </CardHeader>
                  <CardContent className="space-y-5">
                     <div className="space-y-4">
                         <div className="space-y-1.5">
-                            <Label htmlFor="group-name" className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-[0.1em]">Department Name</Label>
-                            <Input id="group-name" placeholder="e.g. Worship Ministry" className="rounded-[1.25rem] h-12 bg-slate-50 border-slate-100 focus:ring-indigo-500/20 font-bold" />
+                            <Label htmlFor="group-name" className="text-[10px] font-bold text-slate-400 ml-1 tracking-tight">Group Name</Label>
+                            <Input id="group-name" placeholder="Name" className="rounded-[1.25rem] h-12 bg-slate-50 border-slate-100 focus:ring-indigo-500/20 font-bold" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label htmlFor="group-desc" className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-[0.1em]">Responsibility</Label>
+                            <Label htmlFor="group-desc" className="text-[10px] font-bold text-slate-400 ml-1 tracking-tight">Description</Label>
                             <Input id="group-desc" placeholder="Primary objective..." className="rounded-[1.25rem] h-12 bg-slate-50 border-slate-100 focus:ring-indigo-500/20 font-medium" />
                         </div>
                     </div>
-                    <Button className="w-full rounded-2xl font-black h-14 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 text-xs uppercase tracking-widest" onClick={() => {
+                    <Button className="w-full rounded-2xl font-bold h-14 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 text-xs tracking-tight" onClick={() => {
                         const name = (document.getElementById('group-name') as HTMLInputElement).value;
                         const desc = (document.getElementById('group-desc') as HTMLInputElement).value;
                         if (name) {
@@ -384,7 +384,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                         }
                     }}>
                         <Plus className="h-5 w-5 mr-2" />
-                        Create Unit
+                        Create Group
                     </Button>
                  </CardContent>
                </Card>
@@ -437,8 +437,8 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                                                 <Building2 className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
                                             </div>
                                             <div className="pt-1">
-                                                <h4 className="font-black text-2xl text-slate-900 dark:text-white tracking-tight leading-tight">{group.name}</h4>
-                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1 line-clamp-2">{group.description}</p>
+                                                <h4 className="font-bold text-2xl text-slate-900 dark:text-white tracking-tight leading-tight">{group.name}</h4>
+                                                <p className="text-xs text-slate-400 font-bold tracking-tight mt-1 line-clamp-2">{group.description}</p>
                                             </div>
                                         </div>
 
@@ -460,8 +460,8 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
-                                                    {membersInGroup.length === 0 ? 'Vacant' : `${membersInGroup.length} Staffed`}
+                                                <span className="text-[10px] font-bold text-slate-400 tracking-tight ml-2">
+                                                    {membersInGroup.length === 0 ? 'Empty' : `${membersInGroup.length} Assigned`}
                                                 </span>
                                             </div>
                                             <Plus className="h-5 w-5 text-slate-200 group-hover:text-indigo-600 transition-colors" />
@@ -476,8 +476,8 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                              <div className="h-20 w-20 bg-white dark:bg-slate-900 rounded-3xl shadow-xl flex items-center justify-center mb-6">
                                 <Briefcase className="h-10 w-10 text-slate-200" />
                              </div>
-                             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">Initialize Structure</h3>
-                             <p className="max-w-xs text-slate-400 font-bold text-xs uppercase tracking-widest leading-relaxed">Add departments to organize your team and manage specific rosters.</p>
+                             <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Create Structure</h3>
+                             <p className="max-w-xs text-slate-400 font-bold text-xs tracking-tight leading-relaxed">Add groups to organize your team.</p>
                         </div>
                     )}
                </div>
@@ -488,7 +488,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       {/* Add Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="rounded-[2.5rem] p-8 max-w-lg">
-          <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black">Add Team Member</DialogTitle></DialogHeader>
+          <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-bold">Add Team Member</DialogTitle></DialogHeader>
           <form onSubmit={handleAddStaff} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                <Input value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} placeholder="First Name" required className="h-12 rounded-xl" />
@@ -502,7 +502,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                 </Select>
                 <Input value={formData.staff_pin} onChange={e => setFormData({...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8)})} placeholder="Kiosk PIN (4 digits)" className="h-12 rounded-xl" />
             </div>
-            <DialogFooter className="pt-4"><Button type="submit" className="w-full bg-indigo-600 rounded-xl h-12 font-bold" disabled={isAddingStaff}>{isAddingStaff ? <Loader2 className="animate-spin h-5 w-5" /> : "Initiate Onboarding"}</Button></DialogFooter>
+            <DialogFooter className="pt-4"><Button type="submit" className="w-full bg-indigo-600 rounded-xl h-12 font-bold" disabled={isAddingStaff}>{isAddingStaff ? <Loader2 className="animate-spin h-5 w-5" /> : "Add Member"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -519,7 +519,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
             
             <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Kiosk Security PIN</Label>
+                    <Label className="text-[10px] font-bold tracking-tight text-slate-400 ml-1">Kiosk Security PIN</Label>
                     <div className="relative group">
                         <Input 
                             value={formData.staff_pin} 
@@ -584,8 +584,8 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                     <Building2 className="h-10 w-10 text-indigo-400" />
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black tracking-tight">{groups.find((g: any) => g.id === selectedGroupId)?.name}</h2>
-                    <p className="text-indigo-300 font-bold text-xs uppercase tracking-[0.2em] mt-2">Departmental Roster</p>
+                    <h2 className="text-2xl font-bold tracking-tight">{groups.find((g: any) => g.id === selectedGroupId)?.name}</h2>
+                    <p className="text-indigo-300 font-bold text-xs tracking-tight mt-2">Team Roster</p>
                 </div>
             </div>
           </div>
@@ -593,8 +593,8 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
           <div className="flex-1 overflow-y-auto p-8 space-y-10 dark:bg-slate-950 bg-white">
             <div className="space-y-4">
                 <div className="flex items-center justify-between px-2">
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Assignments</Label>
-                    <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[10px] uppercase">
+                    <Label className="text-[10px] font-bold tracking-tight text-slate-400">Current Assignments</Label>
+                    <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold text-[10px]">
                         {staff?.filter((s: StaffMember) => groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)).length} Members
                     </Badge>
                 </div>
@@ -617,11 +617,11 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                                     )}
                                 </div>
                                 <div>
-                                    <span className="font-extrabold text-slate-900 dark:text-white">{m.first_name} {m.last_name}</span>
-                                    <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">{m.role}</p>
+                                    <span className="font-bold text-slate-900 dark:text-white">{m.first_name} {m.last_name}</span>
+                                    <p className="text-[10px] font-bold text-indigo-500 tracking-tight">{m.role}</p>
                                 </div>
                             </div>
-                            <Button variant="ghost" size="sm" className="bg-white hover:bg-rose-50 text-slate-300 hover:text-rose-600 font-black text-[10px] uppercase rounded-xl h-9 px-4 transition-all opacity-0 group-hover:opacity-100" onClick={async () => {
+                            <Button variant="ghost" size="sm" className="bg-white hover:bg-rose-50 text-slate-300 hover:text-rose-600 font-bold text-[10px] rounded-xl h-9 px-4 transition-all opacity-0 group-hover:opacity-100" onClick={async () => {
                                 await supabase.from('staff_group_members').delete().eq('group_id', selectedGroupId).eq('profile_id', m.user_id);
                                 queryClient.invalidateQueries({ queryKey: ['staff-group-members-all'] });
                             }}>Unassign</Button>
@@ -641,7 +641,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
             <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-[2rem] space-y-4">
                 <div className="flex items-center gap-3 ml-2">
                     <UserPlus className="h-4 w-4 text-indigo-600" />
-                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400">Add Available Staff</Label>
+                    <Label className="text-[10px] font-bold tracking-tight text-slate-600 dark:text-slate-400">Add Staff Member</Label>
                 </div>
                 <Select onValueChange={async (staffId) => {
                     await supabase.from('staff_group_members').upsert({ group_id: selectedGroupId!, profile_id: staffId });
@@ -670,12 +670,12 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       <Dialog open={isEditGroupDialogOpen} onOpenChange={setIsEditGroupDialogOpen}>
         <DialogContent className="rounded-[2.5rem] p-8 max-w-md">
             <DialogHeader className="mb-6">
-                <DialogTitle className="text-2xl font-black tracking-tight">Modify Department</DialogTitle>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Update naming and primary responsibilities.</p>
+                <DialogTitle className="text-2xl font-bold tracking-tight">Modify Group</DialogTitle>
+                <p className="text-xs font-bold text-slate-400 tracking-tight">Update naming and responsibilities.</p>
             </DialogHeader>
             <div className="space-y-4">
                 <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Title</Label>
+                    <Label className="text-[10px] font-bold text-slate-400 ml-1">Title</Label>
                     <Input 
                         value={groupToEdit?.name || ''} 
                         onChange={e => setGroupToEdit({...groupToEdit, name: e.target.value})}
@@ -683,7 +683,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                     />
                 </div>
                 <div className="space-y-1.5">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 ml-1">Function</Label>
+                    <Label className="text-[10px] font-bold text-slate-400 ml-1">Description</Label>
                     <Input 
                         value={groupToEdit?.description || ''} 
                         onChange={e => setGroupToEdit({...groupToEdit, description: e.target.value})}
@@ -692,10 +692,10 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                 </div>
                 <DialogFooter className="pt-4">
                     <Button 
-                        className="w-full h-14 rounded-2xl bg-indigo-600 font-black text-xs uppercase tracking-widest"
+                        className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-xs tracking-tight"
                         onClick={() => updateGroupMutation.mutate(groupToEdit)}
                     >
-                        Save Corrections
+                        Save Changes
                     </Button>
                 </DialogFooter>
             </div>
@@ -712,18 +712,18 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
             <div className="h-16 w-16 bg-rose-50 rounded-3xl flex items-center justify-center mb-6">
                 <Trash2 className="h-8 w-8 text-rose-500" />
             </div>
-            <AlertDialogTitle className="text-2xl font-black text-slate-900 tracking-tight">Dissolve Department?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm font-bold text-slate-500 leading-relaxed uppercase tracking-widest">
+            <AlertDialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">Dissolve Group?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm font-bold text-slate-500 leading-relaxed tracking-tight">
                 This will permanently remove the <span className="text-rose-600">"{groupToEdit?.name}"</span> unit. Staff members will remain in the system but their assignments to this group will be cleared.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="pt-8">
-            <AlertDialogCancel className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest border-slate-100">Abort</AlertDialogCancel>
+            <AlertDialogCancel className="h-14 px-8 rounded-2xl font-bold text-xs tracking-tight border-slate-100">Cancel</AlertDialogCancel>
             <AlertDialogAction 
                 onClick={() => deleteGroupMutation.mutate(groupToEdit.id)} 
-                className="h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-widest bg-rose-600 hover:bg-rose-700 shadow-xl shadow-rose-100"
+                className="h-14 px-8 rounded-2xl font-bold text-xs tracking-tight bg-rose-600 hover:bg-rose-700 shadow-xl shadow-rose-100"
             >
-                Confirm Dissolution
+                Confirm Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
