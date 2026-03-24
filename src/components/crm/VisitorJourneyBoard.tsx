@@ -187,5 +187,3 @@ const VisitorJourneyBoard = () => {
 };
 
 export default VisitorJourneyBoard;
-
-export default VisitorJourneyBoard;
