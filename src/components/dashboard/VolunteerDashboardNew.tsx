@@ -51,7 +51,7 @@ const VolunteerDashboardNew = () => {
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="text-center py-6">
                     <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <Zap className="h-8 w-8 text-white" />
+                        <Users className="h-8 w-8 text-white" />
                     </div>
                     <h1 className="text-3xl font-bold text-slate-900">Volunteer Station</h1>
                     <p className="text-slate-500 mt-1">{today}</p>

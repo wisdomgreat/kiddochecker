@@ -98,7 +98,7 @@ const ChurchManagementPage = () => {
                     <div className="space-y-3">
                         <div className="flex items-center gap-4">
                             <div className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-200 rotate-3 transition-transform hover:rotate-0">
-                                <ShieldCheck className="h-8 w-8 text-white" />
+                                <Users className="h-8 w-8 text-white" />
                             </div>
                             <div>
                                 <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">{t('churchManagement')}</h1>
@@ -140,7 +140,7 @@ const ChurchManagementPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {[
                         { label: 'Congregation', value: stats?.total_members || 0, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                        { label: 'New Guests', value: stats?.visitor_count || 0, icon: SparklesIcon, color: 'text-amber-500', bg: 'bg-amber-50' },
+                        { label: 'New Guests', value: stats?.visitor_count || 0, icon: UserPlus, color: 'text-amber-500', bg: 'bg-amber-50' },
                         { label: 'In Discipleship', value: stats?.regular_count || 0, icon: Heart, color: 'text-rose-500', bg: 'bg-rose-50' },
                         { label: 'Relationship Pulse', value: `${stats?.integrations_perc || 0}%`, icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-50' }
                     ].map((stat, i) => (
@@ -256,7 +256,7 @@ const ChurchManagementPage = () => {
                         <motion.div key="journey" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <Card className="p-8 rounded-3xl bg-indigo-600 text-white border-none shadow-xl flex flex-col justify-between overflow-hidden relative">
-                                    <Zap className="absolute -right-4 -top-4 w-32 h-32 opacity-10 rotate-12" />
+                                    <Activity className="absolute -right-4 -top-4 w-32 h-32 opacity-10 rotate-12" />
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Retention Phase</p>
                                         <h3 className="text-3xl font-black">New Guests</h3>
@@ -383,7 +383,7 @@ const ChurchManagementPage = () => {
                     </div>
                     <div className="p-8 space-y-4">
                         <Button className="w-full h-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-5 p-6 shadow-none group" onClick={() => { setIsAddMemberOpen(false); setIsAddVisitorOpen(true); }}>
-                            <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><Zap className="h-6 w-6 text-orange-600" /></div>
+                            <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><UserPlus className="h-6 w-6 text-orange-600" /></div>
                             <div className="text-left">
                                 <p className="font-black text-xl tracking-tight uppercase">New Visitor</p>
                                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Start Journey</p>

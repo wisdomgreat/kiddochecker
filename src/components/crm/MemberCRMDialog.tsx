@@ -4,10 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Activity, Mail, MessageSquare, Phone, Edit, ArrowUpRight, 
   BookOpen, Clock, CheckCircle2, AlertCircle, Trash2, Send, 
-  Zap, X, ShieldCheck, UserPlus, Calendar, ChevronRight,
+  X, ShieldCheck, UserPlus, Calendar, ChevronRight,
   MapPin, Briefcase, Heart, Users,
-  Trophy, CircleDollarSign, ClipboardList, TrendingUp, PlusCircle,
-  Sparkles as SparklesIcon
+  Trophy, CircleDollarSign, ClipboardList, TrendingUp, PlusCircle, Shield
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -280,8 +279,8 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                             </motion.div>
                                         )) : (
                                             <div className="py-24 text-center opacity-20">
-                                                <Activity className="h-12 w-12 mx-auto mb-6 text-slate-300" />
-                                                <p className="font-black uppercase tracking-[0.3em] text-xs">Awaiting First Interaction</p>
+                                                <Shield className="h-12 w-12 mx-auto mb-6 text-slate-300" />
+                                                <p className="font-black uppercase tracking-[0.3em] text-xs">Waiting for first connection</p>
                                             </div>
                                         )}
                                     </div>
@@ -289,7 +288,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
 
                                 <TabsContent value="journey" className="mt-0 space-y-8 pb-10">
                                      <div className="p-10 bg-indigo-600 rounded-[3rem] text-white relative overflow-hidden group shadow-2xl shadow-indigo-200 dark:shadow-none">
-                                        <SparklesIcon className="absolute -right-8 -top-8 w-48 h-48 opacity-10 rotate-12 group-hover:rotate-45 transition-transform duration-1000" />
+                                         <Heart className="absolute -right-8 -top-8 w-48 h-48 opacity-10 rotate-12 group-hover:rotate-45 transition-transform duration-1000" />
                                         <div className="relative z-10">
                                             <p className="text-xs font-black uppercase tracking-[0.3em] opacity-60 mb-3">Integration Level</p>
                                             <h3 className="text-5xl font-black tracking-tighter uppercase mb-6 drop-shadow-sm">{member?.journey_stage?.replace(/_/g, ' ') || 'DISCOVERY'}</h3>
@@ -341,7 +340,7 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
                                             <h4 className="text-4xl font-black tracking-tighter">${donations?.reduce((acc, d) => acc + Number(d.amount), 0).toLocaleString()}</h4>
                                         </Card>
                                         <Card className="p-8 rounded-[2.5rem] bg-indigo-500 text-white border-none flex flex-col justify-between h-40 shadow-xl shadow-indigo-100 dark:shadow-none relative overflow-hidden">
-                                            <Activity className="absolute -right-4 -bottom-4 w-24 h-24 opacity-20" />
+                                             <TrendingUp className="absolute -right-4 -bottom-4 w-24 h-24 opacity-20" />
                                             <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Consistency</p>
                                             <h4 className="text-4xl font-black tracking-tighter">85%</h4>
                                         </Card>
@@ -465,8 +464,8 @@ const MemberCRMDialog: React.FC<MemberCRMDialogProps> = ({ member, isOpen, onOpe
 
                                         {memberTasks.length === 0 && !newTaskTitle && (
                                             <div className="py-20 text-center opacity-20">
-                                                <Zap className="h-12 w-12 mx-auto mb-6 text-slate-300" />
-                                                <p className="font-black uppercase tracking-[0.3em] text-[10px]">No active tasks assigned</p>
+                                                <Activity className="h-12 w-12 mx-auto mb-6 text-slate-300" />
+                                                <p className="font-black uppercase tracking-[0.3em] text-[10px]">No active care items</p>
                                             </div>
                                         )}
                                     </div>

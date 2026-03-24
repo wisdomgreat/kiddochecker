@@ -14,11 +14,12 @@ import {
   MessageSquare,
   ShieldCheck,
   ArrowRight,
-  Zap,
   Lock,
   Heart,
-  Check
+  Check,
+  Mail
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import LandingNavigation from '@/components/layout/LandingNavigation';
 import LandingFooter from '@/components/layout/LandingFooter';
 
@@ -130,7 +131,7 @@ const LandingPage = () => {
           <p className="w-full text-center text-slate-400 font-black uppercase tracking-[0.2em] text-xs mb-4 md:mb-0">Securely Integrated With</p>
           <div className="flex items-center gap-2 text-xl font-black text-slate-900"><Shield className="h-6 w-6 text-indigo-600" /> SUPABASE</div>
           <div className="flex items-center gap-2 text-xl font-black text-slate-900"><Lock className="h-6 w-6 text-indigo-600" /> STRIPE</div>
-          <div className="flex items-center gap-2 text-xl font-black text-slate-900"><Zap className="h-6 w-6 text-indigo-600" /> RESEND</div>
+          <div className="flex items-center gap-2 text-xl font-black text-slate-900"><Mail className="h-6 w-6 text-indigo-600" /> RESEND</div>
           <div className="flex items-center gap-2 text-xl font-black text-slate-900"><Check className="h-6 w-6 text-indigo-600" /> COPPA</div>
         </div>
       </div>

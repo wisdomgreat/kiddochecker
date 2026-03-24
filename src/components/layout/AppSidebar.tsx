@@ -87,7 +87,7 @@ export function AppSidebar() {
         { title: t('emailTemplates'), url: "/admin/email-templates", icon: Mail, requiredPermission: 'manage_system' },
         { title: t('deviceEnrollment'), url: "/devices", icon: Monitor },
         { title: t('rolesPermissions'), url: "/roles", icon: ShieldCheck, requiredPermission: 'manage_users' },
-        { title: t('auditLog'), url: "/audit-log", icon: Activity, requiredPermission: 'view_audit_logs' },
+        { title: t('auditLog'), url: "/audit-log", icon: Shield, requiredPermission: 'view_audit_logs' },
         { title: t('systemHealth'), url: "/admin/system-health", icon: HeartPulse, requiredPermission: 'manage_system' },
         { title: t('systemMonitoring'), url: "/reports", icon: BarChart3, requiredPermission: 'view_audit_logs' },
       ]
