@@ -8,7 +8,8 @@ import AccountSettings from "@/components/settings/AccountSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import SecuritySettings from "@/components/settings/SecuritySettings";
 import AppearanceSettings from "@/components/settings/AppearanceSettings";
-import { Settings as SettingsIcon, User, Bell, Shield, Palette, Sparkles, ChevronRight } from "lucide-react";
+import CentersSettings from "@/components/settings/CentersSettings";
+import { Settings as SettingsIcon, User, Bell, Shield, Palette, MapPin, Sparkles, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const Settings = () => {
     { value: "notifications", label: t('notifications'), icon: Bell },
     { value: "security", label: t('security'), icon: Shield },
     { value: "appearance", label: t('appearance'), icon: Palette },
+    { value: "locations", label: "Locations", icon: MapPin },
   ];
 
   return (
@@ -94,15 +96,17 @@ const Settings = () => {
                           {activeTab === "account" && t('accountSettings')}
                           {activeTab === "notifications" && t('notificationPreferences')}
                           {activeTab === "security" && t('securitySettings')}
-                          {activeTab === "appearance" && t('appearanceSettings')}
-                       </CardTitle>
+                           {activeTab === "appearance" && t('appearanceSettings')}
+                           {activeTab === "locations" && "Location Management"}
+                        </CardTitle>
                     </div>
                     <CardDescription className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed max-w-2xl">
                       {activeTab === "general" && t('generalSettingsDesc')}
                       {activeTab === "account" && t('accountSettingsDesc')}
                       {activeTab === "notifications" && t('notificationPreferencesDesc')}
                       {activeTab === "security" && t('securitySettingsDesc')}
-                      {activeTab === "appearance" && t('appearanceSettingsDesc')}
+                       {activeTab === "appearance" && t('appearanceSettingsDesc')}
+                       {activeTab === "locations" && "Manage organization locations and center finder visibility."}
                     </CardDescription>
                   </CardHeader>
                   
@@ -123,8 +127,11 @@ const Settings = () => {
                   <TabsContent value="security" className="mt-0 border-none p-0 focus-visible:ring-0">
                     <SecuritySettings />
                   </TabsContent>
-                  <TabsContent value="appearance" className="mt-0 border-none p-0 focus-visible:ring-0">
+                   <TabsContent value="appearance" className="mt-0 border-none p-0 focus-visible:ring-0">
                     <AppearanceSettings />
+                  </TabsContent>
+                  <TabsContent value="locations" className="mt-0 border-none p-0 focus-visible:ring-0">
+                    <CentersSettings />
                   </TabsContent>
                 </CardContent>
               </Card>

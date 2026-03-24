@@ -35,13 +35,26 @@ const VisitorJourneyBoard = () => {
         m.membership_type === 'visitor' || m.membership_type === 'regular' || m.journey_stage !== 'member'
     );
 
+    const onDragStart = (e: React.DragEvent, memberId: string) => {
+        e.dataTransfer.setData('memberId', memberId);
+    };
+
+    const onDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const onDrop = (e: React.DragEvent, stageId: string) => {
+        const memberId = e.dataTransfer.getData('memberId');
+        updateJourneyStage({ id: memberId, stage: stageId });
+    };
+
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-20 space-y-4">
                 <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center animate-bounce">
                     <Heart className="h-8 w-8 text-indigo-600 animate-pulse" />
                 </div>
-                <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Connecting with congregation...</p>
+                <p className="text-slate-400 font-bold tracking-tight text-xs">Connecting with congregation...</p>
             </div>
         );
     }
@@ -50,7 +63,12 @@ const VisitorJourneyBoard = () => {
         <div className="flex flex-col gap-8 pb-10">
             <div className="flex flex-nowrap lg:grid lg:grid-cols-4 gap-6 overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/10 scrollbar-track-transparent pr-4 -mr-4">
             {JOURNEY_STAGES.map((stage) => (
-                    <div key={stage.id} className="flex flex-col gap-6 min-w-[280px] lg:min-w-0">
+                    <div 
+                        key={stage.id} 
+                        className="flex flex-col gap-6 min-w-[280px] lg:min-w-0"
+                        onDragOver={onDragOver}
+                        onDrop={(e) => onDrop(e, stage.id)}
+                    >
                     {/* Column Header */}
                     <div className="flex items-center justify-between px-3">
                         <div className="flex items-center gap-3">
@@ -58,10 +76,10 @@ const VisitorJourneyBoard = () => {
                                 <stage.icon className="h-5 w-5 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-[11px]">{stage.name}</h3>
+                                <h3 className="font-bold text-slate-900 dark:text-white tracking-tight text-[11px]">{stage.name}</h3>
                                 <div className="flex items-center gap-1.5 leading-none">
                                     <TrendingUp className="h-2.5 w-2.5 text-slate-300" />
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                    <p className="text-[9px] font-bold text-slate-400 tracking-tight">
                                         {pipelineMembers.filter(m => (m.journey_stage || 'initial_visit') === stage.id).length} Active
                                     </p>
                                 </div>
@@ -75,19 +93,23 @@ const VisitorJourneyBoard = () => {
                             {pipelineMembers
                               .filter(m => (m.journey_stage || 'initial_visit') === stage.id)
                               .map((member) => (
-                                <motion.div 
+                                <div 
                                     key={member.id} 
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                    whileHover={{ y: -5 }}
+                                    draggable
+                                    onDragStart={(e) => onDragStart(e, member.id)}
                                     className="group"
-                                    onClick={() => {
-                                        setSelectedMember(member);
-                                        setIsCRMOpen(true);
-                                    }}
                                 >
+                                    <motion.div 
+                                        layout
+                                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                        whileHover={{ y: -5 }}
+                                        onClick={() => {
+                                            setSelectedMember(member);
+                                            setIsCRMOpen(true);
+                                        }}
+                                    >
                                     <Card className={cn(
                                         "p-6 rounded-[2rem] bg-white dark:bg-slate-900 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all cursor-pointer relative overflow-hidden group-hover:ring-2",
                                         stage.accent.replace('border-', 'ring-')
@@ -99,19 +121,19 @@ const VisitorJourneyBoard = () => {
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex items-center gap-3 min-w-0">
                                                     <div className={cn(
-                                                        "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-all shadow-sm",
+                                                        "w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 transition-all shadow-sm",
                                                         stage.lightColor, stage.textColor,
                                                         "group-hover:scale-110 group-hover:rotate-3"
                                                     )}>
                                                         {member.profiles?.first_name?.[0]}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <h4 className="font-black text-slate-900 dark:text-white tracking-tight text-sm uppercase truncate leading-tight">
+                                                        <h4 className="font-bold text-slate-900 dark:text-white tracking-tight text-sm truncate leading-tight">
                                                             {member.profiles?.first_name} {member.profiles?.last_name}
                                                         </h4>
                                                         <div className="flex items-center gap-1.5 mt-1">
                                                             <div className={cn("w-2 h-2 rounded-full animate-pulse shrink-0", stage.color)} />
-                                                            <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none truncate">
+                                                            <span className="text-[7px] font-bold text-slate-400 tracking-tight leading-none truncate">
                                                                 {member.membership_type}
                                                             </span>
                                                         </div>
@@ -122,13 +144,13 @@ const VisitorJourneyBoard = () => {
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-slate-600 rounded-full transition-colors shrink-0"><MoreHorizontal className="h-4 w-4" /></Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="rounded-2xl border-none shadow-2xl p-2 min-w-[220px] bg-white dark:bg-slate-900">
-                                                        <p className="text-[9px] font-black uppercase text-slate-400 px-3 py-2 tracking-[0.2em] border-b border-slate-50 dark:border-white/5 mb-2">Modern Journey Migration</p>
+                                                        <p className="text-[9px] font-bold text-slate-400 px-3 py-2 tracking-tight border-b border-slate-50 dark:border-white/5 mb-2">Modern Journey Migration</p>
                                                         {JOURNEY_STAGES.map(s => (
                                                             <DropdownMenuItem 
                                                                 key={s.id} 
                                                                 disabled={s.id === (member.journey_stage || 'initial_visit')}
                                                                 className={cn(
-                                                                    "font-black text-[9px] uppercase p-3 rounded-xl cursor-pointer flex items-center gap-3 transition-all mb-1",
+                                                                    "font-bold text-[9px] p-3 rounded-xl cursor-pointer flex items-center gap-3 transition-all mb-1",
                                                                     s.id === (member.journey_stage || 'initial_visit') ? "opacity-30" : "hover:bg-slate-50 dark:hover:bg-white/5"
                                                                 )}
                                                                 onClick={(e) => {
@@ -152,15 +174,16 @@ const VisitorJourneyBoard = () => {
                                                     <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"><MessageSquare className="h-4 w-4" /></div>
                                                 </div>
                                                 <div className="text-right min-w-0">
-                                                    <p className="text-[7px] font-black text-slate-300 uppercase tracking-widest mb-0.5 truncate">Integration Date</p>
-                                                    <p className="text-[10px] font-black text-slate-400 tabular-nums truncate">
+                                                    <p className="text-[7px] font-bold text-slate-300 tracking-tight mb-0.5 truncate">Integration Date</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 tabular-nums truncate">
                                                         {new Date(member.joined_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
                                     </Card>
-                                </motion.div>
+                                    </motion.div>
+                                </div>
                               ))}
                         </AnimatePresence>
                         

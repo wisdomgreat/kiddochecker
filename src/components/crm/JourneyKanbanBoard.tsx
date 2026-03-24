@@ -51,23 +51,41 @@ const JourneyKanbanBoard = () => {
     
     const staffMembers = allUsers?.filter(u => ['admin', 'super_admin', 'staff', 'teacher'].includes(u.role)) || [];
 
+    const onDragStart = (e: React.DragEvent, taskId: string) => {
+        e.dataTransfer.setData('taskId', taskId);
+    };
+
+    const onDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const onDrop = (e: React.DragEvent, status: string) => {
+        const taskId = e.dataTransfer.getData('taskId');
+        updateTaskStatus({ id: taskId, status: status as any });
+    };
+
     if (tasksLoading) {
-        return <div className="p-12 text-center text-slate-400 font-bold uppercase tracking-widest animate-pulse">Synchronizing Outreach Funnel...</div>
+        return <div className="p-12 text-center text-slate-400 font-bold tracking-tight animate-pulse">Synchronizing Outreach Funnel...</div>
     }
 
     return (
         <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 h-full min-h-[600px]">
             {KANBAN_STAGES.map((stage) => (
-                <div key={stage.id} className="flex flex-col gap-6">
+                <div 
+                    key={stage.id} 
+                    className="flex flex-col gap-6"
+                    onDragOver={onDragOver}
+                    onDrop={(e) => onDrop(e, stage.id)}
+                >
                     <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-xl ${stage.color} flex items-center justify-center`}>
                                 <stage.icon className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{stage.name}</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tasks.filter(t => t.status === stage.id).length} Items</p>
+                                <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">{stage.name}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 tracking-tight">{tasks.filter(t => t.status === stage.id).length} Items</p>
                             </div>
                         </div>
                         <Button 
@@ -85,19 +103,21 @@ const JourneyKanbanBoard = () => {
 
                     <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/40 rounded-[2.5rem] p-6 space-y-4 border border-slate-100 dark:border-white/5 shadow-inner min-h-[500px]">
                         {tasks.filter(t => t.status === stage.id).map((task) => (
-                            <motion.div 
+                            <div 
                                 key={task.id} 
-                                layoutId={task.id}
+                                draggable
+                                onDragStart={(e) => onDragStart(e, task.id)}
                                 className="group"
                             >
-                                <Card className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-none shadow-sm hover:shadow-xl transition-all cursor-grab active:cursor-grabbing">
+                                <motion.div layoutId={task.id}>
+                                    <Card className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-none shadow-sm hover:shadow-xl transition-all cursor-grab active:cursor-grabbing">
                                     <div className="flex flex-col gap-3">
                                         <div className="flex justify-between items-start">
                                             <Badge className={`
                                                 ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600' : 
                                                   task.priority === 'high' ? 'bg-orange-50 text-orange-600' : 
                                                   'bg-slate-50 text-slate-500'} 
-                                                text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border-none
+                                                text-[9px] font-bold tracking-tight px-2 py-0.5 rounded-full border-none
                                             `}>
                                                 {task.priority} Priority
                                             </Badge>
@@ -105,18 +125,18 @@ const JourneyKanbanBoard = () => {
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 group-hover:text-slate-600 rounded-full"><MoreHorizontal className="h-4 w-4" /></Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="rounded-xl border-none shadow-2xl p-2">
+                                                <DropdownMenuContent align="end" className="rounded-xl border-none shadow-2xl p-2 bg-white dark:bg-slate-900">
                                                     {KANBAN_STAGES.filter(s => s.id !== stage.id).map(s => (
                                                         <DropdownMenuItem 
                                                             key={s.id} 
-                                                            className="font-bold text-xs uppercase p-3 rounded-lg cursor-pointer"
+                                                            className="font-bold text-xs p-3 rounded-lg cursor-pointer"
                                                             onClick={() => updateTaskStatus({ id: task.id, status: s.id })}
                                                         >
                                                             Move to {s.name}
                                                         </DropdownMenuItem>
                                                     ))}
-                                                    <Separator className="my-2 bg-slate-100" />
-                                                    <p className="text-[10px] font-black uppercase text-slate-400 px-3 py-1">Assign Outreach</p>
+                                                    <Separator className="my-2 bg-slate-100 dark:bg-white/5" />
+                                                    <p className="text-[10px] font-bold text-slate-400 px-3 py-1 tracking-tight">Assign Outreach</p>
                                                     {staffMembers.map(staff => (
                                                         <DropdownMenuItem 
                                                             key={staff.id} 
@@ -136,12 +156,12 @@ const JourneyKanbanBoard = () => {
                                             <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">{task.description}</p>
                                         </div>
 
-                                        <div className="pt-2 border-t border-slate-50 flex items-center justify-between">
+                                        <div className="pt-2 border-t border-slate-50 dark:border-white/5 flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-black">
+                                                <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">
                                                     {(task.member as any)?.profiles?.first_name?.[0]}
                                                 </div>
-                                                <span className="text-[11px] font-black text-slate-900">{(task.member as any)?.profiles?.first_name} {(task.member as any)?.profiles?.last_name}</span>
+                                                <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100">{(task.member as any)?.profiles?.first_name} {(task.member as any)?.profiles?.last_name}</span>
                                             </div>
                                             <div className="flex gap-2">
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50"><Phone className="h-3.5 w-3.5" /></Button>
@@ -150,12 +170,13 @@ const JourneyKanbanBoard = () => {
                                         </div>
                                     </div>
                                 </Card>
-                            </motion.div>
+                                </motion.div>
+                            </div>
                         ))}
                         {tasks.filter(t => t.status === stage.id).length === 0 && (
-                            <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl opacity-20">
+                            <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-white/10 rounded-2xl opacity-20">
                                 <Users className="h-8 w-8 mb-2" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Clear Queue</span>
+                                <span className="text-[10px] font-bold tracking-tight">Clear Queue</span>
                             </div>
                         )}
                     </div>

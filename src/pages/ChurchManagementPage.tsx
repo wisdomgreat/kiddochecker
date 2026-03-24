@@ -101,10 +101,10 @@ const ChurchManagementPage = () => {
                                 <Users className="h-8 w-8 text-white" />
                             </div>
                             <div>
-                                <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-1">{t('churchManagement')}</h1>
+                                <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight leading-none mb-1">{t('churchManagement')}</h1>
                                 <div className="flex items-center gap-2">
-                                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-black uppercase tracking-widest">Growing Together</div>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">{members.length} Members</span>
+                                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-bold tracking-tight">Growing Together</div>
+                                    <span className="text-[10px] text-slate-400 font-semibold tracking-tight">{members.length} Members</span>
                                 </div>
                             </div>
                         </div>
@@ -113,24 +113,24 @@ const ChurchManagementPage = () => {
                     <div className="flex flex-wrap items-center gap-4">
                         <Tabs value={activePerspective} onValueChange={setActivePerspective} className="w-fit">
                             <TabsList className="bg-slate-200/60 dark:bg-slate-800/80 p-1.5 rounded-[1.5rem] border border-white dark:border-white/5 h-16 shadow-inner backdrop-blur-md">
-                                <TabsTrigger value="members" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
+                                <TabsTrigger value="members" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <Users className="h-4 w-4 mr-2" /> {t('members')}
                                 </TabsTrigger>
-                                <TabsTrigger value="ministries" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
+                                <TabsTrigger value="ministries" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <LayoutGrid className="h-4 w-4 mr-2" /> {t('ministries')}
                                 </TabsTrigger>
-                                <TabsTrigger value="visitor_crm" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
+                                <TabsTrigger value="visitor_crm" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <Heart className="h-4 w-4 mr-2" /> Care Board
                                 </TabsTrigger>
-                                <TabsTrigger value="kanban" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
+                                <TabsTrigger value="kanban" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <ClipboardList className="h-4 w-4 mr-2" /> {t('kanban')}
                                 </TabsTrigger>
-                                <TabsTrigger value="journey" className="rounded-2xl px-8 font-black text-[11px] uppercase tracking-widest h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
+                                <TabsTrigger value="journey" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
                                     <BarChart3 className="h-4 w-4 mr-2" /> {t('analysis')}
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
-                        <Button onClick={() => setIsAddMemberOpen(true)} className="h-16 px-8 rounded-3xl bg-slate-900 dark:bg-indigo-600 font-black text-[11px] uppercase tracking-[0.2em] text-white shadow-xl hover:scale-105 active:scale-95 transition-all">
+                        <Button onClick={() => setIsAddMemberOpen(true)} className="h-16 px-8 rounded-3xl bg-slate-900 dark:bg-indigo-600 font-bold text-xs tracking-tight text-white shadow-xl hover:scale-105 active:scale-95 transition-all">
                             <Plus className="h-5 w-5 mr-1" /> Add Person
                         </Button>
                     </div>
@@ -150,8 +150,8 @@ const ChurchManagementPage = () => {
                                     <stat.icon className={cn("h-6 w-6", stat.color)} />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">{stat.label}</p>
-                                    <h4 className="text-2xl font-black text-slate-900 dark:text-white leading-none mt-0.5">{stat.value}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 tracking-tight">{stat.label}</p>
+                                    <h4 className="text-2xl font-bold text-slate-900 dark:text-white leading-none mt-0.5">{stat.value}</h4>
                                 </div>
                             </div>
                         </Card>
@@ -177,10 +177,10 @@ const ChurchManagementPage = () => {
                                             </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-bold px-3 py-1 uppercase text-[10px] tracking-widest">{member.membership_type}</Badge>
-                                                    {member.status !== 'active' && <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest">{member.status}</Badge>}
+                                                    <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-bold px-3 py-1 text-[10px] tracking-tight">{member.membership_type}</Badge>
+                                                    {member.status !== 'active' && <Badge variant="outline" className="text-[10px] font-bold tracking-tight">{member.status}</Badge>}
                                                 </div>
-                                                <h4 className="text-2xl font-black text-slate-900 dark:text-white truncate">{member.profiles?.first_name} {member.profiles?.last_name}</h4>
+                                                <h4 className="text-xl font-bold text-slate-900 dark:text-white truncate">{member.profiles?.first_name} {member.profiles?.last_name}</h4>
                                                 <p className="text-xs text-slate-400 dark:text-slate-500 font-bold">{member.profiles?.email}</p>
                                             </div>
                                             <div className="flex flex-col gap-2">
@@ -213,9 +213,9 @@ const ChurchManagementPage = () => {
                                                     <Layers className="h-5 w-5 text-indigo-600" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{ministry.name}</h3>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Department</p>
-                                                </div>
+                                                     <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{ministry.name}</h3>
+                                                     <p className="text-[10px] font-bold text-slate-400 tracking-tight">Department</p>
+                                                 </div>
                                             </div>
                                             <Button variant="outline" size="sm" className="border-indigo-100 text-indigo-600 font-bold text-xs rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition-colors h-8" onClick={() => { setSelectedMinistryId(ministry.id); setIsAddGroupOpen(true); }}>
                                                 <Plus className="h-3.5 w-3.5 mr-1" /> GROUP
@@ -227,15 +227,14 @@ const ChurchManagementPage = () => {
                                                 <Card key={group.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900/40 border-none shadow-[0_4px_12px_rgba(0,0,0,0.03)] group hover:shadow-lg transition-all">
                                                     <div className="flex justify-between items-start">
                                                         <div className="space-y-1">
-                                                            <h4 className="font-black text-slate-900 dark:text-white text-lg tracking-tight uppercase">{group.name}</h4>
-                                                            <div className="flex items-center gap-2">
-                                                                <Activity className="h-3 w-3 text-indigo-500" />
-                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                                                                    {group.meeting_day} • {group.meeting_time}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex gap-2 items-center">
+                                                             <h4 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">{group.name}</h4>
+                                                             <div className="flex items-center gap-2">
+                                                                 <Activity className="h-3 w-3 text-indigo-500" />
+                                                                 <p className="text-[10px] text-slate-400 font-bold tracking-tight">
+                                                                     {group.meeting_day} • {group.meeting_time}
+                                                                 </p>
+                                                             </div>
+                                                         </div>  <div className="flex gap-2 items-center">
                                                             <Badge className="bg-indigo-600/10 text-indigo-600 border-none font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full cursor-help hover:bg-indigo-600 hover:text-white transition-all">{group.member_count || 0} Members</Badge>
                                                             <Button size="icon" variant="ghost" className="h-7 w-7 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg shrink-0" onClick={() => { setSelectedGroupId(group.id); setIsAssignMemberOpen(true); }}><UserPlus className="h-4 w-4" /></Button>
                                                         </div>
@@ -258,44 +257,44 @@ const ChurchManagementPage = () => {
                                 <Card className="p-8 rounded-3xl bg-indigo-600 text-white border-none shadow-xl flex flex-col justify-between overflow-hidden relative">
                                     <Activity className="absolute -right-4 -top-4 w-32 h-32 opacity-10 rotate-12" />
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Retention Phase</p>
-                                        <h3 className="text-3xl font-black">New Guests</h3>
-                                    </div>
-                                    <div className="mt-8 flex items-end justify-between">
-                                        <span className="text-5xl font-black">{stats?.visitor_count || 0}</span>
-                                        <Badge className="bg-white/20 text-white border-none font-bold px-3 py-1">+12% this month</Badge>
-                                    </div>
+                                         <p className="text-[10px] font-bold tracking-tight opacity-80">Retention Phase</p>
+                                         <h3 className="text-3xl font-bold">New Guests</h3>
+                                     </div>
+                                     <div className="mt-8 flex items-end justify-between">
+                                         <span className="text-5xl font-bold">{stats?.visitor_count || 0}</span>
+                                         <Badge className="bg-white/20 text-white border-none font-bold px-3 py-1">+12% this month</Badge>
+                                     </div>
                                 </Card>
 
                                 <Card className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Pastoral Care</p>
-                                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">Active Journey</h3>
-                                    </div>
-                                    <div className="mt-8 flex items-end justify-between">
-                                        <span className="text-5xl font-black text-slate-900 dark:text-white">{stats?.active_journey || 0}</span>
-                                        <Badge variant="outline" className="font-bold border-slate-200 px-3 py-1 rounded-lg">Needs Contact</Badge>
-                                    </div>
-                                </Card>
+                                         <p className="text-[10px] font-bold text-slate-400 tracking-tight">Pastoral Care</p>
+                                         <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Active Journey</h3>
+                                     </div>
+                                     <div className="mt-8 flex items-end justify-between">
+                                         <span className="text-5xl font-bold text-slate-900 dark:text-white">{stats?.active_journey || 0}</span>
+                                         <Badge variant="outline" className="font-bold border-slate-200 px-3 py-1 rounded-lg">Needs Contact</Badge>
+                                     </div>
+                                 </Card>
 
-                                <Card className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Retention</p>
-                                        <h3 className="text-3xl font-black text-slate-900 dark:text-white">Integrations</h3>
-                                    </div>
-                                    <div className="mt-8 flex items-end justify-between">
-                                        <span className="text-5xl font-black text-slate-900 dark:text-white">{stats?.integrations_perc || 0}%</span>
-                                        <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold px-3 py-1 rounded-lg">Excellent</Badge>
-                                    </div>
+                                 <Card className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
+                                     <div className="space-y-1">
+                                         <p className="text-[10px] font-bold text-slate-400 tracking-tight">Total Retention</p>
+                                         <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Integrations</h3>
+                                     </div>
+                                     <div className="mt-8 flex items-end justify-between">
+                                         <span className="text-5xl font-bold text-slate-900 dark:text-white">{stats?.integrations_perc || 0}%</span>
+                                         <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold px-3 py-1 rounded-lg">Excellent</Badge>
+                                     </div>
                                 </Card>
                             </div>
 
                             <div className="bg-white dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-white/10 p-10 mt-12">
                                 <div className="flex items-center gap-4 mb-10">
-                                    <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center">
-                                        <Activity className="h-5 w-5 text-orange-600" />
-                                    </div>
-                                    <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Acquisition Funnel</h3>
+                                     <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                                         <Activity className="h-5 w-5 text-orange-600" />
+                                     </div>
+                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Acquisition Funnel</h3>
                                 </div>
                                 <div className="space-y-8">
                                     {[
@@ -305,19 +304,19 @@ const ChurchManagementPage = () => {
                                         { stage: 'Official Membership', count: stats?.registered_count || 0, color: 'bg-indigo-300' }
                                     ].map((step, i) => (
                                         <div key={i} className="flex items-center gap-6">
-                                            <div className="w-40 text-left">
-                                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{step.stage}</p>
-                                            </div>
-                                            <div className="flex-1 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl overflow-hidden shadow-inner">
+                                             <div className="w-40 text-left">
+                                                 <p className="text-xs font-bold text-slate-400 tracking-tight">{step.stage}</p>
+                                             </div>
+                                             <div className="flex-1 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl overflow-hidden shadow-inner">
                                                 <motion.div 
                                                     initial={{ width: 0 }} 
                                                     animate={{ width: `${(step.count / Math.max(stats?.visitor_count || 1, 1)) * 100}%` }}
                                                     className={`h-full ${step.color} shadow-lg`}
                                                 />
                                             </div>
-                                            <div className="w-16">
-                                                <p className="text-lg font-black text-slate-900 dark:text-white">{step.count}</p>
-                                            </div>
+                                             <div className="w-16">
+                                                 <p className="text-lg font-bold text-slate-900 dark:text-white">{step.count}</p>
+                                             </div>
                                         </div>
                                     ))}
                                 </div>
@@ -353,10 +352,10 @@ const ChurchManagementPage = () => {
 
             <Dialog open={isAddMinistryOpen} onOpenChange={setIsAddMinistryOpen}>
                  <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
-                    <div className="bg-indigo-600 p-8 text-white">
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">New Department</DialogTitle>
-                        <DialogDescription className="text-indigo-100 font-medium">Create a new ministry area to organize your teams.</DialogDescription>
-                    </div>
+                     <div className="bg-indigo-600 p-8 text-white">
+                         <DialogTitle className="text-xl font-bold tracking-tight">New Department</DialogTitle>
+                         <DialogDescription className="text-indigo-100 font-medium">Create a new ministry area to organize your teams.</DialogDescription>
+                     </div>
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         if (!newMinistry.name) return;
@@ -368,9 +367,9 @@ const ChurchManagementPage = () => {
                         });
                     }} className="p-8 space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Department Name</Label>
-                            <Input placeholder="e.g. Media & Production" value={newMinistry.name} onChange={e => setNewMinistry({...newMinistry, name: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
-                        </div>
+                             <Label className="text-[10px] font-bold text-slate-400 tracking-tight px-1">Department Name</Label>
+                             <Input placeholder="e.g. Media & Production" value={newMinistry.name} onChange={e => setNewMinistry({...newMinistry, name: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                         </div>
                         <Button type="submit" className="w-full h-12 bg-indigo-600 text-white rounded-xl font-bold shadow-sm">CREATE MINISTRY</Button>
                     </form>
                  </DialogContent>
