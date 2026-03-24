@@ -87,7 +87,10 @@ export const useVisitorInteractions = (visitorId?: string) => {
       await sendEmail.mutateAsync({
         to: email,
         templateName: 'visitor_welcome',
-        templateData: { firstName },
+        templateData: { 
+          visitorName: firstName,
+          churchName: 'Green Valley Church' // Default church name for placeholders
+        },
         visitor_id: visitorId
       });
 
