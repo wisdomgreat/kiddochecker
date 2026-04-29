@@ -155,3 +155,4 @@ export const useEvents = () => {
     isDeletingEvent: deleteEventMutation.isPending,
   };
 };
+

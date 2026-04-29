@@ -59,21 +59,21 @@ const QRLabel = ({ child, orgName = "KiddoChecker", useToken = false, tokenData 
     const qrData = (useToken && tokenData) ? tokenData : jsonQR;
 
     return (
-        <div className="qr-print-label bg-white border-2 border-slate-800 rounded-xl p-4 w-[240px] text-center">
-            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{orgName}</p>
-            <div className="bg-white inline-block p-2 border border-slate-200 rounded-lg">
+        <div className="qr-print-label bg-card border-2 border-slate-800 rounded-xl p-4 w-[240px] text-center">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">{orgName}</p>
+            <div className="bg-card inline-block p-2 border border-slate-200 rounded-lg">
                 <QRCodeSVG value={qrData} size={QR_SIZE} level="H" includeMargin={false} />
             </div>
-            <p className="font-black text-slate-900 text-base mt-2 leading-tight">{child.first_name} {child.last_name}</p>
+            <p className="font-bold text-foreground text-base mt-2 leading-tight">{child.first_name} {child.last_name}</p>
             <div className="flex items-center justify-center gap-2 mt-1">
                 {child.age && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{child.age} yrs</p>}
                 {(child as any).class?.name && (
-                    <Badge className="bg-indigo-50 text-indigo-600 border-none text-[9px] font-black uppercase px-2 py-0">{(child as any).class.name}</Badge>
+                    <Badge className="bg-indigo-50 text-indigo-600 border-none text-[9px] font-bold uppercase px-2 py-0">{(child as any).class.name}</Badge>
                 )}
             </div>
             {child.allergies && (
                 <div className="mt-2 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1">
-                    <p className="text-xs font-black text-amber-700 uppercase tracking-tighter">⚠ Allergy Alert</p>
+                    <p className="text-xs font-bold text-amber-700 uppercase tracking-tighter">⚠ Allergy Alert</p>
                     <p className="text-sm text-amber-900 font-bold leading-tight uppercase">{child.allergies}</p>
                 </div>
             )}
@@ -163,11 +163,11 @@ const QRManagementPage = () => {
     if (!isAdmin && !isSuperAdmin) {
         return (
             <UnifiedDashboardLayout>
-                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-3xl border border-slate-100 shadow-sm m-6">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-card rounded-3xl border border-slate-100 shadow-sm m-6">
                     <div className="h-20 w-20 rounded-full bg-rose-50 flex items-center justify-center mb-6">
                         <ShieldAlert className="h-10 w-10 text-rose-500" />
                     </div>
-                    <h1 className="text-3xl font-black text-slate-900 mb-2">Access Denied</h1>
+                    <h1 className="text-3xl font-bold text-foreground mb-2">Access Denied</h1>
                     <p className="text-slate-500 max-w-md font-medium text-lg italic">
                         "For the safety and confidentiality of our children, QR label generation is restricted to administrative accounts only."
                     </p>
@@ -294,7 +294,7 @@ const QRManagementPage = () => {
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
                                 <QrCode className="h-8 w-8 text-indigo-600" />
                                 QR Code Management
                             </h1>
@@ -302,8 +302,8 @@ const QRManagementPage = () => {
                         </div>
                         <div className="flex gap-3">
                             <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200">
-                                <button className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${qrSourceType === 'standard' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`} onClick={() => setQrSourceType('standard')}>JSON</button>
-                                <button className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${qrSourceType === 'token' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`} onClick={() => setQrSourceType('token')}>DB Match</button>
+                                <button className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${qrSourceType === 'standard' ? 'bg-card shadow-sm text-indigo-600' : 'text-slate-500'}`} onClick={() => setQrSourceType('standard')}>JSON</button>
+                                <button className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${qrSourceType === 'token' ? 'bg-card shadow-sm text-indigo-600' : 'text-slate-500'}`} onClick={() => setQrSourceType('token')}>DB Match</button>
                             </div>
                             <Button onClick={handlePrint} disabled={isPrinting} className="bg-indigo-600 hover:bg-indigo-700 rounded-xl gap-2 shadow-lg shadow-indigo-200">
                                 {isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
@@ -333,7 +333,7 @@ const QRManagementPage = () => {
                     </div>
                 </motion.div>
 
-                <div className="bg-white rounded-2xl border border-slate-100 p-4 flex flex-wrap gap-4 items-center">
+                <div className="bg-card rounded-2xl border border-slate-100 p-4 flex flex-wrap gap-4 items-center">
                     <div className="relative flex-1 min-w-[200px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input placeholder="Search children..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 rounded-xl" />
@@ -385,8 +385,8 @@ const QRManagementPage = () => {
                                 </div>
                                 <div className="space-y-4">
                                     <div className="flex bg-slate-100 p-1 rounded-xl">
-                                        <button className={`flex-1 py-2 rounded-lg text-xs font-bold ${qrSourceType === 'standard' ? 'bg-white shadow' : ''}`} onClick={() => setQrSourceType('standard')}>standard json</button>
-                                        <button className={`flex-1 py-2 rounded-lg text-xs font-bold ${qrSourceType === 'token' ? 'bg-white shadow' : ''}`} onClick={() => setQrSourceType('token')}>database token</button>
+                                        <button className={`flex-1 py-2 rounded-lg text-xs font-bold ${qrSourceType === 'standard' ? 'bg-card shadow' : ''}`} onClick={() => setQrSourceType('standard')}>standard json</button>
+                                        <button className={`flex-1 py-2 rounded-lg text-xs font-bold ${qrSourceType === 'token' ? 'bg-card shadow' : ''}`} onClick={() => setQrSourceType('token')}>database token</button>
                                     </div>
                                     {qrSourceType === 'token' && (
                                         <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
@@ -428,3 +428,4 @@ const QRManagementPage = () => {
 };
 
 export default QRManagementPage;
+

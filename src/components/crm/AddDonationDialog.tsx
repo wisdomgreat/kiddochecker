@@ -60,15 +60,15 @@ const AddDonationDialog: React.FC<AddDonationDialogProps> = ({ isOpen, onOpenCha
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+            <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-card dark:bg-slate-950">
                 <div className="bg-[#353D8C] p-8 text-white">
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Record Contribution</DialogTitle>
+                    <DialogTitle className="text-xl font-bold uppercase tracking-tight">Record Contribution</DialogTitle>
                     <DialogDescription className="text-white/80 font-medium">Log a new donation or giving for missionary work and maintenance.</DialogDescription>
                 </div>
                 <form onSubmit={handleSubmit} className="p-8 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Select Donor</Label>
+                            <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Select Donor</Label>
                             <Select value={formData.member_id} onValueChange={val => setFormData({ ...formData, member_id: val })}>
                                 <SelectTrigger className="h-12 rounded-2xl bg-slate-50 border-none px-4 font-bold shadow-inner">
                                     <SelectValue placeholder="Search members..." />
@@ -85,7 +85,7 @@ const AddDonationDialog: React.FC<AddDonationDialogProps> = ({ isOpen, onOpenCha
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Amount ($)</Label>
+                                <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Amount ($)</Label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600" />
                                     <Input 
@@ -93,14 +93,14 @@ const AddDonationDialog: React.FC<AddDonationDialogProps> = ({ isOpen, onOpenCha
                                         placeholder="0.00" 
                                         value={formData.amount} 
                                         onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                                        className="h-12 rounded-2xl bg-slate-50 border-none pl-10 font-black text-lg" 
+                                        className="h-12 rounded-2xl bg-slate-50 border-none pl-10 font-bold text-lg" 
                                         step="0.01"
                                         required
                                     />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Fund Category</Label>
+                                <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Fund Category</Label>
                                 <Select value={formData.category} onValueChange={val => setFormData({ ...formData, category: val })}>
                                     <SelectTrigger className="h-12 rounded-2xl bg-slate-50 border-none px-4 font-bold"><SelectValue /></SelectTrigger>
                                     <SelectContent className="rounded-xl border-none shadow-2xl">
@@ -111,7 +111,7 @@ const AddDonationDialog: React.FC<AddDonationDialogProps> = ({ isOpen, onOpenCha
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Method</Label>
+                            <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Method</Label>
                             <Select value={formData.payment_method} onValueChange={val => setFormData({ ...formData, payment_method: val })}>
                                 <SelectTrigger className="h-12 rounded-2xl bg-slate-50 border-none px-4 font-bold"><SelectValue /></SelectTrigger>
                                 <SelectContent className="rounded-xl border-none shadow-2xl">
@@ -121,7 +121,7 @@ const AddDonationDialog: React.FC<AddDonationDialogProps> = ({ isOpen, onOpenCha
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Private Notes</Label>
+                            <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Private Notes</Label>
                             <Input 
                                 placeholder="Ref: Sunday Special..." 
                                 value={formData.notes} 
@@ -131,7 +131,7 @@ const AddDonationDialog: React.FC<AddDonationDialogProps> = ({ isOpen, onOpenCha
                         </div>
                     </div>
 
-                    <Button type="submit" className="w-full h-14 bg-[#353D8C] hover:bg-[#2B3481] text-white rounded-[1.5rem] font-black tracking-widest shadow-xl active:scale-95 transition-all mt-4">
+                    <Button type="submit" className="w-full h-14 bg-[#353D8C] hover:bg-[#2B3481] text-white rounded-[1.5rem] font-bold tracking-widest shadow-xl active:scale-95 transition-all mt-4">
                         <CheckCircle2 className="h-5 w-5 mr-2" /> RECONCILE GIVING
                     </Button>
                 </form>
@@ -141,3 +141,4 @@ const AddDonationDialog: React.FC<AddDonationDialogProps> = ({ isOpen, onOpenCha
 };
 
 export default AddDonationDialog;
+

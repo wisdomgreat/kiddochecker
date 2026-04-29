@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -27,21 +26,17 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const { toast } = useToast();
 
-  // Filter users based on search and role filter
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       const matchesSearch =
         user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-
       const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-
       return matchesSearch && matchesRole;
     });
   }, [users, searchTerm, roleFilter]);
 
-  // Calculate statistics
   const stats = useMemo(() => {
     const total = users.length;
     const parents = users.filter(u => u.role === 'parent').length;
@@ -51,46 +46,23 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 
   const handleDeleteUser = async () => {
     if (!deletingUser) return;
-
     try {
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', deletingUser.id);
-
-      if (roleError) {
-        console.error('Error deleting user role:', roleError);
-      }
-
-      toast({
-        title: "User Removed",
-        description: `${deletingUser.firstName} ${deletingUser.lastName} has been removed from the system.`,
-      });
-
+      await supabase.from('user_roles').delete().eq('user_id', deletingUser.id);
+      toast({ title: "User Access Revoked", description: `${deletingUser.firstName} has been removed.` });
       setDeletingUser(null);
       refetch();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete user",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'admin':
-      case 'super_admin':
-        return 'destructive';
-      case 'staff':
-        return 'default';
-      case 'teacher':
-        return 'secondary';
-      case 'parent':
-        return 'outline';
-      default:
-        return 'outline';
+      case 'super_admin': return 'destructive';
+      case 'staff': return 'default';
+      case 'teacher': return 'secondary';
+      default: return 'outline';
     }
   };
 
@@ -99,175 +71,116 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   };
 
   const content = (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto py-8 px-6">
       {/* Header */}
       {!isEmbedded && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">User Management</h1>
-            <p className="text-muted-foreground">Manage all users in your organization</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Access Control</h1>
+            <p className="text-sm text-muted-foreground">Manage authentication and roles for all organization members.</p>
           </div>
           <CleanUserCreationModal onUserCreated={() => refetch()} />
         </div>
       )}
 
-      {/* Statistics Cards */}
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        variants={{
-          hidden: { opacity: 0 },
-          show: {
-            opacity: 1,
-            transition: { staggerChildren: 0.1 }
-          }
-        }}
-        initial="hidden"
-        animate="show"
-      >
-        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.total}
-              </div>
-              <p className="text-xs text-muted-foreground">All registered users</p>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {[
+            { label: "Total Accounts", val: stats.total, desc: "Active system users" },
+            { label: "Families", val: stats.parents, desc: "Parent accounts" },
+            { label: "Authorities", val: stats.staff, desc: "Staff & Admins" }
+        ].map(s => (
+            <Card key={s.label} className="shadow-sm">
+                <CardContent className="p-6">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">{s.label}</p>
+                    <div className="text-3xl font-bold">
+                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : s.val}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2">{s.desc}</p>
+                </CardContent>
+            </Card>
+        ))}
+      </div>
 
-        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Parents</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.parents}
-              </div>
-              <p className="text-xs text-muted-foreground">Parent accounts</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } } }}>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Staff Members</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.staff}
-              </div>
-              <p className="text-xs text-muted-foreground">Teachers, staff, and admins</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </motion.div>
-
-      {/* User List */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.4 }}
-      >
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between gap-4">
-              <CardTitle className="flex items-center gap-2">
-                All Users {isEmbedded && <CleanUserCreationModal onUserCreated={() => refetch()} />}
-              </CardTitle>
-              <div className="flex gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 w-[200px]"
-                  />
-                </div>
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="w-[150px]">
-                    <SelectValue placeholder="Filter by role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Roles</SelectItem>
-                    <SelectItem value="parent">Parent</SelectItem>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="teacher">Teacher</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      <Card className="shadow-sm overflow-hidden">
+        <CardHeader className="bg-muted/30 border-b">
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <div className="space-y-1">
+                <CardTitle className="text-lg">System Users</CardTitle>
+                <CardDescription>Filtering {filteredUsers.length} matched profiles.</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="flex gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-[180px]"
+                />
               </div>
-            ) : error ? (
-              <div className="text-center py-8 text-destructive">
-                <p>Error loading users</p>
-                <Button variant="outline" onClick={() => refetch()} className="mt-2">
-                  Retry
-                </Button>
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No users found</p>
-                <p className="text-sm">Try adjusting your search or filter</p>
-              </div>
-            ) : (
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="teacher">Teacher</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>
+          ) : (
+            <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-muted/10">
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[70px]">Actions</TableHead>
+                    <TableHead className="px-6 h-12 font-bold text-[10px] uppercase tracking-wider">Identity</TableHead>
+                    <TableHead className="h-12 font-bold text-[10px] uppercase tracking-wider">Communication</TableHead>
+                    <TableHead className="h-12 font-bold text-[10px] uppercase tracking-wider">Permission</TableHead>
+                    <TableHead className="h-12 font-bold text-[10px] uppercase tracking-wider">State</TableHead>
+                    <TableHead className="px-6 h-12 text-right font-bold text-[10px] uppercase tracking-wider">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
+                    <TableRow key={user.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          {user.firstName} {user.lastName}
-                          {user.isSuperAdmin && (
-                            <Shield className="h-4 w-4 text-amber-500" />
-                          )}
+                          <span className="font-bold text-sm">{user.firstName} {user.lastName}</span>
+                          {user.isSuperAdmin && <Shield className="h-3.5 w-3.5 text-amber-500" />}
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
                       <TableCell>
-                        <Badge variant={getRoleBadgeVariant(user.role)}>
+                        <Badge variant={getRoleBadgeVariant(user.role)} className="font-bold text-[10px] h-5">
                           {formatRole(user.role)}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.isActive ? "default" : "secondary"}>
-                          {user.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                        {user.isActive ? (
+                            <Badge variant="default" className="bg-emerald-600 font-bold text-[10px] h-5">Active</Badge>
+                        ) : (
+                            <Badge variant="outline" className="font-bold text-[10px] h-5">Inactive</Badge>
+                        )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-6 text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditingUser({
+                            <DropdownMenuItem className="text-xs font-bold" onClick={() => setEditingUser({
                               id: user.id,
                               email: user.email,
                               first_name: user.firstName,
@@ -275,15 +188,13 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                               role: user.role as AppRole,
                               is_super_admin: user.isSuperAdmin
                             })}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit User
+                              <Edit className="h-3.5 w-3.5 mr-2" /> Edit Details
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setDeletingUser(user)}
-                              className="text-destructive"
+                              className="text-xs font-bold text-destructive"
                             >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete User
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Revoke Access
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -292,12 +203,11 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                   ))}
                 </TableBody>
               </Table>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Edit User Dialog */}
       <EditUserDialog
         user={editingUser}
         open={!!editingUser}
@@ -308,7 +218,6 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
         }}
       />
 
-      {/* Delete User Dialog */}
       <DeleteUserDialog
         isOpen={!!deletingUser}
         onClose={() => setDeletingUser(null)}
@@ -333,3 +242,4 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 };
 
 export default UsersPage;
+

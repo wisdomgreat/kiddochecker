@@ -6,7 +6,6 @@ import { Shield, Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -49,47 +48,37 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6">
-      <div className="absolute inset-0 opacity-10 pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-          backgroundSize: '40px 40px'
-        }} />
-      
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
-          
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Shield className="h-5 w-5 text-white" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="w-full max-w-md space-y-8">
+        <div className="bg-card border rounded-lg p-8 shadow-sm">
+          <div className="flex items-center gap-2 mb-8">
+            <div className="p-2 bg-primary/10 rounded border border-primary/20">
+              <Shield className="h-5 w-5 text-primary" />
             </div>
-            <span className="font-black text-slate-900 text-xl tracking-tighter">KiddoChecker</span>
+            <span className="font-bold text-foreground text-lg tracking-tight">KiddoChecker</span>
           </div>
 
           {!isSent ? (
             <>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Forgot Password?</h2>
-              <p className="text-slate-500 mb-8 font-medium">
-                Enter your registered email address and we'll send you a link to reset your password.
-              </p>
+              <div className="space-y-2 mb-8">
+                <h2 className="text-2xl font-bold tracking-tight">Forgot Password?</h2>
+                <p className="text-sm text-muted-foreground">
+                  Enter your email address to receive a reset link.
+                </p>
+              </div>
 
-              <form onSubmit={handleResetRequest} className="space-y-6">
+              <form onSubmit={handleResetRequest} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-900 font-black text-sm ml-1">Email Address</Label>
+                  <Label htmlFor="email">Email Address</Label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-12 h-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+                      className="pl-9"
                       placeholder="name@organization.com"
                     />
                   </div>
@@ -98,14 +87,15 @@ const ForgotPasswordPage = () => {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full h-14 rounded-2xl font-black text-white bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all"
+                  className="w-full"
                 >
-                  {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Send Reset Link'}
+                  {isLoading ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
+                  Send Reset Link
                 </Button>
 
                 <Link 
                   to="/login"
-                  className="flex items-center justify-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-sm transition-colors py-2"
+                  className="flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm transition-colors pt-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back to Login
@@ -114,18 +104,18 @@ const ForgotPasswordPage = () => {
             </>
           ) : (
             <div className="text-center py-4">
-              <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/20">
+                <CheckCircle2 className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Check your Email</h2>
-              <p className="text-slate-500 mb-8 font-medium">
-                We've sent a password reset link to <span className="text-slate-900 font-bold">{email}</span>. Please check your inbox and spam folder.
+              <h2 className="text-xl font-bold mb-2">Check your Email</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                We've sent a password reset link to <span className="text-foreground font-bold">{email}</span>.
               </p>
               
               <Button
                 variant="outline"
                 onClick={() => navigate('/login')}
-                className="w-full h-14 rounded-2xl font-black border-slate-200"
+                className="w-full"
               >
                 Return to Login
               </Button>
@@ -133,12 +123,13 @@ const ForgotPasswordPage = () => {
           )}
         </div>
         
-        <p className="text-center text-slate-500 text-xs mt-8 font-bold uppercase tracking-widest px-4">
+        <p className="text-center text-muted-foreground text-[10px] uppercase tracking-widest">
           Secure identity management powered by KiddoChecker Auth
         </p>
-      </motion.div>
+      </div>
     </div>
   );
 };
 
 export default ForgotPasswordPage;
+

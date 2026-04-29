@@ -144,3 +144,4 @@ export const ChildrenRegistrationStep = ({ children, onChange }: ChildrenRegistr
     </div>
   );
 };
+

@@ -102,3 +102,4 @@ const StaffCard = ({ member, onEdit, onDelete }: StaffCardProps) => {
 };
 
 export default StaffCard;
+

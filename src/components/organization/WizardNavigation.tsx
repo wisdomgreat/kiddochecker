@@ -22,3 +22,4 @@ export const WizardNavigation = ({ currentStep, totalSteps, stepTitle, children 
     </Card>
   );
 };
+

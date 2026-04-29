@@ -10,7 +10,7 @@ interface RegistrationPromptProps {
 
 export const RegistrationPrompt = ({ onSignUp }: RegistrationPromptProps) => {
   return (
-    <Card className="bg-white rounded-lg p-6 shadow-md">
+    <Card className="bg-card rounded-lg p-6 shadow-md">
       <div className="text-center space-y-3">
         <h3 className="text-lg font-medium text-gray-900">New to ChurchCheck?</h3>
         <p className="text-gray-600">Register your family for easy check-in and check-out.</p>
@@ -27,3 +27,4 @@ export const RegistrationPrompt = ({ onSignUp }: RegistrationPromptProps) => {
 };
 
 export default RegistrationPrompt;
+

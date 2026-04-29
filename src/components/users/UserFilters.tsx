@@ -35,3 +35,4 @@ const UserFilters = ({ searchTerm, setSearchTerm, activeTab, setActiveTab }: Use
 };
 
 export default UserFilters;
+

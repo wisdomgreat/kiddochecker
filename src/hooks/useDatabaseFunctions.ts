@@ -59,3 +59,4 @@ export function useDatabaseFunctions(): DatabaseFunctionsReturn {
 }
 
 export default useDatabaseFunctions;
+

@@ -163,7 +163,7 @@ const AttendanceRewardsPage = () => {
                 <Trophy className="h-6 w-6 text-amber-600" />
              </div>
              <div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">{t("rewardsTitle")}</h1>
+                <h1 className="text-3xl font-bold text-foreground tracking-tight">{t("rewardsTitle")}</h1>
                 <p className="text-slate-500 font-medium italic">Incentivize attendance and track community gratitude.</p>
              </div>
           </div>
@@ -190,8 +190,8 @@ const AttendanceRewardsPage = () => {
 
         <Tabs defaultValue="available" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-2 rounded-xl h-12 bg-slate-100 p-1">
-            <TabsTrigger value="available" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Available Rewards</TabsTrigger>
-            <TabsTrigger value="redemptions" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Redemptions</TabsTrigger>
+            <TabsTrigger value="available" className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Available Rewards</TabsTrigger>
+            <TabsTrigger value="redemptions" className="rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">Redemptions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="redemptions" className="mt-6">
@@ -214,7 +214,7 @@ const AttendanceRewardsPage = () => {
                       <TableRow key={redemption.id}>
                         <TableCell>
                           <div className="space-y-1">
-                            <h4 className="font-bold text-slate-900 leading-tight">
+                            <h4 className="font-bold text-foreground leading-tight">
                               {redemption.profiles?.first_name || 'Member'} {redemption.profiles?.last_name || ''}
                             </h4>
                             <p className="text-xs font-bold text-slate-400">
@@ -322,7 +322,7 @@ const AttendanceRewardsPage = () => {
         <Dialog open={isAddOpen || !!selectedReward} onOpenChange={(open) => { if (!open) { setIsAddOpen(false); setSelectedReward(null); } }}>
           <DialogContent className="rounded-[2rem] p-8">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-black">{selectedReward ? "Edit Reward" : "Add New Reward"}</DialogTitle>
+              <DialogTitle className="text-2xl font-bold">{selectedReward ? "Edit Reward" : "Add New Reward"}</DialogTitle>
             </DialogHeader>
             <form 
               onSubmit={(e) => {
@@ -365,3 +365,4 @@ const AttendanceRewardsPage = () => {
 };
 
 export default AttendanceRewardsPage;
+

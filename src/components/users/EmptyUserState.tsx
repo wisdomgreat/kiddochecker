@@ -23,3 +23,4 @@ const EmptyUserState = ({ searchTerm }: EmptyUserStateProps) => {
 };
 
 export default EmptyUserState;
+

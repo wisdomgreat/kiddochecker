@@ -21,3 +21,4 @@ export interface ClassTeacher {
 export interface ClassWithTeacher extends Class {
   teacher_name?: string;
 }
+

@@ -61,7 +61,7 @@ const QRCodeModal = ({ open, onOpenChange, child }: QRCodeModalProps) => {
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="flex justify-center p-4 bg-white rounded-lg">
+          <div className="flex justify-center p-4 bg-card rounded-lg">
             <QRCodeSVG
               id="qr-code-svg"
               value={qrData}
@@ -91,3 +91,4 @@ const QRCodeModal = ({ open, onOpenChange, child }: QRCodeModalProps) => {
 };
 
 export default QRCodeModal;
+

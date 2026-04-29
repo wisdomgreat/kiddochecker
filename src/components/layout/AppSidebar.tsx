@@ -73,7 +73,7 @@ export function AppSidebar() {
       items: [
         { title: t('children'), url: "/children", icon: Baby },
         { title: t('staff'), url: "/staff", icon: UserCheck },
-        { title: t('shiftAutoPlanner'), url: "/staff/schedules", icon: ClipboardCheck },
+        { title: 'Schedules', url: "/staff/schedules", icon: ClipboardCheck },
         { title: t('classes'), url: "/classes", icon: BookOpen },
         { title: t('verifyStaff'), url: "/admin/verify-staff", icon: Shield },
         { title: 'Congregation', url: "/admin/church", icon: Heart },
@@ -165,6 +165,7 @@ export function AppSidebar() {
       items: [
         { title: t('myChildren'), url: "/parent/children", icon: Baby },
         { title: t('attendance'), url: "/parent/attendance", icon: Calendar },
+        { title: t('events'), url: "/calendar", icon: Trophy },
       ]
     },
     {
@@ -190,7 +191,7 @@ export function AppSidebar() {
       ? userRole === 'teacher' ? 'Teacher Dashboard' : userRole === 'volunteer' ? 'Volunteer Station' : 'Staff Dashboard'
       : 'Parent Dashboard';
 
-  if (!user) return null;
+  if (!user || userRole === 'kiosk') return null;
 
   const getRoleBadgeConfig = (): { color: string; label: string } => {
     switch (userRole) {
@@ -198,41 +199,41 @@ export function AppSidebar() {
       case 'admin': return { color: 'bg-red-100 text-red-800 border-red-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800', label: 'Admin' };
       case 'teacher': return { color: 'bg-green-100 text-green-800 border-green-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800', label: 'Teacher' };
       case 'teacher_assistant': return { color: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800', label: 'Asst. Teacher' };
-      case 'staff': return { color: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', label: 'Staff' };
+      case 'staff': return { color: 'bg-slate-100 text-foreground border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700', label: 'Staff' };
       case 'volunteer': return { color: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800', label: 'Volunteer' };
       case 'parent': return { color: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800', label: 'Parent' };
-      default: return { color: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300', label: userRole || 'User' };
+      default: return { color: 'bg-slate-100 text-foreground dark:bg-slate-800 dark:text-slate-300', label: userRole || 'User' };
     }
   };
 
   const { color, label } = getRoleBadgeConfig();
 
   return (
-    <div className="h-screen p-4 pr-0 flex flex-col pointer-events-none">
-      <Sidebar className="pointer-events-auto floating-island rounded-[2.5rem] border-none shadow-[LRB] dark:shadow-black/60 h-full transition-all duration-500 weightless-shadow overflow-hidden bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl">
-        <SidebarHeader className="border-b border-white/20 dark:border-white/5 px-6 py-6 ring-offset-background">
+    <div className="h-screen flex flex-col">
+      <Sidebar className="border-r bg-card text-card-foreground h-full transition-all">
+        <SidebarHeader className="border-b px-6 py-6">
           <div className="flex items-center gap-3">
             {settings?.logo_url ? (
-              <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded-2xl overflow-hidden shadow-sm bg-white/50 dark:bg-white/10 border border-white/40 dark:border-white/5">
-                <img src={settings.logo_url} alt="Organization Logo" className="h-full w-full object-contain" />
+              <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded border bg-muted/50">
+                <img src={settings.logo_url} alt="Organization Logo" className="h-full w-full object-contain p-1" />
               </div>
             ) : (
-              <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-xl shadow-indigo-200 dark:shadow-indigo-500/10">
-                <Building className="h-5 w-5 text-white" />
+              <div className="flex shrink-0 h-10 w-10 items-center justify-center rounded bg-primary text-primary-foreground">
+                <Building className="h-5 w-5" />
               </div>
             )}
             <div className="text-left flex-1 min-w-0">
-              <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white truncate">
+              <h2 className="text-lg font-bold tracking-tight truncate">
                 {settings?.name || "KiddoChecker"}
               </h2>
-              <Badge variant="outline" className={`text-[10px] px-2 py-0 h-4 font-bold border-0 shadow-none ${color}`}>
+              <Badge variant="outline" className={`text-[10px] px-2 py-0 h-4 font-medium ${color}`}>
                 {label}
               </Badge>
             </div>
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="px-4 py-6 scrollbar-none">
+        <SidebarContent className="px-3 py-4">
           {menuGroups.map((group, groupIdx) => {
             const visibleItems = group.items.filter(item => {
               const hasPerm = !item.requiredPermission || hasPermission(item.requiredPermission);
@@ -246,12 +247,12 @@ export function AppSidebar() {
             if (visibleItems.length === 0) return null;
 
             return (
-              <SidebarGroup key={groupIdx} className="mb-4">
-                <SidebarGroupLabel className="text-left mb-2 px-3 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              <SidebarGroup key={groupIdx} className="mb-2">
+                <SidebarGroupLabel className="text-left mb-1 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                   {groupIdx === 0 ? portalLabel : group.label}
                 </SidebarGroupLabel>
                 <SidebarGroupContent>
-                  <SidebarMenu className="space-y-1">
+                  <SidebarMenu className="space-y-0.5">
                     {visibleItems.map((item) => {
                       const isActive = location.pathname === item.url;
                       return (
@@ -260,25 +261,26 @@ export function AppSidebar() {
                             asChild
                             isActive={isActive}
                             className={cn(
-                              "w-full justify-start text-left rounded-2xl h-11 px-4 hover:scale-[1.02] transition-all duration-300 active:scale-[0.98]",
-                              isActive ? "bg-white/80 dark:bg-white/10 shadow-sm dark:shadow-black/20" : "hover:bg-white/40 dark:hover:bg-white/5"
+                              "w-full justify-start text-left rounded-md h-10 px-3 transition-colors",
+                              isActive 
+                                ? "bg-accent text-accent-foreground" 
+                                : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
                             )}
                           >
                             <Link
                               to={item.url}
-                              className={`flex items-center gap-3 w-full transition-all ${isActive
-                                ? "text-indigo-700 dark:text-indigo-400"
-                                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
-                                }`}
+                              className="flex items-center gap-3 w-full"
                             >
-                              <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500"}`} />
-                                <span className={`text-sm tracking-tight font-semibold`}>{item.title}</span>
+                              <item.icon className={cn(
+                                "h-4 w-4 flex-shrink-0",
+                                isActive ? "text-primary" : "text-muted-foreground"
+                              )} />
+                              <span className="text-sm font-medium">{item.title}</span>
                               {(item.url === "/messages" || item.url === "/parent/messages") && unreadCount > 0 && (
-                                <Badge className="ml-auto bg-indigo-600 text-xs px-2 h-5 min-w-[20px] flex items-center justify-center rounded-full">
+                                <Badge className="ml-auto bg-primary text-[10px] h-4 min-w-[16px] px-1 rounded-full">
                                   {unreadCount > 99 ? "99+" : unreadCount}
                                 </Badge>
                               )}
-                              {isActive && item.url !== "/messages" && item.url !== "/parent/messages" && <div className="ml-auto w-1.5 h-5 rounded-full bg-indigo-600 transition-all shadow-[0_0_10px_rgba(79,70,229,0.5)]" />}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -291,15 +293,15 @@ export function AppSidebar() {
           })}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-white/20 dark:border-white/5 p-6 pt-4 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 flex items-center gap-2 bg-white/30 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-2 border border-white/40 dark:border-white/5">
-              <Globe className="h-4 w-4 text-slate-400 dark:text-slate-600 ml-2" />
+        <SidebarFooter className="border-t p-4 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1 flex items-center gap-2 border rounded-md px-2 py-1 bg-muted/30">
+              <Globe className="h-3 w-3 text-muted-foreground ml-1" />
               <Select value={language} onValueChange={(val: Language) => setLanguage(val)}>
-                <SelectTrigger className="h-8 border-none bg-transparent shadow-none focus:ring-0 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                <SelectTrigger className="h-7 border-none bg-transparent shadow-none focus:ring-0 text-[11px] font-medium p-0">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="rounded-2xl border-none shadow-2xl dark:shadow-black/60 bg-white dark:bg-slate-900">
+                <SelectContent className="rounded-md">
                   <SelectItem value="en">English (US)</SelectItem>
                   <SelectItem value="fr">Français</SelectItem>
                   <SelectItem value="es">Español</SelectItem>
@@ -311,33 +313,34 @@ export function AppSidebar() {
             </div>
             
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="h-12 w-12 rounded-2xl bg-white/30 dark:bg-white/5 backdrop-blur-sm border border-white/40 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40"
+              className="h-9 w-9 rounded-md shrink-0"
             >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </div>
 
-          <div className="flex items-center gap-3 mb-4 bg-slate-50 dark:bg-white/5 rounded-3xl p-4 shadow-inner border border-slate-100 dark:border-white/5">
-            <Avatar className="h-10 w-10 flex-shrink-0 rounded-2xl bg-indigo-100 dark:bg-indigo-900 ring-2 ring-white/60 dark:ring-white/10 shadow-sm">
-              <AvatarFallback className="bg-gradient-to-tr from-indigo-500 to-purple-500 text-white text-xs font-bold">
+          <div className="flex items-center gap-3 p-3 border rounded-md bg-muted/20">
+            <Avatar className="h-8 w-8 flex-shrink-0 rounded border">
+              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
                 {user.email?.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col justify-center min-w-0">
-              <p className="text-xs font-bold text-slate-900 dark:text-white truncate tracking-tight">{user.email}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-tight mt-0.5">{label}</p>
+              <p className="text-[11px] font-bold truncate">{user.email}</p>
+              <p className="text-[10px] text-muted-foreground font-medium truncate">{label}</p>
             </div>
           </div>
+          
           <Button
             variant="ghost"
             size="sm"
             onClick={handleSignOut}
-            className="w-full justify-start text-left rounded-2xl h-12 px-4 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 transition-all font-bold text-sm gap-3 group"
+            className="w-full justify-start text-left rounded-md h-9 px-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors font-medium text-sm gap-2 mt-2"
           >
-            <LogOut className="h-5 w-5 flex-shrink-0 transition-transform group-hover:translate-x-1" />
+            <LogOut className="h-4 w-4" />
             <span>{t('signOut')}</span>
           </Button>
         </SidebarFooter>
@@ -345,3 +348,4 @@ export function AppSidebar() {
     </div>
   );
 }
+

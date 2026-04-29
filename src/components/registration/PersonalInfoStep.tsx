@@ -111,3 +111,4 @@ export const PersonalInfoStep = ({ data, onChange }: PersonalInfoStepProps) => {
     </div>
   );
 };
+

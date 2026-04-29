@@ -7,3 +7,4 @@ const DeviceManagementPage = () => {
 };
 
 export default DeviceManagementPage;
+

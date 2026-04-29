@@ -206,7 +206,7 @@ const SearchForm = ({ onSearchResults, onReset, onResultsFound }: SearchFormProp
   };
 
   return (
-    <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 mb-8 animate-fade-in">
+    <div className="bg-card rounded-xl p-8 shadow-sm border border-gray-100 mb-8 animate-fade-in">
       <h2 className="text-xl font-bold mb-4">Manual Check-out</h2>
       
       <div className="space-y-6">
@@ -306,3 +306,4 @@ const SearchForm = ({ onSearchResults, onReset, onResultsFound }: SearchFormProp
 };
 
 export default SearchForm;
+

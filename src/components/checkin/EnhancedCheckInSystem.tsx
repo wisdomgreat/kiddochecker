@@ -478,3 +478,4 @@ const EnhancedCheckInSystem = () => {
 };
 
 export default EnhancedCheckInSystem;
+

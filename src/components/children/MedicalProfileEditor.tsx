@@ -153,7 +153,7 @@ const MedicalProfileEditor = ({ childId, childName }: MedicalProfileEditorProps)
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900">Medical Profile</h2>
+                    <h2 className="text-3xl font-bold text-foreground">Medical Profile</h2>
                     <p className="text-slate-500">Managing health records for {childName}</p>
                 </div>
                 {canEdit && (
@@ -366,3 +366,4 @@ const MedicalProfileEditor = ({ childId, childName }: MedicalProfileEditorProps)
 };
 
 export default MedicalProfileEditor;
+

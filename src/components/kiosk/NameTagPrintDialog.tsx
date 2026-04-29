@@ -224,12 +224,12 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
         <div ref={printRef} className="max-h-[60vh] overflow-y-auto">
           <div className="flex flex-col gap-6 items-center">
             {/* Child Label Preview */}
-            <div className="w-[3.5in] h-[2.25in] border-2 border-dashed border-gray-400 p-3 flex flex-col justify-between bg-white relative">
+            <div className="w-[3.5in] h-[2.25in] border-2 border-dashed border-gray-400 p-3 flex flex-col justify-between bg-card relative">
               <div>
                 <div className="flex justify-between items-start border-b-2 border-black pb-1 mb-2">
                   <div>
-                    <h1 className="text-2xl font-black leading-tight uppercase m-0">{child.first_name}</h1>
-                    <h1 className="text-2xl font-black leading-tight uppercase m-0">{child.last_name}</h1>
+                    <h1 className="text-2xl font-bold leading-tight uppercase m-0">{child.first_name}</h1>
+                    <h1 className="text-2xl font-bold leading-tight uppercase m-0">{child.last_name}</h1>
                   </div>
                   <div className="bg-black text-white px-2 py-1 font-mono text-xl font-bold rounded">
                     {displayCode}
@@ -267,7 +267,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             </div>
 
             {/* Parent Ticket Preview */}
-            <div className="w-[3.5in] h-[2.25in] border-2 border-dashed border-gray-400 p-3 flex flex-col bg-white">
+            <div className="w-[3.5in] h-[2.25in] border-2 border-dashed border-gray-400 p-3 flex flex-col bg-card">
               <div className="text-xs font-bold text-center border-b border-black pb-1 mb-2">
                 PRIMARY GUARDIAN CLAIM TICKET
               </div>
@@ -299,3 +299,4 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
 };
 
 export default NameTagPrintDialog;
+

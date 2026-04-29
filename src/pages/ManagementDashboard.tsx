@@ -11,3 +11,4 @@ const ManagementDashboard = () => {
 };
 
 export default ManagementDashboard;
+

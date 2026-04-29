@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
-  FileText, CheckCircle, XCircle, Eye, Download, User,
+  FileText, CheckCircle, XCircle, Eye, User,
   Clock, AlertTriangle, Shield, ShieldCheck, ShieldX,
-  Users, Loader2, ExternalLink, Search
+  Users, Loader2, Search
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,7 +41,6 @@ const AdminDocumentVerificationSystem = () => {
   const [approvingDocId, setApprovingDocId] = useState<string | null>(null);
   const [issuanceDate, setIssuanceDate] = useState('');
 
-  // Load documents when a staff member is selected
   useEffect(() => {
     if (selectedStaff) {
       setLoadingDocs(true);
@@ -66,7 +63,7 @@ const AdminDocumentVerificationSystem = () => {
     const req = requirements.find(r => r.document_type === docType);
     if (req?.has_expiry) {
       setApprovingDocId(docId);
-      setIssuanceDate(new Date().toISOString().split('T')[0]); // Default to today
+      setIssuanceDate(new Date().toISOString().split('T')[0]);
       setShowApproveDialog(true);
     } else {
       executeApprove(docId);
@@ -94,13 +91,9 @@ const AdminDocumentVerificationSystem = () => {
     const doc = staffDocuments.find(d => d.id === approvingDocId);
     if (!doc) return;
     const req = requirements.find(r => r.document_type === doc.document_type);
-    
-    // Default to 12 months if not specified, 36 (3 years) specifically for police check if configured differently later
     const months = req?.expiry_months || (doc.document_type === 'police_check' ? 36 : 12); 
-    
     const issueDateObj = new Date(issuanceDate);
     issueDateObj.setMonth(issueDateObj.getMonth() + months);
-
     executeApprove(approvingDocId, issueDateObj.toISOString());
   };
 
@@ -146,241 +139,136 @@ const AdminDocumentVerificationSystem = () => {
     s.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const mandatoryReqs = requirements.filter(r => r.is_mandatory);
-
-  const getDocumentCompletionForUser = (docs: StaffDocument[]) => {
-    const approved = mandatoryReqs.filter(req =>
-      docs.some(d => d.document_type === req.document_type && d.status === 'approved')
-    );
-    return { approved: approved.length, total: mandatoryReqs.length };
-  };
-
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'approved': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'pending': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200';
+      case 'approved': return 'default';
+      case 'pending': return 'secondary';
+      case 'rejected': return 'destructive';
+      default: return 'outline';
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-              <ShieldCheck className="h-8 w-8 text-indigo-600" />
-              Staff Verification
-            </h1>
-            <p className="text-slate-500 mt-1">Review documents and verify staff members</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge className="bg-amber-100 text-amber-800 border-amber-200 px-3 py-1.5">
-              <Clock className="h-3.5 w-3.5 mr-1" />
-              {pendingVerifications.length} Pending
-            </Badge>
-          </div>
+    <div className="space-y-8 max-w-7xl mx-auto py-8 px-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Staff Verification</h1>
+          <p className="text-sm text-muted-foreground">Audit documentation and grant platform access.</p>
         </div>
-      </motion.div>
+        <Badge variant="outline" className="px-4 py-1.5 font-bold uppercase tracking-widest text-[10px]">
+          {pendingVerifications.length} Candidates Pending
+        </Badge>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Pending Staff List */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="lg:col-span-1"
-        >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Candidates List */}
+        <div className="lg:col-span-4 lg:sticky lg:top-8 h-fit">
           <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
+            <CardHeader className="bg-muted/30 border-b">
+              <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                Pending Verifications
+                Review Queue
               </CardTitle>
-              <div className="relative mt-2">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            </CardHeader>
+            <div className="p-4 border-b">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search staff..."
+                  placeholder="Filter name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9"
+                  className="pl-9"
                 />
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <CardContent className="p-0">
               {isLoadingPending ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                </div>
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
               ) : filteredPending.length === 0 ? (
-                <div className="text-center py-8">
-                  <ShieldCheck className="h-12 w-12 mx-auto text-emerald-300 mb-3" />
-                  <p className="font-semibold text-slate-600">All caught up!</p>
-                  <p className="text-sm text-slate-500 mt-1">No pending verifications.</p>
+                <div className="text-center py-16 text-muted-foreground">
+                  <ShieldCheck className="h-10 w-10 mx-auto opacity-20 mb-4" />
+                  <p className="text-xs font-bold uppercase">All Clean</p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                <div className="divide-y max-h-[600px] overflow-y-auto">
                   {filteredPending.map((staff) => (
-                    <motion.div
+                    <div
                       key={staff.user_id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedStaff?.user_id === staff.user_id
-                          ? 'border-indigo-400 bg-indigo-50 shadow-sm'
-                          : 'border-slate-200 hover:border-indigo-200 hover:bg-slate-50'
-                        }`}
+                      className={cn(
+                        "p-4 cursor-pointer transition-colors hover:bg-muted/50",
+                        selectedStaff?.user_id === staff.user_id ? "bg-muted border-l-4 border-l-slate-900" : ""
+                      )}
                       onClick={() => setSelectedStaff(staff)}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-xl flex items-center justify-center text-sm font-bold text-indigo-700">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded bg-slate-100 flex items-center justify-center text-xs font-bold">
                           {staff.first_name?.[0]}{staff.last_name?.[0]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-slate-800 truncate">
-                            {staff.first_name} {staff.last_name}
-                          </p>
-                          <p className="text-xs text-slate-500 truncate">{staff.email}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <Badge variant="outline" className="text-xs py-0 h-5">
-                              {staff.role}
-                            </Badge>
-                            <span className="text-xs text-slate-400">
-                              {staff.documents_submitted} docs
-                            </span>
-                          </div>
+                          <p className="font-bold text-sm truncate">{staff.first_name} {staff.last_name}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{staff.role}</p>
                         </div>
+                        <Badge variant="outline" className="text-[9px] font-bold">{staff.documents_submitted} Docs</Badge>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </div>
 
-        {/* Document Review Panel */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-          className="lg:col-span-2"
-        >
+        {/* Audit Details */}
+        <div className="lg:col-span-8">
           {selectedStaff ? (
-            <div className="space-y-4">
-              {/* Staff Info */}
+            <div className="space-y-6">
               <Card className="shadow-sm">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center text-xl font-bold text-indigo-700">
-                        {selectedStaff.first_name?.[0]}{selectedStaff.last_name?.[0]}
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-slate-800">
-                          {selectedStaff.first_name} {selectedStaff.last_name}
-                        </h2>
-                        <p className="text-sm text-slate-500">{selectedStaff.email}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{selectedStaff.role}</Badge>
-                          <Badge className={
-                            selectedStaff.verification_status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                              selectedStaff.verification_status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                'bg-slate-100 text-slate-800'
-                          }>
-                            {selectedStaff.verification_status}
-                          </Badge>
-                        </div>
-                      </div>
+                <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="text-lg">Audit File: {selectedStaff.first_name} {selectedStaff.last_name}</CardTitle>
+                        <CardDescription>{selectedStaff.email} • Applied {format(new Date(selectedStaff.created_at), 'PPP')}</CardDescription>
                     </div>
-                    <div className="text-right hidden sm:block">
-                      <p className="text-xs text-slate-500">Applied</p>
-                      <p className="text-sm font-medium">{format(new Date(selectedStaff.created_at), 'MMM dd, yyyy')}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Documents */}
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-indigo-600" />
-                    Submitted Documents ({staffDocuments.length})
-                  </CardTitle>
+                    <Badge variant={getStatusVariant(selectedStaff.verification_status)} className="font-bold uppercase text-[10px]">
+                        {selectedStaff.verification_status}
+                    </Badge>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                   {loadingDocs ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
-                    </div>
+                    <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
                   ) : staffDocuments.length === 0 ? (
-                    <Alert className="bg-amber-50 border-amber-200">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      <AlertDescription className="text-amber-700">
-                        This staff member has not uploaded any documents yet.
-                      </AlertDescription>
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>No evidentiary documents have been submitted for review.</AlertDescription>
                     </Alert>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {staffDocuments.map((doc) => (
-                        <div key={doc.id} className="border rounded-xl p-4 hover:bg-slate-50 transition-colors">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.status === 'approved' ? 'bg-emerald-100' :
-                                  doc.status === 'rejected' ? 'bg-red-100' : 'bg-indigo-100'
-                                }`}>
-                                <FileText className={`h-5 w-5 ${doc.status === 'approved' ? 'text-emerald-600' :
-                                    doc.status === 'rejected' ? 'text-red-600' : 'text-indigo-600'
-                                  }`} />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-sm text-slate-800">{doc.document_name}</h4>
-                                <p className="text-xs text-slate-500">
-                                  {requirements.find(r => r.document_type === doc.document_type)?.display_name || doc.document_type}
-                                  {' • '}
-                                  {format(new Date(doc.uploaded_at), 'MMM dd, yyyy')}
-                                  {doc.file_size && ` • ${(doc.file_size / 1024 / 1024).toFixed(1)} MB`}
-                                </p>
-                                {doc.description && (
-                                  <p className="text-xs text-slate-400 mt-0.5">Note: {doc.description}</p>
-                                )}
-                              </div>
+                        <div key={doc.id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/10">
+                          <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                              <FileText className="h-5 w-5 text-muted-foreground" />
                             </div>
-                            <div className="flex items-center gap-2 ml-13 sm:ml-0">
-                              <Badge className={getStatusColor(doc.status)}>
-                                {doc.status === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
-                                {doc.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
-                                {doc.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
-                                {doc.status}
-                              </Badge>
-                              {doc.file_path && (
-                                <Button variant="ghost" size="sm" onClick={() => handleViewDoc(doc.file_path)}>
+                            <div>
+                              <p className="font-bold text-sm">{doc.document_name}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                                {requirements.find(r => r.document_type === doc.document_type)?.display_name || doc.document_type}
+                              </p>
+                              {doc.description && <p className="text-xs text-muted-foreground italic mt-1">"{doc.description}"</p>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <Badge variant={getStatusVariant(doc.status)} className="font-bold text-[9px] uppercase h-5">{doc.status}</Badge>
+                             {doc.file_path && (
+                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleViewDoc(doc.file_path)}>
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                              )}
-                              {doc.status === 'pending' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    className="bg-emerald-600 hover:bg-emerald-700 h-8"
-                                    onClick={() => handleApproveClick(doc.id, doc.document_type)}
-                                  >
-                                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-red-600 border-red-200 hover:bg-red-50 h-8"
-                                    onClick={() => {
-                                      setRejectingDocId(doc.id);
-                                      setShowRejectDialog(true);
-                                    }}
-                                  >
-                                    <XCircle className="h-3.5 w-3.5 mr-1" />
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                            </div>
+                             )}
+                             {doc.status === 'pending' && (
+                                <div className="flex gap-1">
+                                  <Button size="sm" className="h-8 font-bold text-[10px] uppercase" onClick={() => handleApproveClick(doc.id, doc.document_type)}>Approve</Button>
+                                  <Button variant="outline" size="sm" className="h-8 font-bold text-[10px] uppercase text-destructive" onClick={() => { setRejectingDocId(doc.id); setShowRejectDialog(true); }}>Reject</Button>
+                                </div>
+                             )}
                           </div>
                         </div>
                       ))}
@@ -389,129 +277,89 @@ const AdminDocumentVerificationSystem = () => {
                 </CardContent>
               </Card>
 
-              {/* Final Verification Decision */}
-              <Card className="shadow-sm border-indigo-200 bg-indigo-50/30">
+              <Card className="shadow-sm border-slate-900 bg-slate-50 dark:bg-slate-900">
                 <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-indigo-600" />
-                    Final Verification Decision
-                  </CardTitle>
-                  <CardDescription>
-                    Once all documents are reviewed, make the final decision to grant or deny platform access.
-                  </CardDescription>
+                  <CardTitle className="text-base">Administrative Decision</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Textarea
                     value={verificationNotes}
                     onChange={(e) => setVerificationNotes(e.target.value)}
-                    placeholder="Add verification notes (optional)..."
-                    rows={2}
+                    placeholder="Enter final review notes..."
+                    rows={3}
                   />
-                  <div className="flex gap-3">
+                  <div className="flex gap-4">
                     <Button
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                      className="flex-1 font-bold uppercase h-11"
                       onClick={() => handleVerifyStaff('approve')}
                       disabled={isVerifying}
                     >
-                      {isVerifying ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <ShieldCheck className="h-4 w-4 mr-2" />
-                      )}
-                      Grant Full Access
+                      {isVerifying && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Approve Candidate
                     </Button>
                     <Button
                       variant="outline"
-                      className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
+                      className="flex-1 font-bold uppercase h-11 text-destructive"
                       onClick={() => handleVerifyStaff('reject')}
                       disabled={isVerifying}
                     >
-                      <ShieldX className="h-4 w-4 mr-2" />
-                      Deny Access
+                      Reject Candidate
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
           ) : (
-            <Card className="shadow-sm h-full">
-              <CardContent className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                  <Shield className="h-16 w-16 mx-auto text-slate-200 mb-4" />
-                  <h3 className="font-bold text-slate-600 text-lg">Select a Staff Member</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Choose a staff member from the list to review their documents.
-                  </p>
-                </div>
+            <Card className="shadow-sm border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-40 text-muted-foreground">
+                <Shield className="h-12 w-12 opacity-10 mb-4" />
+                <p className="text-sm font-bold uppercase">Selection Required</p>
+                <p className="text-xs">Pick a candidate from the queue to start audit.</p>
               </CardContent>
             </Card>
           )}
-        </motion.div>
+        </div>
       </div>
 
-      {/* Rejection Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-red-500" />
-              Reject Document
-            </DialogTitle>
-            <DialogDescription>
-              Provide a reason for rejection. The staff member will see this feedback.
-            </DialogDescription>
+            <DialogTitle>Documentation Rejection</DialogTitle>
+            <DialogDescription>Provide specific feedback for the candidate regarding this deficit.</DialogDescription>
           </DialogHeader>
           <Textarea
             value={rejectionReason}
             onChange={(e) => setRejectionReason(e.target.value)}
-            placeholder="e.g., Document is not legible, expired, or missing required information..."
-            rows={3}
+            placeholder="Feedback..."
+            rows={4}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowRejectDialog(false); setRejectionReason(''); }}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-red-600 hover:bg-red-700"
-              onClick={handleRejectDoc}
-              disabled={!rejectionReason.trim()}
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Reject Document
-            </Button>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRejectDoc} disabled={!rejectionReason.trim()}>Confirm Rejection</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Approve Document with Expiry Dialog */}
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-emerald-600" /> 
-              Approve Expected Document
-            </DialogTitle>
-            <DialogDescription>
-              This document expires periodically. Please enter the Date of Issuance (or last renewal date) so the system can calculate when it expires next.
-            </DialogDescription>
+            <DialogTitle>Expiry Management</DialogTitle>
+            <DialogDescription>Define the issuance date to calculate system-monitored expiration.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            <div>
-              <Label>Date of Issuance <span className="text-red-500">*</span></Label>
+            <div className="space-y-2">
+              <Label className="font-bold text-xs uppercase">Issuance Date</Label>
               <Input
                 type="date"
                 value={issuanceDate}
                 onChange={(e) => setIssuanceDate(e.target.value)}
-                className="mt-2"
                 max={new Date().toISOString().split('T')[0]}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowApproveDialog(false)}>Cancel</Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={submitExpiryApproval} disabled={!issuanceDate}>
-              Approve Document
-            </Button>
+            <Button onClick={submitExpiryApproval} disabled={!issuanceDate} className="font-bold">Set Expiry & Approve</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -520,3 +368,6 @@ const AdminDocumentVerificationSystem = () => {
 };
 
 export default AdminDocumentVerificationSystem;
+
+const cn = (...inputs: any[]) => inputs.filter(Boolean).join(' ');
+

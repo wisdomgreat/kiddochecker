@@ -409,7 +409,7 @@ const DeviceEnrollmentPage = () => {
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
                 <Zap className="h-8 w-8 text-indigo-600" />
                 Device Enrollment
               </h1>
@@ -509,11 +509,11 @@ const DeviceEnrollmentPage = () => {
             ].map((s) => (
               <div
                 key={s.label}
-                className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100"
+                className="bg-card rounded-2xl p-5 shadow-sm border border-slate-100"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-3xl font-bold text-slate-800">
+                    <p className="text-3xl font-bold text-foreground">
                       {s.value}
                     </p>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -536,7 +536,7 @@ const DeviceEnrollmentPage = () => {
           transition={{ delay: 0.15 }}
         >
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-2xl p-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <h2 className="font-bold text-foreground mb-4 flex items-center gap-2">
               <Shield className="h-5 w-5 text-indigo-600" /> Enrollment Guide
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -559,13 +559,13 @@ const DeviceEnrollmentPage = () => {
               ].map((s) => (
                 <div
                   key={s.step}
-                  className="flex items-start gap-3 bg-white/60 rounded-xl p-4"
+                  className="flex items-start gap-3 bg-card/60 rounded-xl p-4"
                 >
                   <div className="w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
                     {s.step}
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-800 text-sm">
+                    <p className="font-semibold text-foreground text-sm">
                       {s.title}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
@@ -591,7 +591,7 @@ const DeviceEnrollmentPage = () => {
                 <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
               </div>
             ) : devices.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+              <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-slate-200">
                 <Monitor className="h-16 w-16 mx-auto text-slate-300 mb-4" />
                 <h3 className="text-xl font-bold text-slate-600 mb-2">No devices enrolled yet</h3>
                 <Button
@@ -610,17 +610,17 @@ const DeviceEnrollmentPage = () => {
                     <motion.div key={typeGroup.value}>
                       <div className="flex items-center gap-3 mb-4">
                         <div className={`${typeGroup.bg} rounded-xl p-2`}><Icon className={`h-4 w-4 ${typeGroup.color}`} /></div>
-                        <h3 className="font-bold text-slate-800 tracking-tight">{typeGroup.label}s</h3>
+                        <h3 className="font-bold text-foreground tracking-tight">{typeGroup.label}s</h3>
                         <Badge variant="outline">{typeGroup.count}</Badge>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {typeGroup.devices.map((device) => (
-                          <motion.div key={device.id} whileHover={{ y: -4 }} className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all">
+                          <motion.div key={device.id} whileHover={{ y: -4 }} className="bg-card rounded-3xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-all">
                             <div className="flex items-start justify-between mb-4">
                               <div className="flex items-center gap-3">
                                 <div className={`${typeGroup.bg} rounded-2xl p-3`}><Icon className={`h-6 w-6 ${typeGroup.color}`} /></div>
                                 <div>
-                                  <p className="font-bold text-slate-900 leading-tight">{device.name}</p>
+                                  <p className="font-bold text-foreground leading-tight">{device.name}</p>
                                   <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider">{device.location || "No Location"}</p>
                                 </div>
                               </div>
@@ -691,9 +691,9 @@ const DeviceEnrollmentPage = () => {
           </TabsContent>
 
           <TabsContent value="security" className="space-y-4">
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-card rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-50">
-                <h3 className="font-bold text-slate-800">Recent Security Activity</h3>
+                <h3 className="font-bold text-foreground">Recent Security Activity</h3>
                 <p className="text-xs text-slate-500">Full audit trail of terminal authorizations and alerts</p>
               </div>
               <div className="divide-y divide-slate-50">
@@ -744,7 +744,7 @@ const DeviceEnrollmentPage = () => {
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
                   Secure Device Reference Code
                 </p>
-                <p className="text-4xl font-black tracking-[0.18em] text-indigo-700 font-mono">
+                <p className="text-4xl font-bold tracking-[0.18em] text-indigo-700 font-mono">
                   {enrollCode}
                 </p>
                 <div className="flex gap-2 mt-3 justify-center">
@@ -927,3 +927,4 @@ const DeviceEnrollmentPage = () => {
 };
 
 export default DeviceEnrollmentPage;
+

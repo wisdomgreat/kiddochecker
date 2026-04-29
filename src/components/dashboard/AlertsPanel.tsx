@@ -40,3 +40,4 @@ const AlertsPanel = () => {
 };
 
 export default AlertsPanel;
+

@@ -29,3 +29,4 @@ const EmptyState = ({ icon: Icon, title, description, actionLabel, onAction }: E
 };
 
 export default EmptyState;
+

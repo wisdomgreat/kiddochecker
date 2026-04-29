@@ -324,7 +324,7 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
               <Label className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-3">
                 <ShieldCheck className="w-3 h-3" /> Staff Identity Auth
               </Label>
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+              <div className="bg-gray-50 p-4 rounded-xl border border-border">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Key className="w-4 h-4 text-gray-400" />
@@ -347,7 +347,7 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
                   size="sm" 
                   onClick={handleGeneratePin}
                   disabled={isGeneratingPin}
-                  className="w-full bg-white hover:bg-gray-50 text-indigo-600 border-indigo-100 hover:border-indigo-200"
+                  className="w-full bg-card hover:bg-gray-50 text-indigo-600 border-indigo-100 hover:border-indigo-200"
                 >
                   {isGeneratingPin ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <RefreshCw className="w-3 h-3 mr-2" />}
                   {staffPin ? 'Reset Identity PIN' : 'Generate Identity PIN'}
@@ -389,3 +389,4 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
     </Dialog>
   );
 };
+

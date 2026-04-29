@@ -87,3 +87,4 @@ export const AccountSetupStep = ({ data, onChange }: AccountSetupStepProps) => {
     </div>
   );
 };
+

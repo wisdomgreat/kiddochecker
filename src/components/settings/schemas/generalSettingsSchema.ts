@@ -16,6 +16,7 @@ export const generalSettingsSchema = z.object({
   allowEarlyCheckOut: z.boolean().default(false),
   sessionLength: z.string(),
   logoUrl: z.string().optional(),
+  showCenterFinder: z.boolean().default(true),
 });
 
 export type GeneralSettingsFormValues = z.infer<typeof generalSettingsSchema>;
@@ -29,4 +30,6 @@ export const defaultValues: GeneralSettingsFormValues = {
   allowEarlyCheckOut: false,
   sessionLength: "60",
   logoUrl: "",
+  showCenterFinder: true,
 };
+

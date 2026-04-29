@@ -86,3 +86,4 @@ export const ModernSidebar = ({ className }: SidebarProps = {}) => {
     </div>
   );
 };
+

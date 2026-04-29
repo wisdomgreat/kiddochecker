@@ -24,3 +24,4 @@ const ModernLayout = ({ children }: ModernLayoutProps) => {
 };
 
 export default ModernLayout;
+

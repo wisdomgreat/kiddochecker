@@ -88,3 +88,4 @@ export interface ClassTeacher {
     last_name?: string;
   };
 }
+

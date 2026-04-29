@@ -178,3 +178,4 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
 };
 
 export default LoginForm;
+

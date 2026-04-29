@@ -205,7 +205,7 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
         {/* Header */}
         <div className="bg-gradient-to-br from-indigo-600 to-purple-700 px-6 py-5 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-card/20 rounded-xl flex items-center justify-center">
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
@@ -284,7 +284,7 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
                           {s.displayName.slice(0, 2)}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-800 text-sm">{s.displayName}</p>
+                          <p className="font-semibold text-foreground text-sm">{s.displayName}</p>
                           <Badge variant="outline" className="text-[10px] capitalize">{s.role.replace('_', ' ')}</Badge>
                         </div>
                       </div>
@@ -349,7 +349,7 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
                           {(c.first_name?.[0] ?? '')}{(c.last_name?.[0] ?? '')}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-800 text-sm">{c.first_name} {c.last_name}</p>
+                          <p className="font-semibold text-foreground text-sm">{c.first_name} {c.last_name}</p>
                           <p className="text-xs text-slate-500">Age {c.age ?? 'N/A'}</p>
                         </div>
                       </div>
@@ -385,3 +385,4 @@ export const AssignTeacherDialog = ({ classId, className, open, onOpenChange, on
     </Dialog>
   );
 };
+

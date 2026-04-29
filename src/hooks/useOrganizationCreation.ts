@@ -173,3 +173,4 @@ export const useOrganizationCreation = (onComplete: () => void) => {
     isSubmitting,
   };
 };
+

@@ -46,3 +46,4 @@ const ManagementCard = ({ title, description, icon: Icon, onClick, count, status
 };
 
 export default ManagementCard;
+

@@ -259,7 +259,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
       <DialogContent className="max-w-3xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
         <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
           <div className="relative z-10 flex items-center gap-4">
-            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+            <div className="bg-card/20 p-3 rounded-2xl backdrop-blur-md">
               <Baby className="h-8 w-8 text-white" />
             </div>
             <div>
@@ -268,7 +268,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
             </div>
           </div>
           {/* Decorative background circle */}
-          <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-12 -right-12 w-48 h-48 bg-card/10 rounded-full blur-3xl pointer-events-none" />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -320,7 +320,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     disabled={loading}
-                    className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                    className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all"
                     placeholder="Enter first name"
                   />
                 </div>
@@ -331,7 +331,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     disabled={loading}
-                    className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                    className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all"
                     placeholder="Enter last name"
                   />
                 </div>
@@ -346,7 +346,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                     value={age !== undefined ? age.toString() : ""}
                     onChange={(e) => setAge(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={loading}
-                    className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                    className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all"
                   />
                 </div>
                 <div className="space-y-2">
@@ -358,7 +358,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                       onChange={(e) => setEmergencyContactPhone(e.target.value)}
                       disabled={loading}
                       placeholder="(555) 000-0000"
-                      className="h-11 pl-10 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                      className="h-11 pl-10 rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all"
                     />
                     <Phone className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                   </div>
@@ -369,7 +369,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                 <div className="space-y-2">
                   <Label htmlFor="class-assignment" className="text-slate-600 font-bold uppercase text-[10px] tracking-wider">Classroom Assignment (Admin Only)</Label>
                   <Select value={classId || "none"} onValueChange={(val) => setClassId(val === "none" ? null : val)}>
-                    <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all">
+                    <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all">
                       <SelectValue placeholder="Assign to a class (optional)" />
                     </SelectTrigger>
                     <SelectContent>
@@ -391,7 +391,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                   onChange={(e) => setEmergencyContactName(e.target.value)}
                   disabled={loading}
                   placeholder="Full name of emergency contact"
-                  className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                  className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all"
                 />
               </div>
 
@@ -403,7 +403,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                   onChange={(e) => setNotes(e.target.value)}
                   disabled={loading}
                   rows={3}
-                  className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all resize-none"
+                  className="rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all resize-none"
                   placeholder="Any other important information..."
                 />
               </div>
@@ -618,7 +618,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                   onChange={(e) => setMedicalData({ ...medicalData, emergency_notes: e.target.value })}
                   rows={4}
                   disabled={!canEditHealth || loading}
-                  className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all resize-none text-slate-800 text-sm"
+                  className="rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all resize-none text-foreground text-sm"
                   placeholder="Include any specific medical instructions or developmental notes here..."
                 />
               </div>
@@ -651,7 +651,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
               <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-[2rem] space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h4 className="font-black text-indigo-900 text-sm italic">Enable Independent Access</h4>
+                    <h4 className="font-bold text-indigo-900 text-sm italic">Enable Independent Access</h4>
                     <p className="text-xs text-indigo-600/70 font-medium">Allow this child to check themselves in/out using a personal PIN.</p>
                   </div>
                   <Switch 
@@ -670,20 +670,20 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                       className="pt-4 border-t border-indigo-200/50 space-y-4"
                     >
                       <div className="space-y-2">
-                        <Label className="text-indigo-900 font-black uppercase text-[10px] tracking-widest">Personal Access PIN</Label>
+                        <Label className="text-indigo-900 font-bold uppercase text-[10px] tracking-widest">Personal Access PIN</Label>
                         <Input 
                           type="password"
                           maxLength={8}
                           placeholder="Enter 4-8 digit PIN"
                           value={youthPin}
                           onChange={(e) => setYouthPin(e.target.value.replace(/[^0-9]/g, ''))}
-                          className="h-12 rounded-2xl bg-white border-indigo-200 focus:ring-indigo-500 text-center text-2xl font-black tracking-[0.5em]"
+                          className="h-12 rounded-2xl bg-card border-indigo-200 focus:ring-indigo-500 text-center text-2xl font-bold tracking-[0.5em]"
                         />
                         <p className="text-[10px] text-indigo-500 font-bold text-center">Youths will use this PIN to bypass parent verification at the kiosk.</p>
                       </div>
 
-                      <div className="p-4 bg-white/50 rounded-2xl border border-indigo-100">
-                        <h5 className="text-[10px] font-black text-indigo-900 uppercase mb-2">Security Note</h5>
+                      <div className="p-4 bg-card/50 rounded-2xl border border-indigo-100">
+                        <h5 className="text-[10px] font-bold text-indigo-900 uppercase mb-2">Security Note</h5>
                         <p className="text-[10px] text-indigo-600 leading-relaxed italic">
                           Youth self-check is intended for older children. Ensure the child understands their PIN is private and should not be shared.
                         </p>
@@ -725,3 +725,4 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
 };
 
 export default AddEditChildDialog;
+

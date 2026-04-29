@@ -126,9 +126,9 @@ const CenterFinder = () => {
   return (
     <div className="flex flex-col lg:flex-row gap-6 p-1 h-[calc(100vh-12rem)] min-h-[600px]">
       {/* Sidebar - List of Centers */}
-      <Card className="flex-1 lg:max-w-md bg-white/5 border-white/10 backdrop-blur-xl overflow-hidden flex flex-col rounded-3xl">
+      <Card className="flex-1 lg:max-w-md bg-card/5 border-white/10 backdrop-blur-xl overflow-hidden flex flex-col rounded-3xl">
         <CardHeader className="p-6 pb-2">
-          <CardTitle className="text-2xl font-black italic uppercase tracking-tight text-white flex items-center gap-3">
+          <CardTitle className="text-2xl font-bold italic uppercase tracking-tight text-white flex items-center gap-3">
             <Globe className="w-6 h-6 text-indigo-400" />
             Center Finder
           </CardTitle>
@@ -137,7 +137,7 @@ const CenterFinder = () => {
               placeholder="Search by city or name..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white/5 border-white/10 text-white rounded-2xl pl-10 h-12"
+              className="bg-card/5 border-white/10 text-white rounded-2xl pl-10 h-12"
             />
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
           </div>
@@ -145,7 +145,7 @@ const CenterFinder = () => {
         <CardContent className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
           {loading ? (
              <div className="space-y-3">
-               {[1,2,3].map(i => <div key={i} className="h-24 bg-white/5 animate-pulse rounded-2xl" />)}
+               {[1,2,3].map(i => <div key={i} className="h-24 bg-card/5 animate-pulse rounded-2xl" />)}
              </div>
           ) : filteredCenters.length === 0 ? (
             <div className="text-center py-12">
@@ -161,14 +161,14 @@ const CenterFinder = () => {
                 className={`w-full p-4 rounded-2xl text-left transition-all border ${
                    selectedCenter?.id === center.id 
                     ? 'bg-indigo-600 border-indigo-500 shadow-lg shadow-indigo-600/20' 
-                    : 'bg-white/5 border-white/5 hover:border-white/20'
+                    : 'bg-card/5 border-white/5 hover:border-white/20'
                 }`}
               >
                 <div className="flex justify-between items-start mb-1">
                   <h3 className={`font-bold ${selectedCenter?.id === center.id ? 'text-white' : 'text-indigo-100'}`}>
                     {center.name}
                   </h3>
-                  <Badge className={selectedCenter?.id === center.id ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-400 border-0'}>
+                  <Badge className={selectedCenter?.id === center.id ? 'bg-card/20 text-white' : 'bg-emerald-500/10 text-emerald-400 border-0'}>
                     OPEN
                   </Badge>
                 </div>
@@ -192,7 +192,7 @@ const CenterFinder = () => {
 
       {/* Main Area - Map & Details */}
       <div className="flex-[2] flex flex-col gap-6 h-full">
-        <Card className="flex-1 bg-white/5 border-white/10 rounded-[2.5rem] overflow-hidden relative group">
+        <Card className="flex-1 bg-card/5 border-white/10 rounded-[2.5rem] overflow-hidden relative group">
           {(!apiKey || loadError) ? (
             <div className="absolute inset-0 bg-[#0a0f25] flex flex-col items-center justify-center p-8 text-center">
               <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center mb-4">
@@ -236,7 +236,7 @@ const CenterFinder = () => {
                <motion.div 
                  initial={{ opacity: 0, y: 20 }}
                  animate={{ opacity: 1, y: 0 }}
-                 className="bg-white/10 backdrop-blur-2xl border border-white/10 p-6 rounded-[2rem] max-w-lg shadow-2xl pointer-events-auto mx-auto lg:mx-0"
+                 className="bg-card/10 backdrop-blur-2xl border border-white/10 p-6 rounded-[2rem] max-w-lg shadow-2xl pointer-events-auto mx-auto lg:mx-0"
                >
                  <div className="flex items-center gap-4 mb-4">
                     <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
@@ -249,14 +249,14 @@ const CenterFinder = () => {
                  </div>
                  
                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl">
+                    <div className="flex items-center gap-3 bg-card/5 p-3 rounded-xl">
                        <Phone className="w-4 h-4 text-indigo-400" />
                        <div className="text-[11px] font-bold text-white/30 uppercase tracking-wider">
                           Call Support
                           <div className="text-white lowercase font-medium">{selectedCenter.phone || '(555) 000-0000'}</div>
                        </div>
                     </div>
-                    <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl">
+                    <div className="flex items-center gap-3 bg-card/5 p-3 rounded-xl">
                        <Clock className="w-4 h-4 text-emerald-400" />
                        <div className="text-[11px] font-bold text-white/30 uppercase tracking-wider">
                           Operating Hours
@@ -269,7 +269,7 @@ const CenterFinder = () => {
                     <Button className="flex-1 bg-indigo-600 hover:bg-indigo-500 rounded-xl h-12 font-bold gap-2">
                       <Navigation className="w-4 h-4" /> Get Directions
                     </Button>
-                    <Button variant="outline" className="flex-1 bg-white/5 border-white/10 text-white hover:bg-white/10 rounded-xl h-12 font-bold">
+                    <Button variant="outline" className="flex-1 bg-card/5 border-white/10 text-white hover:bg-card/10 rounded-xl h-12 font-bold">
                       Book Now
                     </Button>
                  </div>
@@ -283,3 +283,4 @@ const CenterFinder = () => {
 };
 
 export default CenterFinder;
+

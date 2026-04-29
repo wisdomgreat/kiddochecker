@@ -11,6 +11,7 @@ import { ChurchInfoFields } from "./ChurchInfoFields";
 import { AddressField } from "./AddressField";
 import { CheckInSettingsFields } from "./CheckInSettingsFields";
 import { CheckInPolicyFields } from "./CheckInPolicyFields";
+import { FeatureToggleFields } from "./FeatureToggleFields";
 import { Loader2 } from "lucide-react";
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { ImageUpload } from "@/components/ui/image-upload";
@@ -50,6 +51,7 @@ const GeneralSettings = () => {
         allowEarlyCheckOut: false,
         sessionLength: "60",
         logoUrl: orgSettings.logo_url || "",
+        showCenterFinder: orgSettings.show_center_finder ?? true,
       });
     }
   }, [orgSettings, form]);
@@ -61,6 +63,7 @@ const GeneralSettings = () => {
         .update({
           name: values.churchName,
           logo_url: values.logoUrl,
+          show_center_finder: values.showCenterFinder,
         })
         .eq("id", orgSettings?.id)
         .select()
@@ -125,6 +128,7 @@ const GeneralSettings = () => {
         <AddressField form={form} />
         <CheckInSettingsFields form={form} />
         <CheckInPolicyFields form={form} />
+        <FeatureToggleFields form={form} />
         <Button type="submit" disabled={updateSettingsMutation.isPending}>
           {updateSettingsMutation.isPending && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -137,3 +141,4 @@ const GeneralSettings = () => {
 };
 
 export default GeneralSettings;
+

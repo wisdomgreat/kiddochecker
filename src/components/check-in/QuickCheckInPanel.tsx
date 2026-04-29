@@ -127,3 +127,4 @@ const QuickCheckInPanel = () => {
 };
 
 export default QuickCheckInPanel;
+

@@ -6,3 +6,4 @@ const ParentRegistration = () => {
 };
 
 export default ParentRegistration;
+

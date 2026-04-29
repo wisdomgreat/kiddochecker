@@ -133,3 +133,4 @@ export const useClasses = () => {
     isUpdatingClass: updateClassMutation.isPending,
   };
 };
+

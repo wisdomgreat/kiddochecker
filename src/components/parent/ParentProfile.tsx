@@ -360,10 +360,10 @@ const ParentProfile = () => {
                 <div className="p-2 bg-indigo-100 rounded-xl">
                     <QrCode className="h-5 w-5 text-indigo-700" />
                 </div>
-                <h4 className="font-black text-slate-900 leading-tight">Kiosk Access QR</h4>
+                <h4 className="font-bold text-foreground leading-tight">Kiosk Access QR</h4>
              </div>
              
-             <div className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-50">
+             <div className="bg-card p-4 rounded-2xl shadow-sm border border-indigo-50">
                 {user?.id ? (
                     <QRCodeSVG 
                       value={user.id} 
@@ -380,7 +380,7 @@ const ParentProfile = () => {
              </p>
           </div>
 
-          <div className="h-px bg-slate-100 dark:bg-white/5 my-2" />
+          <div className="h-px bg-slate-100 dark:bg-card/5 my-2" />
 
           {/* Church Membership Section */}
           <div className="space-y-6">
@@ -390,12 +390,12 @@ const ParentProfile = () => {
                         <Heart className="h-5 w-5 text-indigo-600" />
                     </div>
                     <div>
-                        <h4 className="font-black text-slate-900 leading-tight">Church Membership</h4>
+                        <h4 className="font-bold text-foreground leading-tight">Church Membership</h4>
                         <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Congregation Status</p>
                     </div>
                 </div>
                 {myMembership ? (
-                    <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40 px-3 py-1 rounded-full font-black uppercase text-[9px] tracking-tight">
+                    <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40 px-3 py-1 rounded-full font-bold uppercase text-[9px] tracking-tight">
                         {myMembership.membership_type} Member
                     </Badge>
                 ) : (
@@ -405,13 +405,13 @@ const ParentProfile = () => {
                 )}
             </div>
 
-            <div className="bg-slate-50/50 dark:bg-white/5 rounded-3xl p-6 border border-slate-100 dark:border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-slate-50/50 dark:bg-card/5 rounded-3xl p-6 border border-slate-100 dark:border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-tighter">Joined Since</Label>
+                    <Label className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 tracking-tighter">Joined Since</Label>
                     <p className="font-bold text-slate-700 dark:text-slate-300">{myMembership ? format(new Date(myMembership.joined_at), 'MMMM dd, yyyy') : 'N/A'}</p>
                 </div>
                 <div className="space-y-1">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Membership Type</Label>
+                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Membership Type</Label>
                     <div className="flex gap-2 mt-1">
                         {['visitor', 'regular', 'registered'].map(type => {
                             const isActive = myMembership?.membership_type === type;
@@ -421,10 +421,10 @@ const ParentProfile = () => {
                                     size="sm" 
                                     variant={isActive ? 'default' : 'outline'} 
                                     className={cn(
-                                        "rounded-full h-8 px-5 text-[10px] font-black uppercase tracking-tight transition-all duration-300",
+                                        "rounded-full h-8 px-5 text-[10px] font-bold uppercase tracking-tight transition-all duration-300",
                                         isActive 
                                             ? "bg-indigo-600 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500 ring-offset-2" 
-                                            : "bg-white text-slate-400 border-slate-200 hover:border-indigo-300 hover:text-indigo-500"
+                                            : "bg-card text-slate-400 border-slate-200 hover:border-indigo-300 hover:text-indigo-500"
                                     )}
                                     // Removed isEditing check to allow instant joining as a member
                                     onClick={() => {
@@ -448,7 +448,7 @@ const ParentProfile = () => {
                     </div>
                 </div>
                 <div className="md:col-span-2 space-y-4">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Spiritual Milestones</Label>
+                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Spiritual Milestones</Label>
                     <div className="flex flex-wrap gap-3">
                         <AnimatePresence mode="popLayout">
                             {(myMembership?.spiritual_milestones as Milestone[] || []).map((m, i) => (
@@ -468,7 +468,7 @@ const ParentProfile = () => {
                         
                         <Button 
                             variant="ghost" 
-                            className="h-8 rounded-full text-[10px] font-black text-indigo-600 hover:bg-indigo-50 px-4 border border-dashed border-indigo-200"
+                            className="h-8 rounded-full text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-4 border border-dashed border-indigo-200"
                             onClick={() => setIsMilestoneOpen(true)}
                         >
                             <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
@@ -502,7 +502,7 @@ const ParentProfile = () => {
       <Dialog open={isMilestoneOpen} onOpenChange={setIsMilestoneOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
             <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <DialogTitle className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
                     <Zap className="h-6 w-6 text-indigo-600" />
                     Record Milestone
                 </DialogTitle>
@@ -512,7 +512,7 @@ const ParentProfile = () => {
             </DialogHeader>
             <div className="grid gap-6 py-4">
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Milestone Type</Label>
+                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest pl-1">Milestone Type</Label>
                     <Select value={newMilestoneType} onValueChange={setNewMilestoneType}>
                         <SelectTrigger className="rounded-2xl border-slate-100 bg-slate-50/50 h-12 font-bold text-slate-700">
                             <SelectValue placeholder="Select type" />
@@ -527,7 +527,7 @@ const ParentProfile = () => {
                     </Select>
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Completion Date</Label>
+                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest pl-1">Completion Date</Label>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
@@ -554,10 +554,10 @@ const ParentProfile = () => {
                 </div>
             </div>
             <DialogFooter className="sm:justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/5">
-                <Button variant="ghost" className="rounded-2xl font-bold h-12 px-6 dark:hover:bg-white/5" onClick={() => setIsMilestoneOpen(false)}>
+                <Button variant="ghost" className="rounded-2xl font-bold h-12 px-6 dark:hover:bg-card/5" onClick={() => setIsMilestoneOpen(false)}>
                     Cancel
                 </Button>
-                <Button className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black h-12 px-8 shadow-lg shadow-indigo-100 dark:shadow-indigo-500/20" onClick={handleAddMilestone}>
+                <Button className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold h-12 px-8 shadow-lg shadow-indigo-100 dark:shadow-indigo-500/20" onClick={handleAddMilestone}>
                     Save Milestone
                 </Button>
             </DialogFooter>
@@ -568,3 +568,4 @@ const ParentProfile = () => {
 };
 
 export default ParentProfile;
+

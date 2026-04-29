@@ -110,3 +110,4 @@ export const OrganizationWizard = ({ onComplete }: OrganizationWizardProps) => {
 };
 
 export default OrganizationWizard;
+

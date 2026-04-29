@@ -55,14 +55,14 @@ export function DataTable<T>({
           <input
             type="text"
             placeholder={searchPlaceholder}
-            className="pl-10 pr-4 py-2 border border-gray-200 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+            className="pl-10 pr-4 py-2 border border-border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       )}
       
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="border border-border rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -97,7 +97,7 @@ export function DataTable<T>({
               </tr>
             ))}
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-card divide-y divide-gray-200">
             {loading ? (
               <tr>
                 <td
@@ -146,3 +146,4 @@ export function DataTable<T>({
     </div>
   );
 }
+

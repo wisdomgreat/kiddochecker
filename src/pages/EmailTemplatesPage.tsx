@@ -152,3 +152,4 @@ const EmailTemplatesPage = () => {
 };
 
 export default EmailTemplatesPage;
+

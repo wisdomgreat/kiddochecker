@@ -106,3 +106,4 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     </ThemeContext.Provider>
   );
 };
+

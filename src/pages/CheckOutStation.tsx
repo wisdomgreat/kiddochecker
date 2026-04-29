@@ -265,7 +265,7 @@ const CheckOutStation = () => {
                     {filteredChildren.map((record: any) => (
                       <div
                         key={record.id}
-                        className="flex items-center justify-between p-4 border rounded-lg bg-white"
+                        className="flex items-center justify-between p-4 border rounded-lg bg-card"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-3">
@@ -380,3 +380,4 @@ const CheckOutStation = () => {
 };
 
 export default CheckOutStation;
+

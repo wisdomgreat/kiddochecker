@@ -72,3 +72,4 @@ export const useEmailTemplates = () => {
     isUpdating: updateTemplateMutation.isPending,
   };
 };
+

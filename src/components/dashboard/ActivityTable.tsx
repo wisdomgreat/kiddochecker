@@ -136,3 +136,4 @@ const ActivityTable = ({ activityData, isLoading }: ActivityTableProps) => {
 };
 
 export default ActivityTable;
+

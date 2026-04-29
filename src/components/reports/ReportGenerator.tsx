@@ -99,3 +99,4 @@ const ReportGenerator = ({ open, onOpenChange, onClose }: ReportGeneratorProps) 
 };
 
 export default ReportGenerator;
+

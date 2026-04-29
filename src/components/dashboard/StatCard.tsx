@@ -45,7 +45,7 @@ const StatCard: React.FC<StatCardProps> = ({
             </div>
             
             <div className="space-y-2">
-              <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
+              <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
               {trend && (
                 <div className="flex items-center gap-1">
                   <span className={cn(
@@ -77,3 +77,4 @@ const StatCard: React.FC<StatCardProps> = ({
 };
 
 export default StatCard;
+

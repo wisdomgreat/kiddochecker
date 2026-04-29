@@ -258,7 +258,7 @@ const StaffRealtimeDashboard = () => {
           <CardContent>
             <div className="space-y-3">
               {filteredAttendance.map((record) => (
-                <div key={record.id} className="flex items-center justify-between p-4 border rounded-lg bg-white">
+                <div key={record.id} className="flex items-center justify-between p-4 border rounded-lg bg-card">
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                       <Users className="h-5 w-5 text-blue-600" />
@@ -387,3 +387,4 @@ const StaffRealtimeDashboard = () => {
 };
 
 export default StaffRealtimeDashboard;
+

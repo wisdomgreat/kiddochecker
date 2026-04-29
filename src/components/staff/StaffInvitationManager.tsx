@@ -247,3 +247,4 @@ const StaffInvitationManager = () => {
 };
 
 export default StaffInvitationManager;
+

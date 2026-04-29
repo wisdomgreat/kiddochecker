@@ -47,3 +47,4 @@ export function CheckInSettingsFields({ form }: CheckInSettingsFieldsProps) {
     </div>
   );
 }
+

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Key, Lock, Monitor, Save, Loader2 } from "lucide-react";
+import { Monitor, Save, Loader2, Lock } from "lucide-react";
 
 const KioskSettings = () => {
     const { toast } = useToast();
@@ -90,24 +90,24 @@ const KioskSettings = () => {
     }
 
     return (
-        <Card className="w-full shadow-sm border-slate-200">
-            <CardHeader className="bg-slate-50/50">
+        <Card className="shadow-sm">
+            <CardHeader className="border-b bg-muted/20">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-100 rounded-lg">
-                        <Monitor className="h-5 w-5 text-indigo-600" />
+                    <div className="p-2 bg-primary/10 rounded border border-primary/20">
+                        <Monitor className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                         <CardTitle>Kiosk Security</CardTitle>
-                        <CardDescription>Configure access control for the check-in/out station</CardDescription>
+                        <CardDescription>Configure access control for the check-in station.</CardDescription>
                     </div>
                 </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="space-y-0.5">
-                        <Label className="text-base font-semibold">Requirement PIN for Kiosk</Label>
-                        <p className="text-sm text-slate-500">
-                            When enabled, staff must enter a PIN to access child data at the kiosk.
+                <div className="flex items-center justify-between p-4 border rounded-md bg-muted/30">
+                    <div className="space-y-1">
+                        <Label className="text-sm font-bold">Require PIN for Kiosk</Label>
+                        <p className="text-xs text-muted-foreground">
+                            Force staff to enter a PIN to access child data at the kiosk.
                         </p>
                     </div>
                     <Switch
@@ -116,33 +116,31 @@ const KioskSettings = () => {
                     />
                 </div>
 
-                <div className={`space-y-2 transition-opacity duration-200 ${requirePin ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-                    <Label htmlFor="kiosk-pin" className="text-sm font-medium">Station Master PIN</Label>
-                    <div className="relative max-w-sm">
-                        <Input
-                            id="kiosk-pin"
-                            type="text"
-                            maxLength={6}
-                            value={pin}
-                            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                            placeholder="6-digit number"
-                            className="pl-10 text-xl tracking-widest font-mono h-12"
-                        />
-                        <Lock className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+                <div className={`space-y-3 ${!requirePin && 'opacity-50 pointer-events-none'}`}>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="kiosk-pin" className="text-xs font-bold uppercase text-muted-foreground">Station Master PIN</Label>
+                        <div className="relative max-w-xs">
+                            <Input
+                                id="kiosk-pin"
+                                type="text"
+                                maxLength={6}
+                                value={pin}
+                                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                                placeholder="6-digit PIN"
+                                className="pl-9 font-mono tracking-widest h-10"
+                            />
+                            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground italic">
+                            Shared across all kiosks. Use a unique 6-digit code.
+                        </p>
                     </div>
-                    <p className="text-xs text-slate-400">
-                        This PIN is shared across all kiosks. Use a unique 6-digit code.
-                    </p>
                 </div>
 
-                <div className="pt-4">
-                    <Button onClick={saveSettings} disabled={saving} className="w-full sm:w-auto px-8">
-                        {saving ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Save className="mr-2 h-4 w-4" />
-                        )}
-                        Update Kiosk Security
+                <div className="pt-2">
+                    <Button onClick={saveSettings} disabled={saving} className="min-w-[140px]">
+                        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Kiosk Settings
                     </Button>
                 </div>
             </CardContent>
@@ -151,3 +149,4 @@ const KioskSettings = () => {
 };
 
 export default KioskSettings;
+

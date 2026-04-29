@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/CleanAuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, MapPin, User, Calendar } from "lucide-react";
+import { Clock, User, Calendar } from "lucide-react";
 
 interface AttendanceRecord {
   id: string;
@@ -89,7 +86,10 @@ const AttendanceTracking = () => {
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center">Loading attendance data...</div>
+          <div className="text-center text-muted-foreground flex items-center justify-center gap-2">
+            <Clock className="h-4 w-4 animate-pulse" />
+            Loading attendance data...
+          </div>
         </CardContent>
       </Card>
     );
@@ -97,55 +97,40 @@ const AttendanceTracking = () => {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+      <Card className="shadow-sm">
+        <CardHeader className="border-b bg-muted/20">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Calendar className="h-5 w-5 text-primary" />
             Recent Attendance
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {attendance.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-12 text-muted-foreground border border-dashed rounded-md">
               No attendance records found
             </div>
           ) : (
-            <motion.div
-              className="space-y-4"
-              variants={{
-                hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: { staggerChildren: 0.1 }
-                }
-              }}
-              initial="hidden"
-              animate="show"
-            >
+            <div className="space-y-3">
               {attendance.map((record) => (
-                <motion.div
+                <div
                   key={record.id}
-                  variants={{
-                    hidden: { opacity: 0, x: -20 },
-                    show: { opacity: 1, x: 0 }
-                  }}
-                  className="p-4 border rounded-lg hover:shadow-sm transition-shadow"
+                  className="p-4 border rounded-md hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-blue-600" />
+                      <div className="w-10 h-10 bg-primary/10 rounded flex items-center justify-center border border-primary/20">
+                        <User className="h-5 w-5 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-medium">{getChildName(record.child_id)}</h3>
-                        <p className="text-sm text-gray-500">
+                        <h3 className="font-bold text-sm tracking-tight">{getChildName(record.child_id)}</h3>
+                        <p className="text-xs text-muted-foreground">
                           {new Date(record.attendance_date).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Clock className="h-3 w-3" />
+                    <div className="text-right space-y-1">
+                      <div className="flex items-center justify-end gap-1.5 text-xs font-medium">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
                         <span>
                           In: {record.checked_in_at ?
                             new Date(record.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -153,7 +138,7 @@ const AttendanceTracking = () => {
                         </span>
                       </div>
                       {record.checked_out_at && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>
                             Out: {new Date(record.checked_out_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -162,9 +147,9 @@ const AttendanceTracking = () => {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -173,3 +158,4 @@ const AttendanceTracking = () => {
 };
 
 export default AttendanceTracking;
+

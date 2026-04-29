@@ -87,3 +87,4 @@ export const useStaffInvitations = () => {
     isResending: resendInvitationMutation.isPending,
   };
 };
+

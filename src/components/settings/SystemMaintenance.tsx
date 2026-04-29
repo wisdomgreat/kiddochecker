@@ -9,8 +9,7 @@ import {
     RefreshCw,
     Loader2,
     AlertTriangle,
-    FileSearch,
-    CheckCircle2
+    FileSearch
 } from "lucide-react";
 
 const SystemMaintenance = () => {
@@ -41,7 +40,6 @@ const SystemMaintenance = () => {
                             updated_at: new Date().toISOString()
                         } as any, {
                             onConflict: 'child_id',
-                            // Only update if existing profile is empty/missing
                             ignoreDuplicates: false
                         });
 
@@ -68,8 +66,6 @@ const SystemMaintenance = () => {
     const handleStorageCleanup = async () => {
         try {
             setCleaning(true);
-
-            // 1. Get all file paths in the database
             const { data: dbDocs, error: dbError } = await (supabase
                 .from('staff_documents' as any) as any)
                 .select('file_path');
@@ -77,9 +73,6 @@ const SystemMaintenance = () => {
             if (dbError) throw dbError;
             const validPaths = new Set(dbDocs?.map(d => d.file_path).filter(Boolean));
 
-            // 2. List all files in storage
-            // Note: list() only lists one level. If files are in folders, we need recursion.
-            // Our files are in {user_id}/{filename}
             const { data: folders, error: foldersError } = await supabase.storage
                 .from('staff-documents')
                 .list();
@@ -88,7 +81,7 @@ const SystemMaintenance = () => {
 
             let deletedCount = 0;
             for (const folder of (folders || [])) {
-                if (folder.id === null) { // It's a directory (user_id)
+                if (folder.id === null) {
                     const { data: files, error: filesError } = await supabase.storage
                         .from('staff-documents')
                         .list(folder.name);
@@ -126,28 +119,27 @@ const SystemMaintenance = () => {
 
     return (
         <div className="space-y-6">
-            <Card className="border-amber-100 shadow-sm">
-                <CardHeader className="bg-amber-50/50">
-                    <CardTitle className="text-amber-800 flex items-center gap-2">
-                        <Database className="h-5 w-5" />
+            <Card className="shadow-sm">
+                <CardHeader className="border-b bg-muted/20">
+                    <CardTitle className="flex items-center gap-2">
+                        <Database className="h-5 w-5 text-primary" />
                         Data Migration
                     </CardTitle>
                     <CardDescription>
                         Migrate medical data from legacy fields to the new structured format.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-6">
-                    <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-xl border border-amber-100 mb-6">
-                        <AlertTriangle className="h-5 w-5 text-amber-600 mt-1 flex-shrink-0" />
-                        <div className="text-sm text-amber-800">
-                            <p className="font-semibold mb-1">Important Note</p>
-                            <p>This will copy data from the old 'Allergies' and 'Medical Info' text fields into the new profile system. Existing structured data will not be overwritten.</p>
+                <CardContent className="pt-6 space-y-4">
+                    <div className="flex items-start gap-3 p-3 border rounded-md bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 mt-1 flex-shrink-0" />
+                        <div className="text-xs text-amber-800 dark:text-amber-200">
+                            <p className="font-bold mb-1">Important</p>
+                            <p>This will copy data from old 'Allergies' and 'Medical Info' fields. Existing structured data won't be overwritten.</p>
                         </div>
                     </div>
                     <Button
                         onClick={handleMigration}
                         disabled={migrating}
-                        className="bg-amber-600 hover:bg-amber-700 text-white"
                     >
                         {migrating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         Start Medical Migration
@@ -155,25 +147,25 @@ const SystemMaintenance = () => {
                 </CardContent>
             </Card>
 
-            <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50">
+            <Card className="shadow-sm">
+                <CardHeader className="border-b bg-muted/20">
                     <CardTitle className="flex items-center gap-2">
-                        <FileSearch className="h-5 w-5 text-indigo-600" />
+                        <FileSearch className="h-5 w-5 text-primary" />
                         Storage Cleanup
                     </CardTitle>
                     <CardDescription>
                         Identify and remove orphaned files in the 'staff-documents' bucket.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="pt-6">
-                    <p className="text-sm text-slate-500 mb-6">
-                        Files in Supabase Storage that aren't linked to any document record in the database will be permanently deleted to save space.
+                <CardContent className="pt-6 space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Files in storage that aren't linked to any document record in the database will be permanently deleted.
                     </p>
                     <Button
                         variant="outline"
                         onClick={handleStorageCleanup}
                         disabled={cleaning}
-                        className="border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
                     >
                         {cleaning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                         Run Storage Cleanup
@@ -185,3 +177,4 @@ const SystemMaintenance = () => {
 };
 
 export default SystemMaintenance;
+

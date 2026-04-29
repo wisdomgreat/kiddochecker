@@ -44,3 +44,4 @@ export interface UpdateStaffData {
     'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin' | 'department' | 'staff_groups' | 'specialties' | 'max_hours_per_week'
   >>;
 }
+

@@ -233,8 +233,8 @@ const StaffSchedules = () => {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-1">
-          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 mb-2 font-black">Center Operations</Badge>
-          <h1 className="text-4xl font-black tracking-tighter text-slate-900 group flex items-center gap-3">
+          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 mb-2 font-bold">Center Operations</Badge>
+          <h1 className="text-4xl font-bold tracking-tighter text-foreground group flex items-center gap-3">
             Staff & Volunteer Scheduling
             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse mt-3" />
           </h1>
@@ -245,7 +245,7 @@ const StaffSchedules = () => {
           <Button 
             variant="outline" 
             onClick={() => setShowAutoSchedule(true)}
-            className="rounded-xl border-slate-200 h-11 px-4 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all border-dashed"
+            className="rounded-xl border-slate-200 h-11 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all border-dashed"
           >
             <Zap className="h-4 w-4 mr-2 text-amber-500" />
             Auto-Plan
@@ -271,9 +271,9 @@ const StaffSchedules = () => {
                 <Plus className="h-4 w-4" /> Schedule Shift
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-lg rounded-[2.5rem] p-8 border-none shadow-3xl bg-white/80 backdrop-blur-xl">
+            <DialogContent className="sm:max-w-lg rounded-[2.5rem] p-8 border-none shadow-3xl bg-card/80 backdrop-blur-xl">
               <DialogHeader className="mb-6">
-                <DialogTitle className="text-2xl font-black tracking-tight text-slate-900">
+                <DialogTitle className="text-2xl font-bold tracking-tight text-foreground">
                   {editingShift ? "Edit Shift Details" : "Schedule New Shift"}
                 </DialogTitle>
                 <DialogDescription className="font-medium text-slate-500">
@@ -283,9 +283,9 @@ const StaffSchedules = () => {
 
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-slate-400 ml-1">Team Member</Label>
+                  <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Team Member</Label>
                   <Select value={newShift.staff_id} onValueChange={(val) => setNewShift(prev => ({ ...prev, staff_id: val }))}>
-                    <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-white/50 backdrop-blur-sm">
+                    <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-card/50 backdrop-blur-sm">
                       <SelectValue placeholder="Select Staff" />
                     </SelectTrigger>
                     <SelectContent className="rounded-2xl border-none shadow-2xl">
@@ -298,9 +298,9 @@ const StaffSchedules = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-slate-400 ml-1">Class (Optional)</Label>
+                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Class (Optional)</Label>
                     <Select value={newShift.class_id} onValueChange={(val) => setNewShift(prev => ({ ...prev, class_id: val }))}>
-                      <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-white/50">
+                      <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-card/50">
                         <SelectValue placeholder="Select Class" />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-none shadow-2xl">
@@ -311,9 +311,9 @@ const StaffSchedules = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-slate-400 ml-1">Functional Group</Label>
+                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Functional Group</Label>
                     <Select value={newShift.required_group_id} onValueChange={(val) => setNewShift(prev => ({ ...prev, required_group_id: val }))}>
-                      <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-white/50">
+                      <SelectTrigger className="h-12 rounded-2xl border-slate-200 bg-card/50">
                         <SelectValue placeholder="General / Any Group" />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-none shadow-2xl">
@@ -328,39 +328,39 @@ const StaffSchedules = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-slate-400 ml-1">Start Time</Label>
+                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Start Time</Label>
                     <Input 
                       type="datetime-local" 
                       value={newShift.start_time} 
                       onChange={e => setNewShift(prev => ({ ...prev, start_time: e.target.value }))}
-                      className="h-12 rounded-2xl border-slate-200 bg-white/50"
+                      className="h-12 rounded-2xl border-slate-200 bg-card/50"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase text-slate-400 ml-1">End Time</Label>
+                    <Label className="text-xs font-bold uppercase text-slate-400 ml-1">End Time</Label>
                     <Input 
                       type="datetime-local" 
                       value={newShift.end_time} 
                       onChange={e => setNewShift(prev => ({ ...prev, end_time: e.target.value }))}
-                      className="h-12 rounded-2xl border-slate-200 bg-white/50"
+                      className="h-12 rounded-2xl border-slate-200 bg-card/50"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-slate-400 ml-1">Shift Notes</Label>
+                  <Label className="text-xs font-bold uppercase text-slate-400 ml-1">Shift Notes</Label>
                   <Input 
                     placeholder="E.g. Room preparation, main lesson lead..." 
                     value={newShift.notes} 
                     onChange={e => setNewShift(prev => ({ ...prev, notes: e.target.value }))}
-                    className="h-12 rounded-2xl border-slate-200 bg-white/50"
+                    className="h-12 rounded-2xl border-slate-200 bg-card/50"
                   />
                 </div>
               </div>
 
               <DialogFooter className="mt-8 border-t border-slate-50 pt-6">
                 <Button variant="ghost" onClick={() => setShowAddDialog(false)} className="rounded-xl font-bold text-slate-400 hover:text-slate-600">Cancel</Button>
-                <Button onClick={handleCreateShift} disabled={createShift.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-10 font-black uppercase tracking-widest text-[10px]">
+                <Button onClick={handleCreateShift} disabled={createShift.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-10 font-bold uppercase tracking-widest text-[10px]">
                   {createShift.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (editingShift ? "Save Changes" : "Create Assignment")}
                 </Button>
               </DialogFooter>
@@ -377,8 +377,8 @@ const StaffSchedules = () => {
             <button
               key={offset}
               onClick={() => setSelectedDate(startOfDay(d))}
-              className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all uppercase tracking-tight ${
-                active ? 'bg-white text-indigo-600 shadow-sm scale-105' : 'text-slate-500 hover:bg-white/50'
+              className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all uppercase tracking-tight ${
+                active ? 'bg-card text-indigo-600 shadow-sm scale-105' : 'text-slate-500 hover:bg-card/50'
               }`}
             >
               {isSameDay(d, new Date()) ? 'Today' : format(d, 'EEE d')}
@@ -391,7 +391,7 @@ const StaffSchedules = () => {
         <div className="lg:col-span-2 space-y-4">
           <AnimatePresence mode="popLayout">
             {isLoading ? (
-              <div className="py-20 flex flex-col items-center justify-center space-y-4 bg-white/50 rounded-[2.5rem] border border-dashed border-slate-200">
+              <div className="py-20 flex flex-col items-center justify-center space-y-4 bg-card/50 rounded-[2.5rem] border border-dashed border-slate-200">
                 <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
                 <p className="text-slate-400 text-sm font-bold animate-pulse uppercase tracking-widest">Compiling Roster...</p>
               </div>
@@ -403,9 +403,9 @@ const StaffSchedules = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
                 >
-                  <Card className="border-none shadow-[0_8px_30px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-8px_rgba(99,102,241,0.1)] transition-all bg-white group overflow-hidden relative border-l-4 border-l-transparent hover:border-l-indigo-500">
+                  <Card className="border-none shadow-[0_8px_30px_-4px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_50px_-8px_rgba(99,102,241,0.1)] transition-all bg-card group overflow-hidden relative border-l-4 border-l-transparent hover:border-l-indigo-500">
                     <CardContent className="p-6 flex items-center gap-6">
-                      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center font-black transition-all duration-500 overflow-hidden relative ${!shift.profiles ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}>
+                      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center font-bold transition-all duration-500 overflow-hidden relative ${!shift.profiles ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}>
                          {shift.profiles?.avatar_url ? (
                            <img src={shift.profiles.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                          ) : shift.profiles ? (
@@ -417,25 +417,25 @@ const StaffSchedules = () => {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <h4 className={`font-extrabold tracking-tight text-xl ${!shift.profiles ? 'text-amber-600 italic' : 'text-slate-900'}`}>
+                          <h4 className={`font-extrabold tracking-tight text-xl ${!shift.profiles ? 'text-amber-600 italic' : 'text-foreground'}`}>
                             {shift.profiles ? `${shift.profiles.first_name} ${shift.profiles.last_name}` : 'OPEN POSITION'}
                           </h4>
-                          <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-tight px-2 py-0 h-5 border-none ${getStatusColor(shift.status)}`}>
+                          <Badge variant="outline" className={`text-[10px] font-bold uppercase tracking-tight px-2 py-0 h-5 border-none ${getStatusColor(shift.status)}`}>
                             {shift.profiles ? shift.status : 'PENDING ASSIGNMENT'}
                           </Badge>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                          <span className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-lg">
+                          <span className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded-lg">
                             <Clock className="h-3.5 w-3.5 text-indigo-500" />
                             {format(new Date(shift.start_time), 'h:mm a')} - {format(new Date(shift.end_time), 'h:mm a')}
                           </span>
                           {shift.classes && (
-                            <span className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-widest bg-indigo-50/50 px-2 py-1 rounded-lg">
+                            <span className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest bg-indigo-50/50 px-2 py-1 rounded-lg">
                               <Users className="h-3.5 w-3.5 text-indigo-400" />
                               {shift.classes.name}
                             </span>
                           )}
-                          <span className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-widest bg-emerald-50/50 px-2 py-1 rounded-lg">
+                          <span className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest bg-emerald-50/50 px-2 py-1 rounded-lg">
                             <Briefcase className="h-3.5 w-3.5 text-emerald-400" />
                             {shift.role_type}
                           </span>
@@ -455,7 +455,7 @@ const StaffSchedules = () => {
                           </SelectTrigger>
                           <SelectContent className="rounded-2xl border-none shadow-3xl min-w-[200px]">
                             <div className="p-3 border-b border-slate-50 bg-slate-50/50">
-                               <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Reassign Position</h4>
+                               <h4 className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">Reassign Position</h4>
                                <p className="text-[10px] text-slate-400 font-bold mt-1">Select a replacement staff member</p>
                             </div>
                             {staffList?.map(s => (
@@ -491,15 +491,15 @@ const StaffSchedules = () => {
                 </motion.div>
               ))
             ) : (
-              <div className="py-24 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100 shadow-inner">
+              <div className="py-24 text-center bg-card rounded-[3rem] border-2 border-dashed border-slate-100 shadow-inner">
                 <div className="h-20 w-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 rotate-12 group-hover:rotate-0 transition-transform">
                   <Calendar className="h-10 w-10 text-slate-200" />
                 </div>
-                <h3 className="font-black text-slate-800 text-2xl tracking-tighter">Deck Empty</h3>
+                <h3 className="font-bold text-foreground text-2xl tracking-tighter">Deck Empty</h3>
                 <p className="text-slate-400 text-sm max-w-xs mx-auto mt-2 font-medium">No logistical assignments identified for {format(selectedDate, 'EEEE')}.</p>
                 <Button 
                   variant="outline" 
-                  className="mt-8 rounded-2xl border-slate-200 h-12 px-8 font-black uppercase tracking-widest text-[10px] hover:bg-slate-50"
+                  className="mt-8 rounded-2xl border-slate-200 h-12 px-8 font-bold uppercase tracking-widest text-[10px] hover:bg-slate-50"
                   onClick={() => setShowAddDialog(true)}
                 >
                   Create Deployment
@@ -513,40 +513,40 @@ const StaffSchedules = () => {
           <Card className="border-none bg-indigo-950 text-white rounded-[3rem] shadow-3xl p-10 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><RotateCcw className="h-48 w-48" /></div>
             <div className="relative space-y-8">
-              <Badge className="bg-white/10 text-indigo-200 border-white/20 text-[10px] font-black uppercase tracking-widest px-3">System Analysis</Badge>
+              <Badge className="bg-card/10 text-indigo-200 border-white/20 text-[10px] font-bold uppercase tracking-widest px-3">System Analysis</Badge>
               <div>
-                <h3 className="text-3xl font-black mb-2 tracking-tighter">Compliance State</h3>
+                <h3 className="text-3xl font-bold mb-2 tracking-tighter">Compliance State</h3>
                 <p className="text-indigo-300 text-xs font-medium leading-relaxed">Dynamic roster validation for {format(selectedDate, 'MMMM d, yyyy')}.</p>
               </div>
               
               <div className="space-y-5">
                 <div className="flex justify-between items-center">
-                  <span className="text-indigo-400 text-[11px] font-black uppercase tracking-widest">Active Units</span>
-                  <span className="font-black text-xl">{shifts?.length || 0}</span>
+                  <span className="text-indigo-400 text-[11px] font-bold uppercase tracking-widest">Active Units</span>
+                  <span className="font-bold text-xl">{shifts?.length || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-indigo-400 text-[11px] font-black uppercase tracking-widest">Pending Confirmation</span>
-                  <span className={`font-black text-xl ${shifts?.some(s => s.status === 'scheduled') ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  <span className="text-indigo-400 text-[11px] font-bold uppercase tracking-widest">Pending Confirmation</span>
+                  <span className={`font-bold text-xl ${shifts?.some(s => s.status === 'scheduled') ? 'text-amber-400' : 'text-emerald-400'}`}>
                     {shifts?.filter(s => s.status === 'scheduled').length || 0}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-indigo-400 text-[11px] font-black uppercase tracking-widest">Coverage Health</span>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-black">STABLE</Badge>
+                  <span className="text-indigo-400 text-[11px] font-bold uppercase tracking-widest">Coverage Health</span>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold">STABLE</Badge>
                 </div>
               </div>
 
               <div className="pt-4">
-                <Button className="w-full bg-indigo-600 hover:bg-indigo-500 border-none rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest h-14 shadow-xl shadow-indigo-950/50">
+                <Button className="w-full bg-indigo-600 hover:bg-indigo-500 border-none rounded-[1.5rem] text-[10px] font-bold uppercase tracking-widest h-14 shadow-xl shadow-indigo-950/50">
                    Generate Manifest
                 </Button>
               </div>
             </div>
           </Card>
 
-          <Card className="border-none shadow-2xl rounded-[3rem] bg-white p-10 group overflow-hidden relative">
+          <Card className="border-none shadow-2xl rounded-[3rem] bg-card p-10 group overflow-hidden relative">
             <div className="absolute -right-4 -top-4 w-24 h-24 bg-indigo-50 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-            <h4 className="font-black text-slate-800 text-[11px] uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+            <h4 className="font-bold text-foreground text-[11px] uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
                <div className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
                Scheduling Protocols
             </h4>
@@ -561,7 +561,7 @@ const StaffSchedules = () => {
                     <proto.icon className="h-4 w-4 text-slate-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-slate-800 tracking-tight">{proto.label}</p>
+                    <p className="text-sm font-bold text-foreground tracking-tight">{proto.label}</p>
                     <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-widest">{proto.time} • {proto.loc}</p>
                   </div>
                 </div>
@@ -572,9 +572,9 @@ const StaffSchedules = () => {
       </div>
 
       <Dialog open={showAutoSchedule} onOpenChange={setShowAutoSchedule}>
-        <DialogContent className="sm:max-w-md rounded-[3rem] p-10 border-none shadow-3xl bg-white/95 backdrop-blur-xl">
+        <DialogContent className="sm:max-w-md rounded-[3rem] p-10 border-none shadow-3xl bg-card/95 backdrop-blur-xl">
           <DialogHeader className="mb-8">
-            <DialogTitle className="text-3xl font-black tracking-tighter text-slate-900 flex items-center gap-3">
+            <DialogTitle className="text-3xl font-bold tracking-tighter text-foreground flex items-center gap-3">
                <Zap className="h-8 w-8 text-amber-500" />
                Roster Engine AI
             </DialogTitle>
@@ -584,7 +584,7 @@ const StaffSchedules = () => {
           </DialogHeader>
           <div className="space-y-8 mb-10">
             <div className="bg-indigo-50/50 p-6 rounded-[2rem] border border-indigo-100/50 flex flex-col gap-4 relative overflow-hidden group">
-              <div className="absolute -right-10 -bottom-10 h-32 w-32 bg-indigo-500/5 rounded-full blur-2xl font-black flex items-center justify-center text-indigo-500/10 text-9xl">?</div>
+              <div className="absolute -right-10 -bottom-10 h-32 w-32 bg-indigo-500/5 rounded-full blur-2xl font-bold flex items-center justify-center text-indigo-500/10 text-9xl">?</div>
               <div className="flex gap-4">
                 <div className="h-10 w-10 bg-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
                   <Zap className="h-5 w-5 text-white" />
@@ -596,9 +596,9 @@ const StaffSchedules = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase text-indigo-400 ml-1">Active Template</Label>
+                <Label className="text-[10px] font-bold uppercase text-indigo-400 ml-1">Active Template</Label>
                 <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger className="h-12 rounded-2xl border-indigo-100 bg-white/50">
+                  <SelectTrigger className="h-12 rounded-2xl border-indigo-100 bg-card/50">
                     <SelectValue placeholder="Select Template..." />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-none shadow-2xl">
@@ -611,21 +611,21 @@ const StaffSchedules = () => {
             </div>
             
             <div className="space-y-3">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Heuristics Engine</h4>
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 ml-1">Heuristics Engine</h4>
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="h-14 rounded-2xl border-indigo-100 bg-white shadow-sm hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest text-indigo-600 gap-2">
+                <Button variant="outline" className="h-14 rounded-2xl border-indigo-100 bg-card shadow-sm hover:bg-slate-50 transition-all font-bold uppercase text-[10px] tracking-widest text-indigo-600 gap-2">
                    Balance Workload
                 </Button>
-                <Button variant="outline" className="h-14 rounded-2xl border-slate-100 bg-white shadow-sm hover:bg-slate-50 transition-all font-black uppercase text-[10px] tracking-widest text-slate-400 gap-2">
+                <Button variant="outline" className="h-14 rounded-2xl border-slate-100 bg-card shadow-sm hover:bg-slate-50 transition-all font-bold uppercase text-[10px] tracking-widest text-slate-400 gap-2">
                    Seniority Base
                 </Button>
               </div>
             </div>
           </div>
           <DialogFooter className="gap-3">
-            <Button variant="ghost" onClick={() => setShowAutoSchedule(false)} className="rounded-2xl font-black uppercase text-[10px] tracking-widest h-14 px-8 text-slate-400">Abort</Button>
+            <Button variant="ghost" onClick={() => setShowAutoSchedule(false)} className="rounded-2xl font-bold uppercase text-[10px] tracking-widest h-14 px-8 text-slate-400">Abort</Button>
             <Button 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-12 font-black uppercase tracking-widest text-[10px] h-14 shadow-2xl shadow-indigo-200 grow" 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-12 font-bold uppercase tracking-widest text-[10px] h-14 shadow-2xl shadow-indigo-200 grow" 
               onClick={handleAutoSchedule}
               disabled={isGenerating}
             >
@@ -639,3 +639,4 @@ const StaffSchedules = () => {
 };
 
 export default StaffSchedules;
+

@@ -272,3 +272,4 @@ export const useRealtimeUpdates = () => {
   
   return { hasNewActivity, hasClassChanges, resetFlags };
 };
+

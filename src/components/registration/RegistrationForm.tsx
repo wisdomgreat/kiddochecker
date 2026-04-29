@@ -228,3 +228,4 @@ export const RegistrationForm = ({ onSuccess }: RegistrationFormProps) => {
 };
 
 export default RegistrationForm;
+

@@ -198,3 +198,4 @@ const MobileFirstLayout = ({ children }: MobileFirstLayoutProps) => {
 };
 
 export default MobileFirstLayout;
+

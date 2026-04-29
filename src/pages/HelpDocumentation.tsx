@@ -230,7 +230,7 @@ const HelpDocumentation = () => {
     <ModernLayout>
       <div className="space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold flex items-center justify-center gap-2 text-slate-900 tracking-tight">
+          <h1 className="text-4xl font-bold flex items-center justify-center gap-2 text-foreground tracking-tight">
             <HelpCircle className="h-10 w-10 text-indigo-600" />
             Platform Guide
           </h1>
@@ -384,12 +384,12 @@ const HelpDocumentation = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border bg-white rounded-lg shadow-sm">
+                    <div className="p-4 border bg-card rounded-lg shadow-sm">
                       <h4 className="font-semibold mb-1">Permission Architectures</h4>
                       <p className="text-xs text-muted-foreground mb-3">Understanding role-based access levels.</p>
                       <Button variant="outline" size="sm" className="w-full">Watch Lesson</Button>
                     </div>
-                    <div className="p-4 border bg-white rounded-lg shadow-sm">
+                    <div className="p-4 border bg-card rounded-lg shadow-sm">
                       <h4 className="font-semibold mb-1">CRM Automation</h4>
                       <p className="text-xs text-muted-foreground mb-3">Setting up visitor journey triggers.</p>
                       <Button variant="outline" size="sm" className="w-full">Watch Lesson</Button>
@@ -405,7 +405,7 @@ const HelpDocumentation = () => {
                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-widest">
                   <Sparkles className="h-3 w-3" /> Simplified Premium Interface
                </div>
-               <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Mastering the Dashboard</h2>
+               <h2 className="text-3xl font-bold text-foreground tracking-tight">Mastering the Dashboard</h2>
             </div>
 
             <div className="space-y-20">
@@ -413,7 +413,7 @@ const HelpDocumentation = () => {
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                   <div className="space-y-6">
                      <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">1</div>
-                     <h3 className="text-2xl font-bold text-slate-900">Guest Journey Analytics</h3>
+                     <h3 className="text-2xl font-bold text-foreground">Guest Journey Analytics</h3>
                      <p className="text-slate-600 leading-relaxed font-normal">
                         The journey dashboard provides a clear, focused view of your community's growth. 
                         Track visitors as they transition into members and ensure every guest feels seen and cared for through automated follow-up health metrics.
@@ -423,19 +423,19 @@ const HelpDocumentation = () => {
                         <Badge className="bg-slate-100 text-slate-600 border-none px-3 py-1 font-bold">Real-time Activity</Badge>
                      </div>
                   </div>
-                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white p-2">
+                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
                      <img src="/docs/images/guest_journey_dashboard.png" className="rounded-xl w-full h-auto" alt="Dashboard Walkthrough" />
                   </div>
                </div>
 
                {/* Section 2 */}
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                  <div className="order-2 lg:order-1 rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white p-2">
+                  <div className="order-2 lg:order-1 rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
                      <img src="/docs/images/visitor_stage_tracker.png" className="rounded-xl w-full h-auto" alt="Kanban Tracker" />
                   </div>
                   <div className="order-1 lg:order-2 space-y-6">
                      <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">2</div>
-                     <h3 className="text-2xl font-bold text-slate-900">The Stage Tracker</h3>
+                     <h3 className="text-2xl font-bold text-foreground">The Stage Tracker</h3>
                      <p className="text-slate-600 leading-relaxed font-normal">
                         Visualize your newcomers as they move through onboarding stages in a simple list view. 
                         Each card represents a person. Click any card to open the **Member CRM** for detailed notes and contact options.
@@ -455,7 +455,7 @@ const HelpDocumentation = () => {
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pb-12">
                   <div className="space-y-6">
                      <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">3</div>
-                     <h3 className="text-2xl font-bold text-slate-900">Member CRM Profiles</h3>
+                     <h3 className="text-2xl font-bold text-foreground">Member CRM Profiles</h3>
                      <p className="text-slate-600 leading-relaxed font-normal">
                         Log pastoral notes, send automated follow-up emails, and track every interaction. 
                         The **Interaction Timeline** ensures that every touchpoint is recorded for consistent, high-quality care.
@@ -467,7 +467,7 @@ const HelpDocumentation = () => {
                         </p>
                      </div>
                   </div>
-                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-white p-2">
+                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
                      <img src="/docs/images/crm_profile_interaction.png" className="rounded-xl w-full h-auto" alt="CRM Overview" />
                   </div>
                </div>
@@ -478,11 +478,11 @@ const HelpDocumentation = () => {
             <div className="space-y-4">
               {filteredFAQ.map((category) => (
                 <Card key={category.category} className="overflow-hidden border-none shadow-sm bg-gray-50/50">
-                  <div className="p-4 bg-white border-b flex items-center gap-3">
+                  <div className="p-4 bg-card border-b flex items-center gap-3">
                     <div className="p-2 bg-indigo-50 rounded-lg">
                       <category.icon className="h-5 w-5 text-indigo-600" />
                     </div>
-                    <h3 className="font-bold text-lg text-slate-900">{category.title}</h3>
+                    <h3 className="font-bold text-lg text-foreground">{category.title}</h3>
                   </div>
                   <CardContent className="p-0">
                     <div className="divide-y">
@@ -495,7 +495,7 @@ const HelpDocumentation = () => {
                             <ChevronDown className="h-4 w-4 text-gray-400 group-data-[state=open]:rotate-180 transition-transform" />
                           </CollapsibleTrigger>
                           <CollapsibleContent className="px-4 pb-4 pt-1">
-                            <div className="p-4 bg-white rounded-xl border border-indigo-50 text-gray-600 leading-relaxed shadow-inner">
+                            <div className="p-4 bg-card rounded-xl border border-indigo-50 text-gray-600 leading-relaxed shadow-inner">
                               {qa.answer}
                             </div>
                           </CollapsibleContent>
@@ -523,12 +523,12 @@ const HelpDocumentation = () => {
                 <p className="opacity-90 font-medium">Our team is available to help you {isParent ? "during service hours" : "24/7 via private support lines"}.</p>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4">
-                <Button variant="secondary" className="bg-white text-indigo-700 hover:bg-indigo-50 font-bold px-6">
+                <Button variant="secondary" className="bg-card text-indigo-700 hover:bg-indigo-50 font-bold px-6">
                   <MessageSquare className="h-4 w-4 mr-2" />
                   {isParent ? "Message Office" : "Open System Ticket"}
                 </Button>
                 {isAdmin && (
-                  <Button variant="ghost" className="text-white hover:bg-white/10 border border-white/20">
+                  <Button variant="ghost" className="text-white hover:bg-card/10 border border-white/20">
                     <Settings className="h-4 w-4 mr-2" />
                     Technical Docs
                   </Button>
@@ -543,3 +543,4 @@ const HelpDocumentation = () => {
 };
 
 export default HelpDocumentation;
+

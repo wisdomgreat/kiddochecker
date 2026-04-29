@@ -73,7 +73,7 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-300">
                 <div className="p-6 text-center space-y-6">
                     <div className="flex justify-center">
                         <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${error ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>
@@ -82,7 +82,7 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
                     </div>
 
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Security PIN Required</h2>
+                        <h2 className="text-2xl font-bold text-foreground">Security PIN Required</h2>
                         {lockoutUntil ? (
                             <p className="text-red-500 font-semibold mt-1 animate-pulse">
                                 Too many attempts. Try again in {timeLeft}s
@@ -149,3 +149,4 @@ const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => 
 };
 
 export default PINDialog;
+

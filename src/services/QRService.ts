@@ -139,3 +139,4 @@ export const QRService = {
     return { success: true, count: inserts.length };
   }
 };
+

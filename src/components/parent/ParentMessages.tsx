@@ -126,12 +126,12 @@ const ParentMessages = () => {
     <div className="flex bg-[#f8fafc] dark:bg-slate-950 h-[calc(100vh-140px)] min-h-[600px] overflow-hidden rounded-[2.5rem] border border-slate-100 dark:border-white/5 shadow-2xl dark:shadow-black/60">
       {/* Sidebar - Inbox */}
       <div className={cn(
-        "w-full lg:w-[400px] flex flex-col border-r border-slate-100 dark:border-white/5 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shrink-0 transition-all",
+        "w-full lg:w-[400px] flex flex-col border-r border-slate-100 dark:border-white/5 bg-card/70 dark:bg-slate-900/70 backdrop-blur-xl shrink-0 transition-all",
         selectedPartnerId && "hidden lg:flex"
       )}>
         <div className="p-8 border-b border-slate-50 dark:border-white/5 space-y-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-foreground dark:text-slate-100 tracking-tight flex items-center gap-3">
                <Mail className="h-8 w-8 text-indigo-600" />
                Inbox
             </h1>
@@ -144,7 +144,7 @@ const ParentMessages = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-600 group-focus-within:text-indigo-600 transition-colors" />
             <Input 
               placeholder="Search conversations..." 
-              className="pl-11 h-12 bg-slate-50/50 dark:bg-white/5 border-slate-100 dark:border-white/10 rounded-2xl text-xs font-bold focus-visible:ring-indigo-600 transition-all text-slate-900 dark:text-slate-100"
+              className="pl-11 h-12 bg-slate-50/50 dark:bg-card/5 border-slate-100 dark:border-white/10 rounded-2xl text-xs font-bold focus-visible:ring-indigo-600 transition-all text-foreground dark:text-slate-100"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -196,7 +196,7 @@ const ParentMessages = () => {
                       "w-full flex items-center gap-4 p-4 rounded-3xl transition-all border group relative",
                       selectedPartnerId === partnerId 
                       ? 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-500/20 shadow-sm shadow-indigo-100/50 dark:shadow-black/20' 
-                      : 'bg-transparent border-transparent hover:bg-slate-50/80 dark:hover:bg-white/5 hover:border-slate-100 dark:hover:border-white/5'
+                      : 'bg-transparent border-transparent hover:bg-slate-50/80 dark:hover:bg-card/5 hover:border-slate-100 dark:hover:border-white/5'
                     )}
                   >
                     <div className="relative">
@@ -205,14 +205,14 @@ const ParentMessages = () => {
                         selectedPartnerId === partnerId ? "border-indigo-200" : "border-white"
                       )}>
                         <AvatarFallback className={cn(
-                          "font-black text-xs",
+                          "font-bold text-xs",
                           role === 'admin' ? "bg-purple-100 text-purple-700" : "bg-indigo-100 text-indigo-700"
                         )}>
                           {isRole ? <Sparkles className="h-5 w-5" /> : getInitials(partnerName.split(' ')[0], partnerName.split(' ')[1])}
                         </AvatarFallback>
                       </Avatar>
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] text-white font-black border-2 border-white dark:border-slate-800">
+                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] text-white font-bold border-2 border-white dark:border-slate-800">
                           {unreadCount}
                         </span>
                       )}
@@ -220,17 +220,17 @@ const ParentMessages = () => {
 
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex justify-between items-center mb-1">
-                        <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate pr-2 tracking-tight">
+                        <h4 className="font-bold text-foreground dark:text-slate-100 truncate pr-2 tracking-tight">
                           {partnerName}
                         </h4>
-                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-tighter">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-tighter">
                           {format(new Date(latest.created_at), "MMM d")}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <p className={cn(
                           "text-xs truncate flex-1",
-                          unreadCount > 0 ? "font-black text-slate-900 dark:text-slate-100" : "text-slate-500 dark:text-slate-400 font-medium"
+                          unreadCount > 0 ? "font-bold text-foreground dark:text-slate-100" : "text-slate-500 dark:text-slate-400 font-medium"
                         )}>
                           {latest.subject}
                         </p>
@@ -253,7 +253,7 @@ const ParentMessages = () => {
 
       {/* Main Chat Stream */}
       <div className={cn(
-        "flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden relative",
+        "flex-1 flex flex-col bg-card dark:bg-slate-900 overflow-hidden relative",
         !selectedPartnerId && !isComposing && "hidden lg:flex"
       )}>
         <AnimatePresence mode="wait">
@@ -265,9 +265,9 @@ const ParentMessages = () => {
               exit={{ opacity: 0, y: -20 }}
               className="flex-1 flex flex-col h-full bg-slate-50/30"
             >
-              <div className="p-8 border-b border-slate-100 bg-white/50 flex items-center justify-between">
+              <div className="p-8 border-b border-slate-100 bg-card/50 flex items-center justify-between">
                 <div>
-                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">New Conversation</h2>
+                   <h2 className="text-2xl font-bold text-foreground tracking-tight">New Conversation</h2>
                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Start a private thread with staff</p>
                 </div>
                 <Button variant="ghost" size="icon" className="rounded-2xl" onClick={() => setIsComposing(false)}>
@@ -279,9 +279,9 @@ const ParentMessages = () => {
                 <div className="max-w-2xl mx-auto space-y-8">
                   <div className="grid gap-6">
                     <div className="space-y-3">
-                      <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Recipient</Label>
+                      <Label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Recipient</Label>
                       <Select onValueChange={(v) => setNewMsg({...newMsg, recipientId: v})}>
-                        <SelectTrigger className="h-14 rounded-[1.25rem] border-slate-200 bg-white shadow-sm font-bold">
+                        <SelectTrigger className="h-14 rounded-[1.25rem] border-slate-200 bg-card shadow-sm font-bold">
                           <SelectValue placeholder="Select a staff member" />
                         </SelectTrigger>
                         <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
@@ -289,10 +289,10 @@ const ParentMessages = () => {
                             <SelectItem key={r.id} value={r.id}>
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-6 w-6 border">
-                                  <AvatarFallback className="text-[8px] font-black">{getInitials(r.first_name, r.last_name)}</AvatarFallback>
+                                  <AvatarFallback className="text-[8px] font-bold">{getInitials(r.first_name, r.last_name)}</AvatarFallback>
                                 </Avatar>
                                 <span className="font-bold">{r.first_name} {r.last_name}</span>
-                                <Badge variant="outline" className="text-[8px] font-black uppercase text-indigo-600 bg-indigo-50 border-indigo-100">{r.role}</Badge>
+                                <Badge variant="outline" className="text-[8px] font-bold uppercase text-indigo-600 bg-indigo-50 border-indigo-100">{r.role}</Badge>
                               </div>
                             </SelectItem>
                           ))}
@@ -301,7 +301,7 @@ const ParentMessages = () => {
                     </div>
 
                     <div className="space-y-3">
-                      <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Subject Matter</Label>
+                      <Label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Subject Matter</Label>
                       <Input 
                         placeholder="What is this regarding?" 
                         className="h-14 rounded-[1.25rem] border-slate-200 shadow-sm font-bold focus-visible:ring-indigo-600"
@@ -311,10 +311,10 @@ const ParentMessages = () => {
                     </div>
 
                     <div className="space-y-3">
-                      <Label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Message Content</Label>
+                      <Label className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Message Content</Label>
                       <Textarea 
                         placeholder="Type your message details here..." 
-                        className="min-h-[280px] rounded-[2rem] border-slate-200 bg-white shadow-sm font-medium p-6 focus-visible:ring-indigo-600 leading-relaxed" 
+                        className="min-h-[280px] rounded-[2rem] border-slate-200 bg-card shadow-sm font-medium p-6 focus-visible:ring-indigo-600 leading-relaxed" 
                         value={newMsg.content}
                         onChange={e => setNewMsg({...newMsg, content: e.target.value})}
                       />
@@ -323,10 +323,10 @@ const ParentMessages = () => {
                 </div>
               </ScrollArea>
 
-              <div className="p-8 border-t border-slate-100 bg-white flex justify-end gap-3">
+              <div className="p-8 border-t border-slate-100 bg-card flex justify-end gap-3">
                 <Button variant="outline" className="h-12 rounded-2xl border-slate-200 font-bold px-6" onClick={() => setIsComposing(false)}>Discard</Button>
                 <Button 
-                  className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 shadow-xl shadow-indigo-100 dark:shadow-indigo-500/20 disabled:opacity-50"
+                  className="h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 shadow-xl shadow-indigo-100 dark:shadow-indigo-500/20 disabled:opacity-50"
                   onClick={async () => {
                      if (!newMsg.recipientId || !newMsg.content.trim()) return;
                      await sendMessage({
@@ -351,13 +351,13 @@ const ParentMessages = () => {
                className="flex-1 flex flex-col h-full bg-[#f8fafc]/30"
             >
                {/* Chat Header */}
-               <div className="p-6 lg:p-8 border-b border-slate-100 dark:border-white/5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
+               <div className="p-6 lg:p-8 border-b border-slate-100 dark:border-white/5 bg-card/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" className="lg:hidden rounded-2xl -ml-2" onClick={() => setSelectedPartnerId(null)}>
                       <ChevronLeft className="h-6 w-6" />
                     </Button>
                     <Avatar className="h-12 w-12 border shadow-sm">
-                       <AvatarFallback className="font-black text-indigo-600 bg-indigo-50">
+                       <AvatarFallback className="font-bold text-indigo-600 bg-indigo-50">
                           {selectedPartnerId?.startsWith('role_') ? <Sparkles /> : getInitials(
                             activeThread[0].sender_id === user?.id ? activeThread[0].recipient?.first_name : activeThread[0].sender?.first_name,
                             activeThread[0].sender_id === user?.id ? activeThread[0].recipient?.last_name : activeThread[0].sender?.last_name
@@ -365,7 +365,7 @@ const ParentMessages = () => {
                        </AvatarFallback>
                     </Avatar>
                     <div>
-                       <h3 className="font-black text-slate-900 leading-none">
+                       <h3 className="font-bold text-foreground leading-none">
                          {selectedPartnerId?.startsWith('role_') ? (selectedPartnerId === 'role_all' ? 'Announcement' : 'Church Admins') : (
                            activeThread[0].sender_id === user?.id 
                            ? `${activeThread[0].recipient?.first_name || ''} ${activeThread[0].recipient?.last_name || ''}`
@@ -374,7 +374,7 @@ const ParentMessages = () => {
                        </h3>
                        <div className="flex items-center gap-2 mt-1.5">
                          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Secure Thread</span>
+                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Secure Thread</span>
                        </div>
                     </div>
                   </div>
@@ -389,7 +389,7 @@ const ParentMessages = () => {
                     {/* Date Separator example */}
                     <div className="flex items-center gap-4 opacity-30">
                        <div className="flex-1 h-px bg-slate-400" />
-                       <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">Message History</span>
+                       <span className="text-[10px] font-bold uppercase tracking-[0.2em] whitespace-nowrap">Message History</span>
                        <div className="flex-1 h-px bg-slate-400" />
                     </div>
 
@@ -404,7 +404,7 @@ const ParentMessages = () => {
                            isMine ? "items-end" : "items-start"
                          )}>
                            {showSender && !selectedPartnerId?.startsWith('role_') && (
-                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-3 mb-1">
+                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-3 mb-1">
                                 {msg.sender?.first_name} {msg.sender?.last_name}
                              </span>
                            )}
@@ -420,7 +420,7 @@ const ParentMessages = () => {
                                 "px-6 py-4 rounded-[2rem] text-sm font-medium leading-relaxed shadow-sm",
                                 isMine 
                                   ? "bg-slate-900 text-white rounded-tr-none" 
-                                  : "bg-white text-slate-800 rounded-tl-none border border-slate-100"
+                                  : "bg-card text-foreground rounded-tl-none border border-slate-100"
                               )}>
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
                               </motion.div>
@@ -449,7 +449,7 @@ const ParentMessages = () => {
 
                {/* Reply Bar */}
                {!selectedPartnerId?.startsWith('role_') && (
-                 <div className="p-8 bg-white border-t border-slate-100">
+                 <div className="p-8 bg-card border-t border-slate-100">
                     <div className="max-w-4xl mx-auto flex items-end gap-4 relative">
                        <div className="flex-1 relative group">
                           <Textarea 
@@ -487,17 +487,17 @@ const ParentMessages = () => {
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                     className="absolute inset-0 bg-indigo-500/10 rounded-full blur-2xl" 
                   />
-                  <div className="relative bg-white dark:bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/30 dark:shadow-black/60">
+                  <div className="relative bg-card dark:bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100/30 dark:shadow-black/60">
                     <MessageSquare className="h-16 w-16 text-indigo-600" />
                   </div>
                 </div>
                 <div className="space-y-4 max-w-sm">
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">Select <span className="text-indigo-600">Conversation</span></h3>
+                    <h3 className="text-3xl font-bold text-foreground tracking-tight">Select <span className="text-indigo-600">Conversation</span></h3>
                     <p className="text-slate-500 font-bold leading-relaxed px-4 italic">
                         Start a dialogue with our specialized staff or browse your previous organizational updates.
                     </p>
                     <div className="pt-4">
-                      <Button className="rounded-[1.5rem] h-14 px-8 bg-slate-900 text-white font-black uppercase text-xs tracking-widest hover:bg-black shadow-xl shadow-slate-200" onClick={() => setIsComposing(true)}>
+                      <Button className="rounded-[1.5rem] h-14 px-8 bg-slate-900 text-white font-bold uppercase text-xs tracking-widest hover:bg-black shadow-xl shadow-slate-200" onClick={() => setIsComposing(true)}>
                          <Plus className="h-5 w-5 mr-3" /> New Thread
                       </Button>
                     </div>
@@ -511,3 +511,4 @@ const ParentMessages = () => {
 };
 
 export default ParentMessages;
+

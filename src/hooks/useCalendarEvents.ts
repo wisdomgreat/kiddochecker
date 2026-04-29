@@ -77,3 +77,4 @@ export const useCalendarEvents = () => {
     isCreating: createEventMutation.isPending,
   };
 };
+

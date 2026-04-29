@@ -53,3 +53,4 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
 
   return <>{children}</>;
 };
+

@@ -105,3 +105,4 @@ const RoleBasedRoute = ({ children, allowedRoles, requiredPermission, redirectTo
 };
 
 export default RoleBasedRoute;
+

@@ -89,3 +89,4 @@ export function validateForm(data: Record<string, any>, validationRules: Record<
   
   return errors;
 }
+

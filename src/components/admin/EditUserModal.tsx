@@ -114,7 +114,7 @@ const EditUserModal = ({ open, onOpenChange, user, onSuccess }: EditUserModalPro
             <UserCog className="h-6 w-6" />
           </div>
           <div>
-            <DialogTitle className="text-xl font-black">Edit User Profile</DialogTitle>
+            <DialogTitle className="text-xl font-bold">Edit User Profile</DialogTitle>
             <DialogDescription className="text-slate-400 font-medium">Manage permissions and contact info.</DialogDescription>
           </div>
         </div>
@@ -127,7 +127,7 @@ const EditUserModal = ({ open, onOpenChange, user, onSuccess }: EditUserModalPro
                 id="firstName"
                 value={formData.firstName}
                 onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
+                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-card"
                 required
               />
             </div>
@@ -137,7 +137,7 @@ const EditUserModal = ({ open, onOpenChange, user, onSuccess }: EditUserModalPro
                 id="lastName"
                 value={formData.lastName}
                 onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
+                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-card"
                 required
               />
             </div>
@@ -190,7 +190,7 @@ const EditUserModal = ({ open, onOpenChange, user, onSuccess }: EditUserModalPro
           <div className="bg-slate-50 p-4 rounded-3xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="isVolunteer" className="font-bold text-slate-900">Volunteer Status</Label>
+                <Label htmlFor="isVolunteer" className="font-bold text-foreground">Volunteer Status</Label>
                 <p className="text-xs text-slate-500">Enable specialized volunteer check-in rules</p>
               </div>
               <Switch
@@ -206,7 +206,7 @@ const EditUserModal = ({ open, onOpenChange, user, onSuccess }: EditUserModalPro
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-2xl font-bold h-12 px-6">
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black h-12 px-8 shadow-lg shadow-indigo-100">
+            <Button type="submit" disabled={isLoading} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold h-12 px-8 shadow-lg shadow-indigo-100">
               {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Save Changes'}
             </Button>
           </div>
@@ -217,3 +217,4 @@ const EditUserModal = ({ open, onOpenChange, user, onSuccess }: EditUserModalPro
 };
 
 export default EditUserModal;
+

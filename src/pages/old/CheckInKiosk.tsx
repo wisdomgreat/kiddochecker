@@ -7,3 +7,4 @@ const CheckInKiosk = () => {
 };
 
 export default CheckInKiosk;
+

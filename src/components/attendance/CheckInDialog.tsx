@@ -190,3 +190,4 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
     </Dialog>
   );
 };
+

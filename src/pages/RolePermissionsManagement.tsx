@@ -332,3 +332,4 @@ const RolePermissionsManagement = () => {
 };
 
 export default RolePermissionsManagement;
+

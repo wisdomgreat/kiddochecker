@@ -49,7 +49,7 @@ const UserManagementPage = () => {
       case 'teacher_assistant': return 'bg-teal-100 text-teal-800 border-teal-200';
       case 'staff': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'parent': return 'bg-amber-100 text-amber-800 border-amber-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-border';
     }
   };
 
@@ -321,3 +321,4 @@ const UserManagementPage = () => {
 };
 
 export default UserManagementPage;
+

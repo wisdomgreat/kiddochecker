@@ -93,3 +93,4 @@ const EnhancedProtectedRoute = ({
 };
 
 export default EnhancedProtectedRoute;
+

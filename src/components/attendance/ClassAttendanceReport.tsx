@@ -93,3 +93,4 @@ export const ClassAttendanceReport = ({ selectedDate }: ClassAttendanceReportPro
     </Card>
   );
 };
+

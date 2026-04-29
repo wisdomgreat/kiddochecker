@@ -193,3 +193,4 @@ const QrCodeScanner = ({ onScanComplete, onSuccess }: QrCodeScannerProps) => {
 };
 
 export default QrCodeScanner;
+

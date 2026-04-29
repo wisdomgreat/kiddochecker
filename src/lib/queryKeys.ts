@@ -60,3 +60,4 @@ export const QUERY_KEYS = {
   PERMISSIONS: (userId?: string, role?: string) =>
     userId ? ['permissions', userId, role] : ['permissions'] as const,
 } as const;
+

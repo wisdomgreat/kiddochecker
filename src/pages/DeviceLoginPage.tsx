@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Zap, Shield, Loader2, ArrowRight } from "lucide-react";
+import { Shield, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -25,8 +24,6 @@ const DeviceLogin = () => {
             return;
         }
 
-        // We check if PIN is required by optimistically just trying to hit the edge function without PIN first. 
-        // If it requires PIN, it returns 401 with "Master PIN required".
         await executeLogin(false);
     };
 
@@ -41,12 +38,9 @@ const DeviceLogin = () => {
     };
 
     // --- SILENT RE-AUTH ---
-    // On mount, we try to see if the server recognizes this hardware fingerprint automatically.
-    // If it does, we skip the code entry.
     React.useEffect(() => {
         const attemptSilentReauth = async () => {
             setLoading(true);
-            // Give the browser a moment to stabilize forensics
             await new Promise(resolve => setTimeout(resolve, 1500));
             await executeLogin(false, true); // Silent mode
         };
@@ -60,7 +54,6 @@ const DeviceLogin = () => {
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const language = navigator.language;
 
-        // Generate a hardware ID fingerprint
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         let fingerprint = '';
@@ -70,7 +63,6 @@ const DeviceLogin = () => {
         }
 
         const rawId = `${ua}|${platform}|${screen}|${timezone}|${language}|${fingerprint.slice(-50)}`;
-        // Use a simple hash-like string instead of direct btoa which can fail on non-ASCII
         let hardwareId = 'kc-id-';
         for (let i = 0; i < rawId.length; i++) {
             const char = rawId.charCodeAt(i);
@@ -80,10 +72,10 @@ const DeviceLogin = () => {
         hardwareId = hardwareId.slice(0, 32);
 
         return {
-            combined: hardwareId, // For logging
+            combined: hardwareId,
             hardwareId,
             os: platform,
-            browser: ua, // Full string for backend parsing
+            browser: ua,
             timezone,
             language,
             fingerprint: {
@@ -114,9 +106,8 @@ const DeviceLogin = () => {
             if (error) {
                 if (silent) {
                     setLoading(false);
-                    return; // Fail silently on re-auth
+                    return;
                 }
-                // Determine if it tells us we need a PIN
                 if (error.message === "Master PIN required") {
                     setNeedPin(true);
                     setLoading(false);
@@ -128,7 +119,7 @@ const DeviceLogin = () => {
             if (data.error) {
                 if (silent) {
                     setLoading(false);
-                    return; // Fail silently on re-auth
+                    return;
                 }
                 if (data.error === "Master PIN required") {
                     setNeedPin(true);
@@ -142,7 +133,6 @@ const DeviceLogin = () => {
                 throw new Error("Invalid response from authorization server");
             }
 
-            // We have the specific device's credentials, log them in securely
             const { error: authError } = await supabase.auth.signInWithPassword({
                 email: data.email,
                 password: data.password,
@@ -155,7 +145,6 @@ const DeviceLogin = () => {
                 description: `Successfully locked to ${data.device.name}.`,
             });
 
-            // Redirect to the kiosk check-in application
             navigate("/check-in", { replace: true });
 
         } catch (error: any) {
@@ -171,113 +160,106 @@ const DeviceLogin = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-md"
-            >
-                <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 overflow-hidden relative">
-                    {/* Decorative Background Graphic */}
-                    <div className="absolute top-0 right-0 p-8 opacity-5">
-                        <Zap className="w-64 h-64 text-indigo-600 transform translate-x-12 -translate-y-12" />
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-md space-y-8">
+                <div className="bg-card border rounded-lg p-8 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center gap-2 mb-8">
+                        <div className="p-2 bg-primary/10 rounded border border-primary/20">
+                            <Shield className="h-5 w-5 text-primary" />
+                        </div>
+                        <span className="font-bold text-foreground text-lg tracking-tight">Terminal Activation</span>
                     </div>
 
-                    <div className="relative z-10">
-                        <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
-                            <Shield className="w-8 h-8 text-indigo-600" />
-                        </div>
-
-                        <h1 className="text-3xl font-black text-slate-800 tracking-tight">
-                            Terminal Setup
-                        </h1>
-                        <p className="text-slate-500 mt-2 mb-8 text-sm">
-                            Enter the dedicated terminal reference code to securely lock this device to your organization.
+                    <div className="space-y-2 mb-8">
+                        <h1 className="text-2xl font-bold tracking-tight">Setup Terminal</h1>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            Enter your device reference code to securely lock this terminal to your organization.
                         </p>
+                    </div>
 
-                        {!needPin ? (
-                            <form onSubmit={handleCodeSubmit} className="space-y-4">
-                                <div>
-                                    <label className="text-sm font-semibold text-slate-700 block mb-1">
-                                        Device Reference Code
-                                    </label>
-                                    <Input
-                                        type="text"
-                                        placeholder="e.g. U57-XFR9C"
-                                        value={code}
-                                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                                        className="h-14 font-mono tracking-widest text-lg bg-slate-50 border-slate-200 uppercase rounded-xl"
-                                        autoFocus
-                                        disabled={loading}
-                                    />
-                                </div>
+                    {!needPin ? (
+                        <form onSubmit={handleCodeSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <label htmlFor="code" className="text-xs uppercase font-bold text-muted-foreground">Reference Code</label>
+                                <Input
+                                    id="code"
+                                    type="text"
+                                    placeholder="e.g. U57-XFR9C"
+                                    value={code}
+                                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                                    className="h-12 font-mono tracking-widest text-lg"
+                                    autoFocus
+                                    disabled={loading}
+                                />
+                            </div>
+                            <Button
+                                type="submit"
+                                disabled={loading || !code.trim()}
+                                className="w-full h-12"
+                            >
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                Activate Terminal
+                                {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
+                            </Button>
+                        </form>
+                    ) : (
+                        <form
+                            onSubmit={handlePinSubmit}
+                            className="space-y-4"
+                        >
+                            <div className="p-3 bg-primary/10 text-primary text-xs font-bold rounded border border-primary/20 flex items-center gap-2 mb-2">
+                                PIN verification required to proceed.
+                            </div>
+                            <div className="space-y-2">
+                                <label htmlFor="pin" className="text-xs uppercase font-bold text-muted-foreground">Security PIN</label>
+                                <Input
+                                    id="pin"
+                                    type="password"
+                                    pattern="[0-9]*"
+                                    inputMode="numeric"
+                                    placeholder="••••••"
+                                    maxLength={6}
+                                    value={pin}
+                                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                                    className="h-12 font-mono tracking-[0.5em] text-center text-xl"
+                                    autoFocus
+                                    disabled={loading}
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setNeedPin(false)}
+                                    disabled={loading}
+                                    className="flex-1"
+                                >
+                                    Back
+                                </Button>
                                 <Button
                                     type="submit"
-                                    disabled={loading || !code.trim()}
-                                    className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-lg font-semibold flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-100"
+                                    disabled={loading || !pin.trim()}
+                                    className="flex-[2]"
                                 >
-                                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Activate Terminal <ArrowRight className="w-5 h-5" /></>}
+                                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Verify PIN"}
                                 </Button>
-                            </form>
-                        ) : (
-                            <motion.form
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                onSubmit={handlePinSubmit}
-                                className="space-y-4"
-                            >
-                                <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 mb-2">
-                                    <p className="text-xs text-amber-800 font-medium">This organization requires a Master PIN to activate terminals.</p>
-                                </div>
-                                <div>
-                                    <label className="text-sm font-semibold text-slate-700 block mb-1">
-                                        Master Security PIN
-                                    </label>
-                                    <Input
-                                        type="password"
-                                        pattern="[0-9]*"
-                                        inputMode="numeric"
-                                        placeholder="••••••"
-                                        maxLength={6}
-                                        value={pin}
-                                        onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                                        className="h-14 font-mono tracking-[0.5em] text-center text-2xl bg-slate-50 border-slate-200 rounded-xl"
-                                        autoFocus
-                                        disabled={loading}
-                                    />
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setNeedPin(false)}
-                                        disabled={loading}
-                                        className="h-14 flex-1 rounded-xl"
-                                    >
-                                        Back
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={loading || !pin.trim()}
-                                        className="h-14 flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-lg font-semibold flex items-center justify-center gap-2 shadow-md"
-                                    >
-                                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify PIN"}
-                                    </Button>
-                                </div>
-                            </motion.form>
-                        )}
-                    </div>
+                            </div>
+                        </form>
+                    )}
                 </div>
-            </motion.div>
 
-            {/* Support link */}
-            <p className="mt-8 text-xs text-slate-400 font-medium tracking-wide">
-                Where do I find my reference code? <br className="sm:hidden" />
-                <span className="hidden sm:inline"> — </span>
-                Check the <span className="text-indigo-500">Device Enrollment</span> tab in the Admin Portal.
-            </p>
+                <div className="text-center space-y-2">
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                        Terminal Security Protocol &bull; AES-256
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        Codes can be managed in the <span className="font-bold text-foreground">Device Enrollment</span> tab.
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };
 
 export default DeviceLogin;
+

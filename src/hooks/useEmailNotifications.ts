@@ -95,3 +95,4 @@ export const useEmailNotifications = () => {
     isLoading: sendEmailMutation.isPending,
   };
 };
+

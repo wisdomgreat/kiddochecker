@@ -70,3 +70,4 @@ const ProgressBar = ({ currentStep }: ProgressBarProps) => {
 };
 
 export default ProgressBar;
+

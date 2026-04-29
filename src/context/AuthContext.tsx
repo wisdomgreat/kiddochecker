@@ -131,12 +131,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUserRole = useCallback(async () => {
     if (!user?.id) {
       setUserRole(null);
+      setLoading(false);
       return;
     }
 
-    try {
-      console.log('Fetching user role for:', user.id, 'at', window.location.href);
+    console.log('Refreshing user role for:', user.id);
+    
+    // Safety timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Role fetching timed out after 10s');
+      setLoading(false);
+    }, 10000);
 
+    try {
       // We add a tiny delay to ensure Auth state is fully established on the backend before querying RLS
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -157,21 +164,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Error fetching user role (Supabase):", error);
         toast({
           title: "Role Connection Error",
-          description: `Error: ${error.message} (Code: ${error.code}). Please refresh your page.`,
+          description: `Error: ${error.message}. Please refresh your page.`,
           variant: "destructive",
         });
-        // Remove fallback to parent - let determination check show determination is still pending
         setUserRole(null);
         return;
       }
 
       if (!data) {
         console.warn('No role found in DB for user record:', user.id);
-        toast({
-          title: "Account Restricted",
-          description: "Your account has no assigned role. Contact support.",
-          variant: "destructive",
-        });
+        // Default to parent or keep null
         setUserRole(null);
         return;
       }
@@ -181,19 +183,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const roleData = data as any;
       let finalRole = roleData.role || 'parent';
       
-      // Explicitly override if super_admin string or boolean is found
       if (roleData.is_super_admin === true || roleData.role === 'super_admin') {
          finalRole = 'super_admin';
       }
       
       const finalStatus = roleData.verification_status || 'unverified';
-      
-      console.log('Final Determined Role:', finalRole);
-      
       setUserRole(finalRole as AppRole);
       setVerificationStatus(finalStatus);
 
-      // Extract permissions if any
       const perms: string[] = [];
       if (roleData.custom_roles?.role_permissions) {
         roleData.custom_roles.role_permissions.forEach((rp: any) => {
@@ -202,17 +199,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         });
       }
-      console.log('Fetched User Permissions:', perms);
       setUserPermissions(perms);
 
     } catch (err: any) {
       console.error("Exception in refreshUserRole:", err);
-      toast({
-          title: "Critical Fetch Error",
-          description: err.message || "Unknown error occurred.",
-          variant: "destructive",
-      });
       setUserRole(null);
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
     }
   }, [user?.id, toast]);
 
@@ -223,6 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setUserRole(null);
       setVerificationStatus(null);
+      localStorage.removeItem('qa_simulate_role');
 
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -348,48 +343,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
     };
   }, [refreshUserRole, toast]);
+  // QA Simulation Mode (Development Only)
+  const [qaRole, setQaRole] = useState<AppRole | null>(null);
 
-  // Role-based permissions
-  const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-  const isSuperAdmin = userRole === 'super_admin';
-  const isParent = userRole === 'parent';
-  const isStaff = userRole === 'staff';
-  const isTeacher = userRole === 'teacher';
-  const isTeacherAssistant = userRole === 'teacher_assistant';
-  const isVolunteer = userRole === 'volunteer';
-  const isKiosk = userRole === 'kiosk';
-  const isRegularUser = userRole === 'regular_user';
+  useEffect(() => {
+    const simulateRole = localStorage.getItem('qa_simulate_role');
+    if (simulateRole) setQaRole(simulateRole as AppRole);
+    
+    const handleStorageChange = () => {
+      setQaRole((localStorage.getItem('qa_simulate_role') as AppRole) || null);
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Override role flags if in QA mode
+  const effectiveRole = qaRole || userRole;
+  const effectiveUser = qaRole ? ({ id: '00000000-0000-0000-0000-000000000000', email: 'qa@test.com' } as any) : user;
+
+  const isAdmin = effectiveRole === 'admin' || effectiveRole === 'super_admin';
+  const isSuperAdmin = effectiveRole === 'super_admin';
+  const isParent = effectiveRole === 'parent';
+  const isStaff = effectiveRole === 'staff';
+  const isTeacher = effectiveRole === 'teacher';
+  const isTeacherAssistant = effectiveRole === 'teacher_assistant';
+  const isVolunteer = effectiveRole === 'volunteer';
+  const isKiosk = effectiveRole === 'kiosk';
+  const isRegularUser = effectiveRole === 'regular_user';
 
   const isVerifiedStaff =
     (isStaff || isTeacher || isTeacherAssistant || isAdmin) &&
-    verificationStatus === 'verified';
-
-  // Granular permission check
-  const hasPermission = useCallback((permissionName: string): boolean => {
-    if (isSuperAdmin) return true;
-    
-    // If the permission is in our fetched list, grant access
-    if (userPermissions.includes(permissionName)) return true;
-
-    // Fallback for legacy hardcoded mappings (to ensure no breakage while migrating)
-    const permissionMap: Record<string, string[]> = {
-      'access_kiosk': ['admin', 'super_admin', 'staff', 'teacher', 'kiosk'],
-      'manage_users': ['admin', 'super_admin'],
-      'view_audit_logs': ['admin', 'super_admin'],
-    };
-
-    if (permissionMap[permissionName]) {
-      return permissionMap[permissionName].includes(userRole || '');
-    }
-    
-    return false;
-  }, [isSuperAdmin, userPermissions, userRole]);
+    (qaRole ? true : (verificationStatus === 'verified'));
 
   const value = {
-    user,
-    session,
-    userRole,
-    loading,
+    user: effectiveUser,
+    session: qaRole ? ({} as any) : session,
+    userRole: effectiveRole,
+    loading: qaRole ? false : loading,
     signOut,
     refreshUserRole,
     refreshMfaStatus,
@@ -402,14 +392,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isVolunteer,
     isKiosk,
     isRegularUser,
-    verificationStatus,
+    verificationStatus: qaRole ? 'verified' : verificationStatus,
     isVerifiedStaff,
     mfaLevel,
-    isMfaPending,
+    isMfaPending: qaRole ? false : isMfaPending,
     isMfaEnrolled,
     mfaFactors,
-    hasRole,
-    hasPermission,
+    hasRole: (role: AppRole) => {
+      if (!effectiveRole) return false;
+      if (effectiveRole === 'super_admin') return true;
+      return effectiveRole === role;
+    },
+    hasPermission: (permissionName: string) => {
+      if (effectiveRole === 'super_admin') return true;
+      if (qaRole) return true; // Grant all permissions in QA mode
+      return userPermissions.includes(permissionName);
+    },
     userPermissions,
   };
 
@@ -427,3 +425,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+

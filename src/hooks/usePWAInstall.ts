@@ -59,3 +59,4 @@ export const usePWAInstall = () => {
 
   return { isInstallable, isInstalled, installPWA };
 };
+

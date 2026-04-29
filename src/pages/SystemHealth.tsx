@@ -233,3 +233,4 @@ const SystemHealth = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 };
 
 export default SystemHealth;
+

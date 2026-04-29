@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,6 @@ const ClassesPage = () => {
   const stats = useMemo(() => {
     const totalClasses = classes.length;
     const totalCapacity = classes.reduce((sum, cls) => sum + (cls.capacity || 0), 0);
-    // Note: Enrollment would come from attendance data - using placeholder for now
     return { totalClasses, totalCapacity, enrollment: 0 };
   }, [classes]);
 
@@ -60,12 +58,12 @@ const ClassesPage = () => {
 
   return (
     <UnifiedDashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto px-6 py-8">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Class Management</h1>
-              <p className="text-muted-foreground">Manage classes and schedules</p>
+              <h1 className="text-3xl font-bold tracking-tight">Class Management</h1>
+              <p className="text-sm text-muted-foreground">Manage classrooms and capacity</p>
             </div>
             {isAdmin && (
               <Button className="flex items-center gap-2" onClick={() => setIsAddDialogOpen(true)}>
@@ -75,44 +73,50 @@ const ClassesPage = () => {
             )}
           </div>
 
-          {/* Statistics Cards */}
+          {/* Statistics Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalClasses}
+            <Card className="shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                   <div className="space-y-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Classes</p>
+                      <h3 className="text-3xl font-bold tracking-tight">
+                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalClasses}
+                      </h3>
+                   </div>
+                   <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Active classes</p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalCapacity}
+            <Card className="shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                   <div className="space-y-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Capacity</p>
+                      <h3 className="text-3xl font-bold tracking-tight">
+                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalCapacity}
+                      </h3>
+                   </div>
+                   <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-primary" />
+                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">Maximum children</p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Classes Today</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalClasses}
+            <Card className="shadow-sm bg-primary text-primary-foreground">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                   <div className="space-y-1">
+                      <p className="text-xs font-bold opacity-70 uppercase tracking-widest">Active Today</p>
+                      <h3 className="text-3xl font-bold tracking-tight">
+                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalClasses}
+                      </h3>
+                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">All active</p>
               </CardContent>
             </Card>
           </div>
@@ -125,135 +129,116 @@ const ClassesPage = () => {
                 placeholder="Search classes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 w-[300px]"
+                className="pl-9 w-full md:w-[300px]"
               />
             </div>
           </div>
 
-          {/* Class Cards */}
+          {/* Class Grid */}
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : error ? (
             <Card>
-              <CardContent className="text-center py-8 text-destructive">
-                <p>Error loading classes</p>
-                <Button variant="outline" onClick={() => refetch()} className="mt-2">
-                  Retry
+              <CardContent className="text-center py-12 text-destructive">
+                <p className="font-bold">Error loading database</p>
+                <Button variant="outline" onClick={() => refetch()} className="mt-4">
+                  Retry Connection
                 </Button>
               </CardContent>
             </Card>
           ) : filteredClasses.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12 text-muted-foreground">
+            <Card className="border-2 border-dashed bg-muted/30">
+              <CardContent className="text-center py-16 text-muted-foreground">
                 <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">No classes found</p>
-                <p className="text-sm mb-4">Get started by creating your first class</p>
+                <p className="text-lg font-bold">No classes found</p>
+                <p className="text-sm mb-6">Start by creating your first instructional group.</p>
                 <Button onClick={() => setIsAddDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Class
+                  Create Class
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              variants={{
-                hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: { staggerChildren: 0.1 }
-                }
-              }}
-              initial="hidden"
-              animate="show"
-            >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredClasses.map((classItem) => (
-                <motion.div
-                  key={classItem.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 20 },
-                    show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3 } }
-                  }}
-                >
-                  <Card className="hover:shadow-md transition-shadow h-full">
-                    <CardHeader className="flex flex-row items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{classItem.name}</CardTitle>
-                        {classItem.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{classItem.description}</p>
-                        )}
-                      </div>
-                      <div className="flex gap-1 flex-wrap justify-end max-w-[120px]">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setAssigningTeacher({ id: classItem.id, name: classItem.name })}
-                          title="Manage Staff & Children"
-                        >
-                          <Users className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setViewingRoster({ id: classItem.id, name: classItem.name })}
-                          title="View Roster"
-                        >
-                          <BookOpen className="h-4 w-4" />
-                        </Button>
-                        {isAdmin && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setEditingClass(classItem)}
-                              title="Edit Class"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeletingClass(classItem)}
-                              className="text-destructive hover:text-destructive"
-                              title="Delete Class"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                <Card key={classItem.id} className="shadow-sm hover:shadow-md transition-shadow flex flex-col">
+                  <CardHeader className="flex flex-row items-start justify-between pb-4">
+                    <div className="space-y-1">
+                      <CardTitle className="text-lg font-bold">{classItem.name}</CardTitle>
+                      {classItem.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{classItem.description}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setAssigningTeacher({ id: classItem.id, name: classItem.name })}
+                        className="h-8 w-8"
+                      >
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setViewingRoster({ id: classItem.id, name: classItem.name })}
+                        className="h-8 w-8"
+                      >
+                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                      {isAdmin && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingClass(classItem)}
+                            className="h-8 w-8"
+                          >
+                            <Edit className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeletingClass(classItem)}
+                            className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-0">
+                    <div className="space-y-2">
                       {classItem.age_range && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Age Range:</span>
-                          <span className="text-sm font-medium">{classItem.age_range}</span>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-muted-foreground">Age Range</span>
+                          <span className="font-bold">{classItem.age_range}</span>
                         </div>
                       )}
                       {classItem.room && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Room:</span>
-                          <span className="text-sm font-medium">{classItem.room}</span>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-muted-foreground">Room</span>
+                          <span className="font-bold">{classItem.room}</span>
                         </div>
                       )}
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Capacity:</span>
-                        <span className="text-sm font-medium">{classItem.capacity || 'Unlimited'}</span>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Capacity</span>
+                        <span className="font-bold">{classItem.capacity || 'N/A'}</span>
                       </div>
-                      {classItem.capacity && (
-                        <Progress value={0} className="h-2" />
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                    </div>
+                    {classItem.capacity && (
+                      <Progress value={0} className="h-1" />
+                    )}
+                  </CardContent>
+                </Card>
               ))}
-            </motion.div>
+            </div>
           )}
         </div>
 
-        {/* Add Class Dialog */}
         <AddEditClassDialog
           isOpen={isAddDialogOpen}
           onClose={() => setIsAddDialogOpen(false)}
@@ -261,7 +246,6 @@ const ClassesPage = () => {
           isLoading={isAddingClass}
         />
 
-        {/* Edit Class Dialog */}
         <AddEditClassDialog
           isOpen={!!editingClass}
           onClose={() => setEditingClass(null)}
@@ -270,13 +254,13 @@ const ClassesPage = () => {
           isLoading={isUpdatingClass}
         />
 
-        {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deletingClass} onOpenChange={(open) => !open && setDeletingClass(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Class</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete "{deletingClass?.name}"? This action cannot be undone.
+                Are you sure you want to delete "{deletingClass?.name}"? 
+                This action is permanent and cannot be reversed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -309,3 +293,4 @@ const ClassesPage = () => {
 };
 
 export default ClassesPage;
+

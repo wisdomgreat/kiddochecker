@@ -86,3 +86,4 @@ export const ClassRosterDialog = ({ classId, className, open, onOpenChange }: Cl
     </Dialog>
   );
 };
+

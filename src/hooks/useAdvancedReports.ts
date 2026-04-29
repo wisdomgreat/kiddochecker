@@ -139,3 +139,4 @@ export const useAdvancedReports = () => {
     isGeneratingCustomReport: generateCustomReport.isPending,
   };
 };
+

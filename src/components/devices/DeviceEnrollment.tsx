@@ -95,7 +95,7 @@ const DeviceEnrollment = () => {
             <CardTitle className="text-2xl text-green-800">Device Enrolled Successfully!</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="bg-white p-4 rounded-lg border">
+            <div className="bg-card p-4 rounded-lg border">
               <h3 className="font-semibold mb-2">Device Information:</h3>
               <div className="space-y-2 text-sm">
                 <div><strong>Device ID:</strong> {deviceId}</div>
@@ -275,3 +275,4 @@ const DeviceEnrollment = () => {
 };
 
 export default DeviceEnrollment;
+

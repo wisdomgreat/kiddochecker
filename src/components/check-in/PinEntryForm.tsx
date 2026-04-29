@@ -51,7 +51,7 @@ export const PinEntryForm = ({ pin, onChange }: PinEntryFormProps) => {
           placeholder={isPinMode ? "Enter your 6-digit PIN" : "Enter your password"}
           value={pin}
           onChange={handlePinChange}
-          className="pr-10 bg-white text-base py-6"
+          className="pr-10 bg-card text-base py-6"
           maxLength={10}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
@@ -79,3 +79,4 @@ export const PinEntryForm = ({ pin, onChange }: PinEntryFormProps) => {
 };
 
 export default PinEntryForm;
+

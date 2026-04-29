@@ -198,3 +198,4 @@ const CheckInSetupPage = () => {
 };
 
 export default CheckInSetupPage;
+

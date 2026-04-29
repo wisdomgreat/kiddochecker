@@ -23,3 +23,4 @@ export interface EventFormValues {
 
 // Match the exact definition in database and in supabase.ts
 export type AppRole = 'admin' | 'staff' | 'teacher' | 'teacher_assistant' | 'parent' | 'super_admin' | 'volunteer' | 'kiosk' | 'regular_user';
+

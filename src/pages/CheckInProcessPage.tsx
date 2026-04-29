@@ -341,3 +341,4 @@ const CheckInProcessPage = () => {
 };
 
 export default CheckInProcessPage;
+

@@ -151,3 +151,4 @@ const NameTagPrinter = ({ childName, className = '', onPrintComplete }: NameTagP
 };
 
 export default NameTagPrinter;
+

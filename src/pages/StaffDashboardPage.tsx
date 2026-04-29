@@ -14,3 +14,4 @@ const StaffDashboardPage = () => {
 };
 
 export default StaffDashboardPage;
+

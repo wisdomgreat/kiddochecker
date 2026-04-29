@@ -1,46 +1,30 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { 
-  Users, ShieldCheck, Search, Plus, Loader2, ChevronRight, Activity, Handshake, Layers, Heart, Trash2, Edit, UserPlus
+  Users, Search, Plus, Loader2, ChevronRight, Activity, Layers, Heart, Edit, UserPlus, ClipboardList, LayoutGrid, BarChart3
 } from 'lucide-react';
 import { useMembers, ChurchMember, MembershipType, MembershipStatus } from '@/hooks/useMembers';
-import { useMinistries, Ministry, useGroupMembers } from '@/hooks/useMinistries';
-import { useAllUsers } from '@/hooks/useAllUsers';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useMinistries } from '@/hooks/useMinistries';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/lib/i18n';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { useAuth } from '@/context/AuthContext';
 import MemberCRMDialog from '@/components/crm/MemberCRMDialog';
 import JourneyKanbanBoard from '@/components/crm/JourneyKanbanBoard';
 import DonationTracker from '@/components/crm/DonationTracker';
-import { 
-  BarChart3, 
-  LayoutGrid, 
-  CircleDollarSign, 
-  ClipboardList
-} from 'lucide-react';
 import VisitorJourneyBoard from '@/components/crm/VisitorJourneyBoard';
-import { Heart as HeartIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 const ChurchManagementPage = () => {
     const { t } = useTranslation();
-    const { hasPermission } = useAuth();
-    const { toast } = useToast();
-    const { members, stats, isLoading: membersLoading, updateMember, createMember, createVisitor } = useMembers();
-    const { ministries, isLoading: ministriesLoading, deleteMinistry, createMinistry, createGroup, assignMember } = useMinistries();
+    const { members, stats, isLoading: membersLoading, updateMember, createVisitor } = useMembers();
+    const { ministries, isLoading: ministriesLoading, createMinistry, createGroup, assignMember } = useMinistries();
     
     const [activePerspective, setActivePerspective] = useState('members');
     const [searchTerm, setSearchTerm] = useState('');
@@ -52,8 +36,6 @@ const ChurchManagementPage = () => {
     const [isAddMinistryOpen, setIsAddMinistryOpen] = useState(false);
     const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
     const [selectedMinistryId, setSelectedMinistryId] = useState<string | null>(null);
-    const [onboardingMode, setOnboardingMode] = useState<'existing' | 'new_guest'>('existing');
-    const [onboardingMember, setOnboardingMember] = useState<{ profile_id: string; type: MembershipType; status: MembershipStatus }>({ profile_id: '', type: 'visitor', status: 'active' });
     const [newMinistry, setNewMinistry] = useState({ name: '', description: '', head_staff_id: '' });
     const [isAddVisitorOpen, setIsAddVisitorOpen] = useState(false);
     const [newVisitor, setNewVisitor] = useState({ firstName: '', lastName: '', email: '', phone: '', type: 'visitor' as MembershipType });
@@ -78,270 +60,233 @@ const ChurchManagementPage = () => {
         }, { onSuccess: () => setIsEditDialogOpen(false) });
     };
 
-    const handleAddMember = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!onboardingMember.profile_id) return;
-        createMember({
-            profile_id: onboardingMember.profile_id,
-            membership_type: onboardingMember.type,
-            status: onboardingMember.status,
-            joined_at: new Date().toISOString()
-        }, { onSuccess: () => setIsAddMemberOpen(false) });
-    };
+    const cn = (...inputs: any[]) => inputs.filter(Boolean).join(' ');
 
     return (
         <UnifiedDashboardLayout>
           <TooltipProvider>
-            <div className="space-y-10 pb-20 p-8">
-                {/* Header with Growth Stats */}
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-200 rotate-3 transition-transform hover:rotate-0">
-                                <Users className="h-8 w-8 text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight leading-none mb-1">{t('churchManagement')}</h1>
-                                <div className="flex items-center gap-2">
-                                    <div className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-bold tracking-tight">Growing Together</div>
-                                    <span className="text-[10px] text-slate-400 font-semibold tracking-tight">{members.length} Members</span>
-                                </div>
-                            </div>
-                        </div>
+            <div className="space-y-8 max-w-7xl mx-auto py-8 px-6">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-bold tracking-tight">{t('churchManagement')}</h1>
+                        <p className="text-sm text-muted-foreground">Manage your congregation, ministries, and community growth.</p>
                     </div>
-                    
-                    <div className="flex flex-wrap items-center gap-4">
-                        <Tabs value={activePerspective} onValueChange={setActivePerspective} className="w-fit">
-                            <TabsList className="bg-slate-200/60 dark:bg-slate-800/80 p-1.5 rounded-[1.5rem] border border-white dark:border-white/5 h-16 shadow-inner backdrop-blur-md">
-                                <TabsTrigger value="members" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
-                                    <Users className="h-4 w-4 mr-2" /> {t('members')}
-                                </TabsTrigger>
-                                <TabsTrigger value="ministries" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
-                                    <LayoutGrid className="h-4 w-4 mr-2" /> {t('ministries')}
-                                </TabsTrigger>
-                                <TabsTrigger value="visitor_crm" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
-                                    <Heart className="h-4 w-4 mr-2" /> Care Board
-                                </TabsTrigger>
-                                <TabsTrigger value="kanban" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
-                                    <ClipboardList className="h-4 w-4 mr-2" /> {t('kanban')}
-                                </TabsTrigger>
-                                <TabsTrigger value="journey" className="rounded-2xl px-8 font-bold text-[11px] tracking-tight h-12 data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all">
-                                    <BarChart3 className="h-4 w-4 mr-2" /> {t('analysis')}
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                        <Button onClick={() => setIsAddMemberOpen(true)} className="h-16 px-8 rounded-3xl bg-slate-900 dark:bg-indigo-600 font-bold text-xs tracking-tight text-white shadow-xl hover:scale-105 active:scale-95 transition-all">
-                            <Plus className="h-5 w-5 mr-1" /> Add Person
+                    <div className="flex items-center gap-2">
+                        <Button onClick={() => setIsAddMemberOpen(true)}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Enroll Person
                         </Button>
                     </div>
                 </div>
 
-                {/* Growth Pulse Header */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    {[
-                        { label: 'Congregation', value: stats?.total_members || 0, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                        { label: 'New Guests', value: stats?.visitor_count || 0, icon: UserPlus, color: 'text-amber-500', bg: 'bg-amber-50' },
-                        { label: 'In Discipleship', value: stats?.regular_count || 0, icon: Heart, color: 'text-rose-500', bg: 'bg-rose-50' },
-                        { label: 'Relationship Pulse', value: `${stats?.integrations_perc || 0}%`, icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-50' }
-                    ].map((stat, i) => (
-                        <Card key={i} className="p-6 rounded-[2.5rem] bg-white dark:bg-slate-900 border-none shadow-[0_4px_24px_rgba(0,0,0,0.02)] group hover:shadow-xl transition-all border border-transparent hover:border-indigo-100 dark:hover:border-white/10">
-                            <div className="flex items-center gap-5">
-                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:-rotate-6", stat.bg)}>
-                                    <stat.icon className={cn("h-6 w-6", stat.color)} />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 tracking-tight">{stat.label}</p>
-                                    <h4 className="text-2xl font-bold text-slate-900 dark:text-white leading-none mt-0.5">{stat.value}</h4>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
-                </div>
+                {/* Perspective Selection */}
+                <Tabs value={activePerspective} onValueChange={setActivePerspective} className="w-full">
+                    <TabsList className="bg-muted/50 p-1 mb-8">
+                        <TabsTrigger value="members" className="font-bold text-[10px] uppercase tracking-wider">
+                            <Users className="h-3.5 w-3.5 mr-2" /> Candidates
+                        </TabsTrigger>
+                        <TabsTrigger value="ministries" className="font-bold text-[10px] uppercase tracking-wider">
+                            <LayoutGrid className="h-3.5 w-3.5 mr-2" /> Ministries
+                        </TabsTrigger>
+                        <TabsTrigger value="visitor_crm" className="font-bold text-[10px] uppercase tracking-wider">
+                            <Heart className="h-3.5 w-3.5 mr-2" /> Care Board
+                        </TabsTrigger>
+                        <TabsTrigger value="kanban" className="font-bold text-[10px] uppercase tracking-wider">
+                            <ClipboardList className="h-3.5 w-3.5 mr-2" /> Workflow
+                        </TabsTrigger>
+                        <TabsTrigger value="journey" className="font-bold text-[10px] uppercase tracking-wider">
+                            <BarChart3 className="h-3.5 w-3.5 mr-2" /> Analytics
+                        </TabsTrigger>
+                    </TabsList>
 
-                <AnimatePresence mode="wait">
-                    {activePerspective === 'members' && (
-                        <motion.div key="members" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                            <div className="relative w-full max-w-md">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                                <Input placeholder="Search congregation..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-12 h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/40 font-bold" />
-                            </div>
+                    {/* Stats Summary */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        {[
+                            { label: 'Congregation', val: stats?.total_members || 0, icon: Users, color: 'text-foreground' },
+                            { label: 'Total Guests', val: stats?.visitor_count || 0, icon: UserPlus, color: 'text-foreground' },
+                            { label: 'In Discipleship', val: stats?.regular_count || 0, icon: Heart, color: 'text-foreground' },
+                            { label: 'Interaction Rate', val: `${stats?.integrations_perc || 0}%`, icon: Activity, color: 'text-foreground' }
+                        ].map((s, i) => (
+                            <Card key={i} className="shadow-sm">
+                                <CardContent className="p-6">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{s.label}</p>
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-2xl font-bold">{s.val}</h4>
+                                        <s.icon className={cn("h-4 w-4", s.color)} />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {membersLoading ? (
-                                    <div className="col-span-full py-20 text-center"><Loader2 className="h-10 w-10 animate-spin mx-auto text-indigo-600" /></div>
-                                ) : filteredMembers.map(member => (
-                                    <Card key={member.id} className="p-6 rounded-2xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm transition-all group overflow-hidden hover:shadow-md">
-                                         <div className="flex gap-6">
-                                            <div className="w-20 h-20 rounded-[2rem] bg-slate-50 dark:bg-slate-800 flex items-center justify-center font-black text-2xl text-slate-400 group-hover:text-indigo-600 transition-colors">
+                    <TabsContent value="members" className="space-y-6">
+                        <div className="flex justify-between items-center bg-muted/20 p-4 rounded-lg border border-dashed">
+                            <div className="relative w-full max-w-sm">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search congregation..." 
+                                    value={searchTerm} 
+                                    onChange={e => setSearchTerm(e.target.value)} 
+                                    className="pl-9" 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {membersLoading ? (
+                                <div className="col-span-full py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>
+                            ) : filteredMembers.map(member => (
+                                <Card key={member.id} className="shadow-sm hover:shadow-md transition-shadow">
+                                     <CardContent className="p-6">
+                                        <div className="flex gap-4">
+                                            <div className="w-12 h-12 rounded bg-slate-100 flex items-center justify-center font-bold text-slate-500">
                                                 {member.profiles?.first_name?.[0]}
                                             </div>
-                                            <div className="flex-1">
+                                            <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 font-bold px-3 py-1 text-[10px] tracking-tight">{member.membership_type}</Badge>
-                                                    {member.status !== 'active' && <Badge variant="outline" className="text-[10px] font-bold tracking-tight">{member.status}</Badge>}
+                                                    <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-tight h-5">
+                                                        {member.membership_type}
+                                                    </Badge>
                                                 </div>
-                                                <h4 className="text-xl font-bold text-slate-900 dark:text-white truncate">{member.profiles?.first_name} {member.profiles?.last_name}</h4>
-                                                <p className="text-xs text-slate-400 dark:text-slate-500 font-bold">{member.profiles?.email}</p>
-                                            </div>
-                                            <div className="flex flex-col gap-2">
-                                                <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-300 hover:text-indigo-600 rounded-full" onClick={() => { setSelectedMember(member); setIsEditDialogOpen(true); }}><Edit className="h-4 w-4" /></Button>
-                                                <Button size="sm" className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-black text-[10px] uppercase tracking-widest px-3 h-8 rounded-lg transition-all" onClick={() => { setCrmMember(member); setIsCRMOpen(true); }}>PROFILE <ChevronRight className="h-3 w-3 inline ml-1 opacity-50" /></Button>
+                                                <h4 className="text-base font-bold truncate">{member.profiles?.first_name} {member.profiles?.last_name}</h4>
+                                                <p className="text-xs text-muted-foreground truncate">{member.profiles?.email}</p>
                                             </div>
                                         </div>
-                                    </Card>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
+                                        <div className="flex gap-2 mt-6">
+                                            <Button variant="outline" size="sm" className="flex-1 h-9 font-bold text-[10px] uppercase" onClick={() => { setCrmMember(member); setIsCRMOpen(true); }}>
+                                                View File
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => { setSelectedMember(member); setIsEditDialogOpen(true); }}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                     </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </TabsContent>
 
-                    {activePerspective === 'ministries' && (
-                        <motion.div key="ministries" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                    <TabsContent value="ministries" className="space-y-8">
+                        {ministriesLoading ? (
+                            <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>
+                        ) : ministries.length === 0 ? (
+                            <Card className="p-20 text-center border-dashed">
+                                <Layers className="h-10 w-10 mx-auto mb-4 opacity-20" />
+                                <p className="text-sm font-bold uppercase text-muted-foreground tracking-widest">No active ministries</p>
+                                <Button variant="link" onClick={() => setIsAddMinistryOpen(true)}>Create First Department</Button>
+                            </Card>
+                        ) : (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                {ministriesLoading ? (
-                                    <div className="col-span-full py-20 text-center"><Loader2 className="h-10 w-10 animate-spin mx-auto text-indigo-600" /></div>
-                                ) : ministries.length === 0 ? (
-                                    <div className="col-span-full py-20 text-center bg-white dark:bg-slate-900/40 rounded-3xl border border-dashed text-slate-400">
-                                        <Layers className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                                        <p className="font-bold uppercase tracking-widest text-xs">No departments or groups found</p>
-                                        <Button variant="link" className="text-indigo-600 font-bold mt-2" onClick={() => setIsAddMinistryOpen(true)}>Initialize First Ministry</Button>
-                                    </div>
-                                ) : ministries.map(ministry => (
+                                {ministries.map(ministry => (
                                     <div key={ministry.id} className="space-y-4">
-                                        <div className="flex items-center justify-between px-2">
+                                        <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                                                    <Layers className="h-5 w-5 text-indigo-600" />
+                                                <div className="w-8 h-8 rounded bg-slate-900 dark:bg-card flex items-center justify-center">
+                                                    <Layers className="h-4 w-4 text-white dark:text-foreground" />
                                                 </div>
-                                                <div>
-                                                     <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{ministry.name}</h3>
-                                                     <p className="text-[10px] font-bold text-slate-400 tracking-tight">Department</p>
-                                                 </div>
+                                                <h3 className="text-lg font-bold">{ministry.name}</h3>
                                             </div>
-                                            <Button variant="outline" size="sm" className="border-indigo-100 text-indigo-600 font-bold text-xs rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition-colors h-8" onClick={() => { setSelectedMinistryId(ministry.id); setIsAddGroupOpen(true); }}>
-                                                <Plus className="h-3.5 w-3.5 mr-1" /> GROUP
+                                            <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase" onClick={() => { setSelectedMinistryId(ministry.id); setIsAddGroupOpen(true); }}>
+                                                Add Group
                                             </Button>
                                         </div>
                                         
-                                        <div className="grid grid-cols-1 gap-4">
+                                        <div className="grid grid-cols-1 gap-3">
                                             {ministry.groups?.map(group => (
-                                                <Card key={group.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900/40 border-none shadow-[0_4px_12px_rgba(0,0,0,0.03)] group hover:shadow-lg transition-all">
-                                                    <div className="flex justify-between items-start">
-                                                        <div className="space-y-1">
-                                                             <h4 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight">{group.name}</h4>
-                                                             <div className="flex items-center gap-2">
-                                                                 <Activity className="h-3 w-3 text-indigo-500" />
-                                                                 <p className="text-[10px] text-slate-400 font-bold tracking-tight">
-                                                                     {group.meeting_day} • {group.meeting_time}
-                                                                 </p>
-                                                             </div>
-                                                         </div>  <div className="flex gap-2 items-center">
-                                                            <Badge className="bg-indigo-600/10 text-indigo-600 border-none font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full cursor-help hover:bg-indigo-600 hover:text-white transition-all">{group.member_count || 0} Members</Badge>
-                                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg shrink-0" onClick={() => { setSelectedGroupId(group.id); setIsAssignMemberOpen(true); }}><UserPlus className="h-4 w-4" /></Button>
+                                                <Card key={group.id} className="shadow-sm">
+                                                    <CardContent className="p-4 flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="font-bold text-sm">{group.name}</h4>
+                                                            <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase mt-0.5">
+                                                                <Activity className="h-3 w-3" />
+                                                                {group.meeting_day} at {group.meeting_time}
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <Badge className="font-bold text-[9px] uppercase">{group.member_count || 0} Members</Badge>
+                                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setSelectedGroupId(group.id); setIsAssignMemberOpen(true); }}>
+                                                                <UserPlus className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </CardContent>
                                                 </Card>
                                             ))}
-                                            {(!ministry.groups || ministry.groups.length === 0) && (
-                                                <div className="p-10 border border-dashed rounded-2xl text-center text-slate-300 text-xs font-bold uppercase tracking-widest">No active groups</div>
-                                            )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                        </motion.div>
-                    )}
+                        )}
+                    </TabsContent>
 
-                    {activePerspective === 'journey' && (
-                        <motion.div key="journey" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <Card className="p-8 rounded-3xl bg-indigo-600 text-white border-none shadow-xl flex flex-col justify-between overflow-hidden relative">
-                                    <Activity className="absolute -right-4 -top-4 w-32 h-32 opacity-10 rotate-12" />
-                                    <div className="space-y-1">
-                                         <p className="text-[10px] font-bold tracking-tight opacity-80">Retention Phase</p>
-                                         <h3 className="text-3xl font-bold">New Guests</h3>
-                                     </div>
-                                     <div className="mt-8 flex items-end justify-between">
-                                         <span className="text-5xl font-bold">{stats?.visitor_count || 0}</span>
-                                         <Badge className="bg-white/20 text-white border-none font-bold px-3 py-1">+12% this month</Badge>
-                                     </div>
-                                </Card>
+                    <TabsContent value="visitor_crm">
+                        <VisitorJourneyBoard />
+                    </TabsContent>
 
-                                <Card className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
-                                    <div className="space-y-1">
-                                         <p className="text-[10px] font-bold text-slate-400 tracking-tight">Pastoral Care</p>
-                                         <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Active Journey</h3>
-                                     </div>
-                                     <div className="mt-8 flex items-end justify-between">
-                                         <span className="text-5xl font-bold text-slate-900 dark:text-white">{stats?.active_journey || 0}</span>
-                                         <Badge variant="outline" className="font-bold border-slate-200 px-3 py-1 rounded-lg">Needs Contact</Badge>
-                                     </div>
-                                 </Card>
+                    <TabsContent value="kanban">
+                        <JourneyKanbanBoard />
+                    </TabsContent>
 
-                                 <Card className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
-                                     <div className="space-y-1">
-                                         <p className="text-[10px] font-bold text-slate-400 tracking-tight">Total Retention</p>
-                                         <h3 className="text-3xl font-bold text-slate-900 dark:text-white">Integrations</h3>
+                    <TabsContent value="journey">
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                            <Card className="p-6 bg-slate-900 text-white shadow-lg">
+                                <CardContent className="p-0 flex flex-col justify-between h-32">
+                                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Entry Phase</p>
+                                     <div className="flex items-baseline justify-between">
+                                         <span className="text-4xl font-bold">{stats?.visitor_count || 0}</span>
+                                         <Badge className="bg-card/10 text-white font-bold text-[9px]">+12%</Badge>
                                      </div>
-                                     <div className="mt-8 flex items-end justify-between">
-                                         <span className="text-5xl font-bold text-slate-900 dark:text-white">{stats?.integrations_perc || 0}%</span>
-                                         <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold px-3 py-1 rounded-lg">Excellent</Badge>
-                                     </div>
-                                </Card>
-                            </div>
+                                     <h3 className="text-sm font-bold uppercase">New Guests Found</h3>
+                                </CardContent>
+                            </Card>
 
-                            <div className="bg-white dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-100 dark:border-white/10 p-10 mt-12">
-                                <div className="flex items-center gap-4 mb-10">
-                                     <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center">
-                                         <Activity className="h-5 w-5 text-orange-600" />
-                                     </div>
-                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Acquisition Funnel</h3>
-                                </div>
-                                <div className="space-y-8">
-                                    {[
-                                        { stage: 'Initial Visit', count: stats?.visitor_count || 0, color: 'bg-indigo-600' },
-                                        { stage: 'First Follow-up', count: stats?.first_followup || 0, color: 'bg-indigo-500' },
-                                        { stage: 'Regular Attendance', count: stats?.regular_count || 0, color: 'bg-indigo-400' },
-                                        { stage: 'Official Membership', count: stats?.registered_count || 0, color: 'bg-indigo-300' }
-                                    ].map((step, i) => (
-                                        <div key={i} className="flex items-center gap-6">
-                                             <div className="w-40 text-left">
-                                                 <p className="text-xs font-bold text-slate-400 tracking-tight">{step.stage}</p>
-                                             </div>
-                                             <div className="flex-1 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl overflow-hidden shadow-inner">
-                                                <motion.div 
-                                                    initial={{ width: 0 }} 
-                                                    animate={{ width: `${(step.count / Math.max(stats?.visitor_count || 1, 1)) * 100}%` }}
-                                                    className={`h-full ${step.color} shadow-lg`}
-                                                />
-                                            </div>
-                                             <div className="w-16">
-                                                 <p className="text-lg font-bold text-slate-900 dark:text-white">{step.count}</p>
-                                             </div>
+                            <Card className="p-6">
+                                <CardContent className="p-0 flex flex-col justify-between h-32">
+                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Engagement Phase</p>
+                                     <span className="text-4xl font-bold">{stats?.active_journey || 0}</span>
+                                     <h3 className="text-sm font-bold uppercase">Active Care Paths</h3>
+                                </CardContent>
+                             </Card>
+
+                             <Card className="p-6">
+                                <CardContent className="p-0 flex flex-col justify-between h-32">
+                                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Commitment Phase</p>
+                                     <span className="text-4xl font-bold">{stats?.integrations_perc || 0}%</span>
+                                     <h3 className="text-sm font-bold uppercase">Congregation Retention</h3>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <Card className="shadow-sm overflow-hidden">
+                            <CardHeader className="bg-muted/30 border-b">
+                                <CardTitle className="text-sm font-bold uppercase tracking-wider">Member Acquisition Pipeline</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-8 space-y-6">
+                                {[
+                                    { stage: 'Initial Identification', count: stats?.visitor_count || 0, color: 'bg-slate-900' },
+                                    { stage: 'Follow-up Contact', count: stats?.first_followup || 0, color: 'bg-slate-700' },
+                                    { stage: 'Regular Engagement', count: stats?.regular_count || 0, color: 'bg-slate-500' },
+                                    { stage: 'Formal Registration', count: stats?.registered_count || 0, color: 'bg-slate-300' }
+                                ].map((step, i) => (
+                                    <div key={i} className="flex items-center gap-6">
+                                         <div className="w-48">
+                                             <p className="text-[10px] font-bold uppercase text-muted-foreground">{step.stage}</p>
+                                         </div>
+                                         <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                                            <div 
+                                                className={cn("h-full", step.color)}
+                                                style={{ width: `${(step.count / Math.max(stats?.visitor_count || 1, 1)) * 100}%` }}
+                                            />
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {activePerspective === 'visitor_crm' && (
-                        <motion.div key="visitor_crm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                            <VisitorJourneyBoard />
-                        </motion.div>
-                    )}
-
-                    {activePerspective === 'kanban' && (
-                        <motion.div key="kanban" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                            <JourneyKanbanBoard />
-                        </motion.div>
-                    )}
-
-                    {activePerspective === 'giving' && (
-                        <motion.div key="giving" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                            <DonationTracker />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                         <div className="w-12 text-right">
+                                             <p className="text-sm font-bold">{step.count}</p>
+                                         </div>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
 
             <MemberCRMDialog 
@@ -350,12 +295,13 @@ const ChurchManagementPage = () => {
                 onOpenChange={setIsCRMOpen} 
             />
 
+            {/* Modals Simplified */}
             <Dialog open={isAddMinistryOpen} onOpenChange={setIsAddMinistryOpen}>
-                 <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
-                     <div className="bg-indigo-600 p-8 text-white">
-                         <DialogTitle className="text-xl font-bold tracking-tight">New Department</DialogTitle>
-                         <DialogDescription className="text-indigo-100 font-medium">Create a new ministry area to organize your teams.</DialogDescription>
-                     </div>
+                 <DialogContent className="p-0 overflow-hidden">
+                    <DialogHeader className="p-6 bg-muted/50 border-b">
+                        <DialogTitle>Create Ministry</DialogTitle>
+                        <DialogDescription>Define a new organizational department.</DialogDescription>
+                    </DialogHeader>
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         if (!newMinistry.name) return;
@@ -365,46 +311,41 @@ const ChurchManagementPage = () => {
                                 setNewMinistry({ name: '', description: '', head_staff_id: '' });
                             }
                         });
-                    }} className="p-8 space-y-4">
+                    }} className="p-6 space-y-4">
                         <div className="space-y-2">
-                             <Label className="text-[10px] font-bold text-slate-400 tracking-tight px-1">Department Name</Label>
-                             <Input placeholder="e.g. Media & Production" value={newMinistry.name} onChange={e => setNewMinistry({...newMinistry, name: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                             <Label className="text-xs font-bold uppercase">Department Name</Label>
+                             <Input placeholder="e.g. Media Team" value={newMinistry.name} onChange={e => setNewMinistry({...newMinistry, name: e.target.value})} required />
                          </div>
-                        <Button type="submit" className="w-full h-12 bg-indigo-600 text-white rounded-xl font-bold shadow-sm">CREATE MINISTRY</Button>
+                        <Button type="submit" className="w-full h-11 font-bold uppercase">Init Ministry</Button>
                     </form>
                  </DialogContent>
             </Dialog>
+
             <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
-                 <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
-                    <div className="bg-indigo-600 p-8 text-white">
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Onboard New Face</DialogTitle>
-                        <DialogDescription className="text-indigo-100 font-medium">Add a new guest or register a formal member.</DialogDescription>
-                    </div>
-                    <div className="p-8 space-y-4">
-                        <Button className="w-full h-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-5 p-6 shadow-none group" onClick={() => { setIsAddMemberOpen(false); setIsAddVisitorOpen(true); }}>
-                            <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><UserPlus className="h-6 w-6 text-orange-600" /></div>
-                            <div className="text-left">
-                                <p className="font-black text-xl tracking-tight uppercase">New Visitor</p>
-                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Start Journey</p>
-                            </div>
+                 <DialogContent className="p-0 overflow-hidden">
+                    <DialogHeader className="p-6 bg-muted/50 border-b">
+                        <DialogTitle>Enroll Person</DialogTitle>
+                        <DialogDescription>Identify the nature of the enrollment.</DialogDescription>
+                    </DialogHeader>
+                    <div className="p-6 grid grid-cols-1 gap-3">
+                        <Button variant="outline" className="h-20 flex flex-col items-start gap-1 p-6" onClick={() => { setIsAddMemberOpen(false); setIsAddVisitorOpen(true); }}>
+                            <span className="font-bold text-base">New Guest Identification</span>
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Start pastoral care journey</span>
                         </Button>
-                        <Button className="w-full h-20 rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-transparent hover:border-indigo-600 transition-all flex items-center justify-start gap-5 p-6 shadow-none group" onClick={() => { setIsAddMemberOpen(false); window.location.href='/staff'; }}>
-                            <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all"><ShieldCheck className="h-6 w-6 text-indigo-600" /></div>
-                            <div className="text-left">
-                                <p className="font-black text-xl tracking-tight uppercase">Internal Team</p>
-                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] opacity-60">Staff & Volunteers</p>
-                            </div>
+                        <Button variant="outline" className="h-20 flex flex-col items-start gap-1 p-6" onClick={() => { setIsAddMemberOpen(false); window.location.href='/staff'; }}>
+                            <span className="font-bold text-base">Internal Personnel Enrollment</span>
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">Onboard staff or volunteer</span>
                         </Button>
                     </div>
                  </DialogContent>
             </Dialog>
 
             <Dialog open={isAddVisitorOpen} onOpenChange={setIsAddVisitorOpen}>
-                 <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
-                    <div className="bg-orange-500 p-8 text-white">
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Onboard Guest</DialogTitle>
-                        <DialogDescription className="text-orange-50 font-medium">Add a new guest to the database and start tracking their journey.</DialogDescription>
-                    </div>
+                 <DialogContent className="p-0 overflow-hidden">
+                    <DialogHeader className="p-6 bg-muted/50 border-b">
+                        <DialogTitle>Guest Identification</DialogTitle>
+                        <DialogDescription>Start tracking a new person's engagement.</DialogDescription>
+                    </DialogHeader>
                     <form onSubmit={async (e) => {
                         e.preventDefault();
                         if (!newVisitor.firstName || !newVisitor.lastName) return;
@@ -415,36 +356,35 @@ const ChurchManagementPage = () => {
                             phone: newVisitor.phone,
                             type: newVisitor.type
                         }, { onSuccess: () => setIsAddVisitorOpen(false) });
-                    }} className="p-8 space-y-4">
+                    }} className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">First Name</Label>
-                                <Input placeholder="John" value={newVisitor.firstName} onChange={e => setNewVisitor({...newVisitor, firstName: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                                <Label className="text-xs font-bold uppercase">First Name</Label>
+                                <Input value={newVisitor.firstName} onChange={e => setNewVisitor({...newVisitor, firstName: e.target.value})} required />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Last Name</Label>
-                                <Input placeholder="Doe" value={newVisitor.lastName} onChange={e => setNewVisitor({...newVisitor, lastName: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                                <Label className="text-xs font-bold uppercase">Last Name</Label>
+                                <Input value={newVisitor.lastName} onChange={e => setNewVisitor({...newVisitor, lastName: e.target.value})} required />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Email</Label>
-                            <Input placeholder="john@example.com" type="email" value={newVisitor.email} onChange={e => setNewVisitor({...newVisitor, email: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                            <Label className="text-xs font-bold uppercase">Communication Email</Label>
+                            <Input type="email" value={newVisitor.email} onChange={e => setNewVisitor({...newVisitor, email: e.target.value})} required />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Phone</Label>
-                            <Input placeholder="(555) 000-0000" value={newVisitor.phone} onChange={e => setNewVisitor({...newVisitor, phone: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" />
+                            <Label className="text-xs font-bold uppercase">Phone (Optional)</Label>
+                            <Input value={newVisitor.phone} onChange={e => setNewVisitor({...newVisitor, phone: e.target.value})} />
                         </div>
-                        <Button type="submit" className="w-full h-14 bg-orange-500 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-orange-100 mt-4 active:scale-95 transition-all">START JOURNEY</Button>
+                        <Button type="submit" className="w-full h-11 font-bold uppercase mt-4">Start Care Path</Button>
                     </form>
                  </DialogContent>
             </Dialog>
 
             <Dialog open={isAddGroupOpen} onOpenChange={setIsAddGroupOpen}>
-                 <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
-                    <div className="bg-indigo-600 p-8 text-white">
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">New Small Group</DialogTitle>
-                        <DialogDescription className="text-indigo-100 font-medium tracking-tight">Create a new group within this department.</DialogDescription>
-                    </div>
+                 <DialogContent className="p-0 overflow-hidden">
+                    <DialogHeader className="p-6 bg-muted/50 border-b">
+                        <DialogTitle>Create Small Group</DialogTitle>
+                    </DialogHeader>
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         if (!newGroup.name || !selectedMinistryId) return;
@@ -457,61 +397,61 @@ const ChurchManagementPage = () => {
                             setIsAddGroupOpen(false);
                             setNewGroup({ name: '', meetingDay: 'Sunday', meetingTime: '10:00' });
                         }});
-                    }} className="p-8 space-y-4">
+                    }} className="p-6 space-y-4">
                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Group Name</Label>
-                            <Input placeholder="e.g. Mid-week Fellowship" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                            <Label className="text-xs font-bold uppercase">Group Designation</Label>
+                            <Input value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})} required />
                         </div>
                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Meeting Day</Label>
+                                <Label className="text-xs font-bold uppercase">Recurrence</Label>
                                 <Select value={newGroup.meetingDay} onValueChange={val => setNewGroup({...newGroup, meetingDay: val})}>
-                                    <SelectTrigger className="h-12 rounded-2xl bg-slate-50 border-none px-4 font-bold"><SelectValue /></SelectTrigger>
-                                    <SelectContent className="rounded-xl border-none shadow-2xl">
-                                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => <SelectItem key={d} value={d} className="font-bold">{d}</SelectItem>)}
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Meeting Time</Label>
-                                <Input type="time" value={newGroup.meetingTime} onChange={e => setNewGroup({...newGroup, meetingTime: e.target.value})} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold" required />
+                                <Label className="text-xs font-bold uppercase">Time</Label>
+                                <Input type="time" value={newGroup.meetingTime} onChange={e => setNewGroup({...newGroup, meetingTime: e.target.value})} required />
                             </div>
                         </div>
-                        <Button type="submit" className="w-full h-14 bg-indigo-600 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-indigo-100 mt-4 active:scale-95 transition-all">ESTABLISH GROUP</Button>
+                        <Button type="submit" className="w-full h-11 font-bold uppercase mt-2">Init Group</Button>
                     </form>
                  </DialogContent>
             </Dialog>
 
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="max-w-xl rounded-2xl p-0 overflow-hidden border-none shadow-2xl bg-[#F8F9FA] dark:bg-slate-950">
-                    <div className="bg-indigo-600 p-8 text-white"><DialogTitle className="text-xl font-bold uppercase tracking-tight">Refine Membership</DialogTitle></div>
+                <DialogContent className="p-0 overflow-hidden">
+                    <DialogHeader className="p-6 bg-muted/50 border-b">
+                        <DialogTitle>Refine Engagement</DialogTitle>
+                    </DialogHeader>
                     {selectedMember && (
-                        <form onSubmit={handleUpdate} className="p-10 space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Engagement Type</Label>
-                                    <Select value={selectedMember.membership_type} onValueChange={val => setSelectedMember({...selectedMember, membership_type: val as MembershipType})}>
-                                        <SelectTrigger className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold shadow-inner"><SelectValue /></SelectTrigger>
-                                        <SelectContent className="rounded-2xl border-none shadow-2xl">
-                                            <SelectItem value="visitor" className="font-bold">Visitor / Guest</SelectItem>
-                                            <SelectItem value="regular" className="font-bold">Regular Attendee</SelectItem>
-                                            <SelectItem value="registered" className="font-bold">Registered Member</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                        <form onSubmit={handleUpdate} className="p-6 space-y-6">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold uppercase">Constituent Type</Label>
+                                <Select value={selectedMember.membership_type} onValueChange={val => setSelectedMember({...selectedMember, membership_type: val as MembershipType})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="visitor">Visitor / Guest</SelectItem>
+                                        <SelectItem value="regular">Regular Attendee</SelectItem>
+                                        <SelectItem value="registered">Registered Member</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
-                            <Button type="submit" className="w-full h-12 bg-indigo-600 text-white rounded-xl font-bold px-6 shadow-sm">SYNC CHANGES</Button>
+                            <Button type="submit" className="w-full h-11 font-bold uppercase">Sync Profile</Button>
                         </form>
                     )}
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isAssignMemberOpen} onOpenChange={setIsAssignMemberOpen}>
-                 <DialogContent className="max-w-md rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
-                    <div className="bg-indigo-600 p-8 text-white">
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Assign Member</DialogTitle>
-                        <DialogDescription className="text-indigo-100 font-medium tracking-tight">Add an individual from the congregation into this small group to accurately measure engagement.</DialogDescription>
-                    </div>
+                 <DialogContent className="p-0 overflow-hidden">
+                    <DialogHeader className="p-6 bg-muted/50 border-b">
+                        <DialogTitle>Unit Assignment</DialogTitle>
+                        <DialogDescription>Assign a person from the congregation to this active group.</DialogDescription>
+                    </DialogHeader>
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         if (!selectedGroupId || !selectedMembershipId) return;
@@ -521,21 +461,21 @@ const ChurchManagementPage = () => {
                                 setSelectedMembershipId('');
                             }
                         });
-                    }} className="p-8 space-y-4">
+                    }} className="p-6 space-y-4">
                          <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Select Member</Label>
+                            <Label className="text-xs font-bold uppercase">Select Constituent</Label>
                             <Select value={selectedMembershipId} onValueChange={setSelectedMembershipId}>
-                                <SelectTrigger className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold"><SelectValue placeholder="Search members..." /></SelectTrigger>
-                                <SelectContent className="max-h-64 rounded-xl border-none shadow-2xl">
+                                <SelectTrigger><SelectValue placeholder="Search members..." /></SelectTrigger>
+                                <SelectContent className="max-h-64">
                                     {members.map(m => (
-                                        <SelectItem key={m.id} value={m.id} className="font-bold">
-                                            {m.profiles?.first_name} {m.profiles?.last_name} - {m.membership_type.toUpperCase()}
+                                        <SelectItem key={m.id} value={m.id}>
+                                            {m.profiles?.first_name} {m.profiles?.last_name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Button type="submit" className="w-full h-14 bg-indigo-600 text-white rounded-[1.5rem] font-black tracking-widest shadow-lg shadow-indigo-100 mt-4 active:scale-95 transition-all">CONFIRM ASSIGNMENT</Button>
+                        <Button type="submit" className="w-full h-11 font-bold uppercase">Authorize Assignment</Button>
                     </form>
                  </DialogContent>
             </Dialog>
@@ -545,3 +485,4 @@ const ChurchManagementPage = () => {
 };
 
 export default ChurchManagementPage;
+

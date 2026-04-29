@@ -163,3 +163,4 @@ const LeftAlignedLoginForm = () => {
 };
 
 export default LeftAlignedLoginForm;
+

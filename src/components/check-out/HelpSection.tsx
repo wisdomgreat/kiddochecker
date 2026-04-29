@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 const HelpSection = () => {
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 animate-fade-in">
+    <div className="bg-card rounded-xl p-6 shadow-sm border border-gray-100 animate-fade-in">
       <div className="flex items-start gap-3">
         <div className="rounded-full bg-blue-100 p-2">
           <Info size={20} className="text-blue-600" />
@@ -22,3 +22,4 @@ const HelpSection = () => {
 };
 
 export default HelpSection;
+

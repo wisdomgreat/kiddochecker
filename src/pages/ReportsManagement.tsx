@@ -319,32 +319,32 @@ const ReportsManagement = () => {
               <div className="text-center py-8">Loading detailed report...</div>
             ) : detailedReport && detailedReport.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-gray-200">
+                <table className="w-full border-collapse border border-border">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="border border-gray-200 px-4 py-2 text-left">Date</th>
-                      <th className="border border-gray-200 px-4 py-2 text-left">Child</th>
-                      <th className="border border-gray-200 px-4 py-2 text-left">Class</th>
-                      <th className="border border-gray-200 px-4 py-2 text-left">Check-in</th>
-                      <th className="border border-gray-200 px-4 py-2 text-left">Check-out</th>
-                      <th className="border border-gray-200 px-4 py-2 text-left">Duration</th>
+                      <th className="border border-border px-4 py-2 text-left">Date</th>
+                      <th className="border border-border px-4 py-2 text-left">Child</th>
+                      <th className="border border-border px-4 py-2 text-left">Class</th>
+                      <th className="border border-border px-4 py-2 text-left">Check-in</th>
+                      <th className="border border-border px-4 py-2 text-left">Check-out</th>
+                      <th className="border border-border px-4 py-2 text-left">Duration</th>
                     </tr>
                   </thead>
                   <tbody>
                     {detailedReport.slice(0, 50).map((record, index) => (
                       <tr key={index}>
-                        <td className="border border-gray-200 px-4 py-2">
+                        <td className="border border-border px-4 py-2">
                           {new Date(record.attendance_date).toLocaleDateString()}
                         </td>
-                        <td className="border border-gray-200 px-4 py-2">{record.child_name}</td>
-                        <td className="border border-gray-200 px-4 py-2">{record.class_name || 'N/A'}</td>
-                        <td className="border border-gray-200 px-4 py-2">
+                        <td className="border border-border px-4 py-2">{record.child_name}</td>
+                        <td className="border border-border px-4 py-2">{record.class_name || 'N/A'}</td>
+                        <td className="border border-border px-4 py-2">
                           {record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString() : 'N/A'}
                         </td>
-                        <td className="border border-gray-200 px-4 py-2">
+                        <td className="border border-border px-4 py-2">
                           {record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : 'Not checked out'}
                         </td>
-                        <td className="border border-gray-200 px-4 py-2">
+                        <td className="border border-border px-4 py-2">
                           {record.duration_hours ? `${record.duration_hours.toFixed(1)}h` : 'N/A'}
                         </td>
                       </tr>
@@ -370,3 +370,4 @@ const ReportsManagement = () => {
 };
 
 export default ReportsManagement;
+

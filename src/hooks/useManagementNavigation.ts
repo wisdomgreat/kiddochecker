@@ -15,3 +15,4 @@ export const useManagementNavigation = () => {
 
   return { navigateToManagement };
 };
+

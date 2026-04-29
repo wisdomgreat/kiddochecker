@@ -90,3 +90,4 @@ const ClassStatus = ({ className }: ClassStatusProps) => {
 };
 
 export default ClassStatus;
+

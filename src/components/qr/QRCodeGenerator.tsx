@@ -25,7 +25,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
         <CardTitle className="text-sm">Checkout QR Code</CardTitle>
       </CardHeader>
       <CardContent className="text-center">
-        <div className="bg-white inline-block p-4 border rounded-lg">
+        <div className="bg-card inline-block p-4 border rounded-lg">
           <QRCodeSVG 
             value={qrCodeValue} 
             size={size} 
@@ -45,3 +45,4 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({
 };
 
 export default QRCodeGenerator;
+

@@ -293,3 +293,4 @@ const ParentRegistrationPage = () => {
 };
 
 export default ParentRegistrationPage;
+

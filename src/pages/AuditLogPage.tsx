@@ -91,7 +91,7 @@ const AuditLogPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
         if (action.includes('create') || action.includes('add')) return 'bg-blue-100 text-blue-800';
         if (action.includes('update') || action.includes('edit')) return 'bg-amber-100 text-amber-800';
         if (action.includes('login') || action.includes('auth')) return 'bg-purple-100 text-purple-800';
-        return 'bg-slate-100 text-slate-800';
+        return 'bg-slate-100 text-foreground';
     };
 
     const formatAction = (action: string) => {
@@ -103,7 +103,7 @@ const AuditLogPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+                            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
                                 <Activity className="h-8 w-8 text-indigo-600" />
                                 Audit Log
                             </h1>
@@ -245,3 +245,4 @@ const AuditLogPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 };
 
 export default AuditLogPage;
+

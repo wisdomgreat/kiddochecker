@@ -116,11 +116,11 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
         <div className="bg-indigo-600 p-6 text-white flex items-center gap-4">
-          <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center">
+          <div className="h-12 w-12 rounded-2xl bg-card/20 flex items-center justify-center">
             <UserPlus className="h-6 w-6" />
           </div>
           <div>
-            <DialogTitle className="text-xl font-black">Register New User</DialogTitle>
+            <DialogTitle className="text-xl font-bold">Register New User</DialogTitle>
             <DialogDescription className="text-indigo-100 font-medium opacity-80">Add a new staff member or parent.</DialogDescription>
           </div>
         </div>
@@ -133,7 +133,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
                 id="firstName"
                 value={formData.firstName}
                 onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
+                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-card"
                 required
               />
             </div>
@@ -143,7 +143,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
                 id="lastName"
                 value={formData.lastName}
                 onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
+                className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-card"
                 required
               />
             </div>
@@ -156,7 +156,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
-              className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white"
+              className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-card"
               required
             />
           </div>
@@ -208,7 +208,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
           <div className="bg-slate-50 p-4 rounded-3xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="addVolunteer" className="font-bold text-slate-900">Mark as Volunteer</Label>
+                <Label htmlFor="addVolunteer" className="font-bold text-foreground">Mark as Volunteer</Label>
                 <p className="text-xs text-slate-500">Enable volunteer tracking rules</p>
               </div>
               <Switch
@@ -224,7 +224,7 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-2xl font-bold h-12 px-6">
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black h-12 px-8 shadow-lg shadow-indigo-100">
+            <Button type="submit" disabled={isLoading} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold h-12 px-8 shadow-lg shadow-indigo-100">
               {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Create Account'}
             </Button>
           </div>
@@ -235,3 +235,4 @@ const AddUserModal = ({ open, onOpenChange, onSuccess }: AddUserModalProps) => {
 };
 
 export default AddUserModal;
+

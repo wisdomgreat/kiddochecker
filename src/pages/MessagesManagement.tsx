@@ -96,11 +96,11 @@ const MessagesManagement = () => {
             className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12"
         >
           <div className="space-y-2">
-            <h1 className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">Intelligence</h1>
+            <h1 className="text-5xl font-bold text-foreground dark:text-white tracking-tighter uppercase italic leading-none">Intelligence</h1>
             <div className="flex items-center gap-3">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Communication Hub</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Communication Hub</p>
                 <div className="h-1 w-1 rounded-full bg-slate-300" />
-                <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em]">{messages.length} ACTIVE THREADS</p>
+                <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.3em]">{messages.length} ACTIVE THREADS</p>
             </div>
           </div>
           
@@ -108,29 +108,29 @@ const MessagesManagement = () => {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                     <Button 
-                        className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-[1.5rem] font-black uppercase tracking-widest shadow-2xl shadow-indigo-200 transition-all hover:scale-105 active:scale-95 gap-3"
+                        className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-[1.5rem] font-bold uppercase tracking-widest shadow-2xl shadow-indigo-200 transition-all hover:scale-105 active:scale-95 gap-3"
                     >
                         <Sparkles className="h-5 w-5" />
                         New Broadcast
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl bg-white dark:bg-slate-900 border-none shadow-2xl rounded-[3rem] p-0 overflow-hidden">
+                <DialogContent className="max-w-3xl bg-card dark:bg-slate-900 border-none shadow-2xl rounded-[3rem] p-0 overflow-hidden">
                     <div className="p-10 bg-indigo-600 text-white relative overflow-hidden">
                         <div className="relative z-10 flex items-center justify-between">
                             <div>
-                                <h2 className="text-3xl font-black uppercase italic tracking-tight">Create Dispatch</h2>
-                                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mt-1">Broadcast to specific roles or everyone</p>
+                                <h2 className="text-3xl font-bold uppercase italic tracking-tight">Create Dispatch</h2>
+                                <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mt-1">Broadcast to specific roles or everyone</p>
                             </div>
                             <Send className="h-12 w-12 opacity-20" />
                         </div>
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32" />
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-card/10 rounded-full blur-3xl -mr-32 -mt-32" />
                     </div>
                     <form onSubmit={handleSubmit} className="p-10 space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-3">
-                                <Label htmlFor="recipient_type" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Audience</Label>
+                                <Label htmlFor="recipient_type" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Target Audience</Label>
                                 <Select value={formData.recipient_type} onValueChange={(val) => setFormData({ ...formData, recipient_type: val })}>
-                                    <SelectTrigger className="h-14 bg-slate-50 dark:bg-white/5 border-none rounded-2xl px-6 font-bold text-lg">
+                                    <SelectTrigger className="h-14 bg-slate-50 dark:bg-card/5 border-none rounded-2xl px-6 font-bold text-lg">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-2xl border-none shadow-2xl p-2">
@@ -142,26 +142,26 @@ const MessagesManagement = () => {
                                 </Select>
                             </div>
                             <div className="space-y-3">
-                                <Label htmlFor="subject" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Subject / Header</Label>
+                                <Label htmlFor="subject" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Subject / Header</Label>
                                 <Input
                                     id="subject"
                                     placeholder="Enter subject..."
                                     value={formData.subject}
                                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                                    className="h-14 bg-slate-50 dark:bg-white/5 border-none rounded-2xl px-6 font-bold focus:ring-2 ring-indigo-500/20"
+                                    className="h-14 bg-slate-50 dark:bg-card/5 border-none rounded-2xl px-6 font-bold focus:ring-2 ring-indigo-500/20"
                                     required
                                 />
                             </div>
                         </div>
                         <div className="space-y-3">
-                            <Label htmlFor="content" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Message Content</Label>
+                            <Label htmlFor="content" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Message Content</Label>
                             <Textarea
                                 id="content"
                                 placeholder="Compose your communication..."
                                 value={formData.content}
                                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                                 rows={8}
-                                className="bg-slate-50 dark:bg-white/5 border-none rounded-2xl p-6 font-bold focus:ring-2 ring-indigo-500/20 resize-none min-h-[200px]"
+                                className="bg-slate-50 dark:bg-card/5 border-none rounded-2xl p-6 font-bold focus:ring-2 ring-indigo-500/20 resize-none min-h-[200px]"
                                 required
                             />
                         </div>
@@ -169,7 +169,7 @@ const MessagesManagement = () => {
                             <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-xl font-bold uppercase tracking-widest text-[10px]">
                                 Discard
                             </Button>
-                            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-indigo-100 min-w-[200px]">
+                            <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl font-bold uppercase tracking-widest shadow-xl shadow-indigo-100 min-w-[200px]">
                                 Send Dispatch
                             </Button>
                         </div>
@@ -191,25 +191,25 @@ const MessagesManagement = () => {
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                 <Input 
                     placeholder="Search threads..." 
-                    className="h-14 pl-14 bg-white dark:bg-slate-900 border-none rounded-[1.5rem] font-bold shadow-xl shadow-slate-200/50 dark:shadow-none focus:ring-4 ring-indigo-500/10 placeholder:text-slate-300 transition-all"
+                    className="h-14 pl-14 bg-card dark:bg-slate-900 border-none rounded-[1.5rem] font-bold shadow-xl shadow-slate-200/50 dark:shadow-none focus:ring-4 ring-indigo-500/10 placeholder:text-slate-300 transition-all"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                 />
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col gap-2">
+              <div className="bg-card dark:bg-slate-900 rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/50 dark:shadow-none flex flex-col gap-2">
                  <button 
                    onClick={() => setActiveTab("inbox")}
                    className={cn("h-14 px-6 rounded-2xl flex items-center justify-between group transition-all duration-300", 
-                     activeTab === "inbox" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-200" : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-500")}
+                     activeTab === "inbox" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-200" : "hover:bg-slate-50 dark:hover:bg-card/5 text-slate-500")}
                  >
                     <div className="flex items-center gap-4">
                         <Inbox className={cn("h-5 w-5", activeTab === "inbox" ? "text-white" : "text-slate-400 group-hover:text-indigo-500")} />
-                        <span className="font-black text-[10px] uppercase tracking-widest">Inbox</span>
+                        <span className="font-bold text-[10px] uppercase tracking-widest">Inbox</span>
                     </div>
                     {inboxMessages.filter(m => !m.is_read).length > 0 && (
-                        <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black", 
-                          activeTab === "inbox" ? "bg-white text-indigo-600" : "bg-indigo-600 text-white")}>
+                        <div className={cn("w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold", 
+                          activeTab === "inbox" ? "bg-card text-indigo-600" : "bg-indigo-600 text-white")}>
                             {inboxMessages.filter(m => !m.is_read).length}
                         </div>
                     )}
@@ -217,31 +217,31 @@ const MessagesManagement = () => {
                  <button 
                    onClick={() => setActiveTab("sent")}
                    className={cn("h-14 px-6 rounded-2xl flex items-center justify-between group transition-all duration-300", 
-                     activeTab === "sent" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-200" : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-500")}
+                     activeTab === "sent" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-200" : "hover:bg-slate-50 dark:hover:bg-card/5 text-slate-500")}
                  >
                     <div className="flex items-center gap-4">
                         <Send className={cn("h-5 w-5", activeTab === "sent" ? "text-white" : "text-slate-400 group-hover:text-indigo-500")} />
-                        <span className="font-black text-[10px] uppercase tracking-widest">Dispatched</span>
+                        <span className="font-bold text-[10px] uppercase tracking-widest">Dispatched</span>
                     </div>
                  </button>
                  <button 
                    onClick={() => setActiveTab("broadcast")}
                    className={cn("h-14 px-6 rounded-2xl flex items-center justify-between group transition-all duration-300", 
-                     activeTab === "broadcast" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-200" : "hover:bg-slate-50 dark:hover:bg-white/5 text-slate-500")}
+                     activeTab === "broadcast" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-200" : "hover:bg-slate-50 dark:hover:bg-card/5 text-slate-500")}
                  >
                     <div className="flex items-center gap-4">
                         <Bell className={cn("h-5 w-5", activeTab === "broadcast" ? "text-white" : "text-slate-400 group-hover:text-indigo-500")} />
-                        <span className="font-black text-[10px] uppercase tracking-widest">Templates</span>
+                        <span className="font-bold text-[10px] uppercase tracking-widest">Templates</span>
                     </div>
                  </button>
               </div>
 
               <div className="p-8 bg-indigo-50 dark:bg-indigo-600/10 rounded-[2.5rem] space-y-4">
-                  <div className="w-12 h-12 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
+                  <div className="w-12 h-12 bg-card dark:bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
                       <AlertCircle className="h-6 w-6 text-indigo-600" />
                   </div>
-                  <h4 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Need Support?</h4>
-                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed">System-wide messages are monitored for compliance and safety.</p>
+                  <h4 className="font-bold text-foreground dark:text-white uppercase tracking-tight">Need Support?</h4>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed">System-wide messages are monitored for compliance and safety.</p>
               </div>
            </motion.div>
 
@@ -255,34 +255,34 @@ const MessagesManagement = () => {
                      className="space-y-6"
                    >
                      {inboxMessages.length === 0 ? (
-                       <div className="bg-slate-50 dark:bg-white/5 rounded-[3rem] p-24 text-center border-4 border-dashed border-white dark:border-white/5">
+                       <div className="bg-slate-50 dark:bg-card/5 rounded-[3rem] p-24 text-center border-4 border-dashed border-white dark:border-white/5">
                           <MessageSquare className="h-16 w-16 mx-auto mb-6 text-slate-200" />
-                          <p className="font-black text-slate-400 uppercase tracking-widest">Inbox is currently empty</p>
+                          <p className="font-bold text-slate-400 uppercase tracking-widest">Inbox is currently empty</p>
                        </div>
                      ) : (
                        inboxMessages.map((message) => (
                          <motion.div 
                            key={message.id} variants={itemVariants}
-                           className={cn("bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50 dark:shadow-none transition-all duration-500 group relative overflow-hidden", 
+                           className={cn("bg-card dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50 dark:shadow-none transition-all duration-500 group relative overflow-hidden", 
                              !message.is_read && "ring-2 ring-indigo-500/20")}
                          >
                             <div className="flex flex-col md:flex-row justify-between items-start gap-8 relative z-10">
                                <div className="space-y-4 flex-1">
                                   <div className="flex items-center gap-3">
-                                      <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter italic uppercase underline decoration-indigo-200 underline-offset-8">
+                                      <h3 className="text-2xl font-bold text-foreground dark:text-white tracking-tighter italic uppercase underline decoration-indigo-200 underline-offset-8">
                                         {message.subject || "No Subject"}
                                       </h3>
                                       <div className="flex gap-2">
-                                        {!message.is_read && <Badge className="bg-indigo-600 text-white font-black text-[9px] px-3 h-6 tracking-widest uppercase animate-pulse">New Dispatch</Badge>}
-                                        {message.is_broadcast && <Badge className="bg-amber-50 text-amber-600 border-none font-black text-[9px] px-3 h-6 tracking-widest uppercase">Broadcast</Badge>}
+                                        {!message.is_read && <Badge className="bg-indigo-600 text-white font-bold text-[9px] px-3 h-6 tracking-widest uppercase animate-pulse">New Dispatch</Badge>}
+                                        {message.is_broadcast && <Badge className="bg-amber-50 text-amber-600 border-none font-bold text-[9px] px-3 h-6 tracking-widest uppercase">Broadcast</Badge>}
                                       </div>
                                   </div>
-                                  <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                  <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
                                       <div className="flex items-center gap-2">
                                           <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
                                               {message.sender?.first_name?.[0]}
                                           </div>
-                                          <span className="text-slate-900 dark:text-white">{message.sender?.first_name} {message.sender?.last_name}</span>
+                                          <span className="text-foreground dark:text-white">{message.sender?.first_name} {message.sender?.last_name}</span>
                                       </div>
                                       <span className="opacity-30">•</span>
                                       <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ const MessagesManagement = () => {
                                           {format(new Date(message.created_at), "MMM d, h:mm a")}
                                       </div>
                                   </div>
-                                  <div className="bg-slate-50 dark:bg-white/5 rounded-[2rem] p-8 border border-slate-50 dark:border-white/5 shadow-inner">
+                                  <div className="bg-slate-50 dark:bg-card/5 rounded-[2rem] p-8 border border-slate-50 dark:border-white/5 shadow-inner">
                                       <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed font-medium text-lg italic tracking-tight italic">
                                           "{message.content}"
                                       </p>
@@ -302,7 +302,7 @@ const MessagesManagement = () => {
                                          variant="outline" 
                                          size="sm" 
                                          onClick={() => markAsRead(message)}
-                                         className="rounded-2xl h-12 px-6 font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-white/10"
+                                         className="rounded-2xl h-12 px-6 font-bold text-[10px] uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-card/10"
                                        >
                                            Acknowledge
                                        </Button>
@@ -310,7 +310,7 @@ const MessagesManagement = () => {
                                    <Button 
                                      size="sm" 
                                      onClick={() => handleReply(message)}
-                                     className="bg-indigo-600 hover:bg-indigo-700 rounded-2xl h-12 px-6 font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 gap-2"
+                                     className="bg-indigo-600 hover:bg-indigo-700 rounded-2xl h-12 px-6 font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 gap-2"
                                    >
                                        <Reply className="h-4 w-4" /> Reply
                                    </Button>
@@ -330,27 +330,27 @@ const MessagesManagement = () => {
                      className="space-y-6"
                    >
                      {sentMessages.length === 0 ? (
-                       <div className="bg-slate-50 dark:bg-white/5 rounded-[3rem] p-24 text-center border-4 border-dashed border-white dark:border-white/5">
+                       <div className="bg-slate-50 dark:bg-card/5 rounded-[3rem] p-24 text-center border-4 border-dashed border-white dark:border-white/5">
                           <Send className="h-16 w-16 mx-auto mb-6 text-slate-200" />
-                          <p className="font-black text-slate-400 uppercase tracking-widest">No sent messages yet</p>
+                          <p className="font-bold text-slate-400 uppercase tracking-widest">No sent messages yet</p>
                        </div>
                      ) : (
                        sentMessages.map(msg => (
                          <motion.div 
                            key={msg.id} variants={itemVariants}
-                           className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50 dark:shadow-none"
+                           className="bg-card dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50 dark:shadow-none"
                          >
                             <div className="flex justify-between items-start mb-6">
                                <div className="space-y-2">
-                                  <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight leading-none">{msg.subject}</h4>
+                                  <h4 className="text-2xl font-bold text-foreground dark:text-white uppercase italic tracking-tight leading-none">{msg.subject}</h4>
                                   <div className="flex items-center gap-3">
-                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sent to:</p>
-                                      <Badge variant="outline" className="rounded-full px-3 py-1 font-black text-[9px] uppercase tracking-widest border-indigo-100 text-indigo-600">
+                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sent to:</p>
+                                      <Badge variant="outline" className="rounded-full px-3 py-1 font-bold text-[9px] uppercase tracking-widest border-indigo-100 text-indigo-600">
                                           {msg.recipient_role ? `BROADCAST: ${msg.recipient_role}` : msg.recipient ? `${msg.recipient.first_name} ${msg.recipient.last_name}` : "All Recipients"}
                                       </Badge>
                                   </div>
                                </div>
-                               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{format(new Date(msg.created_at), "MMM d, HH:mm")}</span>
+                               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{format(new Date(msg.created_at), "MMM d, HH:mm")}</span>
                             </div>
                             <div className="bg-indigo-50/50 dark:bg-indigo-600/5 rounded-[2rem] p-8">
                                 <p className="text-slate-500 italic font-medium leading-relaxed tracking-tight">"{msg.content}"</p>
@@ -375,18 +375,18 @@ const MessagesManagement = () => {
                      ].map(tmpl => (
                        <motion.div key={tmpl.id} variants={itemVariants}>
                          <Card 
-                           className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/50 dark:shadow-none border-none p-10 cursor-pointer hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group flex flex-col items-center text-center h-full"
+                           className="bg-card dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/50 dark:shadow-none border-none p-10 cursor-pointer hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group flex flex-col items-center text-center h-full"
                            onClick={() => {
                                setFormData({ subject: tmpl.title, content: tmpl.content, recipient_type: 'all' });
                                setIsDialogOpen(true);
                            }}
                          >
-                            <div className="w-20 h-20 bg-slate-50 dark:bg-white/5 rounded-[2rem] flex items-center justify-center mb-6 transition-all group-hover:rotate-12 group-hover:scale-110 shadow-lg">
+                            <div className="w-20 h-20 bg-slate-50 dark:bg-card/5 rounded-[2rem] flex items-center justify-center mb-6 transition-all group-hover:rotate-12 group-hover:scale-110 shadow-lg">
                                 {tmpl.icon}
                             </div>
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-2">{tmpl.title}</h3>
-                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed mb-8">{tmpl.content}</p>
-                            <Button variant="ghost" className="w-full h-12 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white font-black text-[10px] uppercase tracking-widest transition-all gap-2">
+                            <h3 className="text-xl font-bold text-foreground dark:text-white uppercase italic tracking-tight mb-2">{tmpl.title}</h3>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed mb-8">{tmpl.content}</p>
+                            <Button variant="ghost" className="w-full h-12 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white font-bold text-[10px] uppercase tracking-widest transition-all gap-2">
                                 Use Template <ChevronRight className="h-4 w-4" />
                             </Button>
                          </Card>

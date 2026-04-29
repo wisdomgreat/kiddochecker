@@ -110,3 +110,4 @@ export const useShifts = (filters?: { from?: Date; to?: Date; event_id?: string 
     deleteShift,
   };
 };
+

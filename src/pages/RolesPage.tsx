@@ -162,7 +162,7 @@ const RolesPage = () => {
       <UnifiedDashboardLayout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
           <ShieldAlert className="h-16 w-16 text-rose-500 mb-4 opacity-20" />
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Access Restrictred</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Access Restrictred</h1>
           <p className="text-slate-500 max-w-md">Only Super Administrators can manage system-wide custom roles and permissions.</p>
         </div>
       </UnifiedDashboardLayout>
@@ -175,7 +175,7 @@ const RolesPage = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">System Access Roles</h1>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">System Access Roles</h1>
             <p className="text-slate-500 font-medium">Define custom roles and granular security permissions.</p>
           </div>
           <Button 
@@ -192,7 +192,7 @@ const RolesPage = () => {
           {roles.length === 0 && !isLoadingRoles && (
             <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50">
               <Shield className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-slate-900">No Custom Roles Yet</h3>
+              <h3 className="text-lg font-bold text-foreground">No Custom Roles Yet</h3>
               <p className="text-slate-500">Create a role to override default system behavior.</p>
             </div>
           )}
@@ -224,12 +224,12 @@ const RolesPage = () => {
                     </Button>
                   </div>
                 </div>
-                <CardTitle className="text-xl font-bold text-slate-900">{role.name}</CardTitle>
+                <CardTitle className="text-xl font-bold text-foreground">{role.name}</CardTitle>
                 <CardDescription className="text-slate-500 line-clamp-2">{role.description || "No description provided."}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="pt-4 mt-4 border-t border-slate-50">
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Core Permissions</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Core Permissions</p>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className="rounded-full bg-slate-50/50 text-xs px-3 py-1 font-medium border-slate-200 text-slate-600">
                       View
@@ -255,7 +255,7 @@ const RolesPage = () => {
           <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
             <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
               <div className="relative z-10">
-                <DialogTitle className="text-2xl font-black mb-1">New Custom Role</DialogTitle>
+                <DialogTitle className="text-2xl font-bold mb-1">New Custom Role</DialogTitle>
                 <DialogDescription className="text-indigo-100 font-medium opacity-80">Define a new security profile for your staff.</DialogDescription>
               </div>
               <Shield className="absolute -bottom-10 -right-10 h-48 w-48 text-white opacity-10 rotate-12" />
@@ -269,7 +269,7 @@ const RolesPage = () => {
                     placeholder="e.g., Morning Shift Lead" 
                     value={newRole.name}
                     onChange={e => setNewRole({...newRole, name: e.target.value})}
-                    className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-white transition-all text-lg font-medium" 
+                    className="rounded-2xl h-12 bg-slate-50 border-slate-200 focus:bg-card transition-all text-lg font-medium" 
                   />
                 </div>
                 <div className="space-y-2">
@@ -303,7 +303,7 @@ const RolesPage = () => {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-slate-900 font-black uppercase text-xs tracking-widest">Select Permissions</Label>
+                  <Label className="text-foreground font-bold uppercase text-xs tracking-widest">Select Permissions</Label>
                   <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 rounded-full px-3">{selectedPermissions.length} Active</Badge>
                 </div>
                 <ScrollArea className="h-[250px] border border-slate-100 rounded-3xl bg-slate-50/50 p-4">
@@ -317,7 +317,7 @@ const RolesPage = () => {
                       }, {})
                     ).map(([category, catPerms]: [string, any]) => (
                       <div key={category} className="space-y-2 mb-6 last:mb-0">
-                        <Badge variant="outline" className="bg-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 border-none mb-2 px-3">
+                        <Badge variant="outline" className="bg-slate-100 text-[9px] font-bold uppercase tracking-widest text-slate-500 border-none mb-2 px-3">
                           {(t as any)(`category_${category}`) || category.toUpperCase()}
                         </Badge>
                         {catPerms.map((perm: any) => (
@@ -325,8 +325,8 @@ const RolesPage = () => {
                             key={perm.id} 
                             className={`group flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer ${
                               selectedPermissions.includes(perm.id) 
-                                ? 'bg-white border-2 border-indigo-600 shadow-md shadow-indigo-100' 
-                                : 'bg-white/50 border border-slate-100 hover:border-indigo-200'
+                                ? 'bg-card border-2 border-indigo-600 shadow-md shadow-indigo-100' 
+                                : 'bg-card/50 border border-slate-100 hover:border-indigo-200'
                             }`}
                             onClick={() => togglePermission(perm.id)}
                           >
@@ -337,7 +337,7 @@ const RolesPage = () => {
                                 <ShieldCheck className="h-4 w-4" />
                               </div>
                               <div>
-                                <p className="font-bold text-slate-800 text-sm">
+                                <p className="font-bold text-foreground text-sm">
                                   {(t as any)(`permission_${perm.name}`) || perm.name.replace(/_/g, ' ').toUpperCase()}
                                 </p>
                                 <p className="text-xs text-slate-500 font-medium">{perm.description}</p>
@@ -362,7 +362,7 @@ const RolesPage = () => {
               <Button 
                 onClick={() => createRoleMutation.mutate()} 
                 disabled={!newRole.name || createRoleMutation.isPending}
-                className="bg-indigo-600 hover:bg-indigo-700 min-w-[140px] rounded-2xl font-black h-12 shadow-lg shadow-indigo-200"
+                className="bg-indigo-600 hover:bg-indigo-700 min-w-[140px] rounded-2xl font-bold h-12 shadow-lg shadow-indigo-200"
               >
                 {createRoleMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : "Save New Role"}
               </Button>
@@ -375,7 +375,7 @@ const RolesPage = () => {
           <DialogContent className="max-w-2xl rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
             <div className="bg-slate-900 p-8 text-white relative overflow-hidden">
               <div className="relative z-10">
-                <DialogTitle className="text-2xl font-black mb-1">Edit {selectedRole?.name}</DialogTitle>
+                <DialogTitle className="text-2xl font-bold mb-1">Edit {selectedRole?.name}</DialogTitle>
                 <DialogDescription className="text-slate-400 font-medium">Customize specific permissions for this role.</DialogDescription>
               </div>
               <ShieldCheck className="absolute -bottom-10 -right-10 h-48 w-48 text-white opacity-5 rotate-12" />
@@ -398,7 +398,7 @@ const RolesPage = () => {
                     }, {})
                   ).map(([category, catPerms]: [string, any]) => (
                     <div key={category} className="space-y-2 mb-6 last:mb-0">
-                      <Badge variant="outline" className="bg-slate-100 text-[9px] font-black uppercase tracking-widest text-slate-500 border-none mb-2 px-3">
+                      <Badge variant="outline" className="bg-slate-100 text-[9px] font-bold uppercase tracking-widest text-slate-500 border-none mb-2 px-3">
                         {(t as any)(`category_${category}`) || category.toUpperCase()}
                       </Badge>
                       {catPerms.map((perm: any) => (
@@ -406,8 +406,8 @@ const RolesPage = () => {
                           key={perm.id} 
                           className={`group flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer ${
                             selectedPermissions.includes(perm.id) 
-                              ? 'bg-white border-2 border-indigo-600 shadow-md shadow-indigo-100' 
-                              : 'bg-white/50 border border-slate-100'
+                              ? 'bg-card border-2 border-indigo-600 shadow-md shadow-indigo-100' 
+                              : 'bg-card/50 border border-slate-100'
                           }`}
                           onClick={() => togglePermission(perm.id)}
                         >
@@ -418,7 +418,7 @@ const RolesPage = () => {
                               <ShieldCheck className="h-4 w-4" />
                             </div>
                             <div>
-                              <p className="font-bold text-slate-800 text-sm">
+                              <p className="font-bold text-foreground text-sm">
                                 {(t as any)(`permission_${perm.name}`) || perm.name.replace(/_/g, ' ').toUpperCase()}
                               </p>
                               <p className="text-xs text-slate-500 font-medium">{perm.description}</p>
@@ -445,7 +445,7 @@ const RolesPage = () => {
                   permissions: selectedPermissions 
                 })} 
                 disabled={updatePermissionsMutation.isPending}
-                className="bg-indigo-600 hover:bg-indigo-700 min-w-[140px] rounded-2xl font-black h-12"
+                className="bg-indigo-600 hover:bg-indigo-700 min-w-[140px] rounded-2xl font-bold h-12"
               >
                 {updatePermissionsMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : "Update Access"}
               </Button>
@@ -458,3 +458,4 @@ const RolesPage = () => {
 };
 
 export default RolesPage;
+

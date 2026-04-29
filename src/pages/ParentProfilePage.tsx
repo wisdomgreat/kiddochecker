@@ -11,3 +11,4 @@ const ParentProfilePage = () => {
 };
 
 export default ParentProfilePage;
+

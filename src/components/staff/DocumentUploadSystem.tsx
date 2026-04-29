@@ -107,7 +107,7 @@ const DocumentUploadSystem = () => {
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
       case 'expired':
-        return <Badge className="bg-slate-100 text-slate-800 border-slate-200"><AlertTriangle className="h-3 w-3 mr-1" />Expired</Badge>;
+        return <Badge className="bg-slate-100 text-foreground border-slate-200"><AlertTriangle className="h-3 w-3 mr-1" />Expired</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -165,7 +165,7 @@ const DocumentUploadSystem = () => {
         <Card className="shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-slate-800">Registration Progress</h3>
+              <h3 className="font-bold text-foreground">Registration Progress</h3>
               <span className="text-sm font-semibold text-indigo-600">
                 {submittedMandatory.length}/{mandatoryRequirements.length} submitted
               </span>
@@ -300,7 +300,7 @@ const DocumentUploadSystem = () => {
                             <FileText className="h-5 w-5 text-indigo-600" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-slate-800 text-sm">{doc.document_name}</h3>
+                            <h3 className="font-semibold text-foreground text-sm">{doc.document_name}</h3>
                             <p className="text-xs text-slate-500">
                               {requirements.find(r => r.document_type === doc.document_type)?.display_name || doc.document_type}
                               {' • '}
@@ -368,7 +368,7 @@ const DocumentUploadSystem = () => {
                           <div className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0" />
                         )}
                         <div>
-                          <p className="text-sm font-medium text-slate-800">{req.display_name}</p>
+                          <p className="text-sm font-medium text-foreground">{req.display_name}</p>
                           {req.is_mandatory && (
                             <p className="text-xs text-red-500 font-medium">Mandatory</p>
                           )}
@@ -400,3 +400,4 @@ const DocumentUploadSystem = () => {
 };
 
 export default DocumentUploadSystem;
+

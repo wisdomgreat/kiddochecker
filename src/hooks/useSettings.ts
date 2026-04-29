@@ -32,7 +32,7 @@ export const useSettings = () => {
       const { data, error } = await supabase
         .from('organization_settings')
         .select('*')
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data as OrganizationSettings;
@@ -75,3 +75,4 @@ export const useSettings = () => {
     isUpdating: updateSettingsMutation.isPending,
   };
 };
+

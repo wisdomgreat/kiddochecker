@@ -16,20 +16,20 @@ const PeopleManagementPage = () => {
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-900">People Management</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">People Management</h1>
               <p className="text-slate-500 font-medium">Centralized directory for all organization members.</p>
             </div>
           </div>
 
           <Tabs defaultValue="users" className="space-y-6" onValueChange={setActiveTab}>
             <TabsList className="bg-slate-100/50 p-1 rounded-2xl w-full md:w-auto h-auto gap-1">
-              <TabsTrigger value="users" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
+              <TabsTrigger value="users" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-card data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
                 <Users className="h-4 w-4" /> All Users
               </TabsTrigger>
-              <TabsTrigger value="staff" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
+              <TabsTrigger value="staff" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-card data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
                 <UserCheck className="h-4 w-4" /> Staff & Volunteers
               </TabsTrigger>
-              <TabsTrigger value="children" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
+              <TabsTrigger value="children" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-card data-[state=active]:shadow-sm text-sm font-semibold transition-all gap-2">
                 <Baby className="h-4 w-4" /> Children
               </TabsTrigger>
             </TabsList>
@@ -52,3 +52,4 @@ const PeopleManagementPage = () => {
 };
 
 export default PeopleManagementPage;
+

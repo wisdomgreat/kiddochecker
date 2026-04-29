@@ -29,7 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const KANBAN_STAGES = [
   { id: 'todo', name: 'Backlog / New', color: 'bg-slate-100 text-slate-600', icon: Clock },
-  { id: 'in_progress', name: 'In Outreach', color: 'bg-indigo-50 text-indigo-600', icon: TrendingUp },
+  { id: 'in_progress', name: 'Outreach', color: 'bg-indigo-50 text-indigo-600', icon: TrendingUp },
   { id: 'done', name: 'Completed', color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle2 },
 ];
 
@@ -65,7 +65,7 @@ const JourneyKanbanBoard = () => {
     };
 
     if (tasksLoading) {
-        return <div className="p-12 text-center text-slate-400 font-bold tracking-tight animate-pulse">Synchronizing Outreach Funnel...</div>
+        return <div className="p-12 text-center text-slate-400 font-bold tracking-tight animate-pulse">Loading Growth Dashboard...</div>
     }
 
     return (
@@ -84,7 +84,7 @@ const JourneyKanbanBoard = () => {
                                 <stage.icon className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-slate-900 dark:text-white tracking-tight">{stage.name}</h3>
+                                <h3 className="font-bold text-foreground dark:text-white tracking-tight">{stage.name}</h3>
                                 <p className="text-[10px] font-bold text-slate-400 tracking-tight">{tasks.filter(t => t.status === stage.id).length} Items</p>
                             </div>
                         </div>
@@ -110,7 +110,7 @@ const JourneyKanbanBoard = () => {
                                 className="group"
                             >
                                 <motion.div layoutId={task.id}>
-                                    <Card className="p-5 rounded-2xl bg-white dark:bg-slate-900 border-none shadow-sm hover:shadow-xl transition-all cursor-grab active:cursor-grabbing">
+                                    <Card className="p-5 rounded-2xl bg-card dark:bg-slate-900 border-none shadow-sm hover:shadow-xl transition-all cursor-grab active:cursor-grabbing">
                                     <div className="flex flex-col gap-3">
                                         <div className="flex justify-between items-start">
                                             <Badge className={`
@@ -125,7 +125,7 @@ const JourneyKanbanBoard = () => {
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 group-hover:text-slate-600 rounded-full"><MoreHorizontal className="h-4 w-4" /></Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="rounded-xl border-none shadow-2xl p-2 bg-white dark:bg-slate-900">
+                                                <DropdownMenuContent align="end" className="rounded-xl border-none shadow-2xl p-2 bg-card dark:bg-slate-900">
                                                     {KANBAN_STAGES.filter(s => s.id !== stage.id).map(s => (
                                                         <DropdownMenuItem 
                                                             key={s.id} 
@@ -135,7 +135,7 @@ const JourneyKanbanBoard = () => {
                                                             Move to {s.name}
                                                         </DropdownMenuItem>
                                                     ))}
-                                                    <Separator className="my-2 bg-slate-100 dark:bg-white/5" />
+                                                    <Separator className="my-2 bg-slate-100 dark:bg-card/5" />
                                                     <p className="text-[10px] font-bold text-slate-400 px-3 py-1 tracking-tight">Assign Outreach</p>
                                                     {staffMembers.map(staff => (
                                                         <DropdownMenuItem 
@@ -152,7 +152,7 @@ const JourneyKanbanBoard = () => {
                                         </div>
 
                                         <div>
-                                            <h4 className="font-bold text-slate-900 dark:text-white leading-tight mb-1">{task.title}</h4>
+                                            <h4 className="font-bold text-foreground dark:text-white leading-tight mb-1">{task.title}</h4>
                                             <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed">{task.description}</p>
                                         </div>
 
@@ -161,7 +161,7 @@ const JourneyKanbanBoard = () => {
                                                 <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">
                                                     {(task.member as any)?.profiles?.first_name?.[0]}
                                                 </div>
-                                                <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100">{(task.member as any)?.profiles?.first_name} {(task.member as any)?.profiles?.last_name}</span>
+                                                <span className="text-[11px] font-bold text-foreground dark:text-slate-100">{(task.member as any)?.profiles?.first_name} {(task.member as any)?.profiles?.last_name}</span>
                                             </div>
                                             <div className="flex gap-2">
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50"><Phone className="h-3.5 w-3.5" /></Button>
@@ -185,14 +185,14 @@ const JourneyKanbanBoard = () => {
         </div>
 
         <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
-            <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl bg-white dark:bg-slate-950">
+            <DialogContent className="max-w-md rounded-3xl p-0 overflow-hidden border-none shadow-2xl bg-card dark:bg-slate-950">
                 <div className="bg-indigo-600 p-8 text-white">
-                    <DialogTitle className="text-xl font-black uppercase tracking-tight">New Outreach Task</DialogTitle>
+                    <DialogTitle className="text-xl font-bold uppercase tracking-tight">New Outreach Task</DialogTitle>
                     <DialogDescription className="text-indigo-100 font-medium">Assign a new action item for a community member.</DialogDescription>
                 </div>
                 <div className="p-8 space-y-4">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Select Member</Label>
+                        <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Select Member</Label>
                         <Select value={newTask.member_id} onValueChange={(v) => setNewTask({...newTask, member_id: v})}>
                             <SelectTrigger className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold">
                                 <SelectValue placeholder="Search member..." />
@@ -208,7 +208,7 @@ const JourneyKanbanBoard = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Task Title</Label>
+                        <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Task Title</Label>
                         <Input 
                             placeholder="e.g. Pastoral visit requested" 
                             value={newTask.title} 
@@ -218,7 +218,7 @@ const JourneyKanbanBoard = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Priority</Label>
+                        <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Priority</Label>
                         <Select value={newTask.priority} onValueChange={(v: any) => setNewTask({...newTask, priority: v})}>
                             <SelectTrigger className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none px-4 font-bold">
                                 <SelectValue />
@@ -233,7 +233,7 @@ const JourneyKanbanBoard = () => {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-1">Context / Notes</Label>
+                        <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest px-1">Context / Notes</Label>
                         <Textarea 
                             placeholder="Details about the outreach need..." 
                             value={newTask.description}
@@ -265,3 +265,4 @@ const JourneyKanbanBoard = () => {
 };
 
 export default JourneyKanbanBoard;
+

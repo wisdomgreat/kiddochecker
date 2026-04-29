@@ -286,7 +286,7 @@ export const NameTagPrinter = ({
       </div>
 
       {/* Preview */}
-      <div className="bg-white rounded-lg border-2 border-gray-200 p-4">
+      <div className="bg-card rounded-lg border-2 border-border p-4">
         <div className="text-center mb-2">
           <div className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold inline-block">
             CHILDREN'S MINISTRY
@@ -313,7 +313,7 @@ export const NameTagPrinter = ({
           </div>
 
           <div className="text-center">
-            <div className="border-2 border-blue-500 rounded p-1 bg-white" id="print-qr-code">
+            <div className="border-2 border-blue-500 rounded p-1 bg-card" id="print-qr-code">
               <QRCodeSVG
                 value={qrCodeValue}
                 size={56}
@@ -349,3 +349,4 @@ export const NameTagPrinter = ({
 };
 
 export default NameTagPrinter;
+

@@ -1,20 +1,18 @@
 import React from "react";
-import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useMessages } from "@/hooks/useMessages";
 import {
-    QrCode, CheckCircle2, XCircle, Users, Clock, ChevronRight,
-    LogIn, LogOut, Baby, AlertTriangle, MessageSquare, Heart
+    QrCode, Users, Clock, ChevronRight,
+    LogIn, LogOut, AlertTriangle, MessageSquare
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, startOfDay, endOfDay } from "date-fns";
 
 const VolunteerDashboardNew = () => {
-    const { user } = useAuth();
     const { unreadCount } = useMessages();
     const navigate = useNavigate();
     const today = format(new Date(), "EEEE, MMMM dd");
@@ -33,172 +31,152 @@ const VolunteerDashboardNew = () => {
         refetchInterval: 15000,
     });
 
-    const { data: children = [] } = useQuery({
-        queryKey: ["volunteer-children-count"],
-        queryFn: async () => {
-            const { data } = await supabase.from("children").select("id");
-            return data || [];
-        },
-    });
-
     const presentNow = todayAttendance.filter((a: any) => a.checked_in_at && !a.checked_out_at).length;
     const checkedOut = todayAttendance.filter((a: any) => a.checked_out_at).length;
     const allergyAlerts = todayAttendance.filter((a: any) => a.children?.allergies && !a.checked_out_at);
 
     return (
-        <div className="space-y-8 max-w-3xl mx-auto">
+        <div className="space-y-8 max-w-2xl mx-auto py-10">
             {/* Header */}
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="text-center py-6">
-                    <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        <Users className="h-8 w-8 text-white" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Volunteer Dashboard</h1>
-                    <p className="text-slate-500 mt-1">{today}</p>
+            <div className="text-center space-y-2">
+                <div className="w-12 h-12 bg-slate-100 rounded flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-6 w-6 text-slate-600" />
                 </div>
-            </motion.div>
+                <h1 className="text-2xl font-bold tracking-tight">Volunteer Portal</h1>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{today}</p>
+            </div>
 
-            {/* Big KPI Cards */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                className="grid grid-cols-3 gap-4"
-            >
-                <div className="gradient-primary rounded-2xl p-6 text-white text-center shadow-lg">
-                    <p className="text-4xl font-bold tracking-tight">{presentNow}</p>
-                    <p className="text-white/80 text-xs mt-1 font-semibold uppercase tracking-wider">Present Now</p>
-                </div>
-                <div className="gradient-success rounded-2xl p-6 text-white text-center shadow-lg">
-                    <p className="text-4xl font-bold tracking-tight">{todayAttendance.length}</p>
-                    <p className="text-white/80 text-xs mt-1 font-semibold uppercase tracking-wider">Total Check-ins</p>
-                </div>
-                <div className="gradient-warning rounded-2xl p-6 text-white text-center shadow-lg">
-                    <p className="text-4xl font-bold tracking-tight">{checkedOut}</p>
-                    <p className="text-white/80 text-xs mt-1 font-semibold uppercase tracking-wider">Checked Out</p>
-                </div>
-            </motion.div>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-3 gap-4">
+                <Card className="shadow-sm border-slate-900 bg-slate-900 text-white">
+                    <CardContent className="p-6 text-center">
+                        <p className="text-3xl font-bold">{presentNow}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Pending</p>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                    <CardContent className="p-6 text-center">
+                        <p className="text-3xl font-bold">{todayAttendance.length}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total</p>
+                    </CardContent>
+                </Card>
+                <Card className="shadow-sm">
+                    <CardContent className="p-6 text-center">
+                        <p className="text-3xl font-bold">{checkedOut}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Departed</p>
+                    </CardContent>
+                </Card>
+            </div>
 
             {/* Primary Action */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                <button
-                    onClick={() => navigate("/check-in")}
-                    className="w-full gradient-primary text-white rounded-2xl p-6 flex items-center justify-between shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5 group"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white/20 rounded-xl p-4">
-                            <QrCode className="h-8 w-8" />
-                        </div>
-                        <div className="text-left">
-                            <p className="text-xl font-bold">Open Check-In Station</p>
-                            <p className="text-white/75 text-sm">Tap to scan QR codes and check in children</p>
-                        </div>
-                    </div>
-                    <ChevronRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                </button>
-            </motion.div>
-
-            {/* Secondary Actions */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-                className="grid grid-cols-2 gap-4"
+            <button
+                onClick={() => navigate("/check-in")}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-foreground rounded-lg p-6 flex items-center justify-between transition-colors border shadow-sm group"
             >
-                <button
-                    onClick={() => navigate("/check-out")}
-                    className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all flex items-center gap-3 group"
-                >
-                    <div className="bg-orange-50 rounded-xl p-3">
-                        <LogOut className="h-5 w-5 text-orange-600" />
+                <div className="flex items-center gap-4">
+                    <div className="bg-card rounded-md p-3 border shadow-sm group-hover:shadow-md transition-shadow">
+                        <QrCode className="h-6 w-6" />
                     </div>
                     <div className="text-left">
-                        <p className="font-bold text-slate-800 text-sm">Check-Out Station</p>
-                        <p className="text-xs text-slate-500 font-medium">Process departures</p>
+                        <p className="font-bold text-lg">Check-In Session</p>
+                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-tight">Launch scanning terminal</p>
+                    </div>
+                </div>
+                <ChevronRight className="h-5 w-5 opacity-40 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            {/* Secondary Actions */}
+            <div className="grid grid-cols-2 gap-4">
+                <button
+                    onClick={() => navigate("/check-out")}
+                    className="bg-card rounded-lg p-4 border shadow-sm hover:bg-muted/50 transition-colors flex items-center gap-3 text-left"
+                >
+                    <div className="bg-slate-50 p-2 rounded border">
+                        <LogOut className="h-4 w-4" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-sm">Departure Station</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Process exits</p>
                     </div>
                 </button>
                 <button
                     onClick={() => navigate("/messages")}
-                    className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all flex items-center gap-3 group"
+                    className="bg-card rounded-lg p-4 border shadow-sm hover:bg-muted/50 transition-colors flex items-center gap-3 text-left"
                 >
-                    <div className="bg-purple-50 rounded-xl p-3">
-                        <MessageSquare className="h-5 w-5 text-purple-600" />
+                    <div className="bg-slate-50 p-2 rounded border relative">
+                        <MessageSquare className="h-4 w-4" />
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3 bg-slate-900 rounded-full border-2 border-white" />
+                        )}
                     </div>
-                    <div className="text-left flex-1">
-                        <div className="flex items-center justify-between">
-                            <p className="font-bold text-slate-800 text-sm">Messages</p>
-                            {unreadCount > 0 && (
-                                <Badge className="bg-purple-600 text-[10px] h-4 px-1">{unreadCount}</Badge>
-                            )}
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium">Staff communication</p>
+                    <div>
+                        <p className="font-bold text-sm">Messaging</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">Staff channel</p>
                     </div>
                 </button>
-            </motion.div>
+            </div>
 
-            {/* Allergy Alerts */}
+            {/* Medical Alerts */}
             {allergyAlerts.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                    className="bg-amber-50 border border-amber-200 rounded-2xl p-5"
-                >
-                    <div className="flex items-center gap-2 mb-3">
-                        <AlertTriangle className="h-5 w-5 text-amber-600" />
-                        <h3 className="font-bold text-amber-800 tracking-tight">Medical Alerts — Present Now</h3>
+                <div className="bg-slate-50 border rounded-lg p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest">Medical Record Alerts</h3>
                     </div>
                     <div className="space-y-2">
                         {allergyAlerts.map((record: any) => (
-                            <div key={record.id} className="bg-amber-100 rounded-xl px-4 py-3 flex items-center justify-between">
+                            <div key={record.id} className="bg-card border rounded px-4 py-3 flex items-center justify-between">
                                 <div>
-                                    <p className="font-semibold text-amber-900 text-sm">{record.children?.first_name} {record.children?.last_name}</p>
-                                    <p className="text-xs text-amber-700 mt-0.5">{record.children?.allergies}</p>
+                                    <p className="font-bold text-sm">{record.children?.first_name} {record.children?.last_name}</p>
+                                    <p className="text-[10px] text-muted-foreground font-medium uppercase">{record.children?.allergies}</p>
                                 </div>
-                                <Badge className="badge-warning text-xs">Alert</Badge>
+                                <Badge variant="outline" className="text-[9px] font-bold">ACTIVE ALERT</Badge>
                             </div>
                         ))}
                     </div>
-                </motion.div>
+                </div>
             )}
 
             {/* Live Feed */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
-                className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
-            >
-                <div className="p-5 border-b border-slate-100 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <h3 className="font-bold text-slate-800 tracking-tight">Recent Activity</h3>
-                    <Badge variant="outline" className="ml-auto text-[10px] font-bold">Auto-updates</Badge>
-                </div>
-                <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
+            <Card className="shadow-sm overflow-hidden">
+                <CardHeader className="bg-muted/20 border-b py-3 px-5 flex flex-row items-center justify-between">
+                    <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Session Log</CardTitle>
+                    <Badge variant="outline" className="text-[9px] h-5 rounded-full">REALTIME</Badge>
+                </CardHeader>
+                <div className="divide-y max-h-80 overflow-y-auto">
                     {todayAttendance.length === 0 ? (
-                        <div className="p-10 text-center">
-                            <Clock className="h-8 w-8 mx-auto text-slate-300 mb-2" />
-                            <p className="text-slate-500 text-sm">Waiting for first check-in...</p>
+                        <div className="p-10 text-center text-muted-foreground">
+                            <Clock className="h-6 w-6 mx-auto mb-2 opacity-20" />
+                            <p className="text-[10px] font-bold uppercase tracking-widest">Waiting for traffic...</p>
                         </div>
                     ) : (
                         todayAttendance.slice(0, 12).map((record: any) => (
-                            <div key={record.id} className="px-5 py-3.5 flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${record.checked_out_at ? "bg-slate-100" : "bg-emerald-100"}`}>
+                            <div key={record.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/10 transition-colors">
+                                <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center">
                                     {record.checked_out_at
-                                        ? <LogOut className="h-4 w-4 text-slate-500" />
-                                        : <LogIn className="h-4 w-4 text-emerald-600" />}
+                                        ? <LogOut className="h-3.5 w-3.5 opacity-40" />
+                                        : <LogIn className="h-3.5 w-3.5 text-slate-600" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-slate-800 text-sm">{record.children?.first_name} {record.children?.last_name}</p>
-                                    <p className="text-xs text-slate-500">
+                                    <p className="font-bold text-sm truncate">{record.children?.first_name} {record.children?.last_name}</p>
+                                    <p className="text-[10px] text-muted-foreground font-bold uppercase">
                                         {record.checked_out_at
-                                            ? `Checked out at ${format(new Date(record.checked_out_at), "HH:mm")}`
-                                            : `Checked in at ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`
+                                            ? `Departed ${format(new Date(record.checked_out_at), "HH:mm")}`
+                                            : `Arrived ${record.checked_in_at ? format(new Date(record.checked_in_at), "HH:mm") : "—"}`
                                         }
                                     </p>
                                 </div>
                                 {record.children?.allergies && !record.checked_out_at && (
-                                    <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                    <AlertTriangle className="h-4 w-4 text-slate-400" />
                                 )}
                             </div>
                         ))
                     )}
                 </div>
-            </motion.div>
+            </Card>
         </div>
     );
 };
 
 export default VolunteerDashboardNew;
+

@@ -70,3 +70,4 @@ const ResponsiveLayout = ({ children }: ResponsiveLayoutProps) => {
 };
 
 export default ResponsiveLayout;
+

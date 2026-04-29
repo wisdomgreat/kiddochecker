@@ -109,3 +109,4 @@ const AddClassForm = ({ onSuccess }: AddClassFormProps) => {
 };
 
 export default AddClassForm;
+

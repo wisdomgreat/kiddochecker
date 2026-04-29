@@ -11,3 +11,4 @@ const ParentAttendancePage = () => {
 };
 
 export default ParentAttendancePage;
+

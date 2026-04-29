@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Phone, Edit, Trash2, Loader2, Shield, UserPlus, Users, ShieldCheck, Briefcase, Building2, Plus, Info, Lock, EyeOff } from 'lucide-react';
+import { Mail, Phone, Edit, Trash2, Loader2, UserPlus, Users, Briefcase, Building2, Plus, Lock, EyeOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,6 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useStaff, type StaffMember } from '@/hooks/useStaff';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/context/AuthContext';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTranslation } from '@/lib/i18n';
 
 const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
@@ -159,7 +157,6 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     e.preventDefault();
     if (!selectedStaff) return;
 
-    // Authorization Check: Admin cannot reset Super Admin PIN
     if (userRole === 'admin' && formData.staff_pin !== selectedStaff.staff_pin && (selectedStaff.role === 'super_admin' || selectedStaff.is_super_admin)) {
         toast({ title: "Forbidden", description: "Only Super Admins can reset Super Admin settings.", variant: "destructive" });
         return;
@@ -190,7 +187,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('admin-user-management', {
+      const { error } = await supabase.functions.invoke('admin-user-management', {
         body: { action: 'delete_user', userId: selectedStaff.user_id }
       });
       if (error) throw error;
@@ -238,7 +235,6 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     }
   };
 
-  // Helper to determine if current user can reset the PIN of the target member
   const canResetPin = (target: StaffMember) => {
     if (userRole === 'super_admin') return true;
     if (userRole === 'admin') return !(target.role === 'super_admin' || target.is_super_admin);
@@ -246,14 +242,14 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   };
 
   const content = (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto py-8 px-6">
       {!isEmbedded && (
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Team Management</h1>
-            <p className="text-slate-500 font-medium">Manage your organizational structure and staff profiles.</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Team Management</h1>
+            <p className="text-sm text-muted-foreground">Manage organization structure and personnel profiles.</p>
           </div>
-          <Button onClick={() => { resetForm(); setIsAddDialogOpen(true); }} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100">
+          <Button onClick={() => { resetForm(); setIsAddDialogOpen(true); }}>
             <UserPlus className="h-4 w-4 mr-2" />
             Add Staff Member
           </Button>
@@ -261,401 +257,351 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       )}
 
       <Tabs defaultValue="staff" className="w-full">
-        <TabsList className="bg-slate-100 dark:bg-slate-900 border-none h-14 p-1.5 rounded-2xl shadow-inner mb-8">
-          <TabsTrigger value="staff" className="rounded-xl px-10 font-bold text-xs tracking-tight data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
+        <TabsList className="mb-6">
+          <TabsTrigger value="staff">
             <Users className="h-4 w-4 mr-2" />
             {t('teamRoster')}
           </TabsTrigger>
-          <TabsTrigger value="groups" className="rounded-xl px-10 font-bold text-xs tracking-tight data-[state=active]:bg-white dark:data-[state=active]:bg-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-white data-[state=active]:shadow-lg transition-all gap-2 h-11">
+          <TabsTrigger value="groups">
             <Briefcase className="h-4 w-4 mr-2" />
             {t('departmentsGroups')}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="staff" className="space-y-6">
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
             <div className="relative max-w-sm flex-1">
               <Input
-                placeholder="Search staff, email or role..."
+                placeholder="Search team..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="rounded-xl h-11 pl-10 bg-slate-50 border-slate-200"
               />
-              <Users className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
             </div>
           </div>
 
-          <div className="grid gap-4">
-            {isLoading ? (
-              <div className="py-20 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-indigo-500" /></div>
-            ) : filteredStaff && filteredStaff.length > 0 ? (
-              filteredStaff.map((member: StaffMember) => (
-                <Card key={member.user_id} className="border-none shadow-xl shadow-slate-100 rounded-[2rem] overflow-hidden group hover:shadow-indigo-100/50 transition-all border-l-4 border-l-transparent hover:border-l-indigo-500">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm ring-1 ring-slate-100">
-                          {member.avatar_url || member.photo_url ? (
-                            <img src={member.avatar_url || member.photo_url} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <Users className="h-7 w-7 text-slate-300" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-xl font-bold text-slate-900">{member.first_name} {member.last_name}</h3>
-                            {member.department && (
-                               <Badge className="bg-indigo-50 text-indigo-700 border-none rounded-lg text-xs font-bold px-3 h-6">
-                                 {member.department}
-                               </Badge>
-                            )}
-                           </div>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-400">
-                            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {member.email}</span>
-                            {member.phone && <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> {member.phone}</span>}
-                            
-                            {/* Staff PIN Display Logic */}
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-3 py-1 rounded-full text-xs font-bold tracking-tight shadow-sm">
-                                            <Lock className="h-3 w-3" />
-                                            {member.user_id === user?.id && member.staff_pin ? member.staff_pin : '••••'}
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="rounded-xl font-bold bg-[#020617] text-white">
-                                        <p>{member.user_id === user?.id ? "Your Secure PIN" : "PIN Encrypted (Admin Reset ONLY)"}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                           </div>
-                         </div>
+          <Card className="shadow-sm">
+            <div className="divide-y">
+              {isLoading ? (
+                <div className="py-20 flex justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
+              ) : filteredStaff && filteredStaff.length > 0 ? (
+                filteredStaff.map((member: StaffMember) => (
+                  <div key={member.user_id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded border bg-muted flex items-center justify-center overflow-hidden">
+                        {member.avatar_url || member.photo_url ? (
+                          <img src={member.avatar_url || member.photo_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Users className="h-6 w-6 text-muted-foreground/30" />
+                        )}
                       </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-base font-bold">{member.first_name} {member.last_name}</h3>
+                          {member.department && (
+                             <Badge variant="secondary" className="text-[10px] h-4">
+                               {member.department}
+                             </Badge>
+                          )}
+                         </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {member.email}</span>
+                          <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                              <Lock className="h-3 w-3" />
+                              {member.user_id === user?.id && member.staff_pin ? member.staff_pin : '••••'}
+                          </div>
+                         </div>
+                       </div>
+                    </div>
 
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getRoleBadgeVariant(member.role)} className="rounded-lg px-3 py-1 font-bold">
-                          {member.role?.replace('_', ' ').toUpperCase()}
-                        </Badge>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-50" onClick={() => openEditDialog(member)}><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="rounded-xl hover:bg-rose-50 hover:text-rose-600" onClick={() => openDeleteDialog(member)}><Trash2 className="h-4 w-4" /></Button>
-                        </div>
+                    <div className="flex items-center gap-4">
+                      <Badge variant={getRoleBadgeVariant(member.role)} className="font-bold text-[10px] uppercase">
+                        {member.role?.replace('_', ' ')}
+                      </Badge>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditDialog(member)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => openDeleteDialog(member)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="py-20 text-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-slate-900">No personnel found</h3>
-                <p className="text-slate-500">Try adjusting your search or add a new team member.</p>
-              </div>
-            )}
-          </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-20 text-center text-muted-foreground">
+                  <Users className="h-10 w-10 mx-auto mb-4 opacity-20" />
+                  <p className="font-medium">No personnel matches found</p>
+                </div>
+              )}
+            </div>
+          </Card>
         </TabsContent>
 
         <TabsContent value="groups" className="space-y-8">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-               <Card className="xl:col-span-1 border-none shadow-2xl shadow-slate-200/40 rounded-[2.5rem] bg-white dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 overflow-hidden group">
-                 <div className="h-2 bg-indigo-600 w-full" />
-                 <CardHeader className="pb-4">
-                    <CardTitle className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">New Group</CardTitle>
-                    <p className="text-xs font-semibold text-slate-400 leading-relaxed tracking-tight">Create a unit for your team.</p>
-                 </CardHeader>
-                 <CardContent className="space-y-5">
-                    <div className="space-y-4">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="group-name" className="text-[10px] font-bold text-slate-400 ml-1 tracking-tight">Group Name</Label>
-                            <Input id="group-name" placeholder="Name" className="rounded-[1.25rem] h-12 bg-slate-50 border-slate-100 focus:ring-indigo-500/20 font-bold" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="group-desc" className="text-[10px] font-bold text-slate-400 ml-1 tracking-tight">Description</Label>
-                            <Input id="group-desc" placeholder="Primary objective..." className="rounded-[1.25rem] h-12 bg-slate-50 border-slate-100 focus:ring-indigo-500/20 font-medium" />
-                        </div>
-                    </div>
-                    <Button className="w-full rounded-2xl font-bold h-14 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 text-xs tracking-tight" onClick={() => {
-                        const name = (document.getElementById('group-name') as HTMLInputElement).value;
-                        const desc = (document.getElementById('group-desc') as HTMLInputElement).value;
-                        if (name) {
-                            createGroupMutation.mutate({ name, description: desc });
-                            (document.getElementById('group-name') as HTMLInputElement).value = '';
-                            (document.getElementById('group-desc') as HTMLInputElement).value = '';
-                        }
-                    }}>
-                        <Plus className="h-5 w-5 mr-2" />
-                        Create Group
-                    </Button>
-                 </CardContent>
-               </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-1 shadow-sm h-fit">
+               <CardHeader>
+                  <CardTitle className="text-lg font-bold">New Department</CardTitle>
+                  <CardDescription>Logical grouping for permissions.</CardDescription>
+               </CardHeader>
+               <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                      <div className="space-y-1.5">
+                          <Label className="text-xs">Title</Label>
+                          <Input id="group-name" placeholder="e.g. Operations" />
+                      </div>
+                      <div className="space-y-1.5">
+                          <Label className="text-xs">Brief Description</Label>
+                          <Input id="group-desc" placeholder="Scope of duties" />
+                      </div>
+                  </div>
+                  <Button className="w-full mt-2" onClick={() => {
+                      const name = (document.getElementById('group-name') as HTMLInputElement).value;
+                      const desc = (document.getElementById('group-desc') as HTMLInputElement).value;
+                      if (name) {
+                          createGroupMutation.mutate({ name, description: desc });
+                          (document.getElementById('group-name') as HTMLInputElement).value = '';
+                          (document.getElementById('group-desc') as HTMLInputElement).value = '';
+                      }
+                  }}>
+                      Create Group
+                  </Button>
+               </CardContent>
+            </Card>
                
-               <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
-                    {groups.map((group: any) => {
-                        const membersInGroup = staff?.filter((s: StaffMember) => 
-                            groupMembers.some((m: any) => m.group_id === group.id && m.profile_id === s.user_id)
-                        ) || [];
+            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {groups.map((group: any) => {
+                    const membersInGroup = staff?.filter((s: StaffMember) => 
+                        groupMembers.some((m: any) => m.group_id === group.id && m.profile_id === s.user_id)
+                    ) || [];
 
-                        return (
-                            <motion.div 
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                key={group.id}
-                            >
-                                <Card 
-                                    className="border-none shadow-xl shadow-slate-100/60 dark:shadow-none rounded-[2.25rem] p-6 bg-white dark:bg-slate-900 border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-100/40 transition-all cursor-pointer group relative overflow-hidden h-full flex flex-col justify-between"
-                                >
-                                    <div className="absolute top-0 right-0 p-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    return (
+                        <Card 
+                            key={group.id}
+                            className="shadow-sm hover:border-primary/30 transition-colors cursor-pointer"
+                            onClick={() => { setSelectedGroupId(group.id); setIsManagingGroup(true); }}
+                        >
+                            <CardContent className="p-6 space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-start gap-3">
+                                        <div className="h-10 w-10 bg-muted rounded flex items-center justify-center shrink-0">
+                                            <Building2 className="h-5 w-5 text-muted-foreground" />
+                                        </div>
+                                        <div className="pr-12">
+                                            <h4 className="font-bold text-base leading-tight">{group.name}</h4>
+                                            <p className="text-[10px] text-muted-foreground mt-1 line-clamp-1">{group.description}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1">
                                         <Button 
                                             variant="ghost" 
                                             size="icon" 
-                                            className="h-8 w-8 rounded-full bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600"
+                                            className="h-7 w-7"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setGroupToEdit(group);
                                                 setIsEditGroupDialogOpen(true);
                                             }}
                                         >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="h-8 w-8 rounded-full bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setGroupToEdit(group);
-                                                setIsDeleteGroupDialogOpen(true);
-                                            }}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
+                                            <Edit className="h-3 w-3" />
                                         </Button>
                                     </div>
+                                </div>
 
-                                    <div onClick={() => { setSelectedGroupId(group.id); setIsManagingGroup(true); }} className="flex-1">
-                                        <div className="flex items-start gap-4 mb-6">
-                                            <div className="h-14 w-14 bg-indigo-50 dark:bg-indigo-900/40 rounded-2xl flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-500">
-                                                <Building2 className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-                                            </div>
-                                            <div className="pt-1">
-                                                <h4 className="font-bold text-2xl text-slate-900 dark:text-white tracking-tight leading-tight">{group.name}</h4>
-                                                <p className="text-xs text-slate-400 font-bold tracking-tight mt-1 line-clamp-2">{group.description}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50 dark:border-white/5">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex -space-x-2.5">
-                                                    {membersInGroup.slice(0, 4).map((m: StaffMember) => (
-                                                        <div key={m.user_id} className="h-9 w-9 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-black overflow-hidden shadow-sm">
-                                                            {m.photo_url || m.avatar_url ? (
-                                                                <img src={m.photo_url || m.avatar_url} className="h-full w-full object-cover" alt="" />
-                                                            ) : (
-                                                                <span className="text-slate-400">{m.first_name[0]}{m.last_name[0]}</span>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                    {membersInGroup.length > 4 && (
-                                                        <div className="h-9 w-9 rounded-full border-2 border-white bg-indigo-600 flex items-center justify-center text-[11px] font-black text-white shadow-md">
-                                                            +{membersInGroup.length - 4}
-                                                        </div>
+                                <div className="flex items-center justify-between pt-4 border-t">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex -space-x-1">
+                                            {membersInGroup.slice(0, 3).map((m: StaffMember) => (
+                                                <div key={m.user_id} className="h-6 w-6 rounded-full border bg-muted flex items-center justify-center overflow-hidden">
+                                                    {m.photo_url || m.avatar_url ? (
+                                                        <img src={m.photo_url || m.avatar_url} className="h-full w-full object-cover" alt="" />
+                                                    ) : (
+                                                        <span className="text-[8px]">{m.first_name[0]}</span>
                                                     )}
                                                 </div>
-                                                <span className="text-[10px] font-bold text-slate-400 tracking-tight ml-2">
-                                                    {membersInGroup.length === 0 ? 'Empty' : `${membersInGroup.length} Assigned`}
-                                                </span>
-                                            </div>
-                                            <Plus className="h-5 w-5 text-slate-200 group-hover:text-indigo-600 transition-colors" />
+                                            ))}
                                         </div>
+                                        <span className="text-[10px] font-bold text-muted-foreground">
+                                            {membersInGroup.length} Assigned
+                                        </span>
                                     </div>
-                                </Card>
-                            </motion.div>
-                        );
-                    })}
-                    {groups.length === 0 && (
-                        <div className="md:col-span-2 py-32 text-center bg-slate-50/50 dark:bg-white/5 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-white/10 flex flex-col items-center justify-center scale-up-center">
-                             <div className="h-20 w-20 bg-white dark:bg-slate-900 rounded-3xl shadow-xl flex items-center justify-center mb-6">
-                                <Briefcase className="h-10 w-10 text-slate-200" />
-                             </div>
-                             <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">Create Structure</h3>
-                             <p className="max-w-xs text-slate-400 font-bold text-xs tracking-tight leading-relaxed">Add groups to organize your team.</p>
-                        </div>
-                    )}
-               </div>
+                                    <Plus className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
             </div>
+          </div>
         </TabsContent>
       </Tabs>
 
+
       {/* Add Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="rounded-[2.5rem] p-8 max-w-lg">
-          <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-bold">Add Team Member</DialogTitle></DialogHeader>
-          <form onSubmit={handleAddStaff} className="space-y-4">
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-6 bg-muted/50 border-b">
+            <DialogTitle>Add Personnel</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddStaff} className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-               <Input value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} placeholder="First Name" required className="h-12 rounded-xl" />
-               <Input value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} placeholder="Last Name" required className="h-12 rounded-xl" />
+               <div className="space-y-1.5">
+                 <Label>First Name</Label>
+                 <Input value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} required />
+               </div>
+               <div className="space-y-1.5">
+                 <Label>Last Name</Label>
+                 <Input value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} required />
+               </div>
             </div>
-            <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="Email" required className="h-12 rounded-xl" />
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+            </div>
             <div className="grid grid-cols-2 gap-4">
-                <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
-                    <SelectTrigger className="h-12 rounded-xl"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="staff">Staff</SelectItem><SelectItem value="teacher">Teacher</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent>
-                </Select>
-                <Input value={formData.staff_pin} onChange={e => setFormData({...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8)})} placeholder="Kiosk PIN (4 digits)" className="h-12 rounded-xl" />
+                <div className="space-y-1.5">
+                  <Label>System Role</Label>
+                  <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="staff">Staff</SelectItem><SelectItem value="teacher">Teacher</SelectItem><SelectItem value="admin">Admin</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Kiosk PIN</Label>
+                  <Input value={formData.staff_pin} onChange={e => setFormData({...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8)})} placeholder="4-8 digits" />
+                </div>
             </div>
-            <DialogFooter className="pt-4"><Button type="submit" className="w-full bg-indigo-600 rounded-xl h-12 font-bold" disabled={isAddingStaff}>{isAddingStaff ? <Loader2 className="animate-spin h-5 w-5" /> : "Add Member"}</Button></DialogFooter>
+            <DialogFooter className="pt-4"><Button type="submit" className="w-full" disabled={isAddingStaff}>{isAddingStaff ? <Loader2 className="animate-spin h-4 w-4" /> : "Register Member"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog - ENHANCED FOR PIN RESET */}
+      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="rounded-[2.5rem] p-8 max-w-lg">
-          <DialogHeader className="mb-6"><DialogTitle className="text-2xl font-black">Update Member</DialogTitle></DialogHeader>
-          <form onSubmit={handleEditStaff} className="space-y-4">
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-6 bg-muted/50 border-b">
+            <DialogTitle>Update Profile</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditStaff} className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
-               <Input value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} placeholder="First Name" required className="h-12 rounded-xl" />
-               <Input value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} placeholder="Last Name" required className="h-12 rounded-xl" />
+               <div className="space-y-1.5">
+                 <Label>First Name</Label>
+                 <Input value={formData.first_name} onChange={e => setFormData({...formData, first_name: e.target.value})} required />
+               </div>
+               <div className="space-y-1.5">
+                 <Label>Last Name</Label>
+                 <Input value={formData.last_name} onChange={e => setFormData({...formData, last_name: e.target.value})} required />
+               </div>
             </div>
             
-            <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-1">
-                    <Label className="text-[10px] font-bold tracking-tight text-slate-400 ml-1">Kiosk Security PIN</Label>
-                    <div className="relative group">
-                        <Input 
-                            value={formData.staff_pin} 
-                            onChange={e => setFormData({...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8)})} 
-                            disabled={!canResetPin(selectedStaff!)}
-                            placeholder={selectedStaff?.user_id === user?.id ? "Your current PIN" : "Enter new PIN to reset"} 
-                            className="h-12 rounded-xl pl-10 tracking-[0.3em] font-mono font-bold disabled:bg-slate-50 disabled:text-slate-300" 
-                        />
-                        <Lock className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
-                        {!canResetPin(selectedStaff!) && (
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div className="absolute right-3.5 top-3.5 text-rose-400"><EyeOff className="h-5 w-5" /></div>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="bg-rose-600 text-white rounded-xl font-bold">
-                                        You do not have permission to reset this user's PIN.
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        )}
-                    </div>
-                    <p className="text-[10px] text-slate-400 ml-1">
-                        {selectedStaff?.user_id === user?.id ? "Change your own PIN used for Kiosk tools." : "Admins can overwrite other members' PINs if forgotten."}
-                    </p>
+            <div className="space-y-1.5">
+                <Label>Kiosk Security PIN</Label>
+                <div className="relative">
+                    <Input 
+                        value={formData.staff_pin} 
+                        onChange={e => setFormData({...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8)})} 
+                        disabled={!canResetPin(selectedStaff!)}
+                        placeholder="Enter new PIN to override" 
+                        className="pl-9 font-mono" 
+                    />
+                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                    Required for physical terminal access and emergency sign-outs.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Dept/Unit</Label>
+                  <Input value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Phone</Label>
+                  <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <Input value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} placeholder="Department" className="h-12 rounded-xl" />
-                <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="Phone" className="h-12 rounded-xl" />
-            </div>
-
-            <DialogFooter className="pt-4"><Button type="submit" className="w-full bg-indigo-600 rounded-xl h-12 font-bold" disabled={isUpdatingStaff}>Save Changes</Button></DialogFooter>
+            <DialogFooter className="pt-4"><Button type="submit" className="w-full" disabled={isUpdatingStaff}>Commit Changes</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Delete Alert */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem]">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {selectedStaff?.first_name}?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently disable their access and clear associated data.</AlertDialogDescription>
+            <AlertDialogTitle>Remove Personnel?</AlertDialogTitle>
+            <AlertDialogDescription>Permanently disable access for {selectedStaff?.first_name}. Active logs will be retained.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteStaff} className="bg-rose-600 rounded-xl">Remove Permanently</AlertDialogAction>
+            <AlertDialogCancel>Abort</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteStaff} className="bg-destructive text-destructive-foreground">Purge Account</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Manage Group Dialog */}
       <Dialog open={isManagingGroup} onOpenChange={(o) => { setIsManagingGroup(o); if(!o) setSelectedGroupId(null); }}>
-        <DialogContent className="rounded-[3rem] p-0 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col border-none shadow-2xl">
-          <div className="p-8 bg-slate-900 text-white relative">
-            <div className="absolute top-0 right-0 p-4">
-                <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10" onClick={() => setIsManagingGroup(false)}>
-                    <EyeOff className="h-5 w-5" />
-                </Button>
-            </div>
-            <div className="flex items-center gap-6">
-                <div className="h-20 w-20 bg-indigo-500/20 rounded-[2rem] flex items-center justify-center border border-indigo-500/30">
-                    <Building2 className="h-10 w-10 text-indigo-400" />
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <div className="p-6 border-b bg-muted/50 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <div className="h-10 w-10 bg-primary/10 rounded flex items-center justify-center border border-primary/20 shrink-0">
+                    <Building2 className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">{groups.find((g: any) => g.id === selectedGroupId)?.name}</h2>
-                    <p className="text-indigo-300 font-bold text-xs tracking-tight mt-2">Team Roster</p>
+                    <h2 className="text-xl font-bold">{groups.find((g: any) => g.id === selectedGroupId)?.name}</h2>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Unit Assignments</p>
                 </div>
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-8 space-y-10 dark:bg-slate-950 bg-white">
+          <div className="flex-1 overflow-y-auto p-6 space-y-8">
             <div className="space-y-4">
-                <div className="flex items-center justify-between px-2">
-                    <Label className="text-[10px] font-bold tracking-tight text-slate-400">Current Assignments</Label>
-                    <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold text-[10px]">
-                        {staff?.filter((s: StaffMember) => groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)).length} Members
-                    </Badge>
-                </div>
-                <div className="grid gap-3">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Current Members</Label>
+                <div className="grid gap-2">
                     {staff?.filter((s: StaffMember) => 
                         groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)
                     ).map((m: StaffMember) => (
-                        <motion.div 
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            key={m.user_id} 
-                            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-[1.5rem] border border-transparent hover:border-slate-100 transition-all group"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm overflow-hidden">
+                        <div key={m.user_id} className="flex items-center justify-between p-3 border rounded hover:bg-muted/10">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 bg-muted rounded flex items-center justify-center overflow-hidden">
                                     {m.photo_url || m.avatar_url ? (
                                         <img src={m.photo_url || m.avatar_url} className="h-full w-full object-cover" alt="" />
                                     ) : (
-                                        <Users className="h-5 w-5 text-slate-300" />
+                                        <Users className="h-4 w-4 text-muted-foreground/30" />
                                     )}
                                 </div>
-                                <div>
-                                    <span className="font-bold text-slate-900 dark:text-white">{m.first_name} {m.last_name}</span>
-                                    <p className="text-[10px] font-bold text-indigo-500 tracking-tight">{m.role}</p>
-                                </div>
+                                <span className="font-bold text-sm">{m.first_name} {m.last_name}</span>
                             </div>
-                            <Button variant="ghost" size="sm" className="bg-white hover:bg-rose-50 text-slate-300 hover:text-rose-600 font-bold text-[10px] rounded-xl h-9 px-4 transition-all opacity-0 group-hover:opacity-100" onClick={async () => {
+                            <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={async () => {
                                 await supabase.from('staff_group_members').delete().eq('group_id', selectedGroupId).eq('profile_id', m.user_id);
                                 queryClient.invalidateQueries({ queryKey: ['staff-group-members-all'] });
                             }}>Unassign</Button>
-                        </motion.div>
+                        </div>
                     ))}
                     {staff?.filter((s: StaffMember) => 
                         groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)
                     ).length === 0 && (
-                        <div className="py-12 bg-slate-50/50 dark:bg-white/5 rounded-[2rem] border-2 border-dashed border-slate-100 text-center flex flex-col items-center gap-2">
-                             <Users className="h-10 w-10 text-slate-200" />
-                             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No members assigned yet</p>
+                        <div className="py-12 border border-dashed rounded text-center text-muted-foreground">
+                             <p className="text-xs font-bold uppercase">No personnel assigned</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-[2rem] space-y-4">
-                <div className="flex items-center gap-3 ml-2">
-                    <UserPlus className="h-4 w-4 text-indigo-600" />
-                    <Label className="text-[10px] font-bold tracking-tight text-slate-600 dark:text-slate-400">Add Staff Member</Label>
-                </div>
+            <div className="p-6 border bg-primary/5 rounded space-y-4">
+                <Label className="text-xs font-bold uppercase text-primary">Assign New Member</Label>
                 <Select onValueChange={async (staffId) => {
                     await supabase.from('staff_group_members').upsert({ group_id: selectedGroupId!, profile_id: staffId });
                     queryClient.invalidateQueries({ queryKey: ['staff-group-members-all'] });
-                    toast({ title: "Updated", description: "Personnel added to department." });
+                    toast({ title: "Authorized", description: "Personnel added to direct report." });
                 }}>
-                    <SelectTrigger className="h-14 rounded-2xl border-none shadow-sm bg-white dark:bg-slate-900 font-bold px-6">
-                        <SelectValue placeholder="Select staff member..." />
+                    <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Identify staff..." />
                     </SelectTrigger>
-                    <SelectContent className="max-h-60 rounded-2xl border-none shadow-2xl bg-white dark:bg-slate-950 p-2">
+                    <SelectContent>
                         {staff?.filter((s: StaffMember) => 
                             !groupMembers.some((m: any) => m.group_id === selectedGroupId && m.profile_id === s.user_id)
                         ).map((s: StaffMember) => (
-                            <SelectItem key={s.user_id} value={s.user_id} className="font-bold rounded-xl h-12 focus:bg-indigo-50 focus:text-indigo-600">
+                            <SelectItem key={s.user_id} value={s.user_id}>
                                 {s.first_name} {s.last_name}
                             </SelectItem>
                         ))}
@@ -663,40 +609,36 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                 </Select>
             </div>
           </div>
+          <DialogFooter className="p-4 border-t bg-muted/30">
+            <Button variant="outline" onClick={() => setIsManagingGroup(false)}>Close Manager</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Group Dialog */}
       <Dialog open={isEditGroupDialogOpen} onOpenChange={setIsEditGroupDialogOpen}>
-        <DialogContent className="rounded-[2.5rem] p-8 max-w-md">
-            <DialogHeader className="mb-6">
-                <DialogTitle className="text-2xl font-bold tracking-tight">Modify Group</DialogTitle>
-                <p className="text-xs font-bold text-slate-400 tracking-tight">Update naming and responsibilities.</p>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+            <DialogHeader className="p-6 bg-muted/50 border-b">
+                <DialogTitle>Modify Structural Unit</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="p-6 space-y-4">
                 <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-slate-400 ml-1">Title</Label>
+                    <Label>Title</Label>
                     <Input 
                         value={groupToEdit?.name || ''} 
                         onChange={e => setGroupToEdit({...groupToEdit, name: e.target.value})}
-                        className="h-12 rounded-xl bg-slate-50 border-slate-100 font-bold"
                     />
                 </div>
                 <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-slate-400 ml-1">Description</Label>
+                    <Label>Description</Label>
                     <Input 
                         value={groupToEdit?.description || ''} 
                         onChange={e => setGroupToEdit({...groupToEdit, description: e.target.value})}
-                        className="h-12 rounded-xl bg-slate-50 border-slate-100 font-medium"
                     />
                 </div>
-                <DialogFooter className="pt-4">
-                    <Button 
-                        className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-xs tracking-tight"
-                        onClick={() => updateGroupMutation.mutate(groupToEdit)}
-                    >
-                        Save Changes
-                    </Button>
+                <DialogFooter className="pt-4 gap-2">
+                    <Button variant="secondary" onClick={() => setIsEditGroupDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={() => updateGroupMutation.mutate(groupToEdit)}>Save Updates</Button>
                 </DialogFooter>
             </div>
         </DialogContent>
@@ -704,26 +646,20 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 
       {/* Delete Group Alert */}
       <AlertDialog open={isDeleteGroupDialogOpen} onOpenChange={setIsDeleteGroupDialogOpen}>
-        <AlertDialogContent className="rounded-[2.5rem] p-8 border-none overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-8 text-rose-100 -mr-4 -mt-4 opacity-50 rotate-12">
-            <Shield className="h-24 w-24 fill-current" />
-          </div>
-          <AlertDialogHeader className="relative z-10">
-            <div className="h-16 w-16 bg-rose-50 rounded-3xl flex items-center justify-center mb-6">
-                <Trash2 className="h-8 w-8 text-rose-500" />
-            </div>
-            <AlertDialogTitle className="text-2xl font-bold text-slate-900 tracking-tight">Dissolve Group?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm font-bold text-slate-500 leading-relaxed tracking-tight">
-                This will permanently remove the <span className="text-rose-600">"{groupToEdit?.name}"</span> unit. Staff members will remain in the system but their assignments to this group will be cleared.
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dissolve Department?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Permanent removal of "{groupToEdit?.name}". Personnel will be unassigned but remain in the database.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="pt-8">
-            <AlertDialogCancel className="h-14 px-8 rounded-2xl font-bold text-xs tracking-tight border-slate-100">Cancel</AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
-                onClick={() => deleteGroupMutation.mutate(groupToEdit.id)} 
-                className="h-14 px-8 rounded-2xl font-bold text-xs tracking-tight bg-rose-600 hover:bg-rose-700 shadow-xl shadow-rose-100"
+                onClick={() => deleteGroupMutation.mutate(groupToEdit?.id)} 
+                className="bg-destructive text-destructive-foreground"
             >
-                Confirm Delete
+                Dissolve Unit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -735,3 +671,4 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
 };
 
 export default StaffPage;
+

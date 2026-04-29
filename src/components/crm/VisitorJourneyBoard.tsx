@@ -76,7 +76,7 @@ const VisitorJourneyBoard = () => {
                                 <stage.icon className="h-5 w-5 text-white" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-slate-900 dark:text-white tracking-tight text-[11px]">{stage.name}</h3>
+                                <h3 className="font-bold text-foreground dark:text-white tracking-tight text-[11px]">{stage.name}</h3>
                                 <div className="flex items-center gap-1.5 leading-none">
                                     <TrendingUp className="h-2.5 w-2.5 text-slate-300" />
                                     <p className="text-[9px] font-bold text-slate-400 tracking-tight">
@@ -111,7 +111,7 @@ const VisitorJourneyBoard = () => {
                                         }}
                                     >
                                     <Card className={cn(
-                                        "p-6 rounded-[2rem] bg-white dark:bg-slate-900 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all cursor-pointer relative overflow-hidden group-hover:ring-2",
+                                        "p-6 rounded-[2rem] bg-card dark:bg-slate-900 border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] transition-all cursor-pointer relative overflow-hidden group-hover:ring-2",
                                         stage.accent.replace('border-', 'ring-')
                                     )}>
                                         {/* Status Glow */}
@@ -128,7 +128,7 @@ const VisitorJourneyBoard = () => {
                                                         {member.profiles?.first_name?.[0]}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <h4 className="font-bold text-slate-900 dark:text-white tracking-tight text-sm truncate leading-tight">
+                                                        <h4 className="font-bold text-foreground dark:text-white tracking-tight text-sm truncate leading-tight">
                                                             {member.profiles?.first_name} {member.profiles?.last_name}
                                                         </h4>
                                                         <div className="flex items-center gap-1.5 mt-1">
@@ -143,7 +143,7 @@ const VisitorJourneyBoard = () => {
                                                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-slate-600 rounded-full transition-colors shrink-0"><MoreHorizontal className="h-4 w-4" /></Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="rounded-2xl border-none shadow-2xl p-2 min-w-[220px] bg-white dark:bg-slate-900">
+                                                    <DropdownMenuContent align="end" className="rounded-2xl border-none shadow-2xl p-2 min-w-[220px] bg-card dark:bg-slate-900">
                                                         <p className="text-[9px] font-bold text-slate-400 px-3 py-2 tracking-tight border-b border-slate-50 dark:border-white/5 mb-2">Modern Journey Migration</p>
                                                         {JOURNEY_STAGES.map(s => (
                                                             <DropdownMenuItem 
@@ -151,7 +151,7 @@ const VisitorJourneyBoard = () => {
                                                                 disabled={s.id === (member.journey_stage || 'initial_visit')}
                                                                 className={cn(
                                                                     "font-bold text-[9px] p-3 rounded-xl cursor-pointer flex items-center gap-3 transition-all mb-1",
-                                                                    s.id === (member.journey_stage || 'initial_visit') ? "opacity-30" : "hover:bg-slate-50 dark:hover:bg-white/5"
+                                                                    s.id === (member.journey_stage || 'initial_visit') ? "opacity-30" : "hover:bg-slate-50 dark:hover:bg-card/5"
                                                                 )}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
@@ -168,10 +168,10 @@ const VisitorJourneyBoard = () => {
                                                 </DropdownMenu>
                                             </div>
 
-                                            <div className="bg-slate-50/80 dark:bg-white/5 p-4 rounded-[1.5rem] border border-white/50 dark:border-white/5 flex items-center justify-between gap-4">
+                                            <div className="bg-slate-50/80 dark:bg-card/5 p-4 rounded-[1.5rem] border border-white/50 dark:border-white/5 flex items-center justify-between gap-4">
                                                 <div className="flex gap-2.5">
-                                                    <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"><Phone className="h-4 w-4" /></div>
-                                                    <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"><MessageSquare className="h-4 w-4" /></div>
+                                                    <div className="w-9 h-9 rounded-xl bg-card dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"><Phone className="h-4 w-4" /></div>
+                                                    <div className="w-9 h-9 rounded-xl bg-card dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all hover:scale-110 active:scale-95 shrink-0"><MessageSquare className="h-4 w-4" /></div>
                                                 </div>
                                                 <div className="text-right min-w-0">
                                                     <p className="text-[7px] font-bold text-slate-300 tracking-tight mb-0.5 truncate">Integration Date</p>
@@ -194,7 +194,7 @@ const VisitorJourneyBoard = () => {
                                 className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-white/10 rounded-[2.5rem] bg-slate-50/30"
                             >
                                 <Activity className="h-5 w-5 text-slate-400 mb-2 opacity-20" />
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Currently Balanced</span>
+                                <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400">Currently Balanced</span>
                             </motion.div>
                         )}
                     </div>
@@ -212,3 +212,4 @@ const VisitorJourneyBoard = () => {
 };
 
 export default VisitorJourneyBoard;
+

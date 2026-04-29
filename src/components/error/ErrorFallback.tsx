@@ -34,3 +34,4 @@ export const ErrorFallback = ({ error, resetError, message }: ErrorFallbackProps
 };
 
 export default ErrorFallback;
+

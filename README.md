@@ -5,7 +5,6 @@ A comprehensive web application for managing church childcare operations, built 
 
 ## Project Information
 
-**URL**: https://lovable.dev/projects/3d7356e4-e51d-4d22-864c-2559092b6006
 
 ## Features Implemented
 
@@ -160,8 +159,7 @@ Ensure your Supabase project is properly configured with:
 - Storage buckets configured
 
 ## Deployment
-
-Simply open [Lovable](https://lovable.dev/projects/3d7356e4-e51d-4d22-864c-2559092b6006) and click on Share → Publish.
+The application can be deployed to any static site hosting service like Vercel, Netlify, or AWS Amplify.
 
 ## Testing
 
@@ -178,7 +176,7 @@ The application includes a comprehensive testing checklist with 38 test cases co
 
 ## Support
 
-For technical support or questions, refer to the [Lovable Documentation](https://docs.lovable.dev/) or join the [Discord community](https://discord.com/channels/1119885301872070706/1280461670979993613).
+For technical support or questions, refer to the [Supabase Documentation](https://supabase.com/docs) or the project maintainers.
 
 ## Project Status
 

@@ -54,7 +54,7 @@ export class AuthErrorBoundary extends Component<Props, State> {
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="w-full max-w-xl relative z-10"
           >
-            <div className="bg-white/80 backdrop-blur-2xl border border-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] rounded-[3rem] p-12 text-center space-y-8 overflow-hidden relative group">
+            <div className="bg-card/80 backdrop-blur-2xl border border-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] rounded-[3rem] p-12 text-center space-y-8 overflow-hidden relative group">
               {/* Subtle top accent */}
               <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-400 via-indigo-500 to-emerald-400 opacity-80" />
               
@@ -74,7 +74,7 @@ export class AuthErrorBoundary extends Component<Props, State> {
                 </motion.div>
                 
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                  <h2 className="text-4xl font-bold text-foreground tracking-tight leading-tight">
                     Session <span className="text-rose-500">Interrupted</span>
                   </h2>
                   <p className="text-slate-500 font-bold leading-relaxed max-w-md mx-auto">
@@ -87,7 +87,7 @@ export class AuthErrorBoundary extends Component<Props, State> {
                 <Button 
                   onClick={this.handleRetry} 
                   variant="outline" 
-                  className="h-16 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-black text-xs uppercase tracking-widest shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="h-16 rounded-2xl border-slate-200 bg-card hover:bg-slate-50 text-slate-700 font-bold text-xs uppercase tracking-widest shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3"
                 >
                   <RefreshCw className="h-4 w-4 text-indigo-500" />
                   Attempt Recovery
@@ -95,7 +95,7 @@ export class AuthErrorBoundary extends Component<Props, State> {
                 
                 <Button 
                   onClick={this.handleLogout} 
-                  className="h-16 rounded-2xl bg-slate-900 hover:bg-black text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="h-16 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-3"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Re-Authenticate
@@ -103,7 +103,7 @@ export class AuthErrorBoundary extends Component<Props, State> {
               </div>
 
               <div className="pt-6 border-t border-slate-100">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                   If issues persist, please contact <span className="text-indigo-600">Central Support</span>
                 </p>
               </div>
@@ -118,3 +118,4 @@ export class AuthErrorBoundary extends Component<Props, State> {
 }
 
 export default AuthErrorBoundary;
+

@@ -37,3 +37,4 @@ const SimpleLayout = ({ children }: SimpleLayoutProps) => {
 };
 
 export default SimpleLayout;
+

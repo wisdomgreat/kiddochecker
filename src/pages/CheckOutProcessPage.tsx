@@ -88,7 +88,7 @@ const CheckOutProcessPage = () => {
               
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {checkedInChildren.map((record) => (
-                  <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg bg-white">
+                  <div key={record.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
                     <div>
                       <p className="font-medium">
                         {record.child ? `${record.child.first_name} ${record.child.last_name}` : 'Unknown Child'}
@@ -128,3 +128,4 @@ const CheckOutProcessPage = () => {
 };
 
 export default CheckOutProcessPage;
+

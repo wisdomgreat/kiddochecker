@@ -193,3 +193,4 @@ const ParentRewardsPage = () => {
 };
 
 export default ParentRewardsPage;
+

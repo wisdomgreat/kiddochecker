@@ -32,7 +32,7 @@ const IntegrationSettings = () => {
         .select("*")
         .single();
         
-      if (error && error.code !== "PGRST116") throw error; // ignore no rows
+      if (error && error.code !== "PGRST116") throw error;
       return data || null;
     },
   });
@@ -81,14 +81,14 @@ const IntegrationSettings = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["communication_settings"] });
       toast({
-        title: "Integration Settings Saved",
-        description: "Your SMS and Email configurations have been saved successfully.",
+        title: "Settings Saved",
+        description: "Integration preferences updated.",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Configuration Error",
-        description: error.message || "Failed to save integrations",
+        title: "Error",
+        description: error.message || "Failed to save integrations.",
         variant: "destructive",
       });
     },
@@ -101,7 +101,7 @@ const IntegrationSettings = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -110,16 +110,14 @@ const IntegrationSettings = () => {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         
-        {/* SMS Integration Card */}
-        <Card className="border-none shadow-md overflow-hidden">
-          <div className="bg-indigo-600 h-1" />
-          <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center gap-4 py-4">
-            <div className="p-3 bg-indigo-100 rounded-xl">
-              <MessageSquare className="h-5 w-5 text-indigo-600" />
+        <Card className="shadow-sm">
+          <CardHeader className="border-b bg-muted/20 flex flex-row items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded border">
+              <MessageSquare className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Twilio SMS Gateway</CardTitle>
-              <CardDescription>Configure Twilio to send SMS alerts mapping to parent phones</CardDescription>
+              <CardTitle>Twilio Gateway</CardTitle>
+              <CardDescription>SMS alerts and broadcasts configuration.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
@@ -127,18 +125,17 @@ const IntegrationSettings = () => {
               control={form.control}
               name="enable_sms_pickups"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between p-4 bg-slate-50 rounded-xl mb-4 border border-slate-100">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base text-slate-800 font-bold">Enable SMS Features</FormLabel>
-                    <FormDescription>
-                      Allow outbound SMS formatting at Check-In and for Manual broadcasts.
+                <FormItem className="flex items-center justify-between p-4 border rounded-md bg-muted/30">
+                  <div className="space-y-1">
+                    <FormLabel className="text-sm font-bold">Enable SMS Gateway</FormLabel>
+                    <FormDescription className="text-xs">
+                      Allow outbound SMS for check-ins and broadcasts.
                     </FormDescription>
                   </div>
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      className="data-[state=checked]:bg-indigo-600"
                     />
                   </FormControl>
                 </FormItem>
@@ -151,9 +148,9 @@ const IntegrationSettings = () => {
                 name="twilio_account_sid"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Account SID</FormLabel>
+                    <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Account SID</FormLabel>
                     <FormControl>
-                      <Input placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" {...field} />
+                      <Input placeholder="ACxxxxxxxxxxxx" {...field} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -163,9 +160,9 @@ const IntegrationSettings = () => {
                 name="twilio_auth_token"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Auth Token</FormLabel>
+                    <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Auth Token</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••••••••••" {...field} />
+                      <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -176,27 +173,24 @@ const IntegrationSettings = () => {
               name="twilio_phone_number"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Twilio Phone Number</FormLabel>
+                  <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Outbound Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="+1 555-019-9999" {...field} />
+                    <Input placeholder="+1 555-000-0000" {...field} />
                   </FormControl>
-                  <FormDescription>Your registered Twilio outbound number.</FormDescription>
                 </FormItem>
               )}
             />
           </CardContent>
         </Card>
 
-        {/* Email Integration Card */}
-        <Card className="border-none shadow-md overflow-hidden">
-          <div className="bg-emerald-500 h-1" />
-          <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center gap-4 py-4">
-            <div className="p-3 bg-emerald-100 rounded-xl">
-              <Mail className="h-5 w-5 text-emerald-600" />
+        <Card className="shadow-sm">
+          <CardHeader className="border-b bg-muted/20 flex flex-row items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded border">
+              <Mail className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-lg">Resend & Email Automation</CardTitle>
-              <CardDescription>Configure email delivery for newsletters and critical digital reports</CardDescription>
+              <CardTitle>Email Integration</CardTitle>
+              <CardDescription>Resend API configuration for email automation.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
@@ -204,18 +198,17 @@ const IntegrationSettings = () => {
               control={form.control}
               name="enable_email_pickups"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between p-4 bg-slate-50 rounded-xl mb-4 border border-slate-100">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base text-slate-800 font-bold">Enable Email Broadcasts</FormLabel>
-                    <FormDescription>
-                      Allow the message center to push digital copies or detailed alerts to authenticated parent emails.
+                <FormItem className="flex items-center justify-between p-4 border rounded-md bg-muted/30">
+                  <div className="space-y-1">
+                    <FormLabel className="text-sm font-bold">Enable Email Gateway</FormLabel>
+                    <FormDescription className="text-xs">
+                      Allow digital reports and broadcasts via email.
                     </FormDescription>
                   </div>
                   <FormControl>
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      className="data-[state=checked]:bg-emerald-500"
                     />
                   </FormControl>
                 </FormItem>
@@ -227,9 +220,9 @@ const IntegrationSettings = () => {
               name="resend_api_key"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Resend API Key</FormLabel>
+                  <FormLabel className="text-xs font-bold uppercase text-muted-foreground">API Key</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="re_xxxxxxxxxxxxxxxx" {...field} />
+                    <Input type="password" placeholder="re_xxxxxxxxxxxx" {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -239,20 +232,19 @@ const IntegrationSettings = () => {
               name="resend_domain"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sending Domain</FormLabel>
+                  <FormLabel className="text-xs font-bold uppercase text-muted-foreground">Sending Domain</FormLabel>
                   <FormControl>
-                    <Input placeholder="yourchurch.com" {...field} />
+                    <Input placeholder="example.com" {...field} />
                   </FormControl>
-                  <FormDescription>Must be an authenticated domain verified inside Resend.</FormDescription>
                 </FormItem>
               )}
             />
           </CardContent>
         </Card>
 
-        <div className="flex justify-end pt-4">
-          <Button type="submit" className="gap-2 bg-slate-900 shadow-xl px-8 py-6 rounded-xl hover:bg-slate-800 transition-all font-bold" disabled={updateSettingsMutation.isPending}>
-            {updateSettingsMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : <LinkIcon className="h-5 w-5" />}
+        <div className="flex justify-end pt-2">
+          <Button type="submit" className="min-w-[140px]" disabled={updateSettingsMutation.isPending}>
+            {updateSettingsMutation.isPending ? <Loader2 className="animate-spin h-5 w-5" /> : <LinkIcon className="h-4 w-4 mr-2" />}
             Save Integrations
           </Button>
         </div>
@@ -262,3 +254,4 @@ const IntegrationSettings = () => {
 };
 
 export default IntegrationSettings;
+

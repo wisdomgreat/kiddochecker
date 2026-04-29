@@ -5,7 +5,7 @@ const LandingFooter = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-gray-50 border-t border-gray-200 py-8">
+    <footer className="bg-gray-50 border-t border-border py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
@@ -63,7 +63,7 @@ const LandingFooter = () => {
           </div>
         </div>
         
-        <div className="mt-8 border-t border-gray-200 pt-6 flex flex-col md:flex-row justify-between items-center">
+        <div className="mt-8 border-t border-border pt-6 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-500 text-sm">
             &copy; {currentYear} KidCheck. All rights reserved.
           </p>
@@ -94,3 +94,4 @@ const LandingFooter = () => {
 };
 
 export default LandingFooter;
+

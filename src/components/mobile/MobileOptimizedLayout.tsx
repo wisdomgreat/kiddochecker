@@ -18,7 +18,7 @@ export const MobileOptimizedLayout = ({
   return (
     <div className={cn("min-h-screen bg-gray-50", className)}>
       {showHeader && (
-        <div className="bg-white border-b border-gray-200 px-4 py-3 sm:px-6">
+        <div className="bg-card border-b border-border px-4 py-3 sm:px-6">
           <h1 className="text-lg font-semibold text-gray-900 truncate">
             {headerTitle}
           </h1>
@@ -35,3 +35,4 @@ export const MobileOptimizedLayout = ({
 };
 
 export default MobileOptimizedLayout;
+

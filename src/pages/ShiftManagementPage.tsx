@@ -135,7 +135,7 @@ const ShiftManagementPage = () => {
       <div className="space-y-8 pb-20">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
+            <h1 className="text-4xl font-bold tracking-tight text-foreground flex items-center gap-3">
               <Briefcase className="h-10 w-10 text-indigo-600" /> Staff Scheduling
             </h1>
             <p className="text-slate-500 font-medium">Manage shifts and center coverage.</p>
@@ -217,21 +217,21 @@ const ShiftManagementPage = () => {
           </Dialog>
         </div>
 
-        <div className="flex items-center justify-between bg-white/60 backdrop-blur-md p-6 rounded-[2.5rem] border border-slate-100 shadow-sm transition-all hover:bg-white/80">
+        <div className="flex items-center justify-between bg-card/60 backdrop-blur-md p-6 rounded-[2.5rem] border border-slate-100 shadow-sm transition-all hover:bg-card/80">
           <Button variant="ghost" className="rounded-full h-12 w-12 p-0 hover:bg-indigo-50 text-indigo-600 transition-colors" onClick={() => changeDate(-1)}><ChevronLeft className="h-6 w-6" /></Button>
           <div className="text-center group cursor-pointer" onClick={() => setSelectedDate(new Date())}>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 mb-1">Schedule for</p>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">{format(selectedDate, 'EEEE, MMM dd')}</h2>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-500 mb-1">Schedule for</p>
+            <h2 className="text-3xl font-bold text-foreground tracking-tight">{format(selectedDate, 'EEEE, MMM dd')}</h2>
           </div>
           <Button variant="ghost" className="rounded-full h-12 w-12 p-0 hover:bg-indigo-50 text-indigo-600 transition-colors" onClick={() => changeDate(1)}><ChevronRight className="h-6 w-6" /></Button>
         </div>
 
         {/* Shift Grid/List */}
-        <Card className="border-none shadow-xl rounded-[2.5rem] bg-white overflow-hidden">
+        <Card className="border-none shadow-xl rounded-[2.5rem] bg-card overflow-hidden">
           <CardHeader className="p-8 border-b border-slate-50 flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-xl font-black text-slate-800">Daily Coverage</CardTitle>
-              <CardDescription className="uppercase text-xs font-black tracking-widest text-slate-400">Scheduled staff for this date</CardDescription>
+              <CardTitle className="text-xl font-bold text-foreground">Daily Coverage</CardTitle>
+              <CardDescription className="uppercase text-xs font-bold tracking-widest text-slate-400">Scheduled staff for this date</CardDescription>
             </div>
             <Badge variant="outline" className="bg-slate-50 border-slate-100 text-xs font-bold py-1 px-3 rounded-full">{shifts.length} Shifts</Badge>
           </CardHeader>
@@ -242,11 +242,11 @@ const ShiftManagementPage = () => {
               <Table>
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
-                    <TableHead className="pl-8 text-xs font-black uppercase tracking-widest text-slate-400">Staff Member</TableHead>
-                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400">Timing</TableHead>
-                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400">Assigned Class</TableHead>
-                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400">Role</TableHead>
-                    <TableHead className="text-xs font-black uppercase tracking-widest text-slate-400 text-right pr-8">Actions</TableHead>
+                    <TableHead className="pl-8 text-xs font-bold uppercase tracking-widest text-slate-400">Staff Member</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-400">Timing</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-400">Assigned Class</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-400">Role</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-widest text-slate-400 text-right pr-8">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -258,7 +258,7 @@ const ShiftManagementPage = () => {
                             {shift.staff?.first_name[0]}{shift.staff?.last_name[0]}
                           </div>
                           <div>
-                            <p className="text-sm font-black text-slate-800">{shift.staff?.first_name} {shift.staff?.last_name}</p>
+                            <p className="text-sm font-bold text-foreground">{shift.staff?.first_name} {shift.staff?.last_name}</p>
                             <p className="text-[10px] text-slate-400 font-bold">{shift.status}</p>
                           </div>
                         </div>
@@ -280,7 +280,7 @@ const ShiftManagementPage = () => {
                          <Badge 
                             variant="outline" 
                             className={cn(
-                                "text-[9px] font-black uppercase border-none h-6 px-3",
+                                "text-[9px] font-bold uppercase border-none h-6 px-3",
                                 shift.role_type === 'leader' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'
                             )}
                          >
@@ -315,3 +315,4 @@ const ShiftManagementPage = () => {
 };
 
 export default ShiftManagementPage;
+

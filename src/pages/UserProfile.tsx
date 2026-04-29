@@ -187,10 +187,10 @@ const UserProfile = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+              <div className="flex items-center justify-between bg-card p-4 rounded-xl border border-indigo-100 shadow-sm">
                 <div>
                   <p className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1">Your Identity PIN</p>
-                  <p className="text-2xl font-black text-indigo-700 font-mono tracking-widest">{userProfile.staff_pin}</p>
+                  <p className="text-2xl font-bold text-indigo-700 font-mono tracking-widest">{userProfile.staff_pin}</p>
                 </div>
                 <Badge className="bg-indigo-600 text-white border-0 px-3 py-1">Active</Badge>
               </div>
@@ -303,3 +303,4 @@ const UserProfile = () => {
 };
 
 export default UserProfile;
+

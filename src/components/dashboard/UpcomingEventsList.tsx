@@ -49,3 +49,4 @@ const UpcomingEventsList = () => {
 };
 
 export default UpcomingEventsList;
+

@@ -120,12 +120,12 @@ const RosterTemplates = () => {
     <div className="space-y-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Roster Blueprints</h2>
+          <h2 className="text-3xl font-bold text-foreground tracking-tight">Roster Blueprints</h2>
           <p className="text-slate-500 font-medium">Define recurring staffing requirements for automated generation.</p>
         </div>
         <div className="flex gap-3">
           <Select value={selectedTemplateId || ''} onValueChange={setSelectedTemplateId}>
-            <SelectTrigger className="w-[240px] h-12 rounded-2xl bg-white shadow-sm border-slate-200">
+            <SelectTrigger className="w-[240px] h-12 rounded-2xl bg-card shadow-sm border-slate-200">
               <SelectValue placeholder="Select Blueprint..." />
             </SelectTrigger>
             <SelectContent className="rounded-2xl border-none shadow-2xl">
@@ -152,13 +152,13 @@ const RosterTemplates = () => {
                 value={newTemplateName} 
                 onChange={e => setNewTemplateName(e.target.value)} 
                 placeholder="e.g., Summer Term Standard Roster" 
-                className="h-12 rounded-xl bg-white border-none shadow-sm"
+                className="h-12 rounded-xl bg-card border-none shadow-sm"
               />
             </div>
             <Button 
               onClick={() => { if(newTemplateName) createTemplateMutation.mutate(newTemplateName); }}
               disabled={createTemplateMutation.isPending}
-              className="h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-8 font-black uppercase text-[10px] tracking-widest text-white shadow-lg"
+              className="h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-8 font-bold uppercase text-[10px] tracking-widest text-white shadow-lg"
             >
               {createTemplateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Initiate Template"}
             </Button>
@@ -169,16 +169,16 @@ const RosterTemplates = () => {
 
       {selectedTemplateId ? (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <Card className="lg:col-span-1 border-none shadow-xl rounded-[2.5rem] overflow-hidden bg-white h-fit">
+          <Card className="lg:col-span-1 border-none shadow-xl rounded-[2.5rem] overflow-hidden bg-card h-fit">
             <CardHeader className="p-8 border-b border-slate-50">
-              <CardTitle className="text-xl font-black flex items-center gap-2">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
                 <Plus className="w-5 h-5 text-indigo-500" />
                 Add Requirement
               </CardTitle>
             </CardHeader>
             <CardContent className="p-8 space-y-5">
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Day</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Target Day</Label>
                 <Select value={String(newReq.day_of_week)} onValueChange={v => setNewReq({...newReq, day_of_week: parseInt(v)})}>
                   <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl border-none shadow-2xl">
@@ -189,17 +189,17 @@ const RosterTemplates = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Start</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Start</Label>
                   <Input type="time" value={newReq.start_time.substring(0,5)} onChange={e => setNewReq({...newReq, start_time: e.target.value + ':00'})} className="h-11 rounded-xl bg-slate-50 border-none shadow-inner" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">End</Label>
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">End</Label>
                   <Input type="time" value={newReq.end_time.substring(0,5)} onChange={e => setNewReq({...newReq, end_time: e.target.value + ':00'})} className="h-11 rounded-xl bg-slate-50 border-none shadow-inner" />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Role Identity</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Role Identity</Label>
                 <Select value={newReq.role_type} onValueChange={v => setNewReq({...newReq, role_type: v})}>
                   <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl border-none shadow-2xl">
@@ -212,7 +212,7 @@ const RosterTemplates = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Group Constraint</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Group Constraint</Label>
                 <Select value={newReq.required_group_id} onValueChange={v => setNewReq({...newReq, required_group_id: v === 'none' ? '' : v})}>
                   <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue placeholder="Any Group" /></SelectTrigger>
                   <SelectContent className="rounded-xl border-none shadow-2xl">
@@ -223,7 +223,7 @@ const RosterTemplates = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Church Ministry</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Church Ministry</Label>
                 <Select value={newReq.ministry_id} onValueChange={v => setNewReq({...newReq, ministry_id: v === 'none' ? '' : v})}>
                   <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue placeholder="General / No Ministry" /></SelectTrigger>
                   <SelectContent className="rounded-xl border-none shadow-2xl">
@@ -234,7 +234,7 @@ const RosterTemplates = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Spec. Volunteer Role</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Spec. Volunteer Role</Label>
                 <Select value={newReq.volunteer_role_id} onValueChange={v => setNewReq({...newReq, volunteer_role_id: v === 'none' ? '' : v})}>
                   <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-none"><SelectValue placeholder="Any Specific Role" /></SelectTrigger>
                   <SelectContent className="rounded-xl border-none shadow-2xl">
@@ -245,7 +245,7 @@ const RosterTemplates = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Personnel count</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Personnel count</Label>
                 <Input type="number" min="1" value={newReq.required_count} onChange={e => setNewReq({...newReq, required_count: parseInt(e.target.value)})} className="h-11 rounded-xl bg-slate-50 border-none shadow-inner" />
               </div>
 
@@ -258,7 +258,7 @@ const RosterTemplates = () => {
                     volunteer_role_id: newReq.volunteer_role_id || null, 
                     required_group_id: newReq.required_group_id || null 
                 })}
-                className="w-full h-12 rounded-xl bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition-colors shadow-2xl shadow-indigo-100/50"
+                className="w-full h-12 rounded-xl bg-slate-900 text-white font-bold uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition-colors shadow-2xl shadow-indigo-100/50"
               >
                 Insert Shift Block
               </Button>
@@ -273,13 +273,13 @@ const RosterTemplates = () => {
                if (dayReqs.length === 0) return null;
                return (
                  <div key={dayIdx} className="space-y-3">
-                   <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400 ml-4 mb-2 flex items-center gap-2">
+                   <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400 ml-4 mb-2 flex items-center gap-2">
                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
                      {days[dayIdx]}
                    </h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      {dayReqs.map((req: any) => (
-                       <Card key={req.id} className="border-none shadow-[0_8px_30px_-4px_rgba(0,0,0,0.04)] rounded-[2rem] bg-white group hover:shadow-indigo-100/50 transition-all border-l-4 border-l-transparent hover:border-l-indigo-500 overflow-hidden">
+                       <Card key={req.id} className="border-none shadow-[0_8px_30px_-4px_rgba(0,0,0,0.04)] rounded-[2rem] bg-card group hover:shadow-indigo-100/50 transition-all border-l-4 border-l-transparent hover:border-l-indigo-500 overflow-hidden">
                          <CardContent className="p-5 flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
@@ -287,13 +287,13 @@ const RosterTemplates = () => {
                               </div>
                               <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-lg font-black text-slate-900">{req.start_time.substring(0,5)} - {req.end_time.substring(0,5)}</span>
-                                  <Badge className="bg-emerald-50 text-emerald-600 border-none font-black text-[9px] uppercase tracking-wider">{req.required_count} UNITS</Badge>
+                                  <span className="text-lg font-bold text-foreground">{req.start_time.substring(0,5)} - {req.end_time.substring(0,5)}</span>
+                                  <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold text-[9px] uppercase tracking-wider">{req.required_count} UNITS</Badge>
                                 </div>
                                 <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                   <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {req.role_type}</span>
                                   {req.classes && <span className="flex items-center gap-1 text-indigo-400"><Layout className="w-3 h-3" /> {req.classes.name}</span>}
-                                  {req.ministry && <span className="flex items-center gap-1 text-emerald-500 font-black italic">{req.ministry.name}</span>}
+                                  {req.ministry && <span className="flex items-center gap-1 text-emerald-500 font-bold italic">{req.ministry.name}</span>}
                                   {req.volunteer_role && <span className="flex items-center gap-1 text-amber-500">• {req.volunteer_role.name}</span>}
                                   {req.groups && <span className="flex items-center gap-1 text-slate-400"><Building2 className="w-3 h-3" /> {req.groups.name}</span>}
                                 </div>
@@ -318,16 +318,16 @@ const RosterTemplates = () => {
              {requirements.length === 0 && (
                <div className="py-32 text-center bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
                   <Sparkles className="h-12 w-12 text-slate-200 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-slate-800">Empty Blueprint</h3>
+                  <h3 className="text-xl font-bold text-foreground">Empty Blueprint</h3>
                   <p className="text-slate-400 text-sm max-w-xs mx-auto">This template has no logic yet. Define your shift requirements on the left to activate auto-scheduling.</p>
                </div>
              )}
           </div>
         </div>
       ) : (
-        <div className="py-24 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+        <div className="py-24 text-center bg-card rounded-[3rem] border-2 border-dashed border-slate-100">
            <Layout className="h-16 w-16 text-slate-100 mx-auto mb-4" />
-           <h3 className="text-2xl font-black text-slate-800 tracking-tight">Deployment Architecture</h3>
+           <h3 className="text-2xl font-bold text-foreground tracking-tight">Deployment Architecture</h3>
            <p className="text-slate-500 max-w-sm mx-auto mt-2">Select an existing roster blueprint or create a new one to begin designing your logistical infrastructure.</p>
         </div>
       )}
@@ -336,3 +336,4 @@ const RosterTemplates = () => {
 };
 
 export default RosterTemplates;
+

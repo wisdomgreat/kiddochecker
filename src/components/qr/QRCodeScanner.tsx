@@ -182,7 +182,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-3xl">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="h-8 w-8 animate-spin text-white/80" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Initializing...</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Initializing...</span>
                   </div>
                 </div>
               )}
@@ -203,12 +203,12 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
 
         {/* No active scanner view */}
         {!isActive && !isStarting && !showContainer && (
-          <div className={`h-80 flex flex-col items-center justify-center gap-6 p-8 text-center ${dm ? 'bg-white/[0.02]' : 'bg-slate-50'}`}>
-            <div className={`h-16 w-16 rounded-[1.5rem] flex items-center justify-center ${dm ? 'bg-white/5 text-white/20' : 'bg-white text-slate-200 shadow-sm'}`}>
+          <div className={`h-80 flex flex-col items-center justify-center gap-6 p-8 text-center ${dm ? 'bg-card/[0.02]' : 'bg-slate-50'}`}>
+            <div className={`h-16 w-16 rounded-[1.5rem] flex items-center justify-center ${dm ? 'bg-card/5 text-white/20' : 'bg-card text-slate-200 shadow-sm'}`}>
               <Camera className="h-8 w-8" />
             </div>
             <div>
-              <p className={`text-sm font-black uppercase tracking-widest ${dm ? 'text-white/40' : 'text-slate-400'}`}>Camera Offline</p>
+              <p className={`text-sm font-bold uppercase tracking-widest ${dm ? 'text-white/40' : 'text-slate-400'}`}>Camera Offline</p>
               <p className={`text-xs mt-1 font-medium ${dm ? 'text-white/20' : 'text-slate-400'}`}>Tap the button below to reactivate scanning</p>
             </div>
           </div>
@@ -238,7 +238,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
           <Button
             onClick={stopScanning}
             variant="outline"
-            className={`w-full h-12 rounded-2xl ${dm ? 'border-white/10 text-white/50 bg-white/5 hover:bg-white/10' : 'bg-white shadow-sm'}`}
+            className={`w-full h-12 rounded-2xl ${dm ? 'border-white/10 text-white/50 bg-card/5 hover:bg-card/10' : 'bg-card shadow-sm'}`}
           >
             <X className="h-4 w-4 mr-2" /> Stop Scanning
           </Button>
@@ -248,15 +248,15 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
               <div className={`flex items-start gap-4 p-5 rounded-3xl ${dm ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-100'}`}>
                 <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${dm ? 'text-red-400' : 'text-red-500'}`} />
                 <div className="flex-1">
-                  <p className={`text-xs font-black uppercase tracking-widest mb-1 ${dm ? 'text-red-400/60' : 'text-red-600/60'}`}>Hardware Alert</p>
-                  <p className={`text-sm font-bold ${dm ? 'text-white/80' : 'text-slate-800'}`}>{errorMessage}</p>
-                  <Button size="sm" variant="ghost" onClick={() => setErrorMessage('')} className="mt-3 text-[10px] h-8 px-4 font-black uppercase tracking-widest bg-black/5 hover:bg-black/10 rounded-full">Re-Attempt</Button>
+                  <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${dm ? 'text-red-400/60' : 'text-red-600/60'}`}>Hardware Alert</p>
+                  <p className={`text-sm font-bold ${dm ? 'text-white/80' : 'text-foreground'}`}>{errorMessage}</p>
+                  <Button size="sm" variant="ghost" onClick={() => setErrorMessage('')} className="mt-3 text-[10px] h-8 px-4 font-bold uppercase tracking-widest bg-black/5 hover:bg-black/10 rounded-full">Re-Attempt</Button>
                 </div>
               </div>
             ) : (
               <Button
                 onClick={startScanning}
-                className={`w-full h-16 rounded-[1.5rem] text-lg font-black uppercase tracking-widest shadow-xl transition-all hover:scale-[1.02] active:scale-95 ${dm ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20' : 'bg-slate-900 hover:bg-black text-white'}`}
+                className={`w-full h-16 rounded-[1.5rem] text-lg font-bold uppercase tracking-widest shadow-xl transition-all hover:scale-[1.02] active:scale-95 ${dm ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/20' : 'bg-slate-900 hover:bg-black text-white'}`}
               >
                 <Scan className="h-6 w-6 mr-3" /> Initialize Camera
               </Button>
@@ -270,7 +270,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
             value={manualInput}
             onChange={e => setManualInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
-            className={`h-12 pl-12 pr-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all ${dm ? 'bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:ring-indigo-500/20' : 'bg-white border-slate-200'}`}
+            className={`h-12 pl-12 pr-4 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all ${dm ? 'bg-card/5 border-white/10 text-white placeholder:text-white/20 focus:ring-indigo-500/20' : 'bg-card border-slate-200'}`}
           />
           <Scan className={`absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ${dm ? 'text-white/20' : 'text-slate-300'}`} />
           <Button
@@ -288,3 +288,4 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
 };
 
 export default QRCodeScanner;
+

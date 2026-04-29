@@ -14,3 +14,4 @@ const CentersPage = () => {
 };
 
 export default CentersPage;
+

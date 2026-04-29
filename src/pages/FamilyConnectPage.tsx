@@ -367,7 +367,7 @@ const FamilyConnectPage = () => {
                         className={`p-4 border rounded-lg transition-colors ${
                           isReceived && !message.is_read 
                             ? 'bg-blue-50 border-blue-200' 
-                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                            : 'bg-card border-border hover:bg-gray-50'
                         }`}
                         onClick={() => {
                           if (isReceived && !message.is_read) {
@@ -503,3 +503,4 @@ const FamilyConnectPage = () => {
 };
 
 export default FamilyConnectPage;
+

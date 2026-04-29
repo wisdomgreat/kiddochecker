@@ -148,7 +148,7 @@ const TeacherProfile = () => {
         ]}
       />
       
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+      <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden mb-8">
         <div className="p-6">
           <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8">
             <div className="h-24 w-24 bg-blue-100 rounded-full flex items-center justify-center">
@@ -167,7 +167,7 @@ const TeacherProfile = () => {
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
                 <h1 className="text-2xl font-bold">{teacherData.name}</h1>
                 <div className="flex gap-2 mt-2 md:mt-0">
-                  <button className="px-3 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 flex items-center gap-1 hover:bg-gray-50">
+                  <button className="px-3 py-1.5 rounded-md bg-card border border-border text-gray-600 flex items-center gap-1 hover:bg-gray-50">
                     <Edit size={16} />
                     <span>Edit Profile</span>
                   </button>
@@ -222,7 +222,7 @@ const TeacherProfile = () => {
             />
           </div>
           
-          <div className="border-b border-gray-200 mb-6">
+          <div className="border-b border-border mb-6">
             <div className="flex flex-wrap">
               <button
                 className={`px-4 py-2 font-medium text-sm whitespace-nowrap ${
@@ -365,7 +365,7 @@ const TeacherProfile = () => {
               
               <div className="space-y-4">
                 {classesData.map((classItem) => (
-                  <div key={classItem.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
+                  <div key={classItem.id} className="border border-border rounded-lg p-4 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
                     <div className="flex justify-between">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
@@ -431,7 +431,7 @@ const TeacherProfile = () => {
               
               <div className="space-y-4">
                 {lessonsData.map((lesson) => (
-                  <div key={lesson.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={lesson.id} className="border border-border rounded-lg p-4">
                     <div className="flex justify-between">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
@@ -475,7 +475,7 @@ const TeacherProfile = () => {
                 <h3 className="text-lg font-semibold mb-4">Teacher Settings</h3>
                 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border">
                     <div>
                       <p className="font-medium">Email Notifications</p>
                       <p className="text-sm text-gray-500">Receive email notifications for class updates</p>
@@ -487,11 +487,11 @@ const TeacherProfile = () => {
                         defaultChecked={true}
                       />
                       <div className="block h-8 rounded-full bg-gray-200 w-14"></div>
-                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transform translate-x-6"></div>
+                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-card shadow transform translate-x-6"></div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border">
                     <div>
                       <p className="font-medium">SMS Notifications</p>
                       <p className="text-sm text-gray-500">Receive text message alerts for important notices</p>
@@ -503,11 +503,11 @@ const TeacherProfile = () => {
                         defaultChecked={true}
                       />
                       <div className="block h-8 rounded-full bg-gray-200 w-14"></div>
-                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transform translate-x-6"></div>
+                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-card shadow transform translate-x-6"></div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border">
                     <div>
                       <p className="font-medium">Teacher Status</p>
                       <p className="text-sm text-gray-500">Set your current status in the system</p>
@@ -519,7 +519,7 @@ const TeacherProfile = () => {
                         defaultChecked={teacherData.status === 'Active'}
                       />
                       <div className="block h-8 rounded-full bg-gray-200 w-14"></div>
-                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transform translate-x-6"></div>
+                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-card shadow transform translate-x-6"></div>
                     </div>
                   </div>
                 </div>
@@ -528,7 +528,7 @@ const TeacherProfile = () => {
               <div>
                 <h3 className="text-lg font-semibold mb-4">Permissions</h3>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border">
                     <div>
                       <p className="font-medium">Class Management</p>
                       <p className="text-sm text-gray-500">Ability to edit class details and manage students</p>
@@ -540,11 +540,11 @@ const TeacherProfile = () => {
                         defaultChecked={true}
                       />
                       <div className="block h-8 rounded-full bg-gray-200 w-14"></div>
-                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transform translate-x-6"></div>
+                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-card shadow transform translate-x-6"></div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-border">
                     <div>
                       <p className="font-medium">Attendance Records</p>
                       <p className="text-sm text-gray-500">Ability to mark attendance and view history</p>
@@ -556,17 +556,17 @@ const TeacherProfile = () => {
                         defaultChecked={true}
                       />
                       <div className="block h-8 rounded-full bg-gray-200 w-14"></div>
-                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transform translate-x-6"></div>
+                      <div className="absolute left-1 top-1 h-6 w-6 rounded-full bg-card shadow transform translate-x-6"></div>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="border-t border-gray-200 pt-6">
+              <div className="border-t border-border pt-6">
                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
                   <h4 className="text-red-700 font-medium mb-1">Deactivate Account</h4>
                   <p className="text-sm text-red-600 mb-3">Temporarily deactivate your account. You can reactivate at any time.</p>
-                  <button className="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-md hover:bg-red-50">
+                  <button className="px-3 py-1.5 bg-card border border-red-300 text-red-600 rounded-md hover:bg-red-50">
                     Deactivate Account
                   </button>
                 </div>
@@ -580,3 +580,4 @@ const TeacherProfile = () => {
 };
 
 export default TeacherProfile;
+

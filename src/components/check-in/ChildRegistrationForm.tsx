@@ -93,3 +93,4 @@ const ChildRegistrationForm: React.FC<ChildRegistrationFormProps> = ({ onComplet
 };
 
 export default ChildRegistrationForm;
+

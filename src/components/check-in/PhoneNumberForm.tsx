@@ -46,7 +46,7 @@ export const PhoneNumberForm = ({ phoneNumber, onChange }: PhoneNumberFormProps)
           placeholder="(555) 123-4567"
           value={phoneNumber}
           onChange={handlePhoneChange}
-          className="pr-10 bg-white text-base py-6"
+          className="pr-10 bg-card text-base py-6"
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2">
           <Phone className="h-5 w-5 text-gray-400" />
@@ -57,3 +57,4 @@ export const PhoneNumberForm = ({ phoneNumber, onChange }: PhoneNumberFormProps)
 };
 
 export default PhoneNumberForm;
+
