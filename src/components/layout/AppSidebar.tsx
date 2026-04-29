@@ -36,7 +36,7 @@ interface MenuGroup {
 }
 
 export function AppSidebar() {
-  const { user, userRole, isAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, verificationStatus, isVerifiedStaff, signOut, hasPermission } = useAuth();
+  const { user, userRole, isAdmin, isSuperAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, verificationStatus, isVerifiedStaff, signOut, hasPermission } = useAuth();
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
   const { settings } = useSettings();

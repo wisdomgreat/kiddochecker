@@ -1,5 +1,5 @@
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { AppRole } from '@/types/supabase';
@@ -20,8 +20,24 @@ const ProtectedRoute = ({
   requireAuth = true,
   fallbackPath = '/login'
 }: ProtectedRouteProps) => {
-  const { user, userRole, loading, isMfaPending } = useAuth();
+  const { user, userRole, loading, refreshUserRole } = useAuth();
   const location = useLocation();
+  const [waitingForRole, setWaitingForRole] = useState(false);
+
+  // If user exists but role is null, give it a brief window then stop waiting
+  useEffect(() => {
+    if (user && !userRole && !loading) {
+      setWaitingForRole(true);
+      // Try one more role refresh
+      refreshUserRole();
+      const timeout = setTimeout(() => {
+        setWaitingForRole(false);
+      }, 3000);
+      return () => clearTimeout(timeout);
+    } else {
+      setWaitingForRole(false);
+    }
+  }, [user, userRole, loading, refreshUserRole]);
 
   // Show loading while auth is being determined
   if (loading) {
@@ -40,32 +56,48 @@ const ProtectedRoute = ({
     return <Navigate to={fallbackPath} state={{ from: location }} replace />;
   }
 
-  // MFA Enforcement: If MFA is pending (aal1), force completion at /login
-  if (user && isMfaPending && userRole !== 'kiosk') {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
+
 
   // Check role-based access if roles are specified
   if (allowedRoles && user) {
+    // If role is still loading, show brief loader (max 3s)
+    if (!userRole && waitingForRole) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="flex flex-col items-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Setting up your session...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // If role is definitively null after waiting, show error with action
     if (!userRole) {
       return (
         <div className="flex items-center justify-center min-h-screen p-8 bg-slate-50/50">
-          <div className="w-full max-w-md space-y-4 text-center animate-in fade-in zoom-in duration-300">
+          <div className="w-full max-w-md space-y-4 text-center">
             <div className="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
               <ShieldX className="h-8 w-8 text-amber-600" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Setting up your session</h2>
+            <h2 className="text-xl font-bold text-slate-900">Account Setup Needed</h2>
             <p className="text-slate-600">
-              We're determining your account permissions. This usually takes just a second.
+              We couldn't determine your account permissions. This may mean your account hasn't been fully set up yet.
             </p>
-            <div className="pt-4">
+            <div className="flex gap-3 justify-center pt-4">
               <Button 
                 variant="outline" 
-                onClick={() => window.location.reload()}
+                onClick={() => refreshUserRole()}
                 className="gap-2"
               >
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Refresh Page
+                <Loader2 className="h-4 w-4" />
+                Retry
+              </Button>
+              <Button 
+                onClick={() => window.location.href = '/login'}
+                className="gap-2"
+              >
+                Re-Login
               </Button>
             </div>
           </div>
@@ -76,7 +108,6 @@ const ProtectedRoute = ({
     const hasPermission = userRole === 'super_admin' || allowedRoles.includes(userRole);
     
     if (!hasPermission) {
-      console.info("Access denied for path:", location.pathname, "User role:", userRole, "Required roles:", allowedRoles);
       return (
         <div className="flex items-center justify-center min-h-screen p-8">
           <Alert className="max-w-md border-red-200 bg-red-50">
@@ -98,4 +129,3 @@ const ProtectedRoute = ({
 };
 
 export default ProtectedRoute;
-

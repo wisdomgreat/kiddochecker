@@ -215,40 +215,22 @@ export const isSetupCompleted = async () => {
 export const checkUserPermission = async (resource: string, action: string): Promise<boolean> => {
   try {
     const user = await getCurrentUser();
-    
     if (!user) return false;
     
-    // Check if the user is an admin (has all permissions)
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('is_super_admin, role')
-      .eq('user_id', user.id)
-      .limit(1)
-      .single();
-      
-    if (roleData?.is_super_admin || roleData?.role === 'super_admin') {
-      return true;
-    }
-    
-    // Check specific permission
-    const { data, error } = await supabase
-      .from('role_permissions')
-      .select(`
-        permission_id,
-        permissions:permission_id (
-          resource,
-          action
-        )
-      `)
-      .eq('permissions.resource', resource)
-      .eq('permissions.action', action);
+    // Use the secure RPC that checks both role-based and custom-role permissions
+    // We map resource + action to the permission name if needed, or just use the combined check
+    const { data, error } = await supabase.rpc('check_user_permission', {
+      p_user_id: user.id,
+      p_permission_name: `${action}_${resource}` // Typical naming convention in this app
+    });
     
     if (error) {
-      console.error("Error checking permission:", error);
+      console.error("Error in checkUserPermission RPC:", error);
+      // Fallback for permissions that might not follow the standard naming
       return false;
     }
     
-    return (data && data.length > 0) || false;
+    return !!data;
   } catch (error) {
     console.error("Error in checkUserPermission:", error);
     return false;

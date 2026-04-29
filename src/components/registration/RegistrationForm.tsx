@@ -9,11 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { validation } from "@/utils/validation";
 
 const registrationSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  password: z.string().superRefine((val, ctx) => {
+    const result = validation.password(val);
+    if (!result.isValid) {
+      result.errors.forEach((err) => {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: err });
+      });
+    }
+  }),
   confirmPassword: z.string(),
   firstName: z.string().min(1, { message: "First name is required" }),
   lastName: z.string().min(1, { message: "Last name is required" }),
@@ -173,20 +181,39 @@ export const RegistrationForm = ({ onSuccess }: RegistrationFormProps) => {
         <FormField
           control={form.control}
           name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Create a password" 
-                  type="password" 
-                  {...field} 
-                  disabled={isLoading}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const pw = field.value || '';
+            const checks = [
+              { label: '8+ characters', met: pw.length >= 8 },
+              { label: 'Uppercase letter', met: /[A-Z]/.test(pw) },
+              { label: 'Lowercase letter', met: /[a-z]/.test(pw) },
+              { label: 'Number', met: /\d/.test(pw) },
+            ];
+            return (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Create a secure password" 
+                    type="password" 
+                    {...field} 
+                    disabled={isLoading}
+                  />
+                </FormControl>
+                {pw.length > 0 && (
+                  <div className="grid grid-cols-2 gap-1 pt-1">
+                    {checks.map((c) => (
+                      <p key={c.label} className={`text-[11px] flex items-center gap-1 ${c.met ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                        {c.met ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                        {c.label}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
         
         <FormField

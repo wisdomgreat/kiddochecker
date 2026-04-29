@@ -1,28 +1,10 @@
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
-
-// Utility function for exponential backoff retry
-const fetchWithRetry = async <T,>(
-  fetchFn: () => Promise<T>,
-  maxRetries = 3,
-  baseDelay = 1000
-): Promise<T> => {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fetchFn();
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-      const delay = baseDelay * Math.pow(2, i);
-      console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw new Error('Max retries exceeded');
-};
+import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 
 export interface AuthContextType {
   user: User | null;
@@ -65,9 +47,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isMfaEnrolled, setIsMfaEnrolled] = useState(false);
   const [mfaFactors, setMfaFactors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Initialize role from cache if available for instant UI
+  // Track whether initial load is complete to prevent double-processing
+  const initialLoadDone = useRef(false);
+  // Track the current user id for role fetching to prevent stale closures
+  const currentUserIdRef = useRef<string | null>(null);
+
+  const { toast } = useToast();
+
+  // ─── Restore cached role on mount for instant UI ─────────────────────────────
   useEffect(() => {
     const backup = localStorage.getItem('session_backup');
     if (backup) {
@@ -79,15 +67,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserRole(role);
           setUserPermissions(permissions || []);
           setVerificationStatus(status);
-          console.log('Restored cached role:', role);
         }
       } catch (e) {
-        console.warn('Failed to restore cached role', e);
+        // Ignore corrupt cache
       }
     }
   }, []);
-  const { toast } = useToast();
 
+  // ─── MFA Status ──────────────────────────────────────────────────────────────
   const refreshMfaStatus = useCallback(async () => {
     try {
       const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -98,74 +85,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (!factorsError && factors) {
-         setMfaFactors(factors.all || []);
-         setIsMfaEnrolled(factors.all.length > 0);
+        setMfaFactors(factors.all || []);
+        setIsMfaEnrolled(factors.all.length > 0);
       }
     } catch (e) {
       console.warn("MFA level fetching failed", e);
     }
   }, []);
 
-  // Session backup to localStorage — stores only non-PII (userId, not email)
-  useEffect(() => {
-    if (session && user) {
-      localStorage.setItem('session_backup', JSON.stringify({
-        userId: user.id,
-        timestamp: Date.now()
-      }));
-    } else {
-      localStorage.removeItem('session_backup');
-    }
-  }, [session, user]);
-
-  // Network status monitoring
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      console.log('Connection restored');
-      toast({
-        title: "Connection Restored",
-        description: "You're back online.",
-      });
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      console.log('Connection lost');
-      toast({
-        title: "Connection Lost",
-        description: "You're offline. The app will reconnect when your connection is restored.",
-        variant: "destructive",
-      });
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [toast]);
-
-  const refreshUserRole = useCallback(async () => {
-    if (!user?.id) {
-      setUserRole(null);
-      setLoading(false);
-      return;
-    }
-
-    console.log('Refreshing user role for:', user.id);
-    
-    // Safety timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      console.warn('Role fetching timed out after 10s');
-      setLoading(false);
-    }, 10000);
+  // ─── Role Fetching (stable — no deps that cause re-creation) ─────────────────
+  const fetchRoleForUser = useCallback(async (userId: string) => {
+    console.log('Fetching role for:', userId);
+    currentUserIdRef.current = userId;
 
     try {
-      // Remove arbitrary delay for faster loading
-
       const { data, error } = await supabase
         .from('user_roles')
         .select(`
@@ -176,36 +109,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             )
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
+      // If user changed while we were fetching, discard stale result
+      if (currentUserIdRef.current !== userId) return;
+
       if (error) {
-        console.error("Error fetching user role (Supabase):", error);
-        toast({
-          title: "Role Connection Error",
-          description: `Error: ${error.message}. Please refresh your page.`,
-          variant: "destructive",
-        });
-        setUserRole(null);
+        console.error("Error fetching user role:", error);
         return;
       }
 
       if (!data) {
-        console.warn('No role found in DB for user record:', user.id);
-        // Default to parent or keep null
+        console.warn('No role found for user:', userId);
         setUserRole(null);
         return;
       }
 
-      console.log('Raw DB Role data received:', data);
-      
       const roleData = data as any;
       let finalRole = roleData.role || 'parent';
-      
       if (roleData.is_super_admin === true || roleData.role === 'super_admin') {
-         finalRole = 'super_admin';
+        finalRole = 'super_admin';
       }
-      
+
       const finalStatus = roleData.verification_status || 'unverified';
       setUserRole(finalRole as AppRole);
       setVerificationStatus(finalStatus);
@@ -222,8 +148,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserPermissions(perms);
       }
 
-      // Cache the role and permissions for instant recovery on next load
-      localStorage.setItem(`auth_role_${user.id}`, JSON.stringify({
+      // Cache for instant recovery
+      localStorage.setItem(`auth_role_${userId}`, JSON.stringify({
         role: finalRole,
         permissions: perms,
         status: finalStatus,
@@ -231,14 +157,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
 
     } catch (err: any) {
-      console.error("Exception in refreshUserRole:", err);
-      setUserRole(null);
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
+      console.error("Exception in fetchRoleForUser:", err);
     }
-  }, [user?.id, toast]);
+  }, []);
 
+  // Public refreshUserRole that uses current user
+  const refreshUserRole = useCallback(async () => {
+    if (!user?.id) {
+      setUserRole(null);
+      setLoading(false);
+      return;
+    }
+    await fetchRoleForUser(user.id);
+    setLoading(false);
+  }, [user?.id, fetchRoleForUser]);
+
+  // ─── Session backup ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (session && user) {
+      localStorage.setItem('session_backup', JSON.stringify({
+        userId: user.id,
+        timestamp: Date.now()
+      }));
+    } else if (!session && !user) {
+      localStorage.removeItem('session_backup');
+    }
+  }, [session, user]);
+
+  // ─── Network status ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleOnline = () => {
+      toast({
+        title: "Connection Restored",
+        description: "You're back online.",
+      });
+    };
+
+    const handleOffline = () => {
+      toast({
+        title: "Connection Lost",
+        description: "You're offline. The app will reconnect when your connection is restored.",
+        variant: "destructive",
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [toast]);
+
+  // ─── Sign Out ─────────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
     try {
       setLoading(true);
@@ -246,7 +218,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setUserRole(null);
       setVerificationStatus(null);
+      setUserPermissions([]);
       localStorage.removeItem('qa_simulate_role');
+      localStorage.removeItem('session_backup');
 
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -264,68 +238,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Exception during sign out:", error);
-      toast({
-        title: "Sign Out Error",
-        description: "An unexpected error occurred during sign out.",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  const hasRole = useCallback((role: AppRole): boolean => {
-    if (!userRole) return false;
-    if (userRole === 'super_admin') return true;
-    return userRole === role;
-  }, [userRole]);
+  // ─── Idle Session Timeout ──────────────────────────────────────────────────
+  // Auto-logout staff/admins after 30 mins, parents after 4 hours
+  const idleTime = (userRole === 'admin' || userRole === 'super_admin' || userRole === 'staff' || userRole === 'teacher') 
+    ? 30 * 60 * 1000 
+    : 4 * 60 * 60 * 1000;
 
+  useIdleTimeout(() => {
+    if (user) {
+      console.log('Session idle timeout reached. Signing out.');
+      toast({
+        title: "Session Expired",
+        description: "You have been signed out due to inactivity.",
+        variant: "destructive"
+      });
+      signOut();
+    }
+  }, idleTime, !!user && userRole !== 'kiosk');
+
+  // ─── Core Auth Initialization (runs ONCE) ─────────────────────────────────────
   useEffect(() => {
     let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!mounted) return;
-
-        if (event === 'SIGNED_OUT' || !session) {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          setVerificationStatus(null);
-          localStorage.removeItem('session_backup');
-          setLoading(false);
-          return;
-        }
-
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user && mounted) {
-          refreshMfaStatus();
-          // Defer role fetch but don't set loading false until it's done if we're authenticated
-          refreshUserRole();
-        } else if (!session?.user && mounted) {
-          setLoading(false);
-        }
+    // Hard safety timeout: never stay loading for more than 6 seconds
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Auth safety timeout hit — forcing loading=false');
+        setLoading(false);
       }
-    );
+    }, 6000);
 
-    // Get initial session with timeout and retry
-    const getInitialSession = async () => {
+    // Helper to process a session
+    const processSession = async (newSession: Session | null) => {
+      if (!mounted) return;
+
+      if (!newSession?.user) {
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
+        setVerificationStatus(null);
+        setLoading(false);
+        return;
+      }
+
+      setSession(newSession);
+      setUser(newSession.user);
+
+      // Fetch role + MFA in parallel for speed
+      await Promise.allSettled([
+        fetchRoleForUser(newSession.user.id),
+        refreshMfaStatus(),
+      ]);
+
+      if (mounted) {
+        setLoading(false);
+      }
+    };
+
+    // 1. Get the initial session first (before subscribing)
+    const initializeAuth = async () => {
       try {
-        const { data: { session }, error } = await fetchWithRetry(
-          async () => {
-            const result = await Promise.race([
-              supabase.auth.getSession(),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Session fetch timeout')), 30000)
-              )
-            ]);
-            return result as any;
-          },
-          3,
-          1000
-        );
+        const { data: { session: initialSession }, error } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Session fetch timeout')), 8000)
+          )
+        ]);
 
         if (!mounted) return;
 
@@ -335,44 +318,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-          await refreshMfaStatus();
-          await refreshUserRole();
-        }
+        await processSession(initialSession);
+        initialLoadDone.current = true;
 
-        if (mounted) {
-          setLoading(false);
-        }
       } catch (error) {
-        console.error("Exception getting initial session:", error);
+        console.error("Session initialization failed:", error);
         if (mounted) {
           setLoading(false);
-          // Show error message but don't crash
-          toast({
-            title: "Connection Issue",
-            description: "Please refresh the page if you continue to see loading screens.",
-            variant: "destructive",
-          });
         }
       }
     };
 
-    getInitialSession();
+    // 2. Subscribe to auth state changes (for login/logout AFTER initial load)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        if (!mounted) return;
+
+        // Skip events during initial load — we handle it in initializeAuth
+        if (!initialLoadDone.current && event === 'INITIAL_SESSION') {
+          return;
+        }
+
+        console.log('Auth event:', event);
+
+        if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
+          setVerificationStatus(null);
+          setUserPermissions([]);
+          localStorage.removeItem('session_backup');
+          setLoading(false);
+          return;
+        }
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          // Use setTimeout to avoid Supabase deadlock warning
+          setTimeout(() => {
+            if (mounted) {
+              processSession(newSession);
+            }
+          }, 0);
+        }
+      }
+    );
+
+    initializeAuth();
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, [refreshUserRole, toast]);
-  // QA Simulation Mode (Development Only)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty — runs once on mount
+
+  // ─── QA Simulation Mode (Development Only) ────────────────────────────────────
   const [qaRole, setQaRole] = useState<AppRole | null>(null);
 
   useEffect(() => {
+    // SECURITY: Only allow role simulation in development mode
+    if (!import.meta.env.DEV) return;
+
     const simulateRole = localStorage.getItem('qa_simulate_role');
     if (simulateRole) setQaRole(simulateRole as AppRole);
-    
+
     const handleStorageChange = () => {
       setQaRole((localStorage.getItem('qa_simulate_role') as AppRole) || null);
     };
@@ -380,7 +390,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Override role flags if in QA mode
+  // ─── Compute derived values ───────────────────────────────────────────────────
   const effectiveRole = qaRole || userRole;
   const effectiveUser = qaRole ? ({ id: '00000000-0000-0000-0000-000000000000', email: 'qa@test.com' } as any) : user;
 
@@ -397,6 +407,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isVerifiedStaff =
     (isStaff || isTeacher || isTeacherAssistant || isAdmin) &&
     (qaRole ? true : (verificationStatus === 'verified'));
+
+  const hasRole = useCallback((role: AppRole): boolean => {
+    if (!effectiveRole) return false;
+    if (effectiveRole === 'super_admin') return true;
+    return effectiveRole === role;
+  }, [effectiveRole]);
 
   const value = {
     user: effectiveUser,
@@ -421,14 +437,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isMfaPending: qaRole ? false : isMfaPending,
     isMfaEnrolled,
     mfaFactors,
-    hasRole: (role: AppRole) => {
-      if (!effectiveRole) return false;
-      if (effectiveRole === 'super_admin') return true;
-      return effectiveRole === role;
-    },
+    hasRole,
     hasPermission: (permissionName: string) => {
       if (effectiveRole === 'super_admin') return true;
-      if (qaRole) return true; // Grant all permissions in QA mode
+      if (qaRole) return true;
       return userPermissions.includes(permissionName);
     },
     userPermissions,
@@ -448,4 +460,3 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
-

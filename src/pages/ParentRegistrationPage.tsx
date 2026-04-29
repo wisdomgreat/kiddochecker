@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UserPlus, ArrowLeft } from 'lucide-react';
+import { validation } from '@/utils/validation';
 
 const ParentRegistrationPage = () => {
   const navigate = useNavigate();
@@ -47,22 +48,11 @@ const ParentRegistrationPage = () => {
       return;
     }
 
-    if (formData.password.length < 8) {
+    const passwordCheck = validation.password(formData.password);
+    if (!passwordCheck.isValid) {
       toast({
         title: "Weak Password",
-        description: "Password must be at least 8 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const hasUpperCase = /[A-Z]/.test(formData.password);
-    const hasLowerCase = /[a-z]/.test(formData.password);
-    const hasNumber = /[0-9]/.test(formData.password);
-    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
-      toast({
-        title: "Weak Password",
-        description: "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+        description: passwordCheck.errors.join('. '),
         variant: "destructive",
       });
       return;

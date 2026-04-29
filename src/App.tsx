@@ -13,6 +13,7 @@ import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
 import AuthErrorBoundary from "@/components/auth/AuthErrorBoundary";
 import { Loader2 } from "lucide-react";
+import MFABarrier from "@/components/auth/MFABarrier";
 
 // ─── Lazy Page Imports (code splitting) ───────────────────────────────────────
 const Index = lazy(() => import("./pages/Index"));
@@ -92,6 +93,7 @@ function App() {
               <LanguageProvider>
                 <ThemeProvider>
                   <AuthProvider>
+                  <MFABarrier>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       {/* Public Routes */}
@@ -163,6 +165,7 @@ function App() {
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </Suspense>
+                  </MFABarrier>
                 </AuthProvider>
               </ThemeProvider>
             </LanguageProvider>
