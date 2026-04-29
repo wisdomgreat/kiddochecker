@@ -212,21 +212,27 @@ export const isSetupCompleted = async () => {
 };
 
 // Check if user has specific permission
-export const checkUserPermission = async (resource: string, action: string): Promise<boolean> => {
+// Supports legacy (permissionName) or granular (resource, action)
+export const checkUserPermission = async (resourceOrName: string, optionalAction?: string): Promise<boolean> => {
   try {
     const user = await getCurrentUser();
     if (!user) return false;
     
+    // Determine the permission name to check
+    const permissionName = optionalAction 
+      ? `${optionalAction}_${resourceOrName}` 
+      : resourceOrName;
+
+    console.log(`Checking permission: ${permissionName} for user: ${user.id}`);
+    
     // Use the secure RPC that checks both role-based and custom-role permissions
-    // We map resource + action to the permission name if needed, or just use the combined check
     const { data, error } = await supabase.rpc('check_user_permission', {
       p_user_id: user.id,
-      p_permission_name: `${action}_${resource}` // Typical naming convention in this app
+      p_permission_name: permissionName
     });
     
     if (error) {
       console.error("Error in checkUserPermission RPC:", error);
-      // Fallback for permissions that might not follow the standard naming
       return false;
     }
     

@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useMessages } from '@/hooks/useMessages';
 import { MessageSquare, Plus, Send, Inbox, Users, Bell, Clock, Search, Reply, Sparkles, ChevronRight, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {

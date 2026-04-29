@@ -158,6 +158,24 @@ const HelpDocumentation = () => {
           roles: ['admin']
         }
       ]
+    },
+    {
+      category: "devices",
+      title: "Device & Kiosk Setup",
+      icon: Monitor,
+      authorizedRoles: ['admin', 'super_admin', 'staff'],
+      questions: [
+        {
+          question: "How do I setup a new check-in kiosk?",
+          answer: "1. Enroll the device in 'Device Enrollment' to get a Reference Code. 2. On the kiosk tablet, go to /device-login. 3. Enter the Reference Code and Master PIN to activate the terminal.",
+          roles: ['admin', 'staff']
+        },
+        {
+          question: "What is the URL for kiosk activation?",
+          answer: "The direct activation URL is /device-login. This is where you enter the Reference Code to securely lock a device into Kiosk Mode for your organization.",
+          roles: ['admin', 'staff']
+        }
+      ]
     }
   ];
 
@@ -208,6 +226,18 @@ const HelpDocumentation = () => {
         "Log pastoral observations using the **Rapid Insight Log**",
         "Send an automated **Welcome Email** using one of the pre-built templates",
         "Transition to 'Regular Attendee' once consistency is achieved"
+      ]
+    },
+    {
+      title: "Kiosk Terminal Activation",
+      icon: Zap,
+      roles: ['admin', 'staff'],
+      steps: [
+        "Go to 'Device Enrollment' in your dashboard",
+        "Click 'Enroll Device' and copy the Reference Code",
+        "Open /device-login on the target kiosk/tablet",
+        "Enter the Reference Code and Master PIN",
+        "The device is now securely locked to the Check-In interface"
       ]
     }
   ];

@@ -15,7 +15,7 @@ import {
     DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useCRMManagement, EngagementTask } from '@/hooks/useCRMManagement';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useAllUsers } from '@/hooks/useAllUsers';
 import { useMembers } from '@/hooks/useMembers';
 import { Separator } from '@/components/ui/separator';

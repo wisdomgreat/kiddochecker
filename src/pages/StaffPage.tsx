@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useStaff, type StaffMember } from '@/hooks/useStaff';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/lib/i18n';
 
 const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {

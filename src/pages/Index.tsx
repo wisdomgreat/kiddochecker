@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import UnifiedDashboard from '@/components/dashboard/UnifiedDashboard';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';

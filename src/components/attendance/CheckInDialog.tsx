@@ -15,7 +15,7 @@ interface CheckInDialogProps {
   onSuccess: () => void;
 }
 
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { AttendanceService } from '@/services/attendanceService';
 
 export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogProps) => {

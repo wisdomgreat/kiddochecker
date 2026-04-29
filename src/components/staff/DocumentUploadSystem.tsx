@@ -18,7 +18,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { screenFileUpload } from "@/utils/file-screening";
 import { useToast } from "@/hooks/use-toast";
 import { useStaffVerification } from '@/hooks/useStaffVerification';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 
 const DocumentUploadSystem = () => {

@@ -1,7 +1,7 @@
 import React from 'react';
 import KioskCheckInSystem from '@/components/kiosk/KioskCheckInSystem';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const CheckInPage = () => {
   const { userRole } = useAuth();

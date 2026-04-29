@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar, CheckSquare, Clock, Download, Loader2, RefreshCw, TrendingUp, Users, Activity, Bell, Baby } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { AttendanceService } from '@/services/attendanceService';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';

@@ -6,7 +6,7 @@ import { Shield, Lock, Eye, EyeOff, Loader2, CheckCircle2, Smartphone, ArrowLeft
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { validation } from '@/utils/validation';
 
 const ResetPasswordPage = () => {

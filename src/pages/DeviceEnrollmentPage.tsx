@@ -544,17 +544,17 @@ const DeviceEnrollmentPage = () => {
                 {
                   step: "1",
                   title: "Register Device",
-                  desc: "Click 'Enroll Device' to add an authorized device along with a generated code to your system.",
+                  desc: "Click 'Enroll Device' to generate a secure Reference Code for your new terminal.",
                 },
                 {
                   step: "2",
-                  title: "Apply to Device",
-                  desc: "Keep track of this code; it securely identifies the device within your organization.",
+                  title: "Activate Terminal",
+                  desc: "Navigate to /device-login on the tablet/kiosk and enter the Reference Code + Master PIN.",
                 },
                 {
                   step: "3",
-                  title: "Track & Audit",
-                  desc: "Device appears in the list with its active status and full activity logging.",
+                  title: "Lock to Kiosk",
+                  desc: "The device will securely authorize and lock into the immersive Check-In interface.",
                 },
               ].map((s) => (
                 <div
@@ -572,6 +572,32 @@ const DeviceEnrollmentPage = () => {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-indigo-100/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Direct Activation URL</p>
+                <div className="flex items-center gap-2">
+                  <code className="bg-white/80 border border-indigo-100 px-3 py-1.5 rounded-lg text-sm font-mono font-bold text-indigo-700">
+                    {window.location.origin}/device-login
+                  </code>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-indigo-400"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/device-login`);
+                      toast({ title: "URL Copied" });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 bg-white/50 px-3 py-2 rounded-xl border border-indigo-50">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                <span>Devices must be authorized via Reference Code before accessing check-in.</span>
+              </div>
             </div>
           </div>
         </motion.div>
