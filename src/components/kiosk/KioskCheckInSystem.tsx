@@ -697,7 +697,6 @@ const KioskCheckInSystem = () => {
                         </div>
                         <Button variant="ghost" size="sm" onClick={handleStaffLogout} className="text-xs h-9 rounded-xl hover:bg-destructive/10 hover:text-destructive">Sign Out</Button>
                       </div>
->
 
                       <Tabs defaultValue="search" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-4">
