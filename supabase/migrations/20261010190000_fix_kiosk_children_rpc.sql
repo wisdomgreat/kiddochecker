@@ -36,6 +36,5 @@ END;
 $$;
 
 -- Grant access to the kiosk role
-GRANT EXECUTE ON FUNCTION public.get_children_for_kiosk(uuid, text) TO kiosk;
 GRANT EXECUTE ON FUNCTION public.get_children_for_kiosk(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_children_for_kiosk(uuid, text) TO service_role;
