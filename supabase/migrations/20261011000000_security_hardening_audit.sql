@@ -128,7 +128,9 @@ $$;
 
 -- 5. Harden RPC: get_staff_members()
 -- Only staff/admins should see the staff roster.
+DROP FUNCTION IF EXISTS public.get_staff_members();
 CREATE OR REPLACE FUNCTION public.get_staff_members()
+
 RETURNS TABLE(
   user_id uuid,
   email text,
@@ -180,7 +182,9 @@ $$;
 
 -- 6. Harden RPC: get_attendance_report()
 -- Only admins/staff should see aggregate reports.
+DROP FUNCTION IF EXISTS public.get_attendance_report(date, date);
 CREATE OR REPLACE FUNCTION public.get_attendance_report(start_date date, end_date date)
+
 RETURNS TABLE(
   attendance_date date,
   total_checked_in integer,

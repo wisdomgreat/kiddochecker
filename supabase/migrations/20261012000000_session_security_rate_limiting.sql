@@ -70,7 +70,9 @@ END;
 $$;
 
 -- 4. Harden Staff PIN Verification with Rate Limiting
+DROP FUNCTION IF EXISTS public.verify_staff_pin_for_kiosk(text);
 CREATE OR REPLACE FUNCTION public.verify_staff_pin_for_kiosk(p_pin TEXT)
+
 RETURNS TABLE (
     id UUID,
     first_name TEXT,
@@ -116,7 +118,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 5. Active Session Management
 -- Allows users to see their own active sessions for security monitoring
+DROP FUNCTION IF EXISTS public.get_my_active_sessions();
 CREATE OR REPLACE FUNCTION public.get_my_active_sessions()
+
 RETURNS TABLE (
     id UUID,
     ip TEXT,

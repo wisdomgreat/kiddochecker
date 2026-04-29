@@ -1,6 +1,8 @@
-
 -- Fix get_children_for_kiosk RPC to match actual children table schema
 -- Current children table uses 'age' instead of 'gender' and 'date_of_birth'
+
+DROP FUNCTION IF EXISTS public.get_children_for_kiosk(p_parent_id uuid, p_pin text);
+DROP FUNCTION IF EXISTS public.get_children_for_kiosk(uuid, text);
 
 CREATE OR REPLACE FUNCTION public.get_children_for_kiosk(p_parent_id uuid, p_pin text)
 RETURNS TABLE (
