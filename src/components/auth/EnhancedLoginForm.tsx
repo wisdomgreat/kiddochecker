@@ -25,6 +25,14 @@ const EnhancedLoginForm = () => {
   const navigate = useNavigate();
   const { user, loading, isMfaPending, refreshMfaStatus } = useAuth();
   const { t } = useTranslation();
+ 
+  // Load remembered email on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('remembered_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && user && !isMfaPending) {
@@ -61,6 +69,8 @@ const EnhancedLoginForm = () => {
       }
 
       if (data.user) {
+        // Remember email for next time
+        localStorage.setItem('remembered_email', email.trim());
         toast({ title: t('welcome'), description: t('parentAccess') });
       }
     } catch (err: any) {

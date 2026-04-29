@@ -46,8 +46,10 @@ export function AppSidebar() {
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
+    // Navigate immediately to login to make it feel instant
+    navigate('/login', { replace: true });
+    // Then do the background work
     await signOut();
-    navigate('/login');
   };
 
   const adminMenuGroups: MenuGroup[] = [
@@ -343,6 +345,38 @@ export function AppSidebar() {
             <LogOut className="h-4 w-4" />
             <span>{t('signOut')}</span>
           </Button>
+
+          {isSuperAdmin && (
+            <div className="pt-2 mt-2 border-t border-dashed">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase px-3 mb-2 tracking-widest">Dev Simulation</p>
+              <Select 
+                value={userRole || ''} 
+                onValueChange={(val: any) => {
+                  if (val === 'reset') {
+                    localStorage.removeItem('qa_simulate_role');
+                  } else {
+                    localStorage.setItem('qa_simulate_role', val);
+                  }
+                  window.location.reload();
+                }}
+              >
+                <SelectTrigger className="h-8 text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-3 w-3" />
+                    <SelectValue placeholder="Simulate Role" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reset">Default (Original)</SelectItem>
+                  <SelectItem value="parent">View as Parent</SelectItem>
+                  <SelectItem value="staff">View as Staff</SelectItem>
+                  <SelectItem value="teacher">View as Teacher</SelectItem>
+                  <SelectItem value="admin">View as Admin</SelectItem>
+                  <SelectItem value="volunteer">View as Volunteer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </SidebarFooter>
       </Sidebar>
     </div>

@@ -66,6 +66,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [mfaFactors, setMfaFactors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Initialize role from cache if available for instant UI
+  useEffect(() => {
+    const backup = localStorage.getItem('session_backup');
+    if (backup) {
+      try {
+        const { userId } = JSON.parse(backup);
+        const cachedRole = localStorage.getItem(`auth_role_${userId}`);
+        if (cachedRole) {
+          const { role, permissions, status } = JSON.parse(cachedRole);
+          setUserRole(role);
+          setUserPermissions(permissions || []);
+          setVerificationStatus(status);
+          console.log('Restored cached role:', role);
+        }
+      } catch (e) {
+        console.warn('Failed to restore cached role', e);
+      }
+    }
+  }, []);
   const { toast } = useToast();
 
   const refreshMfaStatus = useCallback(async () => {
@@ -144,8 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 10000);
 
     try {
-      // We add a tiny delay to ensure Auth state is fully established on the backend before querying RLS
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Remove arbitrary delay for faster loading
 
       const { data, error } = await supabase
         .from('user_roles')
@@ -199,7 +218,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         });
       }
-      setUserPermissions(perms);
+      if (perms.length > 0) {
+        setUserPermissions(perms);
+      }
+
+      // Cache the role and permissions for instant recovery on next load
+      localStorage.setItem(`auth_role_${user.id}`, JSON.stringify({
+        role: finalRole,
+        permissions: perms,
+        status: finalStatus,
+        timestamp: Date.now()
+      }));
 
     } catch (err: any) {
       console.error("Exception in refreshUserRole:", err);
@@ -273,15 +302,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (session?.user && mounted) {
           refreshMfaStatus();
-          // Defer role fetch to prevent blocking
-          setTimeout(() => {
-            if (mounted) {
-              refreshUserRole();
-            }
-          }, 0);
-        }
-
-        if (mounted) {
+          // Defer role fetch but don't set loading false until it's done if we're authenticated
+          refreshUserRole();
+        } else if (!session?.user && mounted) {
           setLoading(false);
         }
       }
