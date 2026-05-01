@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useToast } from './use-toast';
+import { useToast } from './useToast';
 
 /**
  * useNFC - Hook to handle Web NFC interactions in the Kiosk.
