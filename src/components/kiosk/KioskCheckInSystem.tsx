@@ -130,6 +130,14 @@ const KioskCheckInSystem = () => {
     }
   });
 
+  // Start NFC scanning automatically for Kiosk
+  useEffect(() => {
+    if (nfcSupported) {
+      console.log("[Kiosk] Auto-starting NFC reader...");
+      startNfc();
+    }
+  }, [nfcSupported, startNfc, isRegisteringNFC]);
+
   // Auto-Fullscreen on first interaction
   useEffect(() => {
     const handleFirstInteraction = () => {
@@ -879,6 +887,7 @@ const KioskCheckInSystem = () => {
                         const parentId = window.localStorage.getItem('kiosk_active_parent_id');
                         if (parentId) {
                           setIsRegisteringNFC(parentId);
+                          startNfc();
                           toast({ title: "Ready for NFC", description: "Please tap your physical tag or phone against the reader now." });
                         }
                       }}
@@ -1046,6 +1055,7 @@ const KioskCheckInSystem = () => {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setIsRegisteringNFC(child.parent_id);
+                                        startNfc();
                                         toast({ title: "Ready for NFC", description: "Please tap the parent's device or sticker now." });
                                       }}
                                     >
