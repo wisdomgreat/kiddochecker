@@ -1,13 +1,13 @@
 // Master Bicep file for KiddoChecker Azure Micro-Architecture
-// Region Strategy: Unified in Central US for high capacity and full service support.
+// Clean Slate Strategy: Unified in Central US with Professional Branding
 
 targetScope = 'resourceGroup'
 
 @description('The primary region for all resources.')
-param location string = 'canadaeast'
+param location string = 'centralus'
 
 @description('The short name of the application.')
-param appName string = 'kcheck'
+param appName string = 'kiddo'
 
 @description('The deployment environment.')
 param env string = 'prod'
@@ -20,12 +20,14 @@ param administratorLoginPassword string
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
 
 // Resource Names
-var acrName = 'cr${appName}${suffix}' 
-var keyVaultName = 'kv${appName}${suffix}'
-var dbServerName = 'psql-${appName}-${suffix}'
-var caEnvName = 'cae-${appName}-${suffix}'
-var swaName = 'swa-${appName}-${suffix}'
-var logWorkspaceName = 'log-${appName}-${suffix}'
+var vnetName = 'vnet-${appName}-${env}-${suffix}'
+var acrName = 'cr${appName}${env}${suffix}' 
+var keyVaultName = 'kv${appName}${env}${suffix}'
+var dbServerName = 'psql-${appName}-${env}-${suffix}'
+var caEnvName = 'cae-${appName}-${env}-${suffix}'
+var swaName = 'swa-${appName}-${env}-${suffix}'
+var logWorkspaceName = 'log-${appName}-${env}-${suffix}'
+var privateDnsZoneName = '${dbServerName}.private.postgres.database.azure.com'
 
 // Standard Tags
 var tags = {
@@ -34,7 +36,71 @@ var tags = {
   ManagedBy: 'TDWAS Technology'
 }
 
-@description('1. Azure Container Registry - Stores microservice Docker images.')
+@description('0. Virtual Network - The private security perimeter.')
+resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
+  name: vnetName
+  location: location
+  tags: tags
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/16'
+      ]
+    }
+    subnets: [
+      {
+        name: 'snet-postgres'
+        properties: {
+          addressPrefix: '10.0.1.0/24'
+          delegations: [
+            {
+              name: 'dlg-postgres'
+              properties: {
+                serviceName: 'Microsoft.DBforPostgreSQL/flexibleServers'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: 'snet-app'
+        properties: {
+          addressPrefix: '10.0.2.0/24'
+          delegations: [
+            {
+              name: 'dlg-app'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+@description('Private DNS Zone for PostgreSQL isolation.')
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: privateDnsZoneName
+  location: 'global'
+  tags: tags
+}
+
+@description('Link Private DNS Zone to the VNet.')
+resource vnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateDnsZone
+  name: '${vnetName}-link'
+  location: 'global'
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: vnet.id
+    }
+  }
+}
+
+@description('1. Azure Container Registry')
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
@@ -47,7 +113,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   }
 }
 
-@description('2. Azure Key Vault - Securely manages secrets and API keys.')
+@description('2. Azure Key Vault')
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -62,7 +128,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-@description('3. PostgreSQL Flexible Server - Primary multi-tenant database.')
+@description('3. PostgreSQL Flexible Server - Now Isolated in VNet.')
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' = {
   name: dbServerName
   location: location
@@ -71,10 +137,17 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
     name: 'Standard_B1ms' 
     tier: 'Burstable'
   }
+  dependsOn: [
+    vnetLink
+  ]
   properties: {
     version: '15'
     administratorLogin: 'kiddomin'
     administratorLoginPassword: administratorLoginPassword
+    network: {
+      delegatedSubnetResourceId: vnet.properties.subnets[0].id
+      privateDnsZoneArmResourceId: privateDnsZone.id
+    }
     storage: {
       storageSizeGB: 32
     }
@@ -84,17 +157,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
   }
 }
 
-@description('Database Firewall Rule - Allows Azure services to connect.')
-resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-06-01-preview' = {
-  parent: postgresServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
-@description('4. Container Apps Environment - The hosting environment for all microservices.')
+@description('4. Container Apps Environment - Integrated with Networking.')
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   name: caEnvName
   location: location
@@ -107,10 +170,14 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
         sharedKey: logAnalytics.listKeys().primarySharedKey
       }
     }
+    vnetConfiguration: {
+      infrastructureSubnetId: vnet.properties.subnets[1].id
+      internal: false
+    }
   }
 }
 
-@description('5. Log Analytics Workspace - Centralized monitoring and performance metrics.')
+@description('5. Log Analytics Workspace')
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logWorkspaceName
   location: location
@@ -123,7 +190,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   }
 }
 
-@description('6. Azure Static Web App - Hosts the React frontend with global CDN distribution.')
+@description('6. Azure Static Web App')
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
   location: location
@@ -139,3 +206,4 @@ output acrLoginServer string = acr.properties.loginServer
 output swaDefaultHostname string = staticWebApp.properties.defaultHostname
 output keyVaultUri string = keyVault.properties.vaultUri
 output dbServerName string = postgresServer.name
+output vnetName string = vnet.name
