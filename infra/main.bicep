@@ -12,6 +12,10 @@ param appName string = 'kiddocheck'
 @description('The deployment environment (e.g., prod, staging, dev).')
 param env string = 'prod'
 
+@description('Database administrator password.')
+@secure()
+param administratorLoginPassword string
+
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
 var regionCode = 'eus2'
@@ -71,7 +75,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
   properties: {
     version: '15'
     administratorLogin: 'kiddomin'
-    administratorLoginPassword: 'Kiddo${suffix}P@ss!' 
+    administratorLoginPassword: administratorLoginPassword
     storage: {
       storageSizeGB: 32
     }
