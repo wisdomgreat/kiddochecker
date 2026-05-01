@@ -1,10 +1,13 @@
 // Master Bicep file for KiddoChecker Azure Micro-Architecture
-// Naming Convention: [ServiceCode]-[AppName]-[Suffix] (Keeping it short for 24-char limits)
+// Multi-Region Strategy: Core in Canada Central, Frontend in East US 2
 
 targetScope = 'resourceGroup'
 
-@description('The Azure region for all resources.')
+@description('The primary region for core backend resources.')
 param location string = 'canadacentral'
+
+@description('The region for the Static Web App (limited regional availability).')
+param swaLocation string = 'eastus2'
 
 @description('The short name of the application.')
 param appName string = 'kcheck'
@@ -18,11 +21,10 @@ param administratorLoginPassword string
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
-var regionCode = 'can'
 
-// Resource Names (Strictly < 24 chars for Key Vault)
+// Resource Names
 var acrName = 'cr${appName}${suffix}' 
-var keyVaultName = 'kv${appName}${suffix}' // 2 + 6 + 5 = 13 chars (Safe)
+var keyVaultName = 'kv${appName}${suffix}'
 var dbServerName = 'psql-${appName}-${suffix}'
 var caEnvName = 'cae-${appName}-${suffix}'
 var swaName = 'swa-${appName}-${suffix}'
@@ -35,7 +37,7 @@ var tags = {
   ManagedBy: 'Antigravity-AI'
 }
 
-@description('1. Azure Container Registry')
+@description('1. Azure Container Registry - Stays in Canada.')
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
@@ -48,7 +50,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   }
 }
 
-@description('2. Azure Key Vault')
+@description('2. Azure Key Vault - Stays in Canada.')
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -63,7 +65,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-@description('3. PostgreSQL Flexible Server')
+@description('3. PostgreSQL Flexible Server - Stays in Canada.')
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' = {
   name: dbServerName
   location: location
@@ -95,7 +97,7 @@ resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRul
   }
 }
 
-@description('4. Container Apps Environment')
+@description('4. Container Apps Environment - Stays in Canada.')
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   name: caEnvName
   location: location
@@ -111,7 +113,7 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   }
 }
 
-@description('5. Log Analytics Workspace')
+@description('5. Log Analytics Workspace - Stays in Canada.')
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logWorkspaceName
   location: location
@@ -124,18 +126,16 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   }
 }
 
-@description('6. Azure Static Web App')
+@description('6. Azure Static Web App - Hosted in East US 2 (SWA requirement).')
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
-  location: location // Switched to match other resources
+  location: swaLocation
   tags: tags
   sku: {
     name: 'Standard'
     tier: 'Standard'
   }
-  properties: {
-    // These will be populated by the GitHub Action deployment
-  }
+  properties: {}
 }
 
 output acrLoginServer string = acr.properties.loginServer
