@@ -28,7 +28,7 @@ jobs:
         with:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
-          parameters: environment=prod appName=kiddochecker
+          parameters: appName=kiddocheck location=eastus2
 
   # Job 2: Build and Deploy Frontend to Azure Static Web App
   deploy-frontend:
