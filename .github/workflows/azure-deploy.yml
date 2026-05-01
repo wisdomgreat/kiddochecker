@@ -25,14 +25,14 @@ jobs:
 
       - name: Create Resource Group
         run: |
-          az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location centralus
+          az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location canadaeast
 
       - name: Deploy Infrastructure
         uses: azure/arm-deploy@v2
         with:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
-          parameters: appName=kcheck location=centralus administratorLoginPassword=${{ secrets.DB_PASSWORD }}
+          parameters: appName=kcheck location=canadaeast
 
   # Job 2: Build and Deploy Frontend to Azure Static Web App
   deploy-frontend:

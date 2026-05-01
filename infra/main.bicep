@@ -4,7 +4,7 @@
 targetScope = 'resourceGroup'
 
 @description('The primary region for all resources.')
-param location string = 'centralus'
+param location string = 'canadaeast'
 
 @description('The short name of the application.')
 param appName string = 'kcheck'
