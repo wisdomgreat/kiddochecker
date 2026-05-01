@@ -1,0 +1,58 @@
+name: Azure Infrastructure and App Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # Job 1: Provision Azure Infrastructure using Bicep
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Deploy Infrastructure
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: environment=prod appName=kiddochecker
+
+  # Job 2: Build and Deploy Frontend to Azure Static Web App
+  deploy-frontend:
+    needs: provision
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build and Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "/" # App source code path
+          api_location: "" # Api source code path - optional
+          output_location: "dist" # Built app content directory - optional
+
+  # Job 3: Placeholder for Microservices (to be expanded in Phase 3)
+  # deploy-microservices:
+  #   needs: provision
+  #   ...
