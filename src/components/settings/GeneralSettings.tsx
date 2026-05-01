@@ -44,7 +44,7 @@ const GeneralSettings = () => {
     if (orgSettings) {
       form.reset({
         churchName: orgSettings.name || "",
-        timeZone: "America/New_York",
+        timeZone: (orgSettings as any).timezone || "America/New_York",
         address: "",
         checkInWindow: "15",
         allowLateCheckIn: true,
@@ -64,6 +64,7 @@ const GeneralSettings = () => {
           name: values.churchName,
           logo_url: values.logoUrl,
           show_center_finder: values.showCenterFinder,
+          timezone: values.timeZone,
         })
         .eq("id", orgSettings?.id)
         .select()

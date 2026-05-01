@@ -13,6 +13,29 @@ BEGIN
     ) THEN
         ALTER TABLE public.custom_roles ADD COLUMN is_system_role BOOLEAN DEFAULT false;
     END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'custom_roles' AND column_name = 'base_role'
+    ) THEN
+        ALTER TABLE public.custom_roles ADD COLUMN base_role TEXT;
+    END IF;
+
+    -- 1.2 Ensure name is UNIQUE for ON CONFLICT
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_index i
+        JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+        WHERE i.indrelid = 'public.custom_roles'::regclass
+        AND i.indisunique
+        AND a.attname = 'name'
+    ) THEN
+        -- Clean up any duplicates just in case
+        DELETE FROM public.custom_roles cr1
+        USING public.custom_roles cr2
+        WHERE cr1.id > cr2.id AND cr1.name = cr2.name;
+
+        ALTER TABLE public.custom_roles ADD CONSTRAINT custom_roles_name_unique UNIQUE (name);
+    END IF;
 END $$;
 
 -- 2. Seed System Roles into custom_roles
