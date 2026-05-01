@@ -21,14 +21,19 @@ jobs:
           DB_SERVER_NAME=$(az postgres flexible-server list --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
           echo "Found Server: $DB_SERVER_NAME"
 
-          # 2. Enable Public Access temporarily
+          # 2. Enable Public Access temporarily and WAIT for propagation
+          echo "Unlocking Public Access window..."
           az postgres flexible-server update \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name $DB_SERVER_NAME \
             --public-access Enabled
+          
+          echo "Waiting 30 seconds for Azure to propagate networking changes..."
+          sleep 30
 
           # 3. Add GitHub Runner IP to firewall
           RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "Allowing Runner IP: $RUNNER_IP"
           az postgres flexible-server firewall-rule create \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name $DB_SERVER_NAME \
