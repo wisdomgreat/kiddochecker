@@ -32,7 +32,7 @@ jobs:
         with:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
-          parameters: appName=kcheck location=canadaeast
+          parameters: appName=kiddo location=centralus administratorLoginPassword=${{ secrets.DB_PASSWORD }}
 
   # Job 2: Build and Deploy Frontend to Azure Static Web App
   deploy-frontend:

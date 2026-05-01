@@ -17,29 +17,32 @@ jobs:
 
       - name: Open Firewall & Run Migration
         run: |
-          # 1. Enable Public Access temporarily
+          # 1. Dynamically find the server name
+          DB_SERVER_NAME=$(az postgres flexible-server list --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
+          echo "Found Server: $DB_SERVER_NAME"
+
+          # 2. Enable Public Access temporarily
           az postgres flexible-server update \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name psql-kiddo-prod-yotzp \
+            --name $DB_SERVER_NAME \
             --public-access Enabled
 
-          # 2. Add GitHub Runner IP to firewall
+          # 3. Add GitHub Runner IP to firewall
           RUNNER_IP=$(curl -s https://api.ipify.org)
           az postgres flexible-server firewall-rule create \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name psql-kiddo-prod-yotzp \
+            --name $DB_SERVER_NAME \
             --rule-name "GitHubRunner" \
             --start-ip-address $RUNNER_IP \
             --end-ip-address $RUNNER_IP
 
-          # 3. Run the SQL Migration
-          # Note: We use the node-postgres (pg) driver to run the SQL file
+          # 4. Run the SQL Migration
           npm install pg
           node -e "
           const { Client } = require('pg');
           const fs = require('fs');
           const client = new Client({
-            host: 'psql-kiddo-prod-yotzp.postgres.database.azure.com',
+            host: '$DB_SERVER_NAME.postgres.database.azure.com',
             user: 'kiddomin',
             password: '${{ secrets.DB_PASSWORD }}',
             database: 'postgres',
@@ -64,8 +67,8 @@ jobs:
       - name: Hardening - Disable Public Access
         if: always()
         run: |
-          # Close the firewall and disable public access again
+          DB_SERVER_NAME=$(az postgres flexible-server list --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
           az postgres flexible-server update \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name psql-kiddo-prod-yotzp \
+            --name $DB_SERVER_NAME \
             --public-access Disabled
