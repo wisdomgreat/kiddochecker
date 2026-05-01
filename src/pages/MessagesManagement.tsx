@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useMessages } from '@/hooks/useMessages';
 import { MessageSquare, Plus, Send, Inbox, Users, Bell, Clock, Search, Reply, Megaphone, Calendar, ChevronRight, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';

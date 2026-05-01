@@ -34,7 +34,7 @@ import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import LandingNavigation from "@/components/layout/LandingNavigation";
 import LandingFooter from "@/components/layout/LandingFooter";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 
 const HelpDocumentation = () => {
   const [searchTerm, setSearchTerm] = useState("");

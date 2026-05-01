@@ -15,7 +15,7 @@ import { CleanUserCreationModal } from '@/components/admin/CleanUserCreationModa
 import { EditUserDialog } from '@/components/users/EditUserDialog';
 import DeleteUserDialog from '@/components/users/DeleteUserDialog';
 import useUserRoles from '@/hooks/useUserRoles';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { supabase } from '@/integrations/supabase/client';
 import { UserProfile } from '@/types/users';
 import { AppRole } from '@/types/supabase';

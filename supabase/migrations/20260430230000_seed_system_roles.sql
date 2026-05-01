@@ -40,18 +40,23 @@ END $$;
 
 -- 2. Seed System Roles into custom_roles
 -- This allows adjusting permissions for built-in roles.
-INSERT INTO public.custom_roles (name, description, base_role, is_system_role) VALUES
-('System: Administrator', 'Baseline permissions for organizational administrators.', 'admin', true),
-('System: Staff', 'Standard operational permissions for staff members.', 'staff', true),
-('System: Teacher', 'Standard educational and classroom management permissions.', 'teacher', true),
-('System: Assistant Teacher', 'Restricted classroom support permissions.', 'teacher_assistant', true),
-('System: Volunteer', 'Minimum viable permissions for event-based volunteers.', 'volunteer', true),
-('System: Kiosk', 'Fixed-terminal permissions for automated check-in hardware.', 'kiosk', true),
-('System: Parent', 'Personal data access and children management for families.', 'parent', true)
-ON CONFLICT (name) DO UPDATE SET 
-    description = EXCLUDED.description,
-    base_role = EXCLUDED.base_role,
-    is_system_role = true;
+DO $$
+BEGIN
+    EXECUTE 'INSERT INTO public.custom_roles (name, description, base_role, is_system_role) VALUES
+    (''System: Administrator'', ''Baseline permissions for organizational administrators.'', ''admin'', true),
+    (''System: Staff'', ''Standard operational permissions for staff members.'', ''staff'', true),
+    (''System: Teacher'', ''Standard educational and classroom management permissions.'', ''teacher'', true),
+    (''System: Assistant Teacher'', ''Restricted classroom support permissions.'', ''teacher_assistant'', true),
+    (''System: Volunteer'', ''Minimum viable permissions for event-based volunteers.'', ''volunteer'', true),
+    (''System: Kiosk'', ''Fixed-terminal permissions for automated check-in hardware.'', ''kiosk'', true),
+    (''System: Parent'', ''Personal data access and children management for families.'', ''parent'', true)
+    ON CONFLICT (name) DO UPDATE SET 
+        description = EXCLUDED.description,
+        base_role = EXCLUDED.base_role,
+        is_system_role = true';
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Error seeding system roles: %', SQLERRM;
+END $$;
 
 -- 3. Update permissions table to include categories for UI grouping
 UPDATE public.permissions SET category = 'General' WHERE category IS NULL OR category = 'legacy';

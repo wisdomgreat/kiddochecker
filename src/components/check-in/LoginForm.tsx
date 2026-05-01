@@ -3,13 +3,13 @@ import React, { useState, useEffect } from "react";
 import { HelpCircle, ArrowRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
 import { useAuth } from "@/hooks/useAuth";
-import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
+import { useDashboardNavigation } from "@/hooks/useDashboardNavigation";
 
 interface LoginFormProps {
   onSignUp: () => void;

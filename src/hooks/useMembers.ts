@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 export type MembershipType = 'registered' | 'regular' | 'visitor';
 export type MembershipStatus = 'active' | 'inactive' | 'deceased' | 'transferred';

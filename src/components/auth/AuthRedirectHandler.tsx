@@ -1,7 +1,7 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
+import { useDashboardNavigation } from '@/hooks/useDashboardNavigation';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface AuthRedirectHandlerProps {
@@ -21,8 +21,8 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
     const isOnRegisterPage = location.pathname === '/parent-registration';
     const isOnRootPage = location.pathname === '/';
     const isOnLandingPage = location.pathname === '/landing';
-    const isOnCheckInKiosk = location.pathname === '/checkin';
-    const isOnCheckOutStation = location.pathname === '/checkout';
+    const isOnCheckInKiosk = location.pathname === '/check-in';
+    const isOnCheckOutStation = location.pathname === '/check-out';
     
     // Skip redirection for kiosk routes
     if (isOnCheckInKiosk || isOnCheckOutStation) {

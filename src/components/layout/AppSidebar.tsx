@@ -63,7 +63,6 @@ export function AppSidebar() {
       label: t('overview'),
       items: [
         { title: t('dashboard'), url: "/", icon: Home },
-        { title: t('centerFinder'), url: "/centers", icon: Globe },
         { title: t('calendar'), url: "/calendar", icon: Calendar },
         { title: t('messages'), url: "/messages", icon: MessageSquare },
       ]
@@ -116,7 +115,6 @@ export function AppSidebar() {
       label: t('overview'),
       items: [
         { title: t('dashboard'), url: "/", icon: Home },
-        { title: t('centerFinder'), url: "/centers", icon: Globe },
         { title: t('calendar'), url: "/calendar", icon: Calendar },
         { title: t('messages'), url: "/messages", icon: MessageSquare },
       ]
@@ -164,7 +162,6 @@ export function AppSidebar() {
       label: t('overview'),
       items: [
         { title: t('dashboard'), url: "/", icon: Home },
-        { title: t('centerFinder'), url: "/centers", icon: Globe },
         { title: t('messages'), url: "/parent/messages", icon: MessageSquare },
       ]
     },

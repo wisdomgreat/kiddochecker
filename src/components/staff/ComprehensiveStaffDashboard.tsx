@@ -20,7 +20,7 @@ import {
 import { useAttendance } from '@/hooks/useAttendance';
 import { useClasses } from '@/hooks/useClasses';
 import { AttendanceService } from '@/services/attendanceService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 const ComprehensiveStaffDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');

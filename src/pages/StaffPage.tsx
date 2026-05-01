@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useStaff, type StaffMember } from '@/hooks/useStaff';
@@ -47,6 +47,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     specialties: [] as string[],
     max_hours_per_week: 40,
     staff_groups: [] as string[],
+    supervisor_id: '' as string,
   });
 
   const { data: groups = [] } = useQuery({
@@ -121,6 +122,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       specialties: [],
       max_hours_per_week: 40,
       staff_groups: [],
+      supervisor_id: '',
     });
   };
 
@@ -148,6 +150,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       specialties: formData.specialties,
       max_hours_per_week: formData.max_hours_per_week,
       staff_groups: formData.staff_groups,
+      supervisor_id: formData.supervisor_id,
     });
     setIsAddDialogOpen(false);
     resetForm();
@@ -173,6 +176,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
         department: formData.department,
         specialties: formData.specialties,
         max_hours_per_week: formData.max_hours_per_week,
+        supervisor_id: formData.supervisor_id,
       }
     });
     setIsEditDialogOpen(false);
@@ -214,6 +218,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
       specialties: member.specialties || [],
       max_hours_per_week: member.max_hours_per_week || 40,
       staff_groups: groupMembers.filter((m: any) => m.profile_id === member.user_id).map((m: any) => m.group_id),
+      supervisor_id: member.supervisor_id || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -468,6 +473,18 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                   <Input value={formData.staff_pin} onChange={e => setFormData({...formData, staff_pin: e.target.value.replace(/\D/g, '').substring(0, 8)})} placeholder="4-8 digits" />
                 </div>
             </div>
+            <div className="space-y-1.5">
+               <Label>Reports To (Supervisor)</Label>
+               <Select value={formData.supervisor_id} onValueChange={v => setFormData({...formData, supervisor_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="Identify supervisor..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Supervisor</SelectItem>
+                    {staff?.filter(s => s.role === 'admin' || s.role === 'super_admin' || s.role === 'staff').map(s => (
+                       <SelectItem key={s.user_id} value={s.user_id}>{s.first_name} {s.last_name} ({s.role})</SelectItem>
+                    ))}
+                  </SelectContent>
+               </Select>
+            </div>
             <DialogFooter className="pt-4"><Button type="submit" className="w-full" disabled={isAddingStaff}>{isAddingStaff ? <Loader2 className="animate-spin h-4 w-4" /> : "Register Member"}</Button></DialogFooter>
           </form>
         </DialogContent>
@@ -517,6 +534,19 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                   <Label>Phone</Label>
                   <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
                 </div>
+            </div>
+
+            <div className="space-y-1.5">
+               <Label>Reports To (Supervisor)</Label>
+               <Select value={formData.supervisor_id} onValueChange={v => setFormData({...formData, supervisor_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="Identify supervisor..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Supervisor</SelectItem>
+                    {staff?.filter(s => s.user_id !== selectedStaff?.user_id && (s.role === 'admin' || s.role === 'super_admin' || s.role === 'staff')).map(s => (
+                       <SelectItem key={s.user_id} value={s.user_id}>{s.first_name} {s.last_name} ({s.role})</SelectItem>
+                    ))}
+                  </SelectContent>
+               </Select>
             </div>
 
             <DialogFooter className="pt-4"><Button type="submit" className="w-full" disabled={isUpdatingStaff}>Commit Changes</Button></DialogFooter>

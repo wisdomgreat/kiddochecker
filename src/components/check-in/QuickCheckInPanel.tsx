@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, Clock, Users } from "lucide-react";
 import { useChildren } from "@/hooks/useChildren";
 import { useAttendance } from "@/hooks/useAttendance";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 
 const QuickCheckInPanel = () => {
   const [searchTerm, setSearchTerm] = useState("");

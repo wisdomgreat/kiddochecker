@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Shield, Loader2, Save } from 'lucide-react';
 import { SecurityGroupService } from '@/services/securityGroupService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 interface Props {
     user: any;

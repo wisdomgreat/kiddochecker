@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { format, addDays, startOfWeek, endOfWeek, startOfDay, endOfDay } from 'date-fns';
 import { Calendar as CalendarIcon, Clock, Users, Plus, Trash2, Edit2, Loader2, ChevronLeft, ChevronRight, Briefcase } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 

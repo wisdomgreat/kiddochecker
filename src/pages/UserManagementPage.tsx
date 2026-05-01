@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Users, UserPlus, Edit2, Trash2, Shield } from "lucide-react";
 import { useAllUsers, AllUsersData } from "@/hooks/useAllUsers";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import ModernLayout from "@/components/layout/ModernLayout";
 import RoleGuard from "@/components/security/RoleGuard";
 import AddUserModal from "@/components/admin/AddUserModal";

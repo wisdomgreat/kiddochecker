@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer, CheckCircle, QrCode, Tag, Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { QRCodeSVG } from "qrcode.react";
 import DOMPurify from "dompurify";
 

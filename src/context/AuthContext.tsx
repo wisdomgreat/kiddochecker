@@ -3,7 +3,7 @@ import React, { createContext, useEffect, useState, useCallback, useRef } from '
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { AppRole } from '@/types/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 
 export interface AuthContextType {
@@ -305,6 +305,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userId = newSession.user.id;
+      const cachedRoleStr = localStorage.getItem(`auth_role_${userId}`);
       
       // Update state
       setSession(newSession);
@@ -317,7 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: newSession.user.email,
           timestamp: Date.now() 
         }));
-
+ 
         // 1. Check for metadata role (fastest, direct from JWT/User object)
         const metadataRole = newSession.user.user_metadata?.role;
         if (metadataRole && !cachedRoleStr) {
@@ -325,7 +326,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserRole(metadataRole as AppRole);
           setLoading(false); // Stop UI spinner early if we have a role from metadata
         }
-
+ 
         // 2. Check for cached role
         if (cachedRoleStr) {
           const { role, permissions, status } = JSON.parse(cachedRoleStr);
@@ -340,11 +341,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (e) {
         console.warn('[Auth] Storage error during session processing:', e);
       }
-
+ 
       // Always fetch fresh data in the background
       try {
+        const currentMetadataRole = newSession.user.user_metadata?.role;
         await Promise.allSettled([
-          fetchRoleForUser(userId, metadataRole),
+          fetchRoleForUser(userId, currentMetadataRole),
           refreshMfaStatus(),
         ]);
       } catch (e) {

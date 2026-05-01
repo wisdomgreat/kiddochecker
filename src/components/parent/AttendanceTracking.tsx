@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Clock, User, Calendar } from "lucide-react";
@@ -40,15 +40,34 @@ const AttendanceTracking = () => {
     try {
       setLoading(true);
 
-      // Fetch children
-      const { data: childrenData, error: childrenError } = await supabase
-        .from('children')
-        .select('*')
-        .eq('parent_id', user?.id);
+      if (!user?.id) {
+        console.warn("AttendanceTracking: No user ID available for fetch");
+        setLoading(false);
+        return;
+      }
 
-      if (childrenError) throw childrenError;
+      console.log("AttendanceTracking: Fetching children for parent:", user.id);
+      
+      // Fetch children using the RPC for consistency and to bypass RLS issues
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
+        parent_user_id: user.id
+      });
+      
+      if (rpcError) {
+        console.error("AttendanceTracking: RPC Error fetching children:", rpcError);
+        throw rpcError;
+      }
+      
+      console.log("AttendanceTracking: Found children:", rpcData?.length || 0);
+      
+      const childrenData = (rpcData || []).map((child: any) => ({
+        id: child.child_id,
+        first_name: child.first_name,
+        last_name: child.last_name,
+        age: child.age
+      }));
 
-      setChildren(childrenData || []);
+      setChildren(childrenData);
 
       // Fetch attendance records for children
       if (childrenData && childrenData.length > 0) {

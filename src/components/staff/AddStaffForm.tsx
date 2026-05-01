@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserPlus, AlertCircle } from 'lucide-react';
 import { useStaffManagement } from '@/hooks/useStaffManagement';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { AppRole } from '@/types/supabase';
 
 interface AddStaffFormProps {

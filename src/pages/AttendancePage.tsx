@@ -13,7 +13,7 @@ import { useAttendance } from '@/hooks/useAttendance';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';
 import { useAuth } from '@/hooks/useAuth';
 import { AttendanceService } from '@/services/attendanceService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { format } from 'date-fns';
 import { CheckInDialog } from '@/components/attendance/CheckInDialog';
 import { ClassAttendanceReport } from '@/components/attendance/ClassAttendanceReport';

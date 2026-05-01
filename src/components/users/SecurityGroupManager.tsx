@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Shield, Users, Plus, Trash2, Loader2, Lock } from 'lucide-react';
 import { SecurityGroupService } from '@/services/securityGroupService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 export const SecurityGroupManager = () => {
     const [groups, setGroups] = useState<any[]>([]);

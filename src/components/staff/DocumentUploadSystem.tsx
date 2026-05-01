@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useSettings } from "@/hooks/useSettings";
 import { screenFileUpload } from "@/utils/file-screening";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { useStaffVerification } from '@/hooks/useStaffVerification';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
