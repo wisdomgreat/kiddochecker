@@ -50,6 +50,7 @@ const KioskCheckInSystem = () => {
   const [geoLocation, setGeoLocation] = useState<GeoLocation | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showStaffKeyboard, setShowStaffKeyboard] = useState(false);
 
   const [parentPhone, setParentPhone] = useState('');
   const [parentPin, setParentPin] = useState('');
@@ -292,10 +293,11 @@ const KioskCheckInSystem = () => {
     }
     setIsLoading(true);
     setParentLoginError('');
+    const cleanPhone = parentPhone.replace(/\D/g, '');
     try {
       const { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
-        p_search_val: parentPhone.trim(),
-        p_pin: parentPin
+        p_search_val: cleanPhone || parentPhone.trim(),
+        p_pin: parentPin.trim()
       });
 
       if (error || !matched || (matched as any).length === 0) {
@@ -939,15 +941,41 @@ const KioskCheckInSystem = () => {
                             <h2 className="text-2xl font-bold">Staff Access</h2>
                             <p className="text-sm text-muted-foreground">Identification PIN required</p>
                         </div>
-                        <Input type="password" value={staffPinInput} onChange={e => setStaffPinInput(e.target.value)} placeholder="0000" className="h-16 text-center text-3xl tracking-[0.6em] font-bold rounded-2xl bg-muted border-none shadow-inner" />
+                        
+                        <div className="space-y-4">
+                          <Input 
+                            type="password" 
+                            value={staffPinInput} 
+                            onChange={e => setStaffPinInput(e.target.value.toUpperCase())} 
+                            placeholder="STAFF PIN" 
+                            className="h-16 text-center text-3xl tracking-[0.6em] font-bold rounded-2xl bg-muted border-none shadow-inner" 
+                          />
+                          
+                          <div className="flex justify-center">
+                             <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-[10px] font-bold uppercase tracking-widest text-slate-400 gap-2"
+                                onClick={() => setShowStaffKeyboard(!showStaffKeyboard)}
+                             >
+                                <PenTool className="h-3 w-3" />
+                                {showStaffKeyboard ? "Use Numeric Keypad" : "Use Full Keyboard"}
+                             </Button>
+                          </div>
+
+                          {!showStaffKeyboard ? (
+                            <NumericKeypad 
+                              value={staffPinInput} 
+                              onChange={setStaffPinInput} 
+                              maxLength={8}
+                            />
+                          ) : (
+                            <p className="text-[10px] text-center text-slate-400 font-medium">Please use your physical or on-screen keyboard to type your alphanumeric PIN.</p>
+                          )}
+                        </div>
+
                         <Button onClick={handleStaffAuth} className="w-full h-14 font-bold uppercase text-base tracking-wider rounded-2xl">Unlock Station</Button>
                         {staffPinError && <p className="text-destructive text-center text-xs font-bold uppercase tracking-tight">{staffPinError}</p>}
-                        
-                        <NumericKeypad 
-                          value={staffPinInput} 
-                          onChange={setStaffPinInput} 
-                          maxLength={4}
-                        />
                     </CardContent>
                   </Card>
                 ) : (
