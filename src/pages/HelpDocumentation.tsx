@@ -61,7 +61,7 @@ const HelpDocumentation = () => {
         },
         {
           question: "How do I register my phone for NFC?",
-          answer: "Ask a staff member at the kiosk to 'Link Tag' your account. Once they trigger the registration, simply tap your phone against the reader to link it permanently.",
+          answer: "If you have an Android device, you can register in 'My Profile'. For iPhone users, simply log in at any Kiosk terminal and click 'Link My Tag' to register your phone or physical tag directly using the Kiosk's reader.",
           roles: ['parent']
         }
       ]
@@ -274,6 +274,29 @@ const HelpDocumentation = () => {
         "Confirm details and allergies",
         "Pick up printed security label",
         "Keep your secure pick-up QR code"
+      ]
+    },
+    {
+      title: "NFC Tag Registration",
+      icon: Cpu,
+      roles: ['parent', 'staff', 'admin'],
+      steps: [
+        "Ensure your device supports NFC (Android/Chrome)",
+        "Go to 'My Profile' in the KiddoChecker app",
+        "Scroll to 'NFC Registration' and click 'Link New Tag'",
+        "Tap your physical tag or sticker to the back of your phone",
+        "Wait for the 'Success' confirmation"
+      ]
+    },
+    {
+      title: "Using NFC at the Kiosk",
+      icon: QrCode,
+      roles: ['parent', 'staff', 'admin'],
+      steps: [
+        "Approach any KiddoChecker Kiosk",
+        "Tap your registered tag/phone to the NFC reader",
+        "The system identifies your family automatically",
+        "Select children and check in instantly"
       ]
     },
     {

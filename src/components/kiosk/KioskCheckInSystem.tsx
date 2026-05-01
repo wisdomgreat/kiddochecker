@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle, Maximize, Loader2,
   MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool
+  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone
 } from 'lucide-react';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -832,6 +832,36 @@ const KioskCheckInSystem = () => {
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleParentLogout} className="text-xs h-8"><LogOut className="w-3 h-3 mr-1.5" /> Sign Out</Button>
               </div>
+
+              {/* NFC Self-Link Option for Parents at Kiosk */}
+              <Card className="bg-emerald-50 border-emerald-100 shadow-none rounded-2xl overflow-hidden border">
+                <CardContent className="p-4 flex items-center justify-between gap-4">
+                   <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-100 rounded-xl">
+                         <Smartphone className="h-5 w-5 text-emerald-700" />
+                      </div>
+                      <div>
+                         <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Quick Setup</p>
+                         <p className="font-bold text-sm text-foreground">Link NFC Tag</p>
+                      </div>
+                   </div>
+                   <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="bg-background border-emerald-200 text-emerald-700 hover:bg-emerald-50 h-9 font-bold"
+                      onClick={() => {
+                        const parentId = window.localStorage.getItem('kiosk_active_parent_id');
+                        if (parentId) {
+                          setIsRegisteringNFC(parentId);
+                          toast({ title: "Ready for NFC", description: "Please tap your physical tag or phone against the reader now." });
+                        }
+                      }}
+                   >
+                      {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') ? "Waiting for Tap..." : "Link My Tag"}
+                   </Button>
+                </CardContent>
+              </Card>
+
               <div className="space-y-3">
                 {parentChildren.map(child => {
                   const checked = alreadyIn(child.id);
