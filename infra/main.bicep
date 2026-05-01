@@ -3,17 +3,14 @@
 targetScope = 'resourceGroup'
 
 @description('The location for all resources.')
-param location string = resourceGroup().location
+param location string = 'eastus2'
 
 @description('The name of the application.')
-param appName string = 'kiddochecker'
-
-@description('The environment name (dev, staging, prod).')
-param environment string = 'prod'
+param appName string = 'kiddocheck'
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = 'acr${uniqueSuffix}'
-var keyVaultName = 'kv-${appName}-${uniqueSuffix}'
+var keyVaultName = 'kv${appName}${substring(uniqueSuffix, 0, 5)}'
 var dbServerName = 'db-${appName}-${uniqueSuffix}'
 var caEnvName = 'cae-${appName}-${uniqueSuffix}'
 var swaName = 'swa-${appName}-${uniqueSuffix}'
