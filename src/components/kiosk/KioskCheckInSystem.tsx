@@ -130,6 +130,28 @@ const KioskCheckInSystem = () => {
     }
   });
 
+  // Auto-Fullscreen on first interaction
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {
+          console.warn("Fullscreen request denied or not supported.");
+        });
+      }
+      // Remove listeners after first interaction
+      window.removeEventListener('mousedown', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+
+    window.addEventListener('mousedown', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+
+    return () => {
+      window.removeEventListener('mousedown', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
+
   const handleNfcRegister = async (serial: string) => {
     if (!isRegisteringNFC) return;
     try {
@@ -796,6 +818,7 @@ const KioskCheckInSystem = () => {
                         onFocus={() => setActiveInput('phone')}
                         onChange={e => setParentPhone(formatPhoneNumber(e.target.value))} 
                         placeholder="Phone Number" 
+                        inputMode="none"
                         className={cn("h-10 pl-10 transition-all", activeInput === 'phone' && "ring-2 ring-primary/20 border-primary")} 
                       />
                     </div>
@@ -807,6 +830,7 @@ const KioskCheckInSystem = () => {
                         onFocus={() => setActiveInput('pin')}
                         onChange={e => setParentPin(e.target.value)} 
                         placeholder="Direct PIN" 
+                        inputMode="none"
                         className={cn("h-10 pl-10 transition-all", activeInput === 'pin' && "ring-2 ring-primary/20 border-primary")} 
                         maxLength={8} 
                       />
@@ -905,7 +929,7 @@ const KioskCheckInSystem = () => {
                             <KeyRound className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
                             <Input
                                 type="password"
-                                inputMode="numeric"
+                                inputMode="none"
                                 maxLength={6}
                                 placeholder="Security PIN"
                                 value={youthPinInput}
@@ -948,6 +972,7 @@ const KioskCheckInSystem = () => {
                             value={staffPinInput} 
                             onChange={e => setStaffPinInput(e.target.value.toUpperCase())} 
                             placeholder="STAFF PIN" 
+                            inputMode={showStaffKeyboard ? undefined : "none"}
                             className="h-16 text-center text-3xl tracking-[0.6em] font-bold rounded-2xl bg-muted border-none shadow-inner" 
                           />
                           
