@@ -4,7 +4,7 @@
 targetScope = 'resourceGroup'
 
 @description('The Azure region for all resources.')
-param location string = 'westus2'
+param location string = 'canadacentral'
 
 @description('The short name of the application.')
 param appName string = 'kcheck'
@@ -18,6 +18,7 @@ param administratorLoginPassword string
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
+var regionCode = 'can'
 
 // Resource Names (Strictly < 24 chars for Key Vault)
 var acrName = 'cr${appName}${suffix}' 
