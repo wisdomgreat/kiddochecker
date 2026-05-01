@@ -84,22 +84,41 @@ export class AuthErrorBoundary extends Component<Props, State> {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button 
-                onClick={this.handleRetry} 
-                variant="outline" 
-                className="h-12 rounded-xl gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Retry
-              </Button>
+            <div className="flex flex-col gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  onClick={this.handleRetry} 
+                  variant="outline" 
+                  className="h-12 rounded-xl gap-2 font-bold"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Retry
+                </Button>
+                
+                <Button 
+                  onClick={this.handleLogout} 
+                  className="h-12 rounded-xl gap-2 font-bold"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Re-Login
+                </Button>
+              </div>
               
               <Button 
-                onClick={this.handleLogout} 
-                className="h-12 rounded-xl gap-2"
+                variant="ghost"
+                size="sm"
+                className="text-[10px] text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest"
+                onClick={() => {
+                  console.group('Auth Diagnostic Report');
+                  console.error('Caught Error:', this.state.error);
+                  console.log('LocalStorage State:', { ...localStorage });
+                  console.log('Session Backup:', localStorage.getItem('session_backup'));
+                  console.log('Current URL:', window.location.href);
+                  console.groupEnd();
+                  alert('Diagnostic data logged to browser console (F12)');
+                }}
               >
-                <RefreshCw className="h-4 w-4" />
-                Re-Login
+                View Diagnostic Data
               </Button>
             </div>
 

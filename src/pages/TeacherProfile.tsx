@@ -19,7 +19,7 @@ import {
   UserCheck,
   Download
 } from "lucide-react";
-import MainLayout from "@/components/layout/MainLayout";
+import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import Breadcrumb from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/ui/data-table";
 import StatCard from "@/components/ui/stat-card";
@@ -138,7 +138,7 @@ const TeacherProfile = () => {
   ];
 
   return (
-    <MainLayout>
+    <UnifiedDashboardLayout>
       <Breadcrumb
         items={[
           { label: "Home", path: "/" },
@@ -575,7 +575,7 @@ const TeacherProfile = () => {
           )}
         </div>
       </div>
-    </MainLayout>
+    </UnifiedDashboardLayout>
   );
 };
 

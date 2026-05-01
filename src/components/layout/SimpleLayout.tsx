@@ -1,6 +1,6 @@
 
 import { ReactNode } from "react";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { TopNavigation } from "./TopNavigation";
 
@@ -37,4 +37,5 @@ const SimpleLayout = ({ children }: SimpleLayoutProps) => {
 };
 
 export default SimpleLayout;
+
 

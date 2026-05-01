@@ -71,7 +71,7 @@ const EnhancedLoginForm = () => {
       if (data.user) {
         // Remember email for next time
         localStorage.setItem('remembered_email', email.trim());
-        toast({ title: t('welcome'), description: t('parentAccess') });
+        toast({ title: t('welcome'), description: t('subtitle') });
       }
     } catch (err: any) {
       setError(err.message || "An error occurred");
@@ -81,37 +81,51 @@ const EnhancedLoginForm = () => {
 
   const handleMfaVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mfaCode.length < 6) return;
+    
     setIsLoading(true);
     setError('');
+    console.log('[Login] Starting MFA verification...');
 
     try {
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
 
-      const totpFactor = factors.all[0];
+      const totpFactor = factors.all.find(f => f.factor_type === 'totp' && f.status === 'verified') || factors.all[0];
       if (!totpFactor) throw new Error("No MFA factor found");
 
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-         factorId: totpFactor.id,
-      });
+      const challengePromise = supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+      const { data: challenge, error: challengeError } = await Promise.race([
+        challengePromise,
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error("MFA challenge timed out")), 8000))
+      ]);
+      
       if (challengeError) throw challengeError;
 
-      const { error: verifyError } = await supabase.auth.mfa.verify({
+      const verifyPromise = supabase.auth.mfa.verify({
          factorId: totpFactor.id,
          challengeId: challenge.id,
-         code: mfaCode,
+         code: mfaCode.trim(),
       });
+      
+      const { error: verifyError } = await Promise.race([
+        verifyPromise,
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error("MFA verification timed out")), 10000))
+      ]);
 
       if (verifyError) {
          setError(verifyError.message);
          toast({ title: "Verification Failed", description: verifyError.message, variant: "destructive" });
       } else {
+         console.log('[Login] MFA Verified, finalizing session...');
+         await new Promise(r => setTimeout(r, 500));
          await refreshMfaStatus();
          toast({ title: "Verified", description: "Successfully authenticated." });
-         navigate('/');
+         navigate('/', { replace: true });
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error('[Login] MFA exception:', err);
+      setError(err.message || "An error occurred");
     } finally {
       setIsLoading(false);
     }

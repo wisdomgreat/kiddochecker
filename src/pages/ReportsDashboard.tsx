@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import MainLayout from "@/components/layout/MainLayout";
+import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import {
   BarChart,
   Bar,
@@ -344,7 +344,7 @@ const ReportsDashboard = () => {
   };
 
   return (
-    <MainLayout>
+    <UnifiedDashboardLayout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Reports Dashboard</h1>
         <div className="flex space-x-2">
@@ -480,9 +480,10 @@ const ReportsDashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </MainLayout>
+    </UnifiedDashboardLayout>
   );
 };
 
 export default ReportsDashboard;
+
 

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle, Maximize, Loader2,
   MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Baby, Phone, User, Clock,
+  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool
 } from 'lucide-react';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,8 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { useNavigate } from 'react-router-dom';
+import { useNFC } from '@/hooks/useNFC';
 import QRCodeScanner from '@/components/qr/QRCodeScanner';
-import { Globe, PenTool, Eraser } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SignatureCanvas from 'react-signature-canvas';
@@ -25,6 +25,7 @@ import { QRService } from '@/services/QRService';
 import { useLanguage } from '@/context/LanguageContext';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AttendanceRecord } from '@/types/attendance';
 
 interface Child {
   id: string;
@@ -56,6 +57,24 @@ const KioskCheckInSystem = () => {
   const [parentName, setParentName] = useState('');
   const [parentChildren, setParentChildren] = useState<Child[]>([]);
   const [parentLoginError, setParentLoginError] = useState('');
+  const [activeInput, setActiveInput] = useState<'phone' | 'pin'>('phone');
+
+  const formatPhoneNumber = (val: string) => {
+    const cleaned = val.replace(/\D/g, '');
+    if (cleaned.length <= 3) return cleaned;
+    if (cleaned.length <= 6) return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  };
+
+  const handleKeypadChange = (val: string) => {
+    if (activeInput === 'phone') {
+      const cleaned = val.replace(/\D/g, '');
+      if (cleaned.length <= 10) setParentPhone(formatPhoneNumber(cleaned));
+      if (cleaned.length === 10) setActiveInput('pin');
+    } else {
+      setParentPin(val);
+    }
+  };
   const [checkedInChildIds, setCheckedInChildIds] = useState<Set<string>>(new Set());
 
   const [staffSearchTerm, setStaffSearchTerm] = useState('');
@@ -66,13 +85,14 @@ const KioskCheckInSystem = () => {
   const [staffPinError, setStaffPinError] = useState('');
   const [staffShifts, setStaffShifts] = useState<any[]>([]);
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
+  const [isRegisteringNFC, setIsRegisteringNFC] = useState<string | null>(null);
 
   const [youthPinInput, setYouthPinInput] = useState('');
   const [youthLoginError, setYouthLoginError] = useState('');
 
   const [checkoutSearch, setCheckoutSearch] = useState('');
-  const [checkedInChildren, setCheckedInChildren] = useState<any[]>([]);
-  const [checkoutFilteredChildren, setCheckoutFilteredChildren] = useState<any[]>([]);
+  const [checkedInChildren, setCheckedInChildren] = useState<AttendanceRecord[]>([]);
+  const [checkoutFilteredChildren, setCheckoutFilteredChildren] = useState<AttendanceRecord[]>([]);
 
   const [showClassDialog, setShowClassDialog] = useState(false);
   const [showNameTagDialog, setShowNameTagDialog] = useState(false);
@@ -98,6 +118,77 @@ const KioskCheckInSystem = () => {
     loadTodayData();
     requestGeo();
   }, []);
+
+  // ─── NFC Integration ──────────────────────────────────────────────────────
+  const { isSupported: nfcSupported, startScanning: startNfc } = useNFC((serial) => {
+    console.log('[Kiosk] NFC Tag detected:', serial);
+    if (isRegisteringNFC) {
+      handleNfcRegister(serial);
+    } else {
+      handleNfcLogin(serial);
+    }
+  });
+
+  const handleNfcRegister = async (serial: string) => {
+    if (!isRegisteringNFC) return;
+    try {
+      setIsLoading(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ nfc_uid: serial })
+        .eq('id', isRegisteringNFC);
+
+      if (error) throw error;
+
+      toast({ title: "Tag Linked", description: "Successfully linked NFC tag to this account." });
+      setIsRegisteringNFC(null);
+    } catch (err: any) {
+      toast({ title: "Registration Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (nfcSupported) startNfc();
+  }, [nfcSupported, startNfc]);
+
+  const handleNfcLogin = async (serial: string) => {
+    try {
+      setIsLoading(true);
+      // Search for user with this NFC tag
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('nfc_uid', serial)
+        .maybeSingle();
+
+      if (error || !data) {
+        toast({ title: "NFC Tag Unrecognized", description: "This tag is not linked to any account.", variant: "destructive" });
+        return;
+      }
+
+      // Handle login based on profile type
+      if (data.role === 'parent') {
+        setParentPhone(data.phone || '');
+        setParentName(`${data.first_name} ${data.last_name}`);
+        const kids = await supabase.from('children').select('*').eq('parent_id', data.id);
+        setParentChildren(kids.data || []);
+        setParentLoggedIn(true);
+        setActiveTab('parent');
+        showSuccess(`Welcome back, ${data.first_name}!`);
+      } else if (['staff', 'teacher', 'admin', 'super_admin'].includes(data.role)) {
+        setStaffAuthed(true);
+        setStaffName(`${data.first_name} ${data.last_name}`);
+        setActiveTab('staff');
+        showSuccess(`Staff access granted: ${data.first_name}`);
+      }
+    } catch (err) {
+      console.error('[NFC] Login failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let wl: any = null;
@@ -128,7 +219,7 @@ const KioskCheckInSystem = () => {
       setTodayCount(todayData.length);
       const presentData = await AttendanceService.getCheckedInChildren();
       const ids = new Set<string>();
-      presentData.forEach((r: any) => ids.add(r.child_id));
+      presentData.forEach((r) => ids.add(r.child_id));
       setCheckedInChildIds(ids);
       setCheckedInChildren(presentData);
       setCheckoutFilteredChildren(presentData);
@@ -160,6 +251,31 @@ const KioskCheckInSystem = () => {
     }, seconds * 1000);
   };
 
+  /**
+   * Helper for retrying RPC calls in flaky kiosk environments
+   */
+  async function safeRPC<T = any>(fnName: string, params: any, retries = 2): Promise<{ data: T | null; error: any }> {
+    let lastError: any = null;
+    for (let i = 0; i <= retries; i++) {
+      try {
+        console.log(`[Kiosk] RPC ${fnName} (Attempt ${i + 1}/${retries + 1})`);
+        const result = await supabase.rpc(fnName, params);
+        if (!result.error) return result as any;
+        lastError = result.error;
+        // Only retry on network/timeout errors, not logic/auth errors
+        if (result.error.message?.includes('fetch') || result.error.message?.includes('timeout')) {
+          await new Promise(r => setTimeout(r, 500 * (i + 1))); // Exponential backoff
+          continue;
+        }
+        return result as any; 
+      } catch (err: any) {
+        lastError = err;
+        await new Promise(r => setTimeout(r, 500 * (i + 1)));
+      }
+    }
+    return { data: null, error: lastError };
+  }
+
   const handleGlobalLogout = () => {
     handleParentLogout();
     handleStaffLogout();
@@ -177,22 +293,27 @@ const KioskCheckInSystem = () => {
     setIsLoading(true);
     setParentLoginError('');
     try {
-      const { data: matched, error } = await ((supabase.rpc as any)('get_parent_for_kiosk', {
+      const { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
         p_search_val: parentPhone.trim(),
         p_pin: parentPin
-      }) as any);
-      if (error || !matched || matched.length === 0) {
+      });
+
+      if (error || !matched || (matched as any).length === 0) {
+        console.error('[Kiosk] Parent search failed:', error);
         setParentLoginError(t('loginError'));
         setIsLoading(false);
         return;
       }
-      const parent = matched[0];
-      let { data: kids } = await ((supabase.rpc as any)('get_children_for_kiosk', {
+
+      const parent = (matched as any)[0];
+      let { data: kids, error: kidsError } = await safeRPC('get_children_for_kiosk', {
         p_parent_id: parent.id,
         p_pin: parentPin
-      }) as any);
+      });
 
-      if (!kids || kids.length === 0) {
+      if (kidsError) console.warn('[Kiosk] get_children_for_kiosk error:', kidsError);
+
+      if (!kids || (kids as any).length === 0) {
         const { data: fallbackKids } = await supabase
           .from('children')
           .select('id, first_name, last_name, age, allergies, notes, parent_id')
@@ -200,7 +321,7 @@ const KioskCheckInSystem = () => {
         if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
       }
       
-      const kidsWithClasses = await Promise.all((kids || []).map(async (k: any) => {
+      const kidsWithClasses = await Promise.all(((kids as any) || []).map(async (k: any) => {
         const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
         return { ...k, class_id: c?.class_id };
       }));
@@ -215,6 +336,7 @@ const KioskCheckInSystem = () => {
       await logActivity('parent_login', { parent_id: parent.id, parent_name: `${parent.first_name} ${parent.last_name}` });
       startAutoLogoutTimer(120);
     } catch (e: any) {
+      console.error('[Kiosk] handleParentLogin exception:', e);
       setParentLoginError(e.message || t('loginError'));
     } finally { setIsLoading(false); }
   };
@@ -233,6 +355,23 @@ const KioskCheckInSystem = () => {
       toast({ title: "Already In", description: `${child.first_name} is already checked in.`, variant: "destructive" });
       return;
     }
+
+    // Smart Check: Prevent duplicate check-in within a 2-hour window
+    const recentCheckIn = checkedInChildren.find(r => 
+      r.child_id === child.id && 
+      r.checked_out_at && 
+      (new Date().getTime() - new Date(r.checked_out_at).getTime()) < (2 * 60 * 60 * 1000)
+    );
+
+    if (recentCheckIn) {
+      toast({ 
+        title: "Recently Checked Out", 
+        description: `${child.first_name} was checked out less than 2 hours ago. This service is likely already completed.`, 
+        variant: "destructive" 
+      });
+      return;
+    }
+
     setSelectedChild(child);
     setShowClassDialog(true);
   };
@@ -240,9 +379,10 @@ const KioskCheckInSystem = () => {
   const handleStaffAuth = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await ((supabase.rpc as any)('verify_staff_pin_for_kiosk', { p_pin: staffPinInput }) as any);
+      const { data, error } = await safeRPC('verify_staff_pin_for_kiosk', { p_pin: staffPinInput });
       const staffMember = Array.isArray(data) ? data[0] : data;
       if (error || !staffMember) {
+        console.error('[Kiosk] Staff verification failed:', error);
         setStaffPinError(t('loginError'));
         setStaffPinInput('');
       } else {
@@ -252,7 +392,10 @@ const KioskCheckInSystem = () => {
         fetchStaffShifts();
         startAutoLogoutTimer(2700);
       }
-    } catch (err: any) { setStaffPinError(t('loginError')); }
+    } catch (err: any) { 
+      console.error('[Kiosk] handleStaffAuth exception:', err);
+      setStaffPinError(t('loginError')); 
+    }
     finally { setIsLoading(false); }
   };
 
@@ -302,24 +445,28 @@ const KioskCheckInSystem = () => {
     setIsLoading(true);
     setYouthLoginError('');
     try {
-      const { data: result, error } = await supabase.rpc('youth_self_check_action', {
+      const { data: result, error } = await safeRPC('youth_self_check_action', {
         p_pin_code: youthPinInput,
         p_kiosk_id: settings?.id || 'manual'
       });
 
-      if (error || !result.success) {
-        setYouthLoginError(result?.error || t('loginError'));
+      if (error || !(result as any).success) {
+        console.error('[Kiosk] Youth self check failed:', error);
+        setYouthLoginError((result as any)?.error || t('loginError'));
       } else {
-        const actionType = result.action;
+        const actionType = (result as any).action;
         toast({ 
           title: "Success", 
-          description: `${result.child_name} ${actionType === 'checkin' ? 'checked in' : 'checked out'}.`, 
+          description: `${(result as any).child_name} ${actionType === 'checkin' ? 'checked in' : 'checked out'}.`, 
         });
         setYouthPinInput('');
         startAutoLogoutTimer(5);
         loadTodayData();
       }
-    } catch (err: any) { setYouthLoginError(t('loginError')); }
+    } catch (err: any) { 
+      console.error('[Kiosk] handleYouthLogin exception:', err);
+      setYouthLoginError(t('loginError')); 
+    }
     finally { setIsLoading(false); }
   };
 
@@ -352,6 +499,23 @@ const KioskCheckInSystem = () => {
       toast({ title: "Already In", description: `${child.first_name} is already checked in.`, variant: "destructive" });
       return;
     }
+
+    // Smart Check: 2-hour window
+    const recentCheckIn = checkedInChildren.find(r => 
+      r.child_id === child.id && 
+      r.checked_out_at && 
+      (new Date().getTime() - new Date(r.checked_out_at).getTime()) < (2 * 60 * 60 * 1000)
+    );
+
+    if (recentCheckIn) {
+      toast({ 
+        title: "Duplicate Check-in Blocked", 
+        description: `${child.first_name} was checked out recently.`, 
+        variant: "destructive" 
+      });
+      return;
+    }
+
     setSelectedChild(child);
     setShowClassDialog(true);
   };
@@ -412,7 +576,8 @@ const KioskCheckInSystem = () => {
         station: 'Main Kiosk',
         specialInstructions,
         hasFever,
-        hasCough
+        hasCough,
+        deviceId: (user as any)?.user_metadata?.device_id
       });
 
       if (result.success) {
@@ -436,15 +601,15 @@ const KioskCheckInSystem = () => {
 
   useEffect(() => {
     let baseList = checkedInChildren;
-    if (parentLoggedIn) baseList = checkedInChildren.filter((r: any) => r.child?.parent_id === (parentChildren[0]?.parent_id || ''));
+    if (parentLoggedIn) baseList = checkedInChildren.filter((r) => r.child?.parent_id === (parentChildren[0]?.parent_id || ''));
     else if (!staffAuthed) baseList = [];
 
     if (!checkoutSearch.trim()) { setCheckoutFilteredChildren(baseList); return; }
-    const filtered = baseList.filter((r: any) => `${r.child?.first_name || ''} ${r.child?.last_name || ''}`.toLowerCase().includes(checkoutSearch.toLowerCase()));
+    const filtered = baseList.filter((r) => `${r.child?.first_name || ''} ${r.child?.last_name || ''}`.toLowerCase().includes(checkoutSearch.toLowerCase()));
     setCheckoutFilteredChildren(filtered);
   }, [checkoutSearch, checkedInChildren, parentLoggedIn, staffAuthed, parentChildren]);
 
-  const handleCheckOut = async (record: any, signatureData?: string) => {
+  const handleCheckOut = async (record: AttendanceRecord, signatureData?: string) => {
     if (!record) return;
     setIsLoading(true);
     try {
@@ -456,13 +621,35 @@ const KioskCheckInSystem = () => {
         checkedOutBy: actorId,
         method: 'kiosk',
         station: 'Main Kiosk',
-        signatureData: signatureData
+        signatureData: signatureData,
+        pickupSnapshot: parentLoggedIn ? parentChildren : undefined,
+        deviceId: (user as any)?.user_metadata?.device_id
       } as any);
       if (result.success) {
         await logActivity('check_out', { child_id: record.child_id });
+        
+        // Optimistic update for immediate feedback
+        setCheckedInChildren(prev => prev.filter(r => r.id !== record.id));
+        setCheckedInChildIds(prev => {
+          const next = new Set(prev);
+          next.delete(record.child_id);
+          return next;
+        });
+
         await loadTodayData();
         toast({ title: "Checked Out", description: `${record.child?.first_name} signed out.` });
-        startAutoLogoutTimer(7);
+        
+        // Success feedback
+        showSuccess(`${record.child?.first_name} has been checked out successfully.`);
+        
+        // Clear session and return to mode selection after 3 seconds
+        setTimeout(() => {
+          setParentLoggedIn(false);
+          setParentChildren([]);
+          setCheckoutFilteredChildren([]);
+          setActiveTab('parent'); // Default back to parent tab
+        }, 3000);
+
         setPendingCheckoutRecord(null);
         setShowSignatureDialog(false);
       }
@@ -509,7 +696,9 @@ const KioskCheckInSystem = () => {
           </DropdownMenu>
 
           <div className="flex items-center gap-3 bg-muted px-3 py-1.5 rounded-xl text-xs font-bold">
-             <span className="text-muted-foreground uppercase tracking-tight">{todayCount} Active</span>
+             <span className="text-emerald-600 uppercase tracking-tight">{checkedInChildren.length} Present</span>
+             <span className="w-px h-3 bg-border" />
+             <span className="text-muted-foreground uppercase tracking-tight">{todayCount} Total</span>
              <span className="w-px h-3 bg-border" />
              <span className="text-foreground">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
@@ -517,6 +706,17 @@ const KioskCheckInSystem = () => {
           <Button variant="ghost" size="icon" onClick={toggleFs} className="h-8 w-8"><Maximize className="h-4 w-4" /></Button>
         </div>
       </header>
+
+      {isRegisteringNFC && (
+        <div className="fixed inset-0 z-[100] bg-primary/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center animate-in fade-in zoom-in duration-300">
+           <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
+              <KeyRound className="w-12 h-12 text-white" />
+           </div>
+           <h2 className="text-3xl font-bold mb-2">Ready to Link</h2>
+           <p className="text-lg opacity-90 max-w-md mb-8">Please tap the physical tag or phone against the reader now to link it to this account.</p>
+           <Button variant="outline" className="border-white text-white hover:bg-white/10" onClick={() => setIsRegisteringNFC(null)}>Cancel Registration</Button>
+        </div>
+      )}
 
       {successMsg && (
         <div className="mx-6 mt-4 p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
@@ -588,15 +788,35 @@ const KioskCheckInSystem = () => {
                   
                   <div className="space-y-3">
                     <div className="relative">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder="Phone Number" className="h-10 pl-10" />
+                      <Phone className={cn("absolute left-3 top-3 h-4 w-4", activeInput === 'phone' ? "text-primary" : "text-muted-foreground")} />
+                      <Input 
+                        value={parentPhone} 
+                        onFocus={() => setActiveInput('phone')}
+                        onChange={e => setParentPhone(formatPhoneNumber(e.target.value))} 
+                        placeholder="Phone Number" 
+                        className={cn("h-10 pl-10 transition-all", activeInput === 'phone' && "ring-2 ring-primary/20 border-primary")} 
+                      />
                     </div>
                     <div className="relative">
-                      <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input type="password" value={parentPin} onChange={e => setParentPin(e.target.value)} placeholder="Direct PIN" className="h-10 pl-10" maxLength={8} />
+                      <Shield className={cn("absolute left-3 top-3 h-4 w-4", activeInput === 'pin' ? "text-primary" : "text-muted-foreground")} />
+                      <Input 
+                        type="password" 
+                        value={parentPin} 
+                        onFocus={() => setActiveInput('pin')}
+                        onChange={e => setParentPin(e.target.value)} 
+                        placeholder="Direct PIN" 
+                        className={cn("h-10 pl-10 transition-all", activeInput === 'pin' && "ring-2 ring-primary/20 border-primary")} 
+                        maxLength={8} 
+                      />
                     </div>
                     {parentLoginError && <p className="text-destructive text-xs font-bold text-center">{parentLoginError}</p>}
                     <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-10 font-bold uppercase tracking-wide">Identification Search</Button>
+                    
+                    <NumericKeypad 
+                      value={activeInput === 'phone' ? parentPhone.replace(/\D/g, '') : parentPin} 
+                      onChange={handleKeypadChange} 
+                      maxLength={activeInput === 'phone' ? 10 : 8}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -669,6 +889,12 @@ const KioskCheckInSystem = () => {
                         >
                             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify Identity"}
                         </Button>
+                        
+                        <NumericKeypad 
+                          value={youthPinInput} 
+                          onChange={setYouthPinInput} 
+                          maxLength={6}
+                        />
                     </div>
                 </CardContent>
             </Card>
@@ -686,6 +912,12 @@ const KioskCheckInSystem = () => {
                         <Input type="password" value={staffPinInput} onChange={e => setStaffPinInput(e.target.value)} placeholder="0000" className="h-16 text-center text-3xl tracking-[0.6em] font-bold rounded-2xl bg-muted border-none shadow-inner" />
                         <Button onClick={handleStaffAuth} className="w-full h-14 font-bold uppercase text-base tracking-wider rounded-2xl">Unlock Station</Button>
                         {staffPinError && <p className="text-destructive text-center text-xs font-bold uppercase tracking-tight">{staffPinError}</p>}
+                        
+                        <NumericKeypad 
+                          value={staffPinInput} 
+                          onChange={setStaffPinInput} 
+                          maxLength={4}
+                        />
                     </CardContent>
                   </Card>
                 ) : (
@@ -714,13 +946,29 @@ const KioskCheckInSystem = () => {
                           </div>
                           <div className="grid gap-2">
                             {staffSearchResults.map(child => (
-                              <Card key={child.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleStaffCheckIn(child)}>
-                                <CardContent className="p-4 flex items-center gap-4">
-                                    <div className="h-10 w-10 bg-slate-100 rounded flex items-center justify-center font-bold">{child.first_name[0]}</div>
-                                    <div className="flex-1">
-                                        <p className="font-bold text-sm">{child.first_name} {child.last_name}</p>
-                                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Check-In Override</p>
+                              <Card key={child.id} className="overflow-hidden border shadow-none">
+                                <CardContent className="p-4 flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4 flex-1" onClick={() => handleStaffCheckIn(child)}>
+                                      <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-500">{child.first_name[0]}</div>
+                                      <div>
+                                          <p className="font-bold text-sm leading-tight">{child.first_name} {child.last_name}</p>
+                                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Parent ID: {child.parent_id?.slice(0,8)}</p>
+                                      </div>
                                     </div>
+                                    
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="h-8 text-[10px] font-bold gap-1.5 rounded-lg"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsRegisteringNFC(child.parent_id);
+                                        toast({ title: "Ready for NFC", description: "Please tap the parent's device or sticker now." });
+                                      }}
+                                    >
+                                      <KeyRound className="w-3 h-3" />
+                                      {isRegisteringNFC === child.parent_id ? "Waiting..." : "Link Tag"}
+                                    </Button>
                                 </CardContent>
                               </Card>
                             ))}
@@ -854,7 +1102,7 @@ const KioskCheckInSystem = () => {
                   canvasProps={{ width: 400, height: 200, className: 'w-full h-[200px]' }}
                 />
               </div>
-              <div className="flex items-center justify-between mt-4">
+              <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
                 <Button variant="ghost" size="sm" onClick={() => signatureRef.current?.clear()} className="gap-2 text-muted-foreground">
                   <Eraser className="w-4 h-4" /> Reset
                 </Button>
@@ -869,7 +1117,7 @@ const KioskCheckInSystem = () => {
                     handleCheckOut(pendingCheckoutRecord, dataUrl);
                   }}>Authorize Exit</Button>
                 </div>
-              </div>
+              </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
@@ -881,4 +1129,66 @@ const KioskCheckInSystem = () => {
 export default KioskCheckInSystem;
 
 const cn = (...inputs: any[]) => inputs.filter(Boolean).join(' ');
+
+/**
+ * Numeric Keypad for touch-friendly PIN entry
+ */
+const NumericKeypad: React.FC<{ 
+  value: string; 
+  onChange: (val: string) => void; 
+  onEnter?: () => void;
+  maxLength?: number;
+}> = ({ value, onChange, onEnter, maxLength = 8 }) => {
+  const handlePress = (num: string) => {
+    if (value.length < maxLength) onChange(value + num);
+  };
+
+  const handleBackspace = () => {
+    onChange(value.slice(0, -1));
+  };
+
+  const handleClear = () => {
+    onChange('');
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-2 w-full max-w-[280px] mx-auto mt-4">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+        <Button 
+          key={num} 
+          variant="outline" 
+          type="button"
+          className="h-14 text-xl font-bold rounded-xl active:scale-95 transition-transform"
+          onClick={() => handlePress(num.toString())}
+        >
+          {num}
+        </Button>
+      ))}
+      <Button 
+        variant="ghost" 
+        type="button"
+        className="h-14 text-[10px] font-bold uppercase text-muted-foreground"
+        onClick={handleClear}
+      >
+        Clear
+      </Button>
+      <Button 
+        variant="outline" 
+        type="button"
+        className="h-14 text-xl font-bold rounded-xl active:scale-95 transition-transform"
+        onClick={() => handlePress('0')}
+      >
+        0
+      </Button>
+      <Button 
+        variant="ghost" 
+        type="button"
+        className="h-14 flex items-center justify-center"
+        onClick={handleBackspace}
+      >
+        <Eraser className="w-5 h-5 text-muted-foreground" />
+      </Button>
+    </div>
+  );
+};
 

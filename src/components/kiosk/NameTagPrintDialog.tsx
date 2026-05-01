@@ -5,6 +5,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer, X } from 'lucide-react';
@@ -44,6 +45,18 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   const generatedCode = useRef(Math.random().toString(36).substring(2, 6).toUpperCase());
   const displayCode = securityCode || generatedCode.current;
 
+  // Auto-print on mount if open
+  React.useEffect(() => {
+    if (open) {
+      console.log('[Print] Auto-triggering print for child:', child.first_name);
+      // Give it a moment to render the QR code in the DOM before printing
+      const timer = setTimeout(() => {
+        handlePrint();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   const handlePrint = () => {
     const safeFirstName = DOMPurify.sanitize(child.first_name);
     const safeLastName = DOMPurify.sanitize(child.last_name);
@@ -68,9 +81,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
               color: #000;
             }
             .print-container {
-              display: flex;
-              flex-direction: column;
-              gap: 20px;
+              display: block;
             }
             .label-box {
               width: 3.5in;
@@ -81,7 +92,8 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
               display: flex;
               flex-direction: column;
               justify-content: space-between;
-              page-break-inside: avoid;
+              page-break-after: always; /* Force separate label/page */
+              overflow: hidden;
             }
             .header {
               display: flex;
@@ -198,17 +210,20 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                 injected.setAttribute('height', '50');
               }
             }
+            
+            // Auto-print and close
+            window.onload = function() {
+              window.print();
+              setTimeout(() => { window.close(); }, 500);
+            };
           </script>
         </body>
       </html>
     `);
 
     printWindow.document.close();
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }, 500);
+    // Also auto-close our own dialog after a successful print trigger
+    setTimeout(onClose, 2000);
   };
 
   return (
@@ -284,7 +299,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
           </div>
         </div>
 
-        <div className="flex gap-3 mt-4">
+        <DialogFooter className="flex gap-3 mt-4">
           <Button variant="outline" onClick={onClose} className="flex-1">
             {t('cancel')}
           </Button>
@@ -292,7 +307,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             <Printer className="h-4 w-4 mr-2" />
             {t('printNameTag')}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

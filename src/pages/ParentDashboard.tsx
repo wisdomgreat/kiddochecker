@@ -21,7 +21,7 @@ import {
   ChevronRight,
   Heart
 } from "lucide-react";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import RoleGuard from "@/components/security/RoleGuard";
@@ -380,4 +380,5 @@ const ParentDashboard = () => {
 };
 
 export default ParentDashboard;
+
 

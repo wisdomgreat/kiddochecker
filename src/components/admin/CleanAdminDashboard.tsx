@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Users, UserPlus, Clock, Settings, BarChart3, Shield } from 'lucide-react';
 import { UserCreationModal } from './UserCreationModal';
 import { CheckInOutManager } from '@/components/checkin/CheckInOutManager';
-import { useAuth } from '@/context/CleanAuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const CleanAdminDashboard = () => {
   const { user, userRole, signOut } = useAuth();

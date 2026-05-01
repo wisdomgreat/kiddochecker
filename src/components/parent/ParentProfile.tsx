@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Zap, QrCode } from "lucide-react";
+import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Award, QrCode } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { useMembers } from "@/hooks/useMembers";
 import { format } from "date-fns";
@@ -459,7 +459,7 @@ const ParentProfile = () => {
                                     exit={{ opacity: 0, scale: 0.8 }}
                                 >
                                     <Badge className="bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20 font-bold px-3 py-1 rounded-xl flex items-center gap-2">
-                                        <Zap className="h-3 w-3" />
+                                        <Award className="h-3 w-3" />
                                         {m.type}: {format(new Date(m.date), 'yyyy')}
                                     </Badge>
                                 </motion.div>
@@ -503,7 +503,7 @@ const ParentProfile = () => {
         <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
             <DialogHeader>
                 <DialogTitle className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-                    <Zap className="h-6 w-6 text-indigo-600" />
+                    <Award className="h-6 w-6 text-indigo-600" />
                     Record Milestone
                 </DialogTitle>
                 <DialogDescription className="font-bold text-slate-400">
@@ -568,4 +568,5 @@ const ParentProfile = () => {
 };
 
 export default ParentProfile;
+
 

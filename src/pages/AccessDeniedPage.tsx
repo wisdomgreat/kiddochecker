@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldX, Home, LogOut } from "lucide-react";
@@ -66,4 +66,5 @@ const AccessDeniedPage = () => {
 };
 
 export default AccessDeniedPage;
+
 

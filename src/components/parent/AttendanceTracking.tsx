@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Clock, User, Calendar } from "lucide-react";
 
@@ -158,4 +158,5 @@ const AttendanceTracking = () => {
 };
 
 export default AttendanceTracking;
+
 

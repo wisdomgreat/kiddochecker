@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Baby, UserPlus, Edit, Trash2, Loader2, AlertTriangle, Phone, Search, Heart, Sparkles, ChevronRight } from 'lucide-react';
+import { Baby, UserPlus, Edit, Trash2, Loader2, AlertTriangle, Phone, Search, Heart, ChevronRight } from 'lucide-react';
 import { useChildren } from '@/hooks/useChildren';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -148,7 +148,7 @@ const ChildrenPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                       </h3>
                    </div>
                    <div className="h-10 w-10 rounded bg-card/20 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5" />
+                      <Baby className="h-5 w-5" />
                    </div>
                 </div>
              </CardContent>

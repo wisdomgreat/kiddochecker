@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Monitor,
   Plus,
@@ -14,7 +14,6 @@ import {
   Smartphone,
   CheckCircle2,
   Shield,
-  Zap,
   Copy,
   Clock,
   Activity,
@@ -410,7 +409,7 @@ const DeviceEnrollmentPage = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <Zap className="h-8 w-8 text-indigo-600" />
+                <Monitor className="h-8 w-8 text-indigo-600" />
                 Device Enrollment
               </h1>
               <p className="text-slate-500 mt-1">
@@ -756,7 +755,7 @@ const DeviceEnrollmentPage = () => {
           <DialogContent className="max-w-md rounded-3xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-indigo-600" /> Enroll New Device
+                <Plus className="h-5 w-5 text-indigo-600" /> Enroll New Device
               </DialogTitle>
               <DialogDescription>
                 Add a new authorized device to your organization records with a
@@ -953,4 +952,5 @@ const DeviceEnrollmentPage = () => {
 };
 
 export default DeviceEnrollmentPage;
+
 

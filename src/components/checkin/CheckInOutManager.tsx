@@ -54,7 +54,7 @@ export const CheckInOutManager: React.FC = () => {
     try {
       await checkIn({
         childId: selectedChild,
-        classId: selectedClass || undefined
+        classId: (selectedClass && selectedClass !== 'none') ? selectedClass : undefined
       });
       
       // Reset selections
@@ -216,7 +216,7 @@ export const CheckInOutManager: React.FC = () => {
                   <SelectValue placeholder="Choose class" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific class</SelectItem>
+                  <SelectItem value="none">No specific class</SelectItem>
                   {classes.map((classItem) => (
                     <SelectItem key={classItem.id} value={classItem.id}>
                       {classItem.name}

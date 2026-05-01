@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { BookOpen, Users, Calendar, FileText } from "lucide-react";
 
@@ -64,4 +64,5 @@ const TeacherDashboard = () => {
 };
 
 export default TeacherDashboard;
+
 

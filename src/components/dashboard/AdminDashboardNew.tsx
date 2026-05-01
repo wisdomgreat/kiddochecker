@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "@/lib/i18n";
 import {
@@ -26,8 +26,7 @@ import {
     Settings,
     QrCode,
     Printer,
-    LogOut,
-    Zap
+    LogOut
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,14 +34,15 @@ import { Badge } from "@/components/ui/badge";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useSettings } from "@/hooks/useSettings";
 
-const COLORS = {
-    primary: "#0f172a", // Slate 900
-    success: "#059669", // Emerald 600
-    warning: "#d97706", // Amber 600
-    info: "#2563eb", // Blue 600
-};
-
-const CHART_COLORS = ["#0f172a", "#059669", "#d97706", "#2563eb", "#7c3aed", "#db2777"];
+// Charting colors using semantic HSL tokens for perfect theme blending
+const CHART_COLORS = [
+    "hsl(var(--primary))",
+    "hsl(var(--success))",
+    "hsl(var(--warning))",
+    "hsl(var(--info))",
+    "hsl(var(--destructive))",
+    "hsl(var(--primary) / 0.5)"
+];
 
 const AdminDashboardNew = () => {
     const { user } = useAuth();
@@ -159,20 +159,25 @@ const AdminDashboardNew = () => {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: "Enrolled Children", value: children.length, icon: Baby, color: "blue" },
-                    { label: "Check-ins Today", value: totalCheckins, icon: UserCheck, color: "emerald" },
-                    { label: "Active Staff", value: staff.length, icon: Shield, color: "slate" },
-                    { label: "Unread Messages", value: messagesCount, icon: MessageSquare, color: "amber" }
+                    { label: "Enrolled Registry", value: children.length, icon: Baby, color: "blue", trend: "+2 this week" },
+                    { label: "Active Sessions", value: totalCheckins, icon: UserCheck, color: "emerald", trend: "Live Tracking" },
+                    { label: "Duty Staff", value: staff.length, icon: Shield, color: "slate", trend: "All Cleared" },
+                    { label: "System Alerts", value: messagesCount, icon: MessageSquare, color: "amber", trend: messagesCount > 0 ? "Action Required" : "No Alerts" }
                 ].map((stat) => (
-                    <Card key={stat.label} className="shadow-sm">
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
+                    <Card key={stat.label} className="group hover:shadow-xl transition-all border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden relative">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors" />
+                        <CardContent className="p-6 relative z-10">
+                            <div className="flex items-start justify-between">
                                 <div className="space-y-1">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</p>
-                                    <h3 className="text-3xl font-bold tracking-tight">{stat.value}</h3>
+                                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] mb-2">{stat.label}</p>
+                                    <h3 className="text-4xl font-black tracking-tighter leading-none">{stat.value}</h3>
+                                    <p className={cn(
+                                      "text-[9px] font-bold uppercase tracking-widest mt-3",
+                                      stat.label === "System Alerts" && messagesCount > 0 ? "text-amber-500" : "text-muted-foreground/60"
+                                    )}>{stat.trend}</p>
                                 </div>
-                                <div className={cn("h-10 w-10 rounded flex items-center justify-center bg-muted")}>
-                                    <stat.icon className="h-5 w-5 text-muted-foreground" />
+                                <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <stat.icon className="h-6 w-6 text-primary" />
                                 </div>
                             </div>
                         </CardContent>
@@ -191,11 +196,18 @@ const AdminDashboardNew = () => {
                         <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={weeklyAttendance}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-                                    <Tooltip />
-                                    <Area type="monotone" dataKey="checkins" stroke="#0f172a" fill="#0f172a" fillOpacity={0.1} strokeWidth={2} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground))" opacity={0.1} />
+                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                                    <Tooltip 
+                                        contentStyle={{ 
+                                            backgroundColor: "hsl(var(--card))", 
+                                            borderColor: "hsl(var(--border))",
+                                            borderRadius: "var(--radius)",
+                                            fontSize: "12px"
+                                        }} 
+                                    />
+                                    <Area type="monotone" dataKey="checkins" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.05} strokeWidth={3} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -301,4 +313,5 @@ const AdminDashboardNew = () => {
 };
 
 export default AdminDashboardNew;
+
 

@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { Users, CheckCircle, Calendar, MessageSquare } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -72,4 +72,5 @@ const StaffDashboard = () => {
 };
 
 export default StaffDashboard;
+
 

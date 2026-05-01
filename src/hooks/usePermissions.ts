@@ -1,6 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import {
   hasPermission,
   getUserPermissions,
@@ -102,4 +102,5 @@ export const useRoleAccess = () => {
     canAccessStaff,
   };
 };
+
 

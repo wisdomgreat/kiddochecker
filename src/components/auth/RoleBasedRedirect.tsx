@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/CleanAuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export const RoleBasedRedirect = () => {
   const { user, userRole, loading } = useAuth();

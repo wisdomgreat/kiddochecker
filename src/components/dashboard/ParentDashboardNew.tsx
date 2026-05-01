@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useMessages } from "@/hooks/useMessages";
 import { useTranslation } from "@/lib/i18n";
@@ -9,7 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import {
     Baby, Clock, Calendar, MessageSquare,
     QrCode, ChevronRight, CheckCircle2,
-    Activity, Award, Zap
+    Activity, Award
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -221,4 +221,5 @@ const ParentDashboardNew = () => {
 };
 
 export default ParentDashboardNew;
+
 

@@ -29,35 +29,66 @@ const MFABarrier = ({ children }: MFABarrierProps) => {
 
   const handleMfaVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mfaCode.length < 6) return;
+    
     setIsLoading(true);
     setError('');
+    console.log('[MFA] Starting verification for code:', mfaCode);
 
     try {
+      // 1. List Factors
       const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
       if (factorsError) throw factorsError;
 
-      const totpFactor = factors.all[0];
-      if (!totpFactor) throw new Error("No MFA factor found. Please contact support.");
+      const totpFactor = factors.all.find(f => f.factor_type === 'totp' && f.status === 'verified') || factors.all[0];
+      if (!totpFactor) {
+        console.error('[MFA] No verified TOTP factor found:', factors.all);
+        throw new Error("No MFA factor found. Please contact support.");
+      }
 
-      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
-         factorId: totpFactor.id,
-      });
+      console.log('[MFA] Challenging factor:', totpFactor.id);
+
+      // 2. Challenge with timeout
+      const challengePromise = supabase.auth.mfa.challenge({ factorId: totpFactor.id });
+      const { data: challenge, error: challengeError } = await Promise.race([
+        challengePromise,
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error("MFA challenge timed out")), 8000))
+      ]);
+      
       if (challengeError) throw challengeError;
+      console.log('[MFA] Challenge successful, verifying code...');
 
-      const { error: verifyError } = await supabase.auth.mfa.verify({
+      // 3. Verify with timeout
+      const verifyPromise = supabase.auth.mfa.verify({
          factorId: totpFactor.id,
          challengeId: challenge.id,
-         code: mfaCode,
+         code: mfaCode.trim(),
       });
+      
+      const { error: verifyError } = await Promise.race([
+        verifyPromise,
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error("MFA verification timed out")), 10000))
+      ]);
 
       if (verifyError) {
-         setError(verifyError.message);
+        console.warn('[MFA] Verification failed:', verifyError.message);
+        setError(verifyError.message);
       } else {
-         await refreshMfaStatus();
-         toast({ title: "Identity Verified", description: "Welcome back to your secure session." });
+        console.log('[MFA] Verification successful! Refreshing status...');
+        // Give Supabase a moment to update the session internally
+        await new Promise(r => setTimeout(r, 500));
+        await refreshMfaStatus();
+        toast({ title: "Identity Verified", description: "Welcome back to your secure session." });
+        setMfaCode('');
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error('[MFA] Critical error:', err);
+      setError(err.message || "An unexpected error occurred during verification.");
+      toast({ 
+        title: "Verification Error", 
+        description: err.message || "Please try again or sign out.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }

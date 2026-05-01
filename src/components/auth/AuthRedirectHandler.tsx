@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { useAuth } from '@/context/CleanAuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useDashboardNavigation } from '@/hooks/use-dashboard-navigation';
 import { useLocation, useNavigate } from 'react-router-dom';
 

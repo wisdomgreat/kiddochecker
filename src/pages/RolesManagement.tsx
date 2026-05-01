@@ -1,5 +1,5 @@
 import { useState } from "react";
-import MainLayout from "@/components/layout/MainLayout";
+import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import {
   Card,
   CardContent,
@@ -259,7 +259,7 @@ const RolesManagement = () => {
   ];
 
   return (
-    <MainLayout>
+    <UnifiedDashboardLayout>
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Roles & Permissions</h1>
@@ -603,7 +603,7 @@ const RolesManagement = () => {
           </Form>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </UnifiedDashboardLayout>
   );
 };
 

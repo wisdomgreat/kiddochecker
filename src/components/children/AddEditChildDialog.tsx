@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Baby, Heart, ShieldAlert, Phone, User, Stethoscope, Info, Pill, Trash2, X, Plus, Key } from "lucide-react";
@@ -725,4 +725,5 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
 };
 
 export default AddEditChildDialog;
+
 

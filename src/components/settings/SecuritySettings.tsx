@@ -25,7 +25,7 @@ import {
   Globe
 } from "lucide-react";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { validation } from "@/utils/validation";
 
 const changePasswordSchema = z.object({
@@ -430,4 +430,5 @@ const SecuritySettings = () => {
 };
 
 export default SecuritySettings;
+
 

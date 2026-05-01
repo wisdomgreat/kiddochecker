@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, Phone, Edit, Trash2, Loader2, UserPlus, Users, Briefcase, Building2, Plus, Lock, EyeOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
-import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Search, MoreHorizontal, Edit, Trash2, Loader2, Shield } from 'lucide-react';
+import { Users, Search, MoreHorizontal, Edit, Trash2, Loader2, Shield, Lock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SecurityGroupManager } from '@/components/users/SecurityGroupManager';
+import { SecurityGroupAssignmentDialog } from '@/components/users/SecurityGroupAssignmentDialog';
 import { CleanUserCreationModal } from '@/components/admin/CleanUserCreationModal';
 import { EditUserDialog } from '@/components/users/EditUserDialog';
 import DeleteUserDialog from '@/components/users/DeleteUserDialog';
@@ -24,6 +26,7 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
+  const [assigningUser, setAssigningUser] = useState<UserProfile | null>(null);
   const { toast } = useToast();
 
   const filteredUsers = useMemo(() => {
@@ -70,14 +73,14 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
     return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const content = (
+  const userManagementContent = (
     <div className="space-y-8 max-w-7xl mx-auto py-8 px-6">
       {/* Header */}
       {!isEmbedded && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Access Control</h1>
-            <p className="text-sm text-muted-foreground">Manage authentication and roles for all organization members.</p>
+            <h1 className="text-3xl font-bold tracking-tight">User Accounts</h1>
+            <p className="text-sm text-muted-foreground">Manage identities and base roles for the system.</p>
           </div>
           <CleanUserCreationModal onUserCreated={() => refetch()} />
         </div>
@@ -190,6 +193,9 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                             })}>
                               <Edit className="h-3.5 w-3.5 mr-2" /> Edit Details
                             </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs font-bold" onClick={() => setAssigningUser(user)}>
+                              <Lock className="h-3.5 w-3.5 mr-2" /> Security Groups
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => setDeletingUser(user)}
                               className="text-xs font-bold text-destructive"
@@ -207,13 +213,64 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
 
+  const securityGroupsContent = (
+    <div className="space-y-8 max-w-7xl mx-auto py-8 px-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Security Governance</h1>
+          <p className="text-sm text-muted-foreground">Manage granular permissions via additive security groups.</p>
+        </div>
+      </div>
+      <SecurityGroupManager />
+    </div>
+  );
+
+  const pageContent = (
+    <Tabs defaultValue="users" className="w-full">
+      <div className="border-b bg-card px-6">
+        <TabsList className="bg-transparent h-14 p-0 gap-8">
+          <TabsTrigger value="users" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-14 font-bold text-sm">
+            <Users className="h-4 w-4 mr-2" /> User Management
+          </TabsTrigger>
+          <TabsTrigger value="groups" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none h-14 font-bold text-sm">
+            <Shield className="h-4 w-4 mr-2" /> Security Groups
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      <TabsContent value="users" className="m-0 border-none p-0">
+        {userManagementContent}
+      </TabsContent>
+      <TabsContent value="groups" className="m-0 border-none p-0">
+        {securityGroupsContent}
+      </TabsContent>
+    </Tabs>
+  );
+
+  return (
+    <UnifiedDashboardLayout>
+      <div className="bg-background min-h-screen">
+        {isEmbedded ? userManagementContent : pageContent}
+      </div>
+      
       <EditUserDialog
         user={editingUser}
         open={!!editingUser}
         onOpenChange={(open) => !open && setEditingUser(null)}
         onSuccess={() => {
           setEditingUser(null);
+          refetch();
+        }}
+      />
+
+      <SecurityGroupAssignmentDialog
+        user={assigningUser}
+        open={!!assigningUser}
+        onOpenChange={(open) => !open && setAssigningUser(null)}
+        onSuccess={() => {
+          setAssigningUser(null);
           refetch();
         }}
       />
@@ -227,19 +284,8 @@ const UsersPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
         user={deletingUser}
         selectedUser={deletingUser}
       />
-    </div>
-  );
-
-  if (isEmbedded) return content;
-
-  return (
-    <RoleBasedRoute allowedRoles={['admin', 'super_admin' as any]}>
-      <UnifiedDashboardLayout>
-        {content}
-      </UnifiedDashboardLayout>
-    </RoleBasedRoute>
+    </UnifiedDashboardLayout>
   );
 };
 
 export default UsersPage;
-

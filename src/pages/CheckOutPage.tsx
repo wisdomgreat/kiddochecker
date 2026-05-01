@@ -12,7 +12,7 @@ import QRCodeScanner from "@/components/qr/QRCodeScanner";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
 import { QRService } from "@/services/QRService";
 import { AttendanceService } from "@/services/attendanceService";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 const CheckOutPage = () => {
   const { toast } = useToast();
@@ -339,4 +339,5 @@ const CheckOutPage = () => {
 };
 
 export default CheckOutPage;
+
 

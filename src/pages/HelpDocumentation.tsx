@@ -23,39 +23,82 @@ import {
   LayoutDashboard,
   Kanban,
   UserCheck,
-  Zap,
-  Sparkles
+  Cpu,
+  Monitor,
+  HeartPulse,
+  ShieldCheck,
+  Layout
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
+import LandingNavigation from "@/components/layout/LandingNavigation";
+import LandingFooter from "@/components/layout/LandingFooter";
+import { useToast } from "@/hooks/use-toast";
 
 const HelpDocumentation = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("getting-started");
-  const { isAdmin, isStaff, isTeacher, isParent, isVolunteer, isSuperAdmin, userRole } = useAuth();
+  const { isAdmin, isStaff, isTeacher, isParent, isVolunteer, isSuperAdmin, userRole, user } = useAuth();
+  const { toast } = useToast();
 
   const faqData = [
+    {
+      category: "nfc-smart",
+      title: "NFC & Smart Check-In",
+      icon: Cpu,
+      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'guest'],
+      questions: [
+        {
+          question: "What is 'Smart Check-In'?",
+          answer: "Our system automatically blocks duplicate check-ins for the same child within a 2-hour window. This ensures that attendance records are accurate and prevents children from being accidentally checked in twice during the same service.",
+          roles: ['parent', 'staff', 'teacher']
+        },
+        {
+          question: "How do I use NFC to check in?",
+          answer: "If your phone or physical tag is registered, simply tap it against the Kiosk reader. The system will instantly identify you and log you in. No typing or scanning required!",
+          roles: ['parent', 'staff']
+        },
+        {
+          question: "How do I register my phone for NFC?",
+          answer: "Ask a staff member at the kiosk to 'Link Tag' your account. Once they trigger the registration, simply tap your phone against the reader to link it permanently.",
+          roles: ['parent']
+        }
+      ]
+    },
+    {
+      category: "printing",
+      title: "Printing & Labels",
+      icon: Printer,
+      authorizedRoles: ['admin', 'super_admin', 'staff'],
+      questions: [
+        {
+          question: "How does 'Auto-Printing' work?",
+          answer: "Once a child is checked in, the system automatically sends the label to the printer without requiring you to click anything. It prints a Child Tag and a Parent Claim Ticket separately.",
+          roles: ['staff', 'admin']
+        },
+        {
+          question: "The labels are printing on the same page.",
+          answer: "Ensure your printer is set to its native label size (e.g., 3.5x2.25). Our system uses 'page-break-after' to ensure they print on separate labels automatically.",
+          roles: ['admin', 'staff']
+        }
+      ]
+    },
     {
       category: "getting-started",
       title: "Getting Started",
       icon: Book,
-      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer'],
+      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'guest'],
       questions: [
         {
           question: "How do I check in a child?",
-          answer: "At the tablet or kiosk, search for your child's name, select them, and confirm to check in. A security label will print (if enabled) for the child, and a digital or printed QR code will be provided for your pick-up.",
+          answer: "At the kiosk, you can search by phone number or scan your QR code. For a faster experience, use a registered NFC device to 'Tap & Go'.",
           roles: ['parent', 'volunteer', 'staff', 'teacher']
         },
         {
-          question: "How do I check out a child?",
-          answer: "Simply scan the QR code you received at check-in at the kiosk. If you lost your code, a staff member can manually check out your child after verifying your identity.",
-          roles: ['parent', 'volunteer', 'staff', 'teacher']
-        },
-        {
-          question: "Can my teenager check themselves in?",
-          answer: "Yes, if they have 'Youth Kiosk Access' enabled on their profile. They can use their own PIN or name search at the kiosk to check in and out independently.",
-          roles: ['parent', 'staff', 'admin']
+          question: "What if I lost my pick-up code?",
+          answer: "Don't worry! A staff member can check out your child by verifying your ID and using their admin override in the 'Staff Portal' tab of the kiosk.",
+          roles: ['parent']
         }
       ]
     },
@@ -99,7 +142,7 @@ const HelpDocumentation = () => {
       category: "security",
       title: "Safety & Security",
       icon: Shield,
-      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer'],
+      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'guest'],
       questions: [
         {
           question: "Who is authorized to pick up my child?",
@@ -115,6 +158,24 @@ const HelpDocumentation = () => {
           question: "How is my data protected?",
           answer: "We use banking-level encryption and strict access controls. Only authorized staff members with specific permissions can view sensitive family data.",
           roles: ['parent', 'volunteer']
+        }
+      ]
+    },
+    {
+      category: "forensic-search",
+      title: "Forensic Search & Retrieval",
+      icon: Search,
+      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher'],
+      questions: [
+        {
+          question: "How do I find a child's check-in history?",
+          answer: "Use the universal search in the 'Attendance' page. Entering a name like 'John' will instantly surface every active and historical session for that child.",
+          roles: ['staff', 'admin', 'teacher']
+        },
+        {
+          question: "Can I search by guardian name?",
+          answer: "Yes! The forensic search engine index includes guardian names, allowing you to find a child even if you only know who picked them up.",
+          roles: ['admin', 'staff']
         }
       ]
     },
@@ -139,7 +200,7 @@ const HelpDocumentation = () => {
     {
       category: "guest-journey",
       title: "Guest Journey & CRM",
-      icon: Zap,
+      icon: Users,
       authorizedRoles: ['admin', 'super_admin', 'staff'],
       questions: [
         {
@@ -156,6 +217,29 @@ const HelpDocumentation = () => {
           question: "Can I automate follow-up emails?",
           answer: "Yes! The system tracks visitor status. If a visitor hasn't been contacted in 7 days, they appear in the 'Drop-off Prevention' alert on your dashboard.",
           roles: ['admin']
+        }
+      ]
+    },
+    {
+      category: "compliance",
+      title: "Legal Compliance & Forensics",
+      icon: Shield,
+      authorizedRoles: ['admin', 'super_admin', 'staff'],
+      questions: [
+        {
+          question: "What is the 'Forensic Dossier'?",
+          answer: "The Forensic Dossier is a tamper-evident timeline of a child's entire session. It aggregates check-in metadata, care events, incident reports, and signatures into a single legal evidence record.",
+          roles: ['admin', 'staff']
+        },
+        {
+          question: "How is 'Device Telemetry' captured?",
+          answer: "The system automatically records hardware fingerprints, browser versions, and station IDs during every check-in and out. This creates a non-repudiable 'Black Box' of evidence for security audits.",
+          roles: ['admin', 'staff']
+        },
+        {
+          question: "What is a 'Witnessed Override'?",
+          answer: "For manual administrative sign-outs, you can select a second staff member as a witness. This creates a two-person chain of custody, ensuring that no child leaves without multi-person verification.",
+          roles: ['admin', 'staff']
         }
       ]
     },
@@ -183,7 +267,7 @@ const HelpDocumentation = () => {
     {
       title: "Daily Check-In Process",
       icon: CheckCircle,
-      roles: ['parent', 'volunteer', 'staff', 'teacher'],
+      roles: ['parent', 'volunteer', 'staff', 'teacher', 'guest'],
       steps: [
         "Find a check-in kiosk tablet",
         "Search for child by name",
@@ -229,8 +313,54 @@ const HelpDocumentation = () => {
       ]
     },
     {
+      title: "Mastering Forensic Search",
+      icon: Search,
+      roles: ['admin', 'staff', 'teacher'],
+      steps: [
+        "Go to the 'Attendance' live log",
+        "Use the universal search to find child, class, or guardian",
+        "Click the child's name to open the Evidence Dossier",
+        "Verify check-in telemetry and station metadata"
+      ]
+    },
+    {
+      title: "Digital Security Seal",
+      icon: Shield,
+      roles: ['admin', 'staff'],
+      steps: [
+        "Open a child's session dossier",
+        "Scroll to the 'Digital Security Seal' footer",
+        "Confirm the cryptographic audit ID",
+        "Click 'Export for Counsel' to generate the signed PDF report"
+      ]
+    },
+    {
+      title: "Duty of Care Logging",
+      icon: HeartPulse,
+      roles: ['staff', 'teacher', 'admin'],
+      steps: [
+        "Find the child in the Real-time Check-in Log",
+        "Click the '+' icon in the 'Events' column",
+        "Select the activity (Feeding, Nap, Meds, etc.)",
+        "Confirm the timestamp and details",
+        "The event is now permanently 'stapled' to the child's forensic timeline"
+      ]
+    },
+    {
+      title: "Logging a Safety Incident",
+      icon: AlertTriangle,
+      roles: ['staff', 'teacher', 'admin'],
+      steps: [
+        "Click the 'Alert' icon next to a child's name",
+        "Select the incident type (Injury, Behavior, etc.)",
+        "Provide a detailed description and 'Action Taken'",
+        "Save to 'Seal & Log' the report forever",
+        "The report is instantly visible to administrators in the audit view"
+      ]
+    },
+    {
       title: "Kiosk Terminal Activation",
-      icon: Zap,
+      icon: Monitor,
       roles: ['admin', 'staff'],
       steps: [
         "Go to 'Device Enrollment' in your dashboard",
@@ -242,30 +372,36 @@ const HelpDocumentation = () => {
     }
   ];
 
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizedSearch = normalize(searchTerm);
+
   const filteredFAQ = faqData
-    .filter(category => category.authorizedRoles.includes(userRole as any))
+    .filter(category => category.authorizedRoles.includes((userRole || 'guest') as any))
     .map(category => ({
       ...category,
-      questions: category.questions.filter(q => q.roles.includes(userRole as any))
+      questions: category.questions.filter(q => q.roles.includes((userRole || 'guest') as any))
     }))
     .filter(category => 
       category.questions.length > 0 && 
-      (category.questions.some(q =>
-        q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        q.answer.toLowerCase().includes(searchTerm.toLowerCase())
+      (searchTerm === "" || category.questions.some(q =>
+        normalize(q.question).includes(normalizedSearch) ||
+        normalize(q.answer).includes(normalizedSearch)
       ))
     );
 
-  return (
-    <ModernLayout>
+  const Content = (
       <div className="space-y-6">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold flex items-center justify-center gap-2 text-foreground tracking-tight">
-            <HelpCircle className="h-10 w-10 text-indigo-600" />
+        <div className="text-center py-12 relative">
+          <div className="absolute inset-0 bg-indigo-50/50 rounded-[3rem] -z-10 blur-3xl opacity-50" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
+            <ShieldCheck className="h-3 w-3" /> Professional Support Terminal
+          </div>
+          <h1 className="text-5xl font-black flex items-center justify-center gap-4 text-foreground tracking-tighter leading-none">
+            <HelpCircle className="h-12 w-12 text-indigo-600" />
             Platform Guide
           </h1>
-          <p className="text-slate-500 mt-2 font-medium">
-            Learn how to care for your community with our refined, simple tools.
+          <p className="text-slate-500 mt-6 font-medium text-lg max-w-xl mx-auto leading-relaxed">
+            Welcome to the KiddoChecker Help Center. Your comprehensive resource for mastering the forensic safety and CRM tools.
           </p>
         </div>
 
@@ -379,7 +515,7 @@ const HelpDocumentation = () => {
           <TabsContent value="guides" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {quickGuides
-                .filter(guide => guide.roles.includes(userRole as any))
+                .filter(guide => guide.roles.includes((userRole || 'guest') as any))
                 .map((guide, index) => (
                 <Card key={index}>
                   <CardHeader>
@@ -433,7 +569,7 @@ const HelpDocumentation = () => {
           <TabsContent value="walkthroughs" className="space-y-12">
             <div className="space-y-4">
                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-widest">
-                  <Sparkles className="h-3 w-3" /> Simplified Premium Interface
+                  <Layout className="h-3 w-3" /> Simplified Premium Interface
                </div>
                <h2 className="text-3xl font-bold text-foreground tracking-tight">Mastering the Dashboard</h2>
             </div>
@@ -482,23 +618,38 @@ const HelpDocumentation = () => {
                </div>
 
                {/* Section 3 */}
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pb-12">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                   <div className="space-y-6">
                      <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">3</div>
+                     <h3 className="text-2xl font-bold text-foreground">Forensic Evidence Dossier</h3>
+                     <p className="text-slate-600 leading-relaxed font-normal">
+                        Every child has an immutable 'Forensic Timeline' for every session. 
+                        By clicking on a child's name in the dashboard, you can view the complete chain of custody, including telemetry, signatures, and duty-of-care logs.
+                     </p>
+                     <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-4">
+                        <h4 className="font-bold text-xs uppercase tracking-widest text-emerald-600">Legal Protection</h4>
+                        <p className="text-xs font-medium text-emerald-700 leading-relaxed">
+                           This dossier is designed to be audit-ready for insurance and legal purposes. Use the 'Export for Counsel' button to generate a signed PDF report.
+                        </p>
+                     </div>
+                  </div>
+                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
+                     <img src="/docs/images/forensic_dossier_view.png" className="rounded-xl w-full h-auto" alt="Forensic Timeline Walkthrough" />
+                  </div>
+               </div>
+
+               {/* Section 4 */}
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pb-12">
+                  <div className="order-2 lg:order-1 rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
+                     <img src="/docs/images/crm_profile_interaction.png" className="rounded-xl w-full h-auto" alt="CRM Overview" />
+                  </div>
+                  <div className="order-1 lg:order-2 space-y-6">
+                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">4</div>
                      <h3 className="text-2xl font-bold text-foreground">Member CRM Profiles</h3>
                      <p className="text-slate-600 leading-relaxed font-normal">
                         Log pastoral notes, send automated follow-up emails, and track every interaction. 
                         The **Interaction Timeline** ensures that every touchpoint is recorded for consistent, high-quality care.
                      </p>
-                     <div className="p-6 bg-slate-100 rounded-2xl border border-slate-200/50 space-y-4">
-                        <h4 className="font-bold text-xs uppercase tracking-widest text-indigo-600">Pro Tip</h4>
-                        <p className="text-xs font-medium text-slate-500 leading-relaxed">
-                           Use the "Send Email" action to use pre-built templates for Welcome messages and missing notifications.
-                        </p>
-                     </div>
-                  </div>
-                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
-                     <img src="/docs/images/crm_profile_interaction.png" className="rounded-xl w-full h-auto" alt="CRM Overview" />
                   </div>
                </div>
             </div>
@@ -553,7 +704,16 @@ const HelpDocumentation = () => {
                 <p className="opacity-90 font-medium">Our team is available to help you {isParent ? "during service hours" : "24/7 via private support lines"}.</p>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4">
-                <Button variant="secondary" className="bg-card text-indigo-700 hover:bg-indigo-50 font-bold px-6">
+                <Button 
+                  variant="secondary" 
+                  className="bg-card text-indigo-700 hover:bg-indigo-50 font-bold px-6 shadow-sm"
+                  onClick={() => {
+                    toast({
+                      title: "Support Ticket Initiated",
+                      description: "A secure support channel has been opened. Our engineers have been notified.",
+                    });
+                  }}
+                >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   {isParent ? "Message Office" : "Open System Ticket"}
                 </Button>
@@ -568,9 +728,27 @@ const HelpDocumentation = () => {
           </CardContent>
         </Card>
       </div>
+  );
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <LandingNavigation />
+        <div className="pt-32 pb-24 px-6 max-w-7xl mx-auto">
+          {Content}
+        </div>
+        <LandingFooter />
+      </div>
+    );
+  }
+
+  return (
+    <ModernLayout>
+      {Content}
     </ModernLayout>
   );
 };
 
 export default HelpDocumentation;
+
 

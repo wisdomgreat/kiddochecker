@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import ModernLayout from "@/components/layout/ModernLayout";
 import { useToast } from "@/hooks/use-toast";
 import { Trophy, Gift, RefreshCw, Award } from "lucide-react";
@@ -193,4 +193,5 @@ const ParentRewardsPage = () => {
 };
 
 export default ParentRewardsPage;
+
 

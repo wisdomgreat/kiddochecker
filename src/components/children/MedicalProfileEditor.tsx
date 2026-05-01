@@ -18,7 +18,7 @@ import {
     Phone,
     ShieldAlert
 } from 'lucide-react';
-import { useAuth } from '@/context/CleanAuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 

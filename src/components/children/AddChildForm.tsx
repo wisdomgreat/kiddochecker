@@ -27,7 +27,7 @@ import {
   MapPin,
   Mail
 } from "lucide-react";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AddChildFormProps {
   open: boolean;
@@ -251,4 +251,5 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
 };
 
 export default AddChildForm;
+
 

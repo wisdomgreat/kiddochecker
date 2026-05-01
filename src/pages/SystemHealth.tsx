@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import ModernLayout from "@/components/layout/ModernLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,7 +13,8 @@ import {
   RefreshCw,
   CheckCircle,
   AlertTriangle,
-  XCircle
+  XCircle,
+  LucideIcon
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +24,7 @@ interface SystemMetric {
   name: string;
   value: string;
   status: 'healthy' | 'warning' | 'error';
-  icon: any;
+  icon: LucideIcon;
   description: string;
 }
 

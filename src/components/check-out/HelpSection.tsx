@@ -11,10 +11,12 @@ const HelpSection = () => {
         </div>
         <div>
           <h2 className="text-lg font-bold mb-1">Need Assistance?</h2>
-          <p className="text-gray-600 mb-4">
-            If you're having trouble with the check-out process, please contact a staff member or administrator for help.
-          </p>
-          <Button variant="default">Contact Admin</Button>
+          <div className="text-gray-600 text-sm space-y-2 mb-4">
+            <p>• You can check out by scanning your <strong>Parent Claim Ticket</strong> at any kiosk.</p>
+            <p>• If you don't have your ticket, use the <strong>Self Check-Out</strong> tab with your Phone & PIN.</p>
+            <p>• For lost PINs or tickets, please ask a staff member for a <strong>Manual Override</strong>.</p>
+          </div>
+          <Button variant="default" className="font-bold">Message Staff</Button>
         </div>
       </div>
     </div>

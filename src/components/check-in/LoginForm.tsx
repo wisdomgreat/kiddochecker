@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import PhoneNumberForm from "./PhoneNumberForm";
 import PinEntryForm from "./PinEntryForm";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
 
 interface LoginFormProps {
@@ -178,4 +178,5 @@ export const LoginForm = ({ onSignUp }: LoginFormProps) => {
 };
 
 export default LoginForm;
+
 

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   MessageSquare, 
   Send, 
@@ -503,4 +503,5 @@ const FamilyConnectPage = () => {
 };
 
 export default FamilyConnectPage;
+
 

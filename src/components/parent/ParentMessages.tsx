@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/context/AuthContext";
-import { MessageSquare, Send, Mail, Search, Reply, Plus, MoreVertical, Paperclip, ChevronLeft, Sparkles } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { MessageSquare, Send, Mail, Search, Reply, Plus, MoreVertical, Paperclip, ChevronLeft, Inbox, Megaphone } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -168,7 +168,7 @@ const ParentMessages = () => {
             ) : inboxItems.length === 0 ? (
               <div className="text-center py-20 px-8">
                 <div className="p-4 bg-slate-50 rounded-full inline-block mb-4">
-                  <Sparkles className="h-6 w-6 text-slate-300" />
+                  <Inbox className="h-6 w-6 text-slate-300" />
                 </div>
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest leading-loose">No Messages Found</p>
               </div>
@@ -208,7 +208,7 @@ const ParentMessages = () => {
                           "font-bold text-xs",
                           role === 'admin' ? "bg-purple-100 text-purple-700" : "bg-indigo-100 text-indigo-700"
                         )}>
-                          {isRole ? <Sparkles className="h-5 w-5" /> : getInitials(partnerName.split(' ')[0], partnerName.split(' ')[1])}
+                          {isRole ? <Megaphone className="h-5 w-5" /> : getInitials(partnerName.split(' ')[0], partnerName.split(' ')[1])}
                         </AvatarFallback>
                       </Avatar>
                       {unreadCount > 0 && (
@@ -358,7 +358,7 @@ const ParentMessages = () => {
                     </Button>
                     <Avatar className="h-12 w-12 border shadow-sm">
                        <AvatarFallback className="font-bold text-indigo-600 bg-indigo-50">
-                          {selectedPartnerId?.startsWith('role_') ? <Sparkles /> : getInitials(
+                          {selectedPartnerId?.startsWith('role_') ? <Megaphone /> : getInitials(
                             activeThread[0].sender_id === user?.id ? activeThread[0].recipient?.first_name : activeThread[0].sender?.first_name,
                             activeThread[0].sender_id === user?.id ? activeThread[0].recipient?.last_name : activeThread[0].sender?.last_name
                           )}
@@ -511,4 +511,5 @@ const ParentMessages = () => {
 };
 
 export default ParentMessages;
+
 

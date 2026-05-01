@@ -72,19 +72,30 @@ const AboutUsPage = () => {
           </Card>
         </div>
 
-        <div className="text-center">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Our Mission</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg text-gray-600 leading-relaxed">
-                At KidCheck, we believe that managing child attendance should be simple, secure, and stress-free. 
-                Our platform empowers organizations to focus on what matters most - caring for children - while we 
-                handle the complexities of attendance tracking, parent communication, and regulatory compliance.
-              </p>
-            </CardContent>
-          </Card>
+        <div className="mt-16">
+          <h2 className="text-3xl font-bold text-center mb-8">Common Questions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border">
+               <h4 className="font-bold text-lg mb-2">How safe is my child?</h4>
+               <p className="text-gray-600 text-sm">Every child is issued a unique security code. Only authorized guardians with a matching digital or physical ticket can perform a check-out.</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border">
+               <h4 className="font-bold text-lg mb-2">Can I use my phone to check in?</h4>
+               <p className="text-gray-600 text-sm">Yes! You can use our secure QR codes or register your phone's NFC for a "Tap & Go" experience at the kiosk.</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border">
+               <h4 className="font-bold text-lg mb-2">What if I lose my pick-up ticket?</h4>
+               <p className="text-gray-600 text-sm">Our staff can perform a manual override after verifying your government-issued ID against the family profile.</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border">
+               <h4 className="font-bold text-lg mb-2">Is there an age limit for self-check?</h4>
+               <p className="text-gray-600 text-sm">Older youth can be granted self-check permissions by parents, allowing them to log their own attendance via a secure personal PIN.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center mt-12">
+          <p className="text-sm text-gray-500">Need more detailed help? Log in to view our full Platform Guide.</p>
         </div>
       </div>
     </div>

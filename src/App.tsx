@@ -60,12 +60,18 @@ const InstallPWABanner = lazy(() => import("./components/mobile/InstallPWABanner
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-slate-50">
-    <div className="flex flex-col items-center gap-4">
-      <div className="h-10 w-10 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+  <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex flex-col items-center gap-6">
+      <div className="relative h-16 w-16">
+        <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl animate-pulse" />
+        <div className="relative h-full w-full rounded-2xl border border-primary/20 bg-background/50 backdrop-blur-md flex items-center justify-center shadow-2xl">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
       </div>
-      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Environment Syncing</p>
+      <div className="space-y-1 text-center">
+        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-foreground">Environment Syncing</p>
+        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Authorizing Forensic Modules</p>
+      </div>
     </div>
   </div>
 );
@@ -157,7 +163,8 @@ function App() {
                       <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><EmailTemplatesPage /></RoleBasedRoute>} />
                       <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
                       <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><SystemHealth /></RoleBasedRoute>} />
-                      <Route path="/help" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><HelpDocumentation /></ProtectedRoute>} />
+                      <Route path="/help" element={<HelpDocumentation />} />
+                      <Route path="/faq" element={<HelpDocumentation />} />
                       <Route path="/about" element={<AboutUsPage />} />
                       <Route path="/centers" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><CentersPage /></ProtectedRoute>} />
 

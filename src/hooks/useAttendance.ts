@@ -1,32 +1,14 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-export interface AttendanceRecord {
-  id: string;
-  child_id: string;
-  class_id?: string;
-  checked_in_at?: string;
-  checked_out_at?: string;
-  checked_in_by?: string;
-  checked_out_by?: string;
-  attendance_date: string;
-  special_instructions?: string;
-  child?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-  };
-  class?: {
-    id: string;
-    name: string;
-  };
-}
+import { AttendanceRecord } from "@/types/attendance";
+import { AttendanceService } from "@/services/attendanceService";
+import { useAuth } from "@/hooks/useAuth";
 
 export const useAttendance = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: attendance = [], isLoading, error, refetch } = useQuery({
     queryKey: ["attendance"],
@@ -55,20 +37,18 @@ export const useAttendance = () => {
   });
 
   const checkInMutation = useMutation({
-    mutationFn: async ({ childId, classId }: { childId: string; classId?: string }) => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .insert({
-          child_id: childId,
-          class_id: classId || null,
-          checked_in_at: new Date().toISOString(),
-          attendance_date: new Date().toISOString().split('T')[0]
-        })
-        .select()
-        .single();
+    mutationFn: async ({ childId, classId, guardianId }: { childId: string; classId?: string; guardianId?: string }) => {
+      const result = await AttendanceService.checkInChild({
+        childId,
+        classId,
+        guardianId,
+        method: 'dashboard_manual',
+        station: 'Dashboard',
+        deviceId: user?.user_metadata?.device_id
+      });
 
-      if (error) throw error;
-      return data;
+      if (!result.success) throw new Error(result.error);
+      return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
@@ -88,18 +68,19 @@ export const useAttendance = () => {
   });
 
   const checkOutMutation = useMutation({
-    mutationFn: async (attendanceId: string) => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .update({
-          checked_out_at: new Date().toISOString()
-        })
-        .eq('id', attendanceId)
-        .select()
-        .single();
+    mutationFn: async ({ attendanceId, reason, witnessId }: { attendanceId: string, reason?: string, witnessId?: string }) => {
+      const result = await AttendanceService.checkOutChild({
+        attendanceId,
+        checkedOutBy: user?.id,
+        method: 'dashboard_manual',
+        station: 'Dashboard',
+        overrideReason: reason,
+        witnessId: witnessId,
+        deviceId: user?.user_metadata?.device_id
+      } as any);
 
-      if (error) throw error;
-      return data;
+      if (!result.success) throw new Error(result.error);
+      return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });

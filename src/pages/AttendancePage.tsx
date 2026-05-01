@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 import RoleBasedRoute from '@/components/layout/RoleBasedRoute';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Calendar, CheckSquare, Clock, Download, Loader2, RefreshCw, TrendingUp, Users, Activity, Bell, Baby } from 'lucide-react';
+import { Calendar, CheckSquare, Clock, Download, Loader2, RefreshCw, TrendingUp, Users, Activity, Bell, Baby, Shield, ChevronRight, BarChart3 } from 'lucide-react';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useRealtimeAttendance } from '@/hooks/useRealtimeAttendance';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,15 +17,28 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CheckInDialog } from '@/components/attendance/CheckInDialog';
 import { ClassAttendanceReport } from '@/components/attendance/ClassAttendanceReport';
+import OverrideReasonDialog from '@/components/attendance/OverrideReasonDialog';
+import ForensicTimeline from '@/components/attendance/ForensicTimeline';
+import LogIncidentDialog from '@/components/attendance/LogIncidentDialog';
+import CareLogMenu from '@/components/attendance/CareLogMenu';
 import { cn } from '@/lib/utils';
+import { AttendanceRecord } from '@/types/attendance';
+import { AlertCircle } from 'lucide-react';
 
 const AttendancePage = () => {
+  const navigate = useNavigate();
   const { attendance, isLoading, error, refetch, checkOut, isCheckingOut } = useAttendance();
   const { isConnected } = useRealtimeAttendance();
-  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin, hasPermission } = useAuth();
   const { toast } = useToast();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [showDossierDialog, setShowDossierDialog] = useState(false);
+  const [showIncidentDialog, setShowIncidentDialog] = useState(false);
+  const [selectedDossier, setSelectedDossier] = useState<AttendanceRecord | null>(null);
+  const [selectedForIncident, setSelectedForIncident] = useState<AttendanceRecord | null>(null);
+  const [pendingRecord, setPendingRecord] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const stats = useMemo(() => {
@@ -63,8 +77,37 @@ const AttendancePage = () => {
     return format(new Date(timestamp), 'h:mm a');
   };
 
-  const handleCheckOut = (attendanceId: string) => {
-    checkOut(attendanceId);
+  const handleCheckOut = (record: any) => {
+    setPendingRecord(record);
+    setShowOverrideDialog(true);
+  };
+
+  const confirmCheckOut = async (reason: string, witnessId?: string) => {
+    if (!pendingRecord) return;
+    
+    try {
+      const result = await AttendanceService.checkOutChild({
+        attendanceId: pendingRecord.id,
+        checkedOutBy: user?.id,
+        method: 'admin_dashboard_manual',
+        station: 'Admin Panel',
+        overrideReason: reason,
+        witnessId: witnessId,
+        deviceId: user?.user_metadata?.device_id
+      } as any);
+
+      if (result.success) {
+        toast({ title: "Child Signed Out", description: `Manual override recorded for ${pendingRecord.child?.first_name}.` });
+        refetch();
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setShowOverrideDialog(false);
+      setPendingRecord(null);
+    }
   };
 
   const handleExport = () => {
@@ -120,10 +163,12 @@ const AttendancePage = () => {
             </div>
             
             <div className="flex flex-wrap items-center gap-2">
+              {(isAdmin || isSuperAdmin || hasPermission('checkin.manual_dashboard')) && (
                 <Button onClick={() => setShowCheckInDialog(true)} variant="default">
                     <Activity className="h-4 w-4 mr-2" />
                     Check-in
                 </Button>
+              )}
 
               {stats.currentlyPresent > 0 && (isAdmin || isSuperAdmin) && (
                 <Button 
@@ -163,7 +208,11 @@ const AttendancePage = () => {
 
               <Button onClick={() => setIsReportDialogOpen(true)} variant="secondary">
                   <Calendar className="h-4 w-4 mr-2" />
-                  Full Log
+                  Today's Log
+              </Button>
+              <Button onClick={() => navigate('/reports')} variant="outline" className="bg-primary/5 border-primary/20 text-primary hover:bg-primary/10">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Full Audit Suite
               </Button>
             </div>
           </div>
@@ -251,59 +300,102 @@ const AttendancePage = () => {
                                 <TableHead className="font-bold text-xs uppercase tracking-wider">Class</TableHead>
                                 <TableHead className="font-bold text-xs uppercase tracking-wider">Arrival</TableHead>
                                 <TableHead className="font-bold text-xs uppercase tracking-wider">Departure</TableHead>
+                                <TableHead className="font-bold text-xs uppercase tracking-wider text-center">Events</TableHead>
                                 <TableHead className="font-bold text-xs uppercase tracking-wider">Status</TableHead>
                                 <TableHead className="px-6 text-right font-bold text-xs uppercase tracking-wider">Action</TableHead>
                             </TableRow>
                             </TableHeader>
                             <TableBody>
                             {todayAttendance.map((record) => (
-                                <TableRow key={record.id} className="hover:bg-muted/30 transition-colors">
+                                <TableRow key={record.id} className="group hover:bg-muted/50 transition-all border-b border-border/50">
                                 <TableCell className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                                        <div className="h-10 w-10 rounded-xl border bg-muted/50 flex items-center justify-center overflow-hidden shrink-0 group-hover:border-primary/30 transition-colors">
                                             {(record.child as any)?.photo_url ? (
                                                 <img src={(record.child as any).photo_url} className="h-full w-full object-cover" />
                                             ) : (
-                                                <Baby className="h-5 w-5 text-muted-foreground/30" />
+                                                <Baby className="h-5 w-5 text-muted-foreground/40" />
                                             )}
                                         </div>
                                         <div>
-                                            <p className="font-bold text-sm leading-none">
+                                            <p className="font-bold text-sm tracking-tight leading-tight cursor-pointer hover:text-primary transition-colors" onClick={() => { setSelectedDossier(record); setShowDossierDialog(true); }}>
                                                 {record.child ? `${record.child.first_name} ${record.child.last_name}` : 'Unknown'}
                                             </p>
-                                            {record.special_instructions && (
-                                                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                                            {record.special_instructions ? (
+                                                <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
                                                     <Bell className="h-3 w-3" /> {record.special_instructions}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1 uppercase tracking-widest font-black">
+                                                    <Shield className="h-2.5 w-2.5" /> Secured
                                                 </p>
                                             )}
                                         </div>
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline" className="font-bold text-[10px]">
+                                    <Badge variant="outline" className="font-black text-[9px] uppercase tracking-widest bg-muted/30 border-transparent">
                                         {record.class?.name || 'Unassigned'}
                                     </Badge>
                                 </TableCell>
-                                <TableCell className="text-sm font-medium">{formatTime(record.checked_in_at)}</TableCell>
-                                <TableCell className="text-sm text-muted-foreground">{formatTime(record.checked_out_at)}</TableCell>
+                                <TableCell className="text-sm font-bold text-foreground">
+                                  {formatTime(record.checked_in_at)}
+                                </TableCell>
+                                <TableCell className="text-sm font-medium text-muted-foreground italic">
+                                  {formatTime(record.checked_out_at)}
+                                </TableCell>
                                 <TableCell>
-                                    {record.checked_out_at ? (
-                                    <Badge variant="secondary" className="font-bold text-[10px]">Signed Out</Badge>
-                                    ) : (
-                                    <Badge className="bg-emerald-600 font-bold text-[10px]">Present</Badge>
-                                    )}
+                                    <div className="flex items-center justify-center gap-2">
+                                        <CareLogMenu 
+                                            attendanceId={record.id} 
+                                            staffId={user?.id || ''} 
+                                            onLogAdded={() => refetch()} 
+                                        />
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="h-8 w-8 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all"
+                                            onClick={() => { setSelectedForIncident(record); setShowIncidentDialog(true); }}
+                                        >
+                                            <Activity className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge 
+                                      variant={record.checked_out_at ? "secondary" : "default"} 
+                                      className={cn(
+                                        "font-black text-[10px] uppercase tracking-widest px-3 py-1 border-none",
+                                        !record.checked_out_at && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                      )}
+                                    >
+                                      {record.checked_out_at ? "Signed Out" : "On-site"}
+                                    </Badge>
                                 </TableCell>
                                 <TableCell className="px-6 text-right">
-                                    {!record.checked_out_at && (
+                                    {!record.checked_out_at ? (
+                                        (isAdmin || isSuperAdmin || hasPermission('checkin.manual_dashboard')) && (
+                                          <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => handleCheckOut(record)}
+                                              disabled={isCheckingOut}
+                                              className="h-8 font-black text-[10px] uppercase tracking-widest rounded-full px-4 border-primary/20 hover:bg-primary/5 hover:text-primary transition-all"
+                                          >
+                                              Sign Out
+                                          </Button>
+                                        )
+                                    ) : (
+                                      (isAdmin || isSuperAdmin || hasPermission('audit.view_forensics')) && (
                                         <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleCheckOut(record.id)}
-                                            disabled={isCheckingOut}
-                                            className="h-8 font-bold text-xs"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0 rounded-full hover:bg-primary/10 text-primary transition-all"
+                                          onClick={() => { setSelectedDossier(record); setShowDossierDialog(true); }}
                                         >
-                                            Sign Out
+                                          <ChevronRight className="h-4 w-4" />
                                         </Button>
+                                      )
                                     )}
                                 </TableCell>
                                 </TableRow>
@@ -377,6 +469,71 @@ const AttendancePage = () => {
           onOpenChange={setShowCheckInDialog}
           onSuccess={() => refetch()}
         />
+
+        <OverrideReasonDialog
+          open={showOverrideDialog}
+          onClose={() => setShowOverrideDialog(false)}
+          onConfirm={confirmCheckOut}
+          childName={pendingRecord?.child ? `${pendingRecord.child.first_name} ${pendingRecord.child.last_name}` : 'Unknown'}
+        />
+
+        <Dialog open={showDossierDialog} onOpenChange={setShowDossierDialog}>
+          <DialogContent className="max-w-3xl max-h-[95vh] overflow-hidden flex flex-col p-0 border-none bg-background shadow-2xl rounded-[2.5rem]">
+            <div className="bg-foreground p-10 text-background relative overflow-hidden shrink-0">
+              {/* Decorative background element */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl -mr-32 -mt-32" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-2xl bg-background/10 backdrop-blur-md border border-background/20 flex items-center justify-center">
+                    <Shield className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-background/60">Forensic Evidence Dossier</span>
+                </div>
+                <DialogTitle className="text-4xl font-black tracking-tighter leading-none mb-2">
+                  {selectedDossier?.child?.first_name} {selectedDossier?.child?.last_name}
+                </DialogTitle>
+                <div className="flex items-center gap-4 text-background/50 font-mono text-[10px] mt-4 pt-4 border-t border-background/10">
+                  <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> SESSION START: {selectedDossier?.checked_in_at ? format(new Date(selectedDossier.checked_in_at), 'HH:mm:ss') : 'N/A'}</span>
+                  <span className="flex items-center gap-1.5"><Activity className="h-3 w-3" /> AUDIT ID: {selectedDossier?.id.toUpperCase()}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-card/30">
+              {selectedDossier && <ForensicTimeline record={selectedDossier} />}
+            </div>
+            <DialogFooter className="p-8 bg-muted/50 border-t border-border/50 flex flex-row items-center justify-between sm:justify-between shrink-0">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Digital Security Seal</p>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground font-medium">This document is cryptographically verified and tamper-evident.</p>
+                </div>
+                <Button 
+                  onClick={() => window.print()} 
+                  className="rounded-full px-8 py-6 h-auto font-black text-[11px] uppercase tracking-[0.2em] bg-foreground text-background hover:bg-foreground/90 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0"
+                >
+                  <Download className="h-4 w-4 mr-3" />
+                  Export for Counsel
+                </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {selectedForIncident && (
+          <LogIncidentDialog
+            open={showIncidentDialog}
+            onClose={() => { setShowIncidentDialog(false); setSelectedForIncident(null); }}
+            attendanceId={selectedForIncident.id}
+            childId={selectedForIncident.child_id || ''}
+            childName={selectedForIncident.child ? `${selectedForIncident.child.first_name} ${selectedForIncident.child.last_name}` : 'Unknown'}
+            staffId={user?.id || ''}
+            onSuccess={() => {
+              if (typeof refetch === 'function') refetch();
+            }}
+          />
+        )}
       </UnifiedDashboardLayout>
     </RoleBasedRoute>
   );

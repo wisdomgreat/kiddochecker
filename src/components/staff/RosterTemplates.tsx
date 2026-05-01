@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Plus, Trash2, Clock, Users, Briefcase, Layout, Save, Loader2, Sparkles, Building2 } from 'lucide-react';
+import { Plus, Trash2, Clock, Users, Briefcase, Layout, Save, Loader2, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useClasses } from '@/hooks/useClasses';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -317,7 +317,7 @@ const RosterTemplates = () => {
              
              {requirements.length === 0 && (
                <div className="py-32 text-center bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                  <Sparkles className="h-12 w-12 text-slate-200 mx-auto mb-4" />
+                  <Layout className="h-12 w-12 text-slate-200 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-foreground">Empty Blueprint</h3>
                   <p className="text-slate-400 text-sm max-w-xs mx-auto">This template has no logic yet. Define your shift requirements on the left to activate auto-scheduling.</p>
                </div>

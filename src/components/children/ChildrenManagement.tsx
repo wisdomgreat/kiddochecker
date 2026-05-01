@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Plus, Users, Baby } from "lucide-react";
 import AddEditChildDialog from "./AddEditChildDialog";
 import ChildCard from "./ChildCard";
@@ -142,4 +142,5 @@ const ChildrenManagement = () => {
 };
 
 export default ChildrenManagement;
+
 

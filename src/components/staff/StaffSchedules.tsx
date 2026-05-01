@@ -23,7 +23,7 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
-  Zap,
+  Cpu,
   RotateCcw
 } from 'lucide-react';
 import { 
@@ -247,7 +247,7 @@ const StaffSchedules = () => {
             onClick={() => setShowAutoSchedule(true)}
             className="rounded-xl border-slate-200 h-11 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-50 hover:text-indigo-600 transition-all border-dashed"
           >
-            <Zap className="h-4 w-4 mr-2 text-amber-500" />
+            <Cpu className="h-4 w-4 mr-2 text-indigo-500" />
             Auto-Plan
           </Button>
 
@@ -575,8 +575,8 @@ const StaffSchedules = () => {
         <DialogContent className="sm:max-w-md rounded-[3rem] p-10 border-none shadow-3xl bg-card/95 backdrop-blur-xl">
           <DialogHeader className="mb-8">
             <DialogTitle className="text-3xl font-bold tracking-tighter text-foreground flex items-center gap-3">
-               <Zap className="h-8 w-8 text-amber-500" />
-               Roster Engine AI
+               <Cpu className="h-8 w-8 text-indigo-600" />
+               Roster Optimization Engine
             </DialogTitle>
             <DialogDescription className="font-semibold text-slate-500 text-sm mt-3">
               Automated roster optimization based on current compliance tiers and historical occupancy patterns.
@@ -587,7 +587,7 @@ const StaffSchedules = () => {
               <div className="absolute -right-10 -bottom-10 h-32 w-32 bg-indigo-500/5 rounded-full blur-2xl font-bold flex items-center justify-center text-indigo-500/10 text-9xl">?</div>
               <div className="flex gap-4">
                 <div className="h-10 w-10 bg-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-indigo-200">
-                  <Zap className="h-5 w-5 text-white" />
+                  <Cpu className="h-5 w-5 text-white" />
                 </div>
                 <div className="text-xs font-bold text-indigo-900 leading-relaxed pr-6">
                   Optimization Engine detected templates matching your {format(selectedDate, 'EEEE')} requirements. 

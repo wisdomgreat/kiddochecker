@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Edit2, QrCode, User, Calendar } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import AddEditChildDialog from "@/components/children/AddEditChildDialog";
 import QRCodeModal from "./QRCodeModal";
 
@@ -268,4 +268,5 @@ const ParentChildManagement = () => {
 };
 
 export default ParentChildManagement;
+
 

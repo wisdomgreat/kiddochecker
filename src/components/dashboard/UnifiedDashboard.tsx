@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Loader2, ShieldAlert, X, ArrowRight } from "lucide-react";
 import { Navigate, Link } from "react-router-dom";
 import AdminDashboardNew from "./AdminDashboardNew";
@@ -75,7 +75,7 @@ const UnifiedDashboard = () => {
     <div>
       {/* Non-blocking MFA enrollment banner */}
       {showMfaBanner && (
-        <div className="border-b border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3">
+        <div className="border-b border-warning/20 bg-warning/5 px-4 py-3">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -93,7 +93,7 @@ const UnifiedDashboard = () => {
                 variant="outline"
                 size="sm"
                 asChild
-                className="border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-800 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-900"
+                className="border-warning/30 bg-warning/10 hover:bg-warning/20 text-warning"
               >
                 <Link to="/settings">
                   Set Up Now <ArrowRight className="ml-1 h-3 w-3" />
@@ -101,7 +101,7 @@ const UnifiedDashboard = () => {
               </Button>
               <button
                 onClick={() => setMfaBannerDismissed(true)}
-                className="p-1 rounded hover:bg-amber-200 dark:hover:bg-amber-800 text-amber-600 dark:text-amber-400 transition-colors"
+                className="p-1 rounded hover:bg-warning/20 text-warning transition-colors"
                 aria-label="Dismiss MFA reminder"
               >
                 <X className="h-4 w-4" />
@@ -116,3 +116,4 @@ const UnifiedDashboard = () => {
 };
 
 export default UnifiedDashboard;
+

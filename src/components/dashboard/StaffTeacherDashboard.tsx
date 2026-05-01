@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "@/lib/i18n";
 import {
@@ -235,4 +235,5 @@ const StaffTeacherDashboard = () => {
 };
 
 export default StaffTeacherDashboard;
+
 

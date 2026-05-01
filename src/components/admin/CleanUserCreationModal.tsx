@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -149,7 +149,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
             </Select>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <DialogFooter className="pt-4">
             <Button 
               variant="outline" 
               onClick={() => setOpen(false)}
@@ -174,7 +174,7 @@ export const CleanUserCreationModal: React.FC<CleanUserCreationModalProps> = ({ 
                 </>
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </div>
       </DialogContent>
     </Dialog>

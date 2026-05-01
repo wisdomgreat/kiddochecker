@@ -1,22 +1,46 @@
-import 'dotenv/config';
+
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
-const supabase = createClient(supabaseUrl, anonKey);
+dotenv.config();
 
-async function verify() {
-  const emails = ['wisdom_borntobegreat@yahoo.com', 'wisdom.borntobegreat@yahoo.com', 'wisejobana.ja@gmail.com', 'wisejobsnaija@gmail.com'];
-  
-  for (const email of emails) {
-    console.log(`Checking ${email}...`);
-    const { data, error } = await supabase.rpc('debug_user_info_v2', { p_email: email });
-    if (error) {
-      console.error(`Error checking ${email}:`, error);
-    } else {
-      console.log(`Result for ${email}:`, data);
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL!,
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
+);
+
+async function checkWisdom() {
+  const email = 'wisdom_borobobegreat@gmail.com';
+  console.log(`Checking user: ${email}`);
+
+  // Since we can't query by email easily in user_roles, we'll try to find the profile first
+  // Profiles might have email now based on recent migrations
+  const { data: profiles, error: pError } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, email')
+    .or(`email.eq.${email},first_name.ilike.%wisdom%`);
+
+  if (pError) {
+    console.error('Error fetching profile:', pError);
+    return;
+  }
+
+  console.log('Found profiles:', profiles);
+
+  if (profiles && profiles.length > 0) {
+    for (const p of profiles) {
+      const { data: roles, error: rError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', p.id);
+      
+      if (rError) {
+        console.error(`Error fetching roles for ${p.id}:`, rError);
+      } else {
+        console.log(`Roles for ${p.id}:`, roles);
+      }
     }
   }
 }
 
-verify();
+checkWisdom();

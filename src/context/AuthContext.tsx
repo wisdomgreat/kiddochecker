@@ -36,6 +36,14 @@ export interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ─── Utility: Timeout Promise ──────────────────────────────────────────────
+const withTimeout = <T,>(promise: Promise<T>, ms: number, timeoutError: string): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(timeoutError)), ms))
+  ]);
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -51,14 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const initialLoadDone = useRef(false);
   const currentUserIdRef = useRef<string | null>(null);
   const { toast } = useToast();
-
-  // ─── Utility: Timeout Promise ──────────────────────────────────────────────
-  const withTimeout = <T>(promise: Promise<T>, ms: number, timeoutError: string): Promise<T> => {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) => setTimeout(() => reject(new Error(timeoutError)), ms))
-    ]);
-  };
 
   // ─── Restore cached role on mount ───────────────────────────────────────────
   useEffect(() => {
@@ -87,32 +87,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ─── MFA Status ──────────────────────────────────────────────────────────────
   const refreshMfaStatus = useCallback(async () => {
     try {
-      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      console.log('[Auth] Refreshing MFA status...');
+      
+      const levelPromise = supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const { data, error } = await withTimeout(levelPromise, 4000, 'MFA level fetch timed out');
+      
       if (!error && data) {
         setMfaLevel(data.currentLevel as any || 'aal1');
         setIsMfaPending(data.nextLevel === 'aal2' && data.currentLevel !== 'aal2');
       }
 
-      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+      const factorsPromise = supabase.auth.mfa.listFactors();
+      const { data: factors, error: factorsError } = await withTimeout(factorsPromise, 4000, 'MFA factors fetch timed out');
+      
       if (!factorsError && factors) {
         setMfaFactors(factors.all || []);
-        setIsMfaEnrolled(factors.all.length > 0);
+        setIsMfaEnrolled((factors.all || []).some(f => f.status === 'verified'));
       }
+      console.log('[Auth] MFA status updated:', data?.currentLevel);
     } catch (e) {
-      console.warn("MFA level fetching failed", e);
+      console.warn("[Auth] MFA status refresh failed or timed out", e);
     }
-  }, []);
+  }, []); // Removed withTimeout as it's now external and stable
 
   // ─── Role Fetching with Hard Timeout ─────────────────────────────────────────
-  const fetchRoleForUser = useCallback(async (userId: string) => {
+  const fetchRoleForUser = useCallback(async (userId: string, metadataRole?: string) => {
     console.log('[Auth] Fetching role for:', userId);
     currentUserIdRef.current = userId;
 
     try {
+      // 1. Fetch Role & Custom Role Permissions
+      console.log('[Auth] Querying user_roles for:', userId);
       const rolePromise = supabase
         .from('user_roles')
         .select(`
-          *,
+          role,
+          is_super_admin,
+          verification_status,
           custom_roles (
             role_permissions (
               permissions (name)
@@ -122,47 +133,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', userId)
         .maybeSingle();
 
-      const { data, error } = await withTimeout(rolePromise, 5000, 'Role fetch timed out');
+      // 2. Fetch Security Group Permissions
+      const groupsPromise = supabase
+        .from('user_security_groups')
+        .select(`
+          security_groups (
+            group_permissions (
+              permissions (name)
+            )
+          )
+        `)
+        .eq('user_id', userId);
+
+      const [roleRes, groupsRes] = await Promise.all([
+        withTimeout(rolePromise, 5000, 'Role fetch timed out'),
+        withTimeout(groupsPromise, 5000, 'Security groups fetch timed out')
+      ]);
 
       if (currentUserIdRef.current !== userId) return;
 
-      if (error) {
-        console.error("[Auth] Error fetching user role:", error);
+      if (roleRes.error) {
+        console.error("[Auth] Role query error:", roleRes.error);
+        // Don't crash the whole app if the query fails, just set a safe default
+        setUserRole('parent');
         return;
       }
 
-      if (!data) {
-        setUserRole(null);
+      const roleData = roleRes.data as any;
+      if (!roleData) {
+        console.warn("[Auth] No role data found in DB, defaulting to parent");
+        setUserRole('parent');
         return;
       }
 
-      const roleData = data as any;
-      let finalRole = roleData.role || 'parent';
-      if (roleData.is_super_admin === true || roleData.role === 'super_admin') {
+      console.log('[Auth] Raw role data:', roleData);
+
+      let finalRole = roleData.role || metadataRole || 'parent';
+      if (roleData.is_super_admin === true || roleData.role === 'super_admin' || metadataRole === 'super_admin') {
         finalRole = 'super_admin';
       }
 
       const finalStatus = roleData.verification_status || 'unverified';
-      setUserRole(finalRole as AppRole);
+      
+      // FALLBACK: If DB says parent but we suspect otherwise, or if DB is empty
+      let confirmedRole = finalRole;
+      if (confirmedRole === 'parent' && currentUserIdRef.current) {
+        // We might want to check metadata here if we had access to the user object, 
+        // but fetchRoleForUser is primarily DB-driven.
+      }
+
+      setUserRole(confirmedRole as AppRole);
       setVerificationStatus(finalStatus);
 
-      const perms: string[] = [];
-      if (roleData.custom_roles?.role_permissions) {
-        roleData.custom_roles.role_permissions.forEach((rp: any) => {
-          if (rp.permissions?.name) perms.push(rp.permissions.name);
+      const perms = new Set<string>();
+      
+      // 1. Role-based permissions
+      // Handle the case where custom_roles might be an array or single object
+      const customRoles = Array.isArray(roleData.custom_roles) ? roleData.custom_roles[0] : roleData.custom_roles;
+      const rolePerms = customRoles?.role_permissions;
+      
+      if (Array.isArray(rolePerms)) {
+        rolePerms.forEach((rp: any) => {
+          if (rp.permissions?.name) perms.add(rp.permissions.name);
         });
       }
-      setUserPermissions(perms);
+
+      // 2. Security Group permissions
+      const groupAssignments = groupsRes.data;
+      if (Array.isArray(groupAssignments)) {
+        groupAssignments.forEach((assignment: any) => {
+          // Handle potential array from join
+          const sg = Array.isArray(assignment.security_groups) ? assignment.security_groups[0] : assignment.security_groups;
+          const groupPerms = sg?.group_permissions;
+          if (Array.isArray(groupPerms)) {
+            groupPerms.forEach((gp: any) => {
+              if (gp.permissions?.name) perms.add(gp.permissions.name);
+            });
+          }
+        });
+      }
+
+      const finalPerms = Array.from(perms);
+      setUserPermissions(finalPerms);
 
       localStorage.setItem(`auth_role_${userId}`, JSON.stringify({
         role: finalRole,
-        permissions: perms,
+        permissions: finalPerms,
         status: finalStatus,
         timestamp: Date.now()
       }));
 
     } catch (err: any) {
       console.error("[Auth] Exception in fetchRoleForUser:", err);
+      // Ensure we don't leave the app in a broken state
+      setUserRole((metadataRole as AppRole) || 'parent');
     }
   }, []);
 
@@ -172,9 +236,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       return;
     }
-    await fetchRoleForUser(user.id);
+    await fetchRoleForUser(user.id, user.user_metadata?.role);
     setLoading(false);
-  }, [user?.id, fetchRoleForUser]);
+  }, [user?.id, user?.user_metadata?.role, fetchRoleForUser]);
 
   // ─── Sign Out ─────────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
@@ -216,107 +280,133 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ─── Initialization ──────────────────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
+    let authSubscription: any = null;
 
     // Failsafe: never stay loading for more than 7 seconds
     const safetyTimeout = setTimeout(() => {
       if (mounted && loading) {
-        console.warn('[Auth] Safety threshold reached. Forcing app initialization.');
+        console.warn('[Auth] SAFETY THRESHOLD: Forcing initialization after 7s hang');
         setLoading(false);
       }
     }, 7000);
 
-    const processSession = async (newSession: Session | null) => {
+    const processSession = async (newSession: Session | null, source: string) => {
       if (!mounted) return;
+      console.log(`[Auth] Processing session from ${source}:`, newSession?.user?.id || 'NO_USER');
       
       if (!newSession?.user) {
-        console.log('[Auth] No session found');
         setSession(null);
         setUser(null);
         setUserRole(null);
         setVerificationStatus(null);
         setUserPermissions([]);
-        setLoading(false);
+        if (mounted) setLoading(false);
         return;
       }
 
-      console.log('[Auth] Session established for:', newSession.user.id);
+      const userId = newSession.user.id;
       
       // Update state
       setSession(newSession);
       setUser(newSession.user);
       
       // PERSIST: Set session backup for instant role restoration on reload
-      localStorage.setItem('session_backup', JSON.stringify({ 
-        userId: newSession.user.id,
-        email: newSession.user.email,
-        timestamp: Date.now() 
-      }));
+      try {
+        localStorage.setItem('session_backup', JSON.stringify({ 
+          userId,
+          email: newSession.user.email,
+          timestamp: Date.now() 
+        }));
 
-      // If we already have a cached role for THIS user, we can stop loading early
-      const cachedRole = localStorage.getItem(`auth_role_${newSession.user.id}`);
-      if (cachedRole) {
-        try {
-          const { role, permissions, status } = JSON.parse(cachedRole);
-          setUserRole(role);
+        // 1. Check for metadata role (fastest, direct from JWT/User object)
+        const metadataRole = newSession.user.user_metadata?.role;
+        if (metadataRole && !cachedRoleStr) {
+          console.log('[Auth] Using metadata role as initial source:', metadataRole);
+          setUserRole(metadataRole as AppRole);
+          setLoading(false); // Stop UI spinner early if we have a role from metadata
+        }
+
+        // 2. Check for cached role
+        if (cachedRoleStr) {
+          const { role, permissions, status } = JSON.parse(cachedRoleStr);
+          // If metadata exists and contradicts cache, metadata wins for the 'role' part
+          const effectiveInitialRole = metadataRole || role;
+          setUserRole(effectiveInitialRole);
           setUserPermissions(permissions || []);
           setVerificationStatus(status);
-          setLoading(false); // Stop loading early!
-        } catch (e) { /* ignore */ }
+          console.log('[Auth] Pre-loaded role (metadata/cache):', effectiveInitialRole);
+          setLoading(false); // Stop UI spinner early
+        }
+      } catch (e) {
+        console.warn('[Auth] Storage error during session processing:', e);
       }
 
-      // Fetch fresh data in the background
-      await Promise.allSettled([
-        fetchRoleForUser(newSession.user.id),
-        refreshMfaStatus(),
-      ]);
+      // Always fetch fresh data in the background
+      try {
+        await Promise.allSettled([
+          fetchRoleForUser(userId, metadataRole),
+          refreshMfaStatus(),
+        ]);
+      } catch (e) {
+        console.error('[Auth] Background sync failed:', e);
+      }
 
-      if (mounted) setLoading(false);
+      if (mounted) {
+        setLoading(false);
+        initialLoadDone.current = true;
+      }
     };
 
     const initializeAuth = async () => {
       try {
-        console.log('[Auth] Initializing...');
-        // We use both getSession and onAuthStateChange for maximum reliability
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log('[Auth] Initializing system...');
         
+        // 1. Check for existing session
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[Auth] getSession error:', error);
+          if (mounted) setLoading(false);
+          return;
+        }
+
         if (!mounted) return;
         
         if (initialSession) {
-          console.log('[Auth] Initial session found');
-          await processSession(initialSession);
+          console.log('[Auth] Initial session detected');
+          await processSession(initialSession, 'INITIAL_LOAD');
         } else {
-          console.log('[Auth] No initial session found');
-          setLoading(false);
+          console.log('[Auth] No initial session detected');
+          if (mounted) setLoading(false);
         }
-        initialLoadDone.current = true;
       } catch (error) {
-        console.error("[Auth] Initialization failed:", error);
+        console.error("[Auth] Fatal initialization error:", error);
         if (mounted) setLoading(false);
       }
     };
 
+    // 2. Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
-      
-      console.log('[Auth] State change event:', event);
+      console.log('[Auth] EVENT:', event);
       
       if (event === 'SIGNED_OUT') {
-        await processSession(null);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED' || event === 'MFA_CHALLENGE_VERIFIED') {
-        await processSession(newSession);
+        await processSession(null, 'EVENT_SIGNED_OUT');
+      } else if (['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED', 'MFA_CHALLENGE_VERIFIED'].includes(event)) {
+        await processSession(newSession, `EVENT_${event}`);
       }
-      
-      initialLoadDone.current = true;
     });
+    
+    authSubscription = subscription;
 
     initializeAuth();
 
     return () => {
       mounted = false;
       clearTimeout(safetyTimeout);
-      subscription.unsubscribe();
+      if (authSubscription) authSubscription.unsubscribe();
     };
-  }, []); 
+  }, []); // Stable on mount - background syncs are handled within the effect and processSession 
 
   // ─── QA Simulation ───────────────────────────────────────────────────────────
   const [qaRole, setQaRole] = useState<AppRole | null>(null);
@@ -331,7 +421,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ─── Derived State ───────────────────────────────────────────────────────────
   const effectiveRole = qaRole || userRole;
-  const effectiveUser = qaRole ? ({ id: 'qa-user', email: 'qa@test.com' } as any) : user;
+  const effectiveUser = qaRole ? ({ ...user, id: user?.id || '00000000-0000-0000-0000-000000000000' } as any) : user;
 
   const isSuperAdmin = effectiveRole === 'super_admin';
   const isAdmin = effectiveRole === 'admin' || isSuperAdmin;

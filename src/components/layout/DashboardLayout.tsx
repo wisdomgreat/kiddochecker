@@ -1,6 +1,6 @@
 
 import React from "react";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { ModernSidebar } from "@/components/layout/ModernSidebar";
 import { TopNavigation } from "@/components/layout/TopNavigation";
 
@@ -39,4 +39,5 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 };
 
 export default DashboardLayout;
+
 

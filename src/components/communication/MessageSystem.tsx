@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useMessages, type Message } from "@/hooks/useMessages";
 import {
   MessageSquare, Send, Mail, Plus, Search, Clock, Check, 
@@ -383,4 +383,5 @@ const MessageSystem = () => {
 };
 
 export default MessageSystem;
+
 
