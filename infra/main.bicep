@@ -1,5 +1,5 @@
 // Master Bicep file for KiddoChecker Azure Micro-Architecture
-// Multi-Region Strategy: Core in Canada Central, Frontend in East US 2
+// Region Strategy: Unified in Central US for high capacity and full service support.
 
 targetScope = 'resourceGroup'
 
@@ -34,7 +34,7 @@ var tags = {
   ManagedBy: 'Antigravity-AI'
 }
 
-@description('1. Azure Container Registry - Stays in Canada.')
+@description('1. Azure Container Registry - Stores microservice Docker images.')
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
@@ -47,7 +47,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   }
 }
 
-@description('2. Azure Key Vault - Stays in Canada.')
+@description('2. Azure Key Vault - Securely manages secrets and API keys.')
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -62,7 +62,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-@description('3. PostgreSQL Flexible Server - Stays in Canada.')
+@description('3. PostgreSQL Flexible Server - Primary multi-tenant database.')
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' = {
   name: dbServerName
   location: location
@@ -84,7 +84,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
   }
 }
 
-@description('Database Firewall Rule')
+@description('Database Firewall Rule - Allows Azure services to connect.')
 resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-06-01-preview' = {
   parent: postgresServer
   name: 'AllowAzureServices'
@@ -94,7 +94,7 @@ resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRul
   }
 }
 
-@description('4. Container Apps Environment - Stays in Canada.')
+@description('4. Container Apps Environment - The hosting environment for all microservices.')
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   name: caEnvName
   location: location
@@ -110,7 +110,7 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   }
 }
 
-@description('5. Log Analytics Workspace - Stays in Canada.')
+@description('5. Log Analytics Workspace - Centralized monitoring and performance metrics.')
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logWorkspaceName
   location: location
@@ -123,7 +123,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   }
 }
 
-@description('6. Azure Static Web App - Hosted in Central US.')
+@description('6. Azure Static Web App - Hosts the React frontend with global CDN distribution.')
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
   location: location
