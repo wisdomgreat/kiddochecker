@@ -3,11 +3,8 @@
 
 targetScope = 'resourceGroup'
 
-@description('The primary region for core backend resources.')
-param location string = 'canadacentral'
-
-@description('The region for the Static Web App (limited regional availability).')
-param swaLocation string = 'eastus2'
+@description('The primary region for all resources.')
+param location string = 'centralus'
 
 @description('The short name of the application.')
 param appName string = 'kcheck'
@@ -126,10 +123,10 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   }
 }
 
-@description('6. Azure Static Web App - Hosted in East US 2 (SWA requirement).')
+@description('6. Azure Static Web App - Hosted in Central US.')
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
-  location: swaLocation
+  location: location
   tags: tags
   sku: {
     name: 'Standard'
