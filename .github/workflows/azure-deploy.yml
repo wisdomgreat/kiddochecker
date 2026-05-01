@@ -25,14 +25,14 @@ jobs:
 
       - name: Create Resource Group
         run: |
-          az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location eastus2
+          az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location westus2
 
       - name: Deploy Infrastructure
         uses: azure/arm-deploy@v2
         with:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
-          parameters: appName=kiddocheck location=eastus2 administratorLoginPassword=${{ secrets.DB_PASSWORD }}
+          parameters: appName=kcheck location=westus2 administratorLoginPassword=${{ secrets.DB_PASSWORD }}
 
   # Job 2: Build and Deploy Frontend to Azure Static Web App
   deploy-frontend:
