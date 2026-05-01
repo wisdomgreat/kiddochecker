@@ -1,0 +1,71 @@
+name: 🐘 Database Migration
+
+on:
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Open Firewall & Run Migration
+        run: |
+          # 1. Enable Public Access temporarily
+          az postgres flexible-server update \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name psql-kiddo-prod-yotzp \
+            --public-access Enabled
+
+          # 2. Add GitHub Runner IP to firewall
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          az postgres flexible-server firewall-rule create \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name psql-kiddo-prod-yotzp \
+            --rule-name "GitHubRunner" \
+            --start-ip-address $RUNNER_IP \
+            --end-ip-address $RUNNER_IP
+
+          # 3. Run the SQL Migration
+          # Note: We use the node-postgres (pg) driver to run the SQL file
+          npm install pg
+          node -e "
+          const { Client } = require('pg');
+          const fs = require('fs');
+          const client = new Client({
+            host: 'psql-kiddo-prod-yotzp.postgres.database.azure.com',
+            user: 'kiddomin',
+            password: '${{ secrets.DB_PASSWORD }}',
+            database: 'postgres',
+            ssl: true
+          });
+          async function run() {
+            try {
+              await client.connect();
+              const sql = fs.readFileSync('supabase/migrations/20261020000000_multi_tenancy_foundation.sql', 'utf8');
+              await client.query(sql);
+              console.log('Migration Successful!');
+            } catch (err) {
+              console.error('Migration Failed:', err);
+              process.exit(1);
+            } finally {
+              await client.end();
+            }
+          }
+          run();
+          "
+
+      - name: Hardening - Disable Public Access
+        if: always()
+        run: |
+          # Close the firewall and disable public access again
+          az postgres flexible-server update \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name psql-kiddo-prod-yotzp \
+            --public-access Disabled
