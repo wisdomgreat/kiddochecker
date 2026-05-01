@@ -20,6 +20,11 @@ const Index = () => {
       return;
     }
 
+    if (userRole === 'kiosk') {
+      navigate('/check-in', { replace: true });
+      return;
+    }
+
     // MFA logic removed - now handled by MFABarrier globally
   }, [user, loading, navigate]);
 
