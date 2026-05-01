@@ -31,7 +31,7 @@ var logWorkspaceName = 'log-${appName}-${suffix}'
 var tags = {
   Project: 'KiddoChecker'
   Environment: env
-  ManagedBy: 'Antigravity-AI'
+  ManagedBy: 'TDWAS Technology'
 }
 
 @description('1. Azure Container Registry - Stores microservice Docker images.')
