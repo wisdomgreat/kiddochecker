@@ -1,15 +1,15 @@
 // Master Bicep file for KiddoChecker Azure Micro-Architecture
-// Naming Convention: [ServiceCode]-[AppName]-[Environment]-[Region]-[Suffix]
+// Naming Convention: [ServiceCode]-[AppName]-[Suffix] (Keeping it short for 24-char limits)
 
 targetScope = 'resourceGroup'
 
 @description('The Azure region for all resources.')
-param location string = 'eastus2'
+param location string = 'westus2'
 
 @description('The short name of the application.')
-param appName string = 'kiddocheck'
+param appName string = 'kcheck'
 
-@description('The deployment environment (e.g., prod, staging, dev).')
+@description('The deployment environment.')
 param env string = 'prod'
 
 @description('Database administrator password.')
@@ -18,24 +18,23 @@ param administratorLoginPassword string
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
-var regionCode = 'eus2'
 
-// Resource Names
-var acrName = 'cr${appName}${env}${regionCode}${suffix}' // ACR cannot have hyphens
-var keyVaultName = 'kv-${appName}-${env}-${regionCode}-${suffix}'
-var dbServerName = 'psql-${appName}-${env}-${regionCode}-${suffix}'
-var caEnvName = 'cae-${appName}-${env}-${regionCode}-${suffix}'
-var swaName = 'stapp-${appName}-${env}-${regionCode}-${suffix}'
-var logWorkspaceName = 'log-${appName}-${env}-${regionCode}-${suffix}'
+// Resource Names (Strictly < 24 chars for Key Vault)
+var acrName = 'cr${appName}${suffix}' 
+var keyVaultName = 'kv${appName}${suffix}' // 2 + 6 + 5 = 13 chars (Safe)
+var dbServerName = 'psql-${appName}-${suffix}'
+var caEnvName = 'cae-${appName}-${suffix}'
+var swaName = 'swa-${appName}-${suffix}'
+var logWorkspaceName = 'log-${appName}-${suffix}'
 
-// Standard Tags for all resources
+// Standard Tags
 var tags = {
   Project: 'KiddoChecker'
   Environment: env
   ManagedBy: 'Antigravity-AI'
 }
 
-@description('1. Azure Container Registry - Stores microservice Docker images.')
+@description('1. Azure Container Registry')
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
@@ -48,7 +47,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   }
 }
 
-@description('2. Azure Key Vault - Securely manages secrets and API keys.')
+@description('2. Azure Key Vault')
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -63,7 +62,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-@description('3. PostgreSQL Flexible Server - Primary multi-tenant database.')
+@description('3. PostgreSQL Flexible Server')
 resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' = {
   name: dbServerName
   location: location
@@ -85,7 +84,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
   }
 }
 
-@description('Database Firewall Rule - Allows Azure services to connect.')
+@description('Database Firewall Rule')
 resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2023-06-01-preview' = {
   parent: postgresServer
   name: 'AllowAzureServices'
@@ -95,7 +94,7 @@ resource postgresFirewall 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRul
   }
 }
 
-@description('4. Container Apps Environment - The hosting environment for all microservices.')
+@description('4. Container Apps Environment')
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   name: caEnvName
   location: location
@@ -111,7 +110,7 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
   }
 }
 
-@description('5. Log Analytics Workspace - Centralized monitoring and performance metrics.')
+@description('5. Log Analytics Workspace')
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logWorkspaceName
   location: location
@@ -124,14 +123,17 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   }
 }
 
-@description('6. Azure Static Web App - Hosts the React frontend with global CDN distribution.')
+@description('6. Azure Static Web App')
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: swaName
-  location: 'eastus2' 
+  location: location // Switched to match other resources
   tags: tags
   sku: {
     name: 'Standard'
     tier: 'Standard'
+  }
+  properties: {
+    // These will be populated by the GitHub Action deployment
   }
 }
 
