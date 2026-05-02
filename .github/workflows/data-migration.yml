@@ -1,0 +1,60 @@
+name: Manual Data Migration (Supabase to Azure)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "MIGRATE" to confirm'
+        required: true
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  migrate:
+    if: github.event.inputs.confirm == 'MIGRATE'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Infrastructure Details
+        id: infra
+        run: |
+          RESOURCE_GROUP="rg-kiddo"
+          VNET_NAME=$(az network vnet list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
+          SUBNET_ID=$(az network vnet subnet show --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --name snet-app --query id -o tsv)
+          DB_HOST=$(az postgres flexible-server list --resource-group $RESOURCE_GROUP --query "[0].fullyQualifiedDomainName" -o tsv)
+          echo "subnet_id=$SUBNET_ID" >> $GITHUB_OUTPUT
+          echo "db_host=$DB_HOST" >> $GITHUB_OUTPUT
+
+      - name: Read SQL Content
+        id: sql
+        run: |
+          SQL_CONTENT=$(cat azure_ready_data.sql)
+          # We need to escape for JSON if we were passing via CLI, but arm-deploy handles it better
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          cat azure_ready_data.sql >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Execute Migration Job
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: rg-kiddo
+          template: ./infra/migration-job.bicep
+          parameters: >
+            location=centralus 
+            subnetId=${{ steps.infra.outputs.subnet_id }} 
+            dbHost=${{ steps.infra.outputs.db_host }} 
+            dbUser=kiddomin 
+            dbPassword=${{ secrets.AZURE_DB_PASSWORD }} 
+            sqlContent="${{ steps.sql.outputs.content }}"
