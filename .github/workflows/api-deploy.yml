@@ -1,0 +1,50 @@
+name: Deploy Data Bridge API
+
+on:
+  push:
+    paths:
+      - 'server/**'
+      - 'infra/main.bicep'
+    branches:
+      - azure-migration
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get ACR Credentials
+        id: acr-info
+        run: |
+          ACR_NAME=$(az acr list --resource-group rg-kiddo --query "[0].name" -o tsv)
+          echo "name=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "login_server=$(az acr show --name $ACR_NAME --query loginServer -o tsv)" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Image
+        run: |
+          az acr login --name ${{ steps.acr-info.outputs.name }}
+          docker build -t ${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }} ./server
+          docker push ${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}
+          docker tag ${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }} ${{ steps.acr-info.outputs.login_server }}/bridge-api:latest
+          docker push ${{ steps.acr-info.outputs.login_server }}/bridge-api:latest
+
+      - name: Deploy Infrastructure & Update App
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: rg-kiddo
+          template: ./infra/main.bicep
+          parameters: administratorLoginPassword=${{ secrets.AZURE_DB_PASSWORD }}

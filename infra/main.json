@@ -1,0 +1,201 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "8657731702610075165"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "centralus",
+      "metadata": {
+        "description": "The primary region for all resources."
+      }
+    },
+    "appName": {
+      "type": "string",
+      "defaultValue": "kcheck",
+      "metadata": {
+        "description": "The short name of the application."
+      }
+    },
+    "env": {
+      "type": "string",
+      "defaultValue": "prod",
+      "metadata": {
+        "description": "The deployment environment."
+      }
+    },
+    "administratorLoginPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Database administrator password."
+      }
+    }
+  },
+  "variables": {
+    "suffix": "[substring(uniqueString(resourceGroup().id), 0, 5)]",
+    "acrName": "[format('cr{0}{1}', parameters('appName'), variables('suffix'))]",
+    "keyVaultName": "[format('kv{0}{1}', parameters('appName'), variables('suffix'))]",
+    "dbServerName": "[format('psql-{0}-{1}', parameters('appName'), variables('suffix'))]",
+    "caEnvName": "[format('cae-{0}-{1}', parameters('appName'), variables('suffix'))]",
+    "swaName": "[format('swa-{0}-{1}', parameters('appName'), variables('suffix'))]",
+    "logWorkspaceName": "[format('log-{0}-{1}', parameters('appName'), variables('suffix'))]",
+    "tags": {
+      "Project": "KiddoChecker",
+      "Environment": "[parameters('env')]",
+      "ManagedBy": "TDWAS Technology"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('acrName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Basic"
+      },
+      "properties": {
+        "adminUserEnabled": true
+      },
+      "metadata": {
+        "description": "1. Azure Container Registry - Stores microservice Docker images."
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('keyVaultName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "tenantId": "[subscription().tenantId]",
+        "enableRbacAuthorization": true
+      },
+      "metadata": {
+        "description": "2. Azure Key Vault - Securely manages secrets and API keys."
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[variables('dbServerName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard_B1ms",
+        "tier": "Burstable"
+      },
+      "properties": {
+        "version": "15",
+        "administratorLogin": "kiddomin",
+        "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+        "storage": {
+          "storageSizeGB": 32
+        },
+        "backup": {
+          "backupRetentionDays": 7
+        }
+      },
+      "metadata": {
+        "description": "3. PostgreSQL Flexible Server - Primary multi-tenant database."
+      }
+    },
+    {
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[format('{0}/{1}', variables('dbServerName'), 'AllowAzureServices')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('dbServerName'))]"
+      ],
+      "metadata": {
+        "description": "Database Firewall Rule - Allows Azure services to connect."
+      }
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('caEnvName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName')), '2022-10-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName')), '2022-10-01').primarySharedKey]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName'))]"
+      ],
+      "metadata": {
+        "description": "4. Container Apps Environment - The hosting environment for all microservices."
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[variables('logWorkspaceName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      },
+      "metadata": {
+        "description": "5. Log Analytics Workspace - Centralized monitoring and performance metrics."
+      }
+    },
+    {
+      "type": "Microsoft.Web/staticSites",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('swaName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "Standard"
+      },
+      "properties": {},
+      "metadata": {
+        "description": "6. Azure Static Web App - Hosts the React frontend with global CDN distribution."
+      }
+    }
+  ],
+  "outputs": {
+    "acrLoginServer": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]"
+    },
+    "swaDefaultHostname": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/staticSites', variables('swaName')), '2023-01-01').defaultHostname]"
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2023-07-01').vaultUri]"
+    },
+    "dbServerName": {
+      "type": "string",
+      "value": "[variables('dbServerName')]"
+    }
+  }
+}

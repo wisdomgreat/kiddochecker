@@ -13,6 +13,11 @@ import ErrorBoundary from "@/components/error/ErrorBoundary";
 import AuthErrorBoundary from "@/components/auth/AuthErrorBoundary";
 import { Loader2 } from "lucide-react";
 import MFABarrier from "@/components/auth/MFABarrier";
+import { PublicClientApplication } from "@azure/msal-browser";
+import { MsalProvider } from "@azure/msal-react";
+import { msalConfig } from "@/lib/authConfig";
+
+const msalInstance = new PublicClientApplication(msalConfig);
 
 // ─── Lazy Page Imports (code splitting) ───────────────────────────────────────
 const Index = lazy(() => import("./pages/Index"));
@@ -92,7 +97,8 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+      <MsalProvider instance={msalInstance}>
+        <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
           <InstallPWABanner />
@@ -182,6 +188,7 @@ function App() {
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
+      </MsalProvider>
     </ErrorBoundary>
   );
 }

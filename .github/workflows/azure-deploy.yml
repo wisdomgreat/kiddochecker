@@ -3,7 +3,7 @@ name: Azure Infrastructure and App Deployment
 on:
   push:
     branches:
-      - main
+      - azure-migration
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "4948932953365025217"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "centralus"
+    },
+    "dbServerName": {
+      "type": "string"
+    },
+    "dbPassword": {
+      "type": "string"
+    },
+    "vnetName": {
+      "type": "string"
+    },
+    "caEnvName": {
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.App/jobs",
+      "apiVersion": "2023-05-01",
+      "name": "[format('job-db-migrate-{0}', substring(uniqueString(resourceGroup().id), 0, 5))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "environmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('caEnvName'))]",
+        "configuration": {
+          "triggerType": "Manual",
+          "replicaTimeout": 300,
+          "replicaRetryLimit": 1,
+          "secrets": [
+            {
+              "name": "db-password",
+              "value": "[parameters('dbPassword')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "migrate",
+              "image": "postgres:15",
+              "env": [
+                {
+                  "name": "PGPASSWORD",
+                  "secretRef": "db-password"
+                }
+              ],
+              "command": [
+                "sh",
+                "-c",
+                "echo \"Testing connection to 10.0.1.4...\" && psql -h 10.0.1.4 -U kiddomin -d postgres -c \"SELECT version();\" && echo \"Connection Successful! Running Migration...\" && psql -h 10.0.1.4 -U kiddomin -d postgres -c \"CREATE TABLE IF NOT EXISTS public.organizations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, slug TEXT UNIQUE NOT NULL, language_code TEXT DEFAULT 'en', timezone TEXT DEFAULT 'UTC', is_active BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT now(), updated_at TIMESTAMPTZ DEFAULT now()); ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id); ALTER TABLE public.families ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id); ALTER TABLE public.children ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id); ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id); ALTER TABLE public.centers ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id); ALTER TABLE public.user_roles ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id); ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id); INSERT INTO public.organizations (name, slug, language_code) VALUES ('KiddoChecker English', 'english-church', 'en'), ('KiddoChecker Spanish', 'spanish-church', 'es') ON CONFLICT (slug) DO NOTHING;\""
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -202,6 +202,74 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   properties: {}
 }
 
+@description('7. Data Bridge API - Container App')
+resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
+  name: 'ca-api-${appName}-${env}-${suffix}'
+  location: location
+  tags: tags
+  properties: {
+    managedEnvironmentId: containerAppEnv.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 3001
+        allowInsecure: false
+      }
+      registries: [
+        {
+          server: acr.properties.loginServer
+          username: acr.name
+          passwordSecretRef: 'acr-password'
+        }
+      ]
+      secrets: [
+        {
+          name: 'acr-password'
+          value: acr.listCredentials().passwords[0].value
+        }
+        {
+          name: 'db-password'
+          value: administratorLoginPassword
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'bridge-api'
+          image: '${acr.properties.loginServer}/bridge-api:latest'
+          env: [
+            {
+              name: 'DB_HOST'
+              value: '${dbServerName}.private.postgres.database.azure.com'
+            }
+            {
+              name: 'DB_PASSWORD'
+              secretRef: 'db-password'
+            }
+            {
+              name: 'DB_USER'
+              value: 'kiddomin'
+            }
+            {
+              name: 'DB_NAME'
+              value: 'kiddochecker'
+            }
+          ]
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 3
+      }
+    }
+  }
+}
+
 output acrLoginServer string = acr.properties.loginServer
 output swaDefaultHostname string = staticWebApp.properties.defaultHostname
 output keyVaultUri string = keyVault.properties.vaultUri
