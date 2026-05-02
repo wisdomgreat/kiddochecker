@@ -369,7 +369,13 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                       <p className="text-sm font-bold text-foreground">Peak Capacity Alert</p>
                       <p className="text-xs text-muted-foreground">Highest volume detected between 9:00 AM and 10:30 AM.</p>
                     </div>
-                  </          {/* ─── AUDIT TRAILS ─── */}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* ─── AUDIT TRAILS ─── */}
           <TabsContent value="detailed" className="space-y-6">
             <Card className="border shadow-sm rounded-3xl bg-card overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between p-8 bg-muted/20">
@@ -393,11 +399,6 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                         <TableHead className="text-[10px] font-bold uppercase tracking-wider">Verify</TableHead>
                         <TableHead className="text-[10px] font-bold uppercase tracking-wider text-right pr-8">Auth Cycle</TableHead>
                       </TableRow>
-                    </TableHeader>
- tracking-widest">Verify</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-widest text-right pr-8">Auth Cycle</TableHead>
-                      </TableRow>
-
                     </TableHeader>
                     <TableBody>
                       {detailedAttendance?.map((log: any, i: number) => (
