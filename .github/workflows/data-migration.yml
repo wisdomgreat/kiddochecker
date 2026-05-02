@@ -38,10 +38,8 @@ jobs:
       - name: Read SQL Content
         id: sql
         run: |
-          SQL_CONTENT=$(cat azure_ready_data.sql)
-          echo "content<<EOF" >> $GITHUB_OUTPUT
-          cat azure_ready_data.sql >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          SQL_BASE64=$(base64 -w 0 azure_ready_data.sql)
+          echo "base64=$SQL_BASE64" >> $GITHUB_OUTPUT
 
       - name: Execute Migration Job
         uses: azure/arm-deploy@v2
@@ -55,4 +53,4 @@ jobs:
             dbHost=${{ steps.infra.outputs.db_host }} 
             dbUser=kiddomin 
             dbPassword=${{ secrets.DB_PASSWORD }} 
-            sqlContent="${{ steps.sql.outputs.content }}"
+            sqlContentBase64="${{ steps.sql.outputs.base64 }}"

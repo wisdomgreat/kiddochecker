@@ -4,7 +4,7 @@ param dbHost string
 param dbUser string
 @secure()
 param dbPassword string
-param sqlContent string
+param sqlContentBase64 string
 
 resource migrationContainer 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
   name: 'aci-migration-${uniqueString(resourceGroup().id)}'
@@ -18,12 +18,12 @@ resource migrationContainer 'Microsoft.ContainerInstance/containerGroups@2023-05
           command: [
             'sh'
             '-c'
-            'echo "$SQL_CONTENT" > migration.sql && PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d kiddochecker -f migration.sql'
+            'echo "$SQL_BASE64" | base64 -d > migration.sql && PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d kiddochecker -f migration.sql'
           ]
           environmentVariables: [
             {
-              name: 'SQL_CONTENT'
-              value: sqlContent
+              name: 'SQL_BASE64'
+              value: sqlContentBase64
             }
             {
               name: 'DB_PASSWORD'
