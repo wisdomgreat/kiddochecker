@@ -154,6 +154,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ─── Derived State ──────────────────────────────────────────────────────────
   const isSuperAdmin = userRole === 'super_admin';
   const isAdmin = userRole === 'admin' || isSuperAdmin;
+  const isParent = userRole === 'parent';
+  const isStaff = userRole === 'staff';
+  const isTeacher = userRole === 'teacher';
+  const isTeacherAssistant = userRole === 'teacher_assistant';
+  const isVolunteer = userRole === 'volunteer';
+  const isKiosk = userRole === 'kiosk';
+  const isRegularUser = userRole === 'regular_user';
+  
   const isVerifiedStaff = (isStaff || isTeacher || isAdmin) && verificationStatus === 'verified';
 
   const value = {
@@ -171,13 +179,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshMfaStatus: async () => {},
     isAdmin,
     isSuperAdmin,
-    isParent: userRole === 'parent',
-    isStaff: userRole === 'staff',
-    isTeacher: userRole === 'teacher',
-    isTeacherAssistant: userRole === 'teacher_assistant',
-    isVolunteer: userRole === 'volunteer',
-    isKiosk: userRole === 'kiosk',
-    isRegularUser: userRole === 'regular_user',
+    isParent,
+    isStaff,
+    isTeacher,
+    isTeacherAssistant,
+    isVolunteer,
+    isKiosk,
+    isRegularUser,
     verificationStatus,
     isVerifiedStaff,
     hasRole: (role: AppRole) => isSuperAdmin || userRole === role,
