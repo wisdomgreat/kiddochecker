@@ -22,6 +22,24 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
+// ─── Auto-Migration Logic ───────────────────────────────────────────────────
+async function runMigrations() {
+  console.log('[Bridge] Checking for database migrations...');
+  try {
+    const patch = `
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS azure_oid TEXT;
+      CREATE INDEX IF NOT EXISTS idx_profiles_azure_oid ON public.profiles(azure_oid);
+      CREATE SCHEMA IF NOT EXISTS auth;
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    `;
+    await pool.query(patch);
+    console.log('[Bridge] Database migrations applied successfully! ✅');
+  } catch (err) {
+    console.error('[Bridge] Migration error (this may be normal if already applied):', err.message);
+  }
+}
+
 // ─── Azure Entra JWT Verification ──────────────────────────────────────────
 const client = jwksClient({
   jwksUri: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/discovery/v2.0/keys`
@@ -240,7 +258,9 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
-  console.log(`🔗 Target Database: ${pool.options.host}`);
+runMigrations().then(() => {
+  app.listen(port, () => {
+    console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
+    console.log(`🔗 Target Database: ${pool.options.host}`);
+  });
 });
