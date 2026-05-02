@@ -58,6 +58,7 @@ app.get('/health', (req, res) => res.send('Bridge is active! 🌉'));
 app.get('/api/profile', verifyToken, async (req, res) => {
   try {
     const azureId = req.user.sub; // Azure OID
+    console.log(`[Bridge] Fetching profile for OID: ${azureId}`);
     
     // Fetch profile and role in one go
     const userQuery = `
@@ -69,24 +70,27 @@ app.get('/api/profile', verifyToken, async (req, res) => {
     
     const userResult = await pool.query(userQuery, [azureId]);
     if (userResult.rows.length === 0) {
+      console.warn(`[Bridge] Profile not found for OID: ${azureId}`);
       return res.status(404).json({ error: 'Profile not found' });
     }
 
     const userData = userResult.rows[0];
 
-    // Fetch permissions from custom roles and security groups
+    // Fetch permissions
     const permsQuery = `
-      SELECT DISTINCT p.name 
-      FROM public.permissions p
-      LEFT JOIN public.role_permissions rp ON p.id = rp.permission_id
-      LEFT JOIN public.user_roles ur ON rp.role_id = ur.custom_role_id
-      WHERE ur.user_id = $1
-      UNION
-      SELECT DISTINCT p.name 
-      FROM public.permissions p
-      LEFT JOIN public.group_permissions gp ON p.id = gp.permission_id
-      LEFT JOIN public.user_security_groups usg ON gp.group_id = usg.group_id
-      WHERE usg.user_id = $1
+      SELECT DISTINCT name FROM (
+        SELECT p.name 
+        FROM public.permissions p
+        JOIN public.role_permissions rp ON p.id = rp.permission_id
+        JOIN public.user_roles ur ON rp.role_id = ur.custom_role_id
+        WHERE ur.user_id = $1
+        UNION
+        SELECT p.name 
+        FROM public.permissions p
+        JOIN public.group_permissions gp ON p.id = gp.permission_id
+        JOIN public.user_security_groups usg ON gp.group_id = usg.group_id
+        WHERE usg.user_id = $1
+      ) combined_perms
     `;
     
     const permsResult = await pool.query(permsQuery, [azureId]);
@@ -97,18 +101,66 @@ app.get('/api/profile', verifyToken, async (req, res) => {
       permissions
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Data retrieval failed' });
+    console.error('[Bridge] Profile fetch failed:', err);
+    res.status(500).json({ error: 'Data retrieval failed', details: err.message });
   }
 });
 
-// Generic query proxy (To replace Supabase Client calls)
+/**
+ * Generic RPC Proxy
+ * Mimics supabase.rpc(fn, params)
+ */
 app.post('/api/rpc', verifyToken, async (req, res) => {
   const { fn, params } = req.body;
-  // This is where we will map the frontend RPC calls to direct SQL for the bridge
-  res.status(501).send('RPC Proxy implementation pending mapping');
+  if (!fn) return res.status(400).json({ error: 'Missing function name' });
+
+  console.log(`[Bridge] RPC Call: ${fn}`, params);
+
+  try {
+    const keys = Object.keys(params || {});
+    const values = Object.values(params || {});
+    
+    // Construct named parameters: select * from fn_name(p1 => $1, p2 => $2)
+    const placeholders = keys.map((key, i) => `${key} => $${i + 1}`).join(', ');
+    const query = `SELECT * FROM ${fn}(${placeholders})`;
+    
+    const result = await pool.query(query, values);
+    res.json({ data: result.rows, error: null });
+  } catch (err) {
+    console.error(`[Bridge] RPC Error (${fn}):`, err);
+    res.status(500).json({ data: null, error: err.message });
+  }
+});
+
+/**
+ * Generic Table Query Proxy (Simplified Select)
+ * Mimics supabase.from(table).select().eq(...)
+ */
+app.post('/api/query', verifyToken, async (req, res) => {
+  const { table, select = '*', filters = [] } = req.body;
+  if (!table) return res.status(400).json({ error: 'Missing table name' });
+
+  try {
+    let query = `SELECT ${select} FROM ${table}`;
+    const values = [];
+    
+    if (filters && filters.length > 0) {
+      const filterClauses = filters.map((f, i) => {
+        values.push(f.value);
+        return `${f.column} ${f.operator || '='} $${i + 1}`;
+      });
+      query += ` WHERE ${filterClauses.join(' AND ')}`;
+    }
+
+    const result = await pool.query(query, values);
+    res.json({ data: result.rows, error: null });
+  } catch (err) {
+    console.error(`[Bridge] Query Error (${table}):`, err);
+    res.status(500).json({ data: null, error: err.message });
+  }
 });
 
 app.listen(port, () => {
-  console.log(`KiddoChecker Bridge listening at http://localhost:${port}`);
+  console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
+  console.log(`🔗 Target Database: ${pool.options.host}`);
 });
