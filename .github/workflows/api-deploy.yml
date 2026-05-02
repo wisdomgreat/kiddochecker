@@ -45,6 +45,7 @@ jobs:
         with:
           resourceGroupName: rg-kiddo
           template: ./infra/main.bicep
+          deploymentName: 'api-${{ github.sha }}'
           parameters: >
             administratorLoginPassword=${{ secrets.DB_PASSWORD }}
             apiImage=${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}
