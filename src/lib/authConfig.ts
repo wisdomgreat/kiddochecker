@@ -6,7 +6,7 @@ import { Configuration, LogLevel } from "@azure/msal-browser";
 export const msalConfig: Configuration = {
     auth: {
         clientId: "e48264b2-de12-4444-a290-a8d7f3e3a525",
-        authority: "https://kiddochecker.ciamlogin.com", // Your Entra External ID Domain
+        authority: "https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0", // Full CIAM Tenant Authority
         redirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || "https://happy-glacier-0746a2210.7.azurestaticapps.net",
         postLogoutRedirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || "https://happy-glacier-0746a2210.7.azurestaticapps.net",
     },

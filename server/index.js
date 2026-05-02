@@ -59,7 +59,7 @@ const verifyToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   jwt.verify(token, getKey, {
     audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525',
-    issuer: `https://login.microsoftonline.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0`
+    issuer: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0`
   }, (err, decoded) => {
     if (err) return res.status(403).send('Invalid Token');
     req.user = decoded; // This includes the OID (sub claim)
