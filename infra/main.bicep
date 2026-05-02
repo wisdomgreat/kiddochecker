@@ -16,6 +16,9 @@ param env string = 'prod'
 @secure()
 param administratorLoginPassword string
 
+@description('The Docker image for the Data Bridge API.')
+param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
 
@@ -237,7 +240,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
       containers: [
         {
           name: 'bridge-api'
-          image: '${acr.properties.loginServer}/bridge-api:latest'
+          image: apiImage
           env: [
             {
               name: 'DB_HOST'

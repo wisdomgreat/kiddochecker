@@ -23,9 +23,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Get ACR Credentials
         id: acr-info
@@ -47,4 +45,6 @@ jobs:
         with:
           resourceGroupName: rg-kiddo
           template: ./infra/main.bicep
-          parameters: administratorLoginPassword=${{ secrets.AZURE_DB_PASSWORD }}
+          parameters: >
+            administratorLoginPassword=${{ secrets.DB_PASSWORD }}
+            apiImage=${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}
