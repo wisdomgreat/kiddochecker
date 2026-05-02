@@ -25,6 +25,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Get ACR Credentials
+        id: acr
+        run: |
+          RESOURCE_GROUP="rg-kiddo"
+          ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
+          ACR_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
+          echo "name=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "server=$ACR_SERVER" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Migration Image
+        run: |
+          az acr login --name ${{ steps.acr.outputs.name }}
+          docker build -t ${{ steps.acr.outputs.server }}/migration-job:${{ github.sha }} -f server/migration.Dockerfile .
+          docker push ${{ steps.acr.outputs.server }}/migration-job:${{ github.sha }}
+
       - name: Get Infrastructure Details
         id: infra
         run: |
@@ -34,12 +49,6 @@ jobs:
           DB_HOST=$(az postgres flexible-server list --resource-group $RESOURCE_GROUP --query "[0].fullyQualifiedDomainName" -o tsv)
           echo "subnet_id=$SUBNET_ID" >> $GITHUB_OUTPUT
           echo "db_host=$DB_HOST" >> $GITHUB_OUTPUT
-
-      - name: Read SQL Content
-        id: sql
-        run: |
-          SQL_BASE64=$(base64 -w 0 azure_ready_data.sql)
-          echo "base64=$SQL_BASE64" >> $GITHUB_OUTPUT
 
       - name: Execute Migration Job
         uses: azure/arm-deploy@v2
@@ -53,4 +62,4 @@ jobs:
             dbHost=${{ steps.infra.outputs.db_host }} 
             dbUser=kiddomin 
             dbPassword=${{ secrets.DB_PASSWORD }} 
-            sqlContentBase64="${{ steps.sql.outputs.base64 }}"
+            migrationImage=${{ steps.acr.outputs.server }}/migration-job:${{ github.sha }}

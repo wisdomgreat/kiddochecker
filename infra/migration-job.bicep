@@ -4,27 +4,27 @@ param dbHost string
 param dbUser string
 @secure()
 param dbPassword string
-param sqlContentBase64 string
+param migrationImage string
+
+var acrName = split(migrationImage, '.')[0]
 
 resource migrationContainer 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
   name: 'aci-migration-${uniqueString(resourceGroup().id)}'
   location: location
   properties: {
+    imageRegistryCredentials: [
+      {
+        server: split(migrationImage, '/')[0]
+        username: acrName
+        password: listCredentials(resourceId('Microsoft.ContainerRegistry/registries', acrName), '2023-07-01').passwords[0].value
+      }
+    ]
     containers: [
       {
         name: 'migration-worker'
         properties: {
-          image: 'postgres:15-alpine'
-          command: [
-            'sh'
-            '-c'
-            'echo "$SQL_BASE64" | base64 -d > migration.sql && PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d kiddochecker -f migration.sql'
-          ]
+          image: migrationImage
           environmentVariables: [
-            {
-              name: 'SQL_BASE64'
-              value: sqlContentBase64
-            }
             {
               name: 'DB_PASSWORD'
               value: dbPassword
