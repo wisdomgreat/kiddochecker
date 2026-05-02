@@ -1,4 +1,4 @@
-name: Manual Data Migration (Supabase to Azure)
+name: 🚀 SUPABASE TO AZURE INJECTION
 
 on:
   workflow_dispatch:
@@ -39,7 +39,6 @@ jobs:
         id: sql
         run: |
           SQL_CONTENT=$(cat azure_ready_data.sql)
-          # We need to escape for JSON if we were passing via CLI, but arm-deploy handles it better
           echo "content<<EOF" >> $GITHUB_OUTPUT
           cat azure_ready_data.sql >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -49,10 +48,11 @@ jobs:
         with:
           resourceGroupName: rg-kiddo
           template: ./infra/migration-job.bicep
+          deploymentName: 'migrate-${{ github.sha }}'
           parameters: >
             location=centralus 
             subnetId=${{ steps.infra.outputs.subnet_id }} 
             dbHost=${{ steps.infra.outputs.db_host }} 
             dbUser=kiddomin 
-            dbPassword=${{ secrets.AZURE_DB_PASSWORD }} 
+            dbPassword=${{ secrets.DB_PASSWORD }} 
             sqlContent="${{ steps.sql.outputs.content }}"
