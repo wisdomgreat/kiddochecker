@@ -1,9 +1,12 @@
 import { PublicClientApplication } from "@azure/msal-browser";
 import { msalConfig, loginRequest } from "./authConfig";
 
+import { supabase } from "@/integrations/supabase/client";
+
 const msalInstance = new PublicClientApplication(msalConfig);
 
 export const getAccessToken = async () => {
+    // 1. Check MSAL (Microsoft)
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
         try {
@@ -13,12 +16,16 @@ export const getAccessToken = async () => {
             });
             return response.accessToken;
         } catch (error) {
-            console.error("Silent token acquisition failed, redirecting to login", error);
-            // If silent fails, we might need to prompt the user, 
-            // but for API calls we usually just return null and let the UI handle it
-            return null;
+            console.warn("[Bridge] Silent MSAL token acquisition failed");
         }
     }
+
+    // 2. Fallback to Supabase (Email/Password)
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+        return session.access_token;
+    }
+
     return null;
 };
 

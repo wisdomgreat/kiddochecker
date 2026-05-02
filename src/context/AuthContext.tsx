@@ -20,6 +20,7 @@ export interface AuthContextType {
   mfaFactors: any[];
   signOut: () => Promise<void>;
   signIn: () => Promise<void>;
+  signInWithPassword: (email: string, pass: string) => Promise<void>;
   refreshUserRole: () => Promise<void>;
   refreshMfaStatus: () => Promise<void>;
   isAdmin: boolean;
@@ -40,18 +41,12 @@ export interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const withTimeout = <T,>(promise: Promise<T>, ms: number, timeoutError: string): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(timeoutError)), ms))
-  ]);
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { instance, accounts, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   
   const [user, setUser] = useState<any | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
@@ -65,27 +60,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await instance.loginPopup(loginRequest);
     } catch (e) {
-      console.error("[Auth] Login error:", e);
-      toast({ title: "Login Failed", description: "Could not sign you in with Microsoft.", variant: "destructive" });
+      console.error("[Auth] MSAL error:", e);
+      throw e;
     }
   };
 
-  // ─── MSAL Sign Out ──────────────────────────────────────────────────────────
+  // ─── Email/Pass Sign In ─────────────────────────────────────────────────────
+  const signInWithPassword = async (email: string, pass: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    setSession(data.session);
+    setUser(data.user);
+  };
+
+  // ─── Universal Sign Out ─────────────────────────────────────────────────────
   const signOut = async () => {
     try {
-      localStorage.removeItem('session_backup');
-      await instance.logoutPopup({
-        postLogoutRedirectUri: "/",
-        mainWindowRedirectUri: "/"
-      });
+      // 1. Clear Supabase
+      await supabase.auth.signOut();
+      
+      // 2. Clear MSAL
+      if (accounts.length > 0) {
+        await instance.logoutPopup({
+          postLogoutRedirectUri: "/",
+          mainWindowRedirectUri: "/"
+        });
+      }
+
+      setUser(null);
+      setSession(null);
+      setUserRole(null);
     } catch (e) {
-      console.error("[Auth] Logout error:", e);
+      console.error("[Auth] Sign out error:", e);
     }
   };
 
   // ─── Role Fetching (Database) ───────────────────────────────────────────────
   const fetchRoleForUser = useCallback(async (userId: string) => {
-    console.log('[Auth] Fetching role from Data Bridge for:', userId);
+    console.log('[Auth] Syncing roles from Azure Bridge for:', userId);
     currentUserIdRef.current = userId;
 
     try {
@@ -112,32 +124,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const refreshUserRole = useCallback(async () => {
-    if (user?.id) await fetchRoleForUser(user.id);
-  }, [user?.id, fetchRoleForUser]);
-
-  // ─── MSAL Account Sync ──────────────────────────────────────────────────────
+  // ─── Session Sync Logic ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (inProgress === InteractionStatus.None) {
-      if (isAuthenticated && accounts.length > 0) {
+    const syncSession = async () => {
+      // Priority 1: MSAL (Microsoft)
+      if (inProgress === InteractionStatus.None && isAuthenticated && accounts.length > 0) {
         const account = accounts[0];
         const msalUser = {
-          id: account.localAccountId || account.homeAccountId, // This maps to user_id in DB
+          id: account.localAccountId || account.homeAccountId,
           email: account.username,
           name: account.name,
-          user_metadata: {
-            full_name: account.name,
-            email: account.username
-          }
+          user_metadata: { full_name: account.name, email: account.username }
         };
         setUser(msalUser);
-        fetchRoleForUser(msalUser.id).finally(() => setLoading(false));
-      } else {
-        setUser(null);
-        setUserRole(null);
+        setSession({ access_token: "msal-managed" });
+        await fetchRoleForUser(msalUser.id);
+        setLoading(false);
+      } 
+      // Priority 2: Supabase (Email/Pass)
+      else {
+        const { data: { session: sbSession } } = await supabase.auth.getSession();
+        if (sbSession) {
+          setUser(sbSession.user);
+          setSession(sbSession);
+          await fetchRoleForUser(sbSession.user.id);
+        } else {
+          setUser(null);
+          setSession(null);
+          setUserRole(null);
+        }
         setLoading(false);
       }
-    }
+    };
+
+    syncSession();
+
+    // Listen for Supabase changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session && !accounts.length) {
+        setUser(session.user);
+        setSession(session);
+        fetchRoleForUser(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [isAuthenticated, accounts, inProgress, fetchRoleForUser]);
 
   // ─── Idle Timeout ───────────────────────────────────────────────────────────
@@ -166,16 +197,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const value = {
     user,
-    session: user ? { access_token: "msal-managed" } : null,
+    session,
     userRole,
-    loading: loading || inProgress !== InteractionStatus.None,
-    mfaLevel: 'aal1', // MSAL handles MFA internally
+    loading,
+    mfaLevel: 'aal1',
     isMfaPending: false,
     isMfaEnrolled: true,
     mfaFactors: [],
     signOut,
     signIn,
-    refreshUserRole,
+    signInWithPassword,
+    refreshUserRole: async () => { if (user) fetchRoleForUser(user.id); },
     refreshMfaStatus: async () => {},
     isAdmin,
     isSuperAdmin,
