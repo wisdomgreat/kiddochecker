@@ -24,7 +24,7 @@ export const getAccessToken = async () => {
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const token = await getAccessToken();
-    const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.centralus.azurecontainerapps.io";
+    const baseUrl = import.meta.env.VITE_API_URL || "https://ca-data-bridge-api.gentleocean-21665a39.eastus.azurecontainerapps.io";
     
     const headers = {
         ...options.headers,
