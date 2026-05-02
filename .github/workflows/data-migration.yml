@@ -1,4 +1,4 @@
-name: 🚀 SUPABASE TO AZURE INJECTION
+name: Manual Data Migration (Supabase to Azure)
 
 on:
   workflow_dispatch:
