@@ -7,8 +7,8 @@ export const msalConfig: Configuration = {
     auth: {
         clientId: "e48264b2-de12-4444-a290-a8d7f3e3a525",
         authority: "https://kiddochecker.ciamlogin.com", // Your Entra External ID Domain
-        redirectUri: "https://happy-glacier-0746a2210.7.azurestaticapps.net",
-        postLogoutRedirectUri: "https://happy-glacier-0746a2210.7.azurestaticapps.net",
+        redirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || "https://happy-glacier-0746a2210.7.azurestaticapps.net",
+        postLogoutRedirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || "https://happy-glacier-0746a2210.7.azurestaticapps.net",
     },
     cache: {
         cacheLocation: "sessionStorage", // This configures where your cache will be stored

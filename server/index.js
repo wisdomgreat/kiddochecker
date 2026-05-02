@@ -58,25 +58,49 @@ app.get('/health', (req, res) => res.send('Bridge is active! 🌉'));
 app.get('/api/profile', verifyToken, async (req, res) => {
   try {
     const azureId = req.user.sub; // Azure OID
-    console.log(`[Bridge] Fetching profile for OID: ${azureId}`);
+    const userEmail = req.user.email || req.user.preferred_username;
     
-    // Fetch profile and role in one go
-    const userQuery = `
+    console.log(`[Bridge] Fetching profile. OID: ${azureId}, Email: ${userEmail}`);
+    
+    // 1. Try to find user by Azure OID first, fallback to Email
+    let lookupQuery = `
       SELECT p.*, r.role, r.is_super_admin, r.verification_status 
       FROM public.profiles p
       LEFT JOIN public.user_roles r ON p.id = r.user_id
-      WHERE p.id = $1
+      WHERE p.azure_oid = $1 OR p.email = $2
+      LIMIT 1
     `;
     
-    const userResult = await pool.query(userQuery, [azureId]);
+    let userResult = await pool.query(lookupQuery, [azureId, userEmail]);
+    let userData;
+
     if (userResult.rows.length === 0) {
-      console.warn(`[Bridge] Profile not found for OID: ${azureId}`);
-      return res.status(404).json({ error: 'Profile not found' });
+      // 2. NEW USER: Auto-create profile for brand new signups
+      console.log(`[Bridge] New user detected. Creating profile for: ${userEmail}`);
+      const createQuery = `
+        INSERT INTO public.profiles (email, azure_oid, first_name, last_name)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+      `;
+      const [firstName, lastName] = (req.user.name || 'New User').split(' ');
+      const createResult = await pool.query(createQuery, [userEmail, azureId, firstName, lastName || '']);
+      userData = createResult.rows[0];
+    } else {
+      userData = userResult.rows[0];
+      // 3. AUTO-LINK: Update azure_oid if it's missing (Migrated user)
+      if (userData.azure_oid !== azureId) {
+        console.log(`[Bridge] Linking Azure OID ${azureId} to profile ${userData.id}`);
+        await pool.query('UPDATE public.profiles SET azure_oid = $1 WHERE id = $2', [azureId, userData.id]);
+      }
     }
 
-    const userData = userResult.rows[0];
+    const internalId = userData.id;
 
-    // Fetch permissions
+    // 4. Role-Based MFA Logic
+    const mfaRequiredRoles = ['admin', 'staff', 'teacher', 'volunteer'];
+    const requiresMfa = mfaRequiredRoles.includes((userData.role || '').toLowerCase()) || userData.is_super_admin;
+
+    // 5. Fetch permissions using the internal UUID
     const permsQuery = `
       SELECT DISTINCT name FROM (
         SELECT p.name 
@@ -93,11 +117,13 @@ app.get('/api/profile', verifyToken, async (req, res) => {
       ) combined_perms
     `;
     
-    const permsResult = await pool.query(permsQuery, [azureId]);
+    const permsResult = await pool.query(permsQuery, [internalId]);
     const permissions = permsResult.rows.map(r => r.name);
 
     res.json({
       ...userData,
+      azure_oid: azureId,
+      requires_mfa: requiresMfa,
       permissions
     });
   } catch (err) {
@@ -156,6 +182,60 @@ app.post('/api/query', verifyToken, async (req, res) => {
     res.json({ data: result.rows, error: null });
   } catch (err) {
     console.error(`[Bridge] Query Error (${table}):`, err);
+    res.status(500).json({ data: null, error: err.message });
+  }
+});
+
+/**
+ * Generic Mutation Proxy (Insert, Update, Delete)
+ */
+app.post('/api/mutate', verifyToken, async (req, res) => {
+  const { table, action, data, filters = [] } = req.body;
+  if (!table || !action) return res.status(400).json({ error: 'Missing table or action' });
+
+  try {
+    let query = '';
+    let values = [];
+
+    if (action === 'insert') {
+      const keys = Object.keys(data);
+      values = Object.values(data);
+      const columns = keys.join(', ');
+      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+      query = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`;
+    } 
+    else if (action === 'update') {
+      const keys = Object.keys(data);
+      values = Object.values(data);
+      const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+      query = `UPDATE ${table} SET ${setClause}`;
+      
+      if (filters.length > 0) {
+        const filterStartIdx = values.length;
+        const filterClauses = filters.map((f, i) => {
+          values.push(f.value);
+          return `${f.column} ${f.operator || '='} $${filterStartIdx + i + 1}`;
+        });
+        query += ` WHERE ${filterClauses.join(' AND ')}`;
+      }
+      query += ` RETURNING *`;
+    }
+    else if (action === 'delete') {
+      query = `DELETE FROM ${table}`;
+      if (filters.length > 0) {
+        const filterClauses = filters.map((f, i) => {
+          values.push(f.value);
+          return `${f.column} ${f.operator || '='} $${i + 1}`;
+        });
+        query += ` WHERE ${filterClauses.join(' AND ')}`;
+      }
+      query += ` RETURNING *`;
+    }
+
+    const result = await pool.query(query, values);
+    res.json({ data: result.rows, error: null });
+  } catch (err) {
+    console.error(`[Bridge] Mutation Error (${action} on ${table}):`, err);
     res.status(500).json({ data: null, error: err.message });
   }
 });
