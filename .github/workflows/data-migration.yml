@@ -45,7 +45,7 @@ jobs:
         run: |
           RESOURCE_GROUP="rg-kiddo"
           VNET_NAME=$(az network vnet list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
-          SUBNET_ID=$(az network vnet subnet show --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --name snet-app --query id -o tsv)
+          SUBNET_ID=$(az network vnet subnet show --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --name snet-migration --query id -o tsv)
           DB_HOST=$(az postgres flexible-server list --resource-group $RESOURCE_GROUP --query "[0].fullyQualifiedDomainName" -o tsv)
           echo "subnet_id=$SUBNET_ID" >> $GITHUB_OUTPUT
           echo "db_host=$DB_HOST" >> $GITHUB_OUTPUT

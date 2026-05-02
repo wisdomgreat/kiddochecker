@@ -79,6 +79,20 @@ resource vnet 'Microsoft.Network/virtualNetworks@2023-05-01' = {
           ]
         }
       }
+      {
+        name: 'snet-migration'
+        properties: {
+          addressPrefix: '10.0.3.0/24'
+          delegations: [
+            {
+              name: 'dlg-aci'
+              properties: {
+                serviceName: 'Microsoft.ContainerInstance/containerGroups'
+              }
+            }
+          ]
+        }
+      }
     ]
   }
 }
@@ -157,6 +171,15 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-pr
     backup: {
       backupRetentionDays: 7
     }
+  }
+}
+
+resource db 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-06-01-preview' = {
+  parent: postgresServer
+  name: 'kiddochecker'
+  properties: {
+    charset: 'utf8'
+    collation: 'en_US.utf8'
   }
 }
 
