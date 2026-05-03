@@ -445,9 +445,15 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   }
 });
 
-runMigrations().then(() => {
-  app.listen(port, () => {
-    console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
-    console.log(`🔗 Target Database: ${pool.options.host}`);
+// Start listening immediately to pass Azure health probes
+app.listen(port, () => {
+  console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
+  console.log(`🔗 Target Database: ${pool.options.host}`);
+  
+  // Run migrations in the background
+  runMigrations().then(() => {
+    console.log('[DB] Background migrations completed.');
+  }).catch(err => {
+    console.error('[DB] Background migrations failed:', err.message);
   });
 });
