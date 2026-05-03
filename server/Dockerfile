@@ -10,3 +10,4 @@ COPY . .
 EXPOSE 3001
 
 CMD ["node", "index.js"]
+COPY azure_ready_data.sql ./azure_ready_data.sql

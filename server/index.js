@@ -83,7 +83,46 @@ async function sendEmail({ to, subject, html }) {
 
 // ─── Auto-Migration Logic ───────────────────────────────────────────────────
 async function runMigrations() {
-  console.log('[Bridge] Checking for database migrations...');
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    console.log('[Bridge] Checking for database migrations...');
+    
+    // Check if profiles table exists and has data
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'profiles'
+      );
+    `);
+    
+    const tableExists = tableCheck.rows[0].exists;
+    let needsBootstrap = !tableExists;
+
+    if (tableExists) {
+      const dataCheck = await pool.query('SELECT COUNT(*) FROM public.profiles');
+      if (parseInt(dataCheck.rows[0].count) === 0) {
+        needsBootstrap = true;
+      }
+    }
+
+    if (needsBootstrap) {
+      console.log('[Bridge] 🚀 Bootstrapping empty database with production data...');
+      const sqlPath = path.join(__dirname, 'azure_ready_data.sql');
+      if (fs.existsSync(sqlPath)) {
+        const bootstrapSql = fs.readFileSync(sqlPath, 'utf8');
+        await pool.query(bootstrapSql);
+        console.log('[Bridge] ✅ Database bootstrap completed successfully.');
+      } else {
+        console.warn('[Bridge] ⚠️ azure_ready_data.sql not found, skipping bootstrap.');
+      }
+    }
+  } catch (err) {
+    console.error('[Bridge] Migration error (this may be normal if already applied):', err.message);
+  }
+
   try {
     const patch = `
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS azure_oid TEXT;
