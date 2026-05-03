@@ -43,7 +43,11 @@ async function setupDatabase() {
 // Initialize DB in background
 setupDatabase();
 
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: '*',
+  allowedHeaders: '*'
+}));
 app.use(express.json());
 
 const { Resend } = require('resend');
