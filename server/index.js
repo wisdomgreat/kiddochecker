@@ -11,12 +11,14 @@ const port = process.env.PORT || 3001;
 // ─── Database Connection ───────────────────────────────────────────────────
 // These environment variables will be injected by Azure Container Apps
 const pool = new Pool({
-  host: process.env.DB_HOST || '10.0.1.4',
+  host: process.env.DB_HOST || 'psql-kiddo-prod-yotzp.private.postgres.database.azure.com',
   port: process.env.DB_PORT || 5432,
-  user: process.env.DB_USER || 'kiddochecker_admin',
+  user: process.env.DB_USER || 'kiddomin',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'kiddochecker',
-  ssl: { rejectUnauthorized: false } // Required for Azure PostgreSQL
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 5000, // 5 second timeout
+  idleTimeoutMillis: 30000
 });
 
 app.use(cors());
@@ -120,12 +122,14 @@ app.post('/api/auth/send-code', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
+  console.log(`[AUTH] Generating code for: ${email}`);
   const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
   
   try {
+    console.log(`[AUTH] Saving code to DB...`);
     // 1. Save code to DB
     await pool.query(
-      'INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2)',
+      'INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET code = $2, created_at = NOW()',
       [email, code]
     );
 
@@ -141,12 +145,14 @@ app.post('/api/auth/send-code', async (req, res) => {
       </div>
     `;
 
+    console.log(`[AUTH] Sending email via Resend...`);
     await sendEmail({ to: email, subject: `${code} is your KiddoChecker code`, html });
     
+    console.log(`[AUTH] Success! Code sent to ${email}`);
     res.json({ success: true, message: 'Code sent!' });
   } catch (err) {
-    console.error('[Bridge] Auth Error:', err);
-    res.status(500).json({ error: 'Failed to send code' });
+    console.error('[AUTH] ERROR in send-code:', err);
+    res.status(500).json({ error: 'Failed to send verification code', details: err.message });
   }
 });
 
