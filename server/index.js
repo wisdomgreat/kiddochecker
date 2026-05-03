@@ -10,7 +10,7 @@ const port = process.env.PORT || 3001;
 // ─── Database Connection ───────────────────────────────────────────────────
 // These environment variables will be injected by Azure Container Apps
 const pool = new Pool({
-  host: process.env.DB_HOST || 'psql-kiddo-prod-yotzp.private.postgres.database.azure.com',
+  host: process.env.DB_HOST || '10.0.1.4',
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER || 'kiddomin',
   password: process.env.DB_PASSWORD,
