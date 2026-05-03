@@ -49,22 +49,36 @@ app.use(cors({
   allowedHeaders: '*'
 }));
 app.use(express.json());
+app.use((req, res, next) => {
+  res.setTimeout(15000, () => {
+    console.warn(`[Bridge] Request timed out: ${req.method} ${req.url}`);
+    res.status(408).send('Request Timeout');
+  });
+  next();
+});
 
 const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ─── Email & SMS Helpers (Ported from Edge Functions) ────────────────────────
 async function sendEmail({ to, subject, html }) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
   try {
+    console.log(`[AUTH] Calling Resend API for: ${to}`);
     const data = await resend.emails.send({
       from: 'KiddoChecker <noreply@kiddochecker.com>',
       to: [to],
       subject: subject,
       html: html,
     });
+    clearTimeout(timeoutId);
     return { success: true, data };
   } catch (err) {
+    clearTimeout(timeoutId);
     console.error('[Bridge] Email Error:', err.message);
+    if (err.name === 'AbortError') return { success: false, error: 'Email service timed out' };
     return { success: false, error: err.message };
   }
 }
