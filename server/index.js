@@ -140,6 +140,7 @@ const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-20
 
 // Health check
 app.get('/health', (req, res) => res.send('Bridge is active! 🌉'));
+app.get('/', (req, res) => res.send('KiddoChecker Bridge API is online. 🚀'));
 
 /**
  * NATIVE AUTH: Send branded OTP via Resend
