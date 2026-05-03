@@ -2,7 +2,6 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const jwksClient = require('jwks-rsa');
 require('dotenv').config();
 
 const app = express();
@@ -57,11 +56,10 @@ app.use((req, res, next) => {
   next();
 });
 
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 // ─── Email & SMS Helpers (Ported from Edge Functions) ────────────────────────
 async function sendEmail({ to, subject, html }) {
+  const { Resend } = require('resend');
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
@@ -110,11 +108,12 @@ async function runMigrations() {
 }
 
 // ─── Azure Entra JWT Verification ──────────────────────────────────────────
-const client = jwksClient({
-  jwksUri: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/discovery/v2.0/keys`
-});
-
 function getKey(header, callback) {
+  const jwksClient = require('jwks-rsa');
+  const client = jwksClient({
+    jwksUri: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/discovery/v2.0/keys`
+  });
+  
   client.getSigningKey(header.kid, function(err, key) {
     const signingKey = key.publicKey || key.rsaPublicKey;
     callback(null, signingKey);
