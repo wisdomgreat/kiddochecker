@@ -9,6 +9,7 @@ export const msalConfig: Configuration = {
         authority: "https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0", // Full CIAM Tenant Authority
         redirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || "https://happy-glacier-0746a2210.7.azurestaticapps.net",
         postLogoutRedirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || "https://happy-glacier-0746a2210.7.azurestaticapps.net",
+        knownAuthorities: ["kiddochecker.ciamlogin.com"], // Force trust for the CIAM domain
     },
     cache: {
         cacheLocation: "sessionStorage", // This configures where your cache will be stored
