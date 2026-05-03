@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - azure-migration
+    paths-ignore:
+      - 'server/**'
   workflow_dispatch:
 
 permissions:
@@ -33,7 +35,13 @@ jobs:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           deploymentName: 'infra-${{ github.sha }}'
-          parameters: appName=kiddo location=centralus administratorLoginPassword=${{ secrets.DB_PASSWORD }} apiImage=mcr.microsoft.com/azuredocs/containerapps-helloworld:latest
+          parameters: >
+            appName=kiddo 
+            location=centralus 
+            administratorLoginPassword=${{ secrets.DB_PASSWORD }} 
+            resendApiKey=${{ secrets.RESEND_API_KEY }} 
+            bridgeSecret=${{ secrets.BRIDGE_SECRET }}
+            apiImage=crkiddoprodyotzp.azurecr.io/bridge-api:latest
 
   # Job 2: Build and Deploy Frontend to Azure Static Web App
   deploy-frontend:
