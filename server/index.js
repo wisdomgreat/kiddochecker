@@ -51,6 +51,14 @@ async function runMigrations() {
       CREATE SCHEMA IF NOT EXISTS auth;
       CREATE EXTENSION IF NOT EXISTS pgcrypto;
       CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+      CREATE TABLE IF NOT EXISTS auth.verification_codes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        email TEXT NOT NULL,
+        code TEXT NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE DEFAULT (now() + interval '10 minutes'),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+      );
     `;
     await pool.query(patch);
     console.log('[Bridge] Database migrations applied successfully! ✅');
@@ -76,20 +84,120 @@ const verifyToken = (req, res, next) => {
   if (!authHeader) return res.status(401).send('Access Denied: No Token Provided');
 
   const token = authHeader.split(' ')[1];
-  jwt.verify(token, getKey, {
-    audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525',
-    issuer: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0`
-  }, (err, decoded) => {
-    if (err) return res.status(403).send('Invalid Token');
-    req.user = decoded; // This includes the OID (sub claim)
-    next();
-  });
+  
+  // 1. Try Bridge Native Token first (Faster)
+  try {
+    const decoded = jwt.verify(token, BRIDGE_SECRET);
+    req.user = decoded;
+    return next();
+  } catch (bridgeErr) {
+    // 2. Fallback to Azure Token verification
+    jwt.verify(token, getKey, {
+      audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525',
+      issuer: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0`
+    }, (err, decoded) => {
+      if (err) {
+        console.error('[Bridge] Token invalid for both Bridge and Azure');
+        return res.status(403).send('Invalid Token');
+      }
+      req.user = decoded;
+      next();
+    });
+  }
 };
 
 // ─── API Routes ────────────────────────────────────────────────────────────
 
+const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-2026';
+
 // Health check
 app.get('/health', (req, res) => res.send('Bridge is active! 🌉'));
+
+/**
+ * NATIVE AUTH: Send branded OTP via Resend
+ */
+app.post('/api/auth/send-code', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+  
+  try {
+    // 1. Save code to DB
+    await pool.query(
+      'INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2)',
+      [email, code]
+    );
+
+    // 2. Send Branded Email
+    const html = `
+      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 24px;">
+        <h2 style="color: #6366f1;">Your KiddoChecker Code</h2>
+        <p style="font-size: 16px; color: #475569;">Enter this code to access your dashboard. It expires in 10 minutes.</p>
+        <div style="background: #f8fafc; padding: 20px; border-radius: 16px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #4f46e5; margin: 20px 0;">
+          ${code}
+        </div>
+        <p style="font-size: 12px; color: #94a3b8;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `;
+
+    await sendEmail({ to: email, subject: `${code} is your KiddoChecker code`, html });
+    
+    res.json({ success: true, message: 'Code sent!' });
+  } catch (err) {
+    console.error('[Bridge] Auth Error:', err);
+    res.status(500).json({ error: 'Failed to send code' });
+  }
+});
+
+/**
+ * NATIVE AUTH: Verify code and issue JWT
+ */
+app.post('/api/auth/verify-code', async (req, res) => {
+  const { email, code } = req.body;
+  
+  try {
+    // 1. Check code
+    const result = await pool.query(
+      'SELECT * FROM auth.verification_codes WHERE email = $1 AND code = $2 AND expires_at > now() ORDER BY created_at DESC LIMIT 1',
+      [email, code]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid or expired code' });
+    }
+
+    // 2. Clean up codes for this email
+    await pool.query('DELETE FROM auth.verification_codes WHERE email = $1', [email]);
+
+    // 3. Provision / Link User
+    let profileQuery = 'SELECT * FROM public.profiles WHERE email = $1 LIMIT 1';
+    let profileResult = await pool.query(profileQuery, [email]);
+    let userData;
+
+    if (profileResult.rows.length === 0) {
+      const { rows } = await pool.query(
+        'INSERT INTO public.profiles (email, role) VALUES ($1, $2) RETURNING *',
+        [email, 'parent']
+      );
+      userData = rows[0];
+    } else {
+      userData = profileResult.rows[0];
+    }
+
+    // 4. Issue Bridge JWT (This bypasses Azure MSAL for the session)
+    const token = jwt.sign(
+      { sub: userData.id, email: userData.email, role: userData.role, name: userData.full_name },
+      BRIDGE_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({ token, profile: userData });
+  } catch (err) {
+    console.error('[Bridge] Verification Error:', err);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
 
 // Secure route to fetch user profile, roles, and permissions
 app.get('/api/profile', verifyToken, async (req, res) => {
