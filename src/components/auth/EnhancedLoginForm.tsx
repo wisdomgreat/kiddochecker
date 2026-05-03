@@ -119,8 +119,17 @@ const EnhancedLoginForm = () => {
             </div>
           </div>
 
-          <div className="relative z-10 text-xs text-slate-500 font-bold uppercase tracking-widest pt-12">
-            &copy; 2026 KiddoChecker Inc. &bull; Enterprise Grade Security
+          <div className="relative z-10 text-xs text-slate-500 font-bold uppercase tracking-widest pt-12 flex items-center gap-4">
+            <span>&copy; 2026 KiddoChecker Inc.</span>
+            <span className="text-slate-700">|</span>
+            <a 
+              href="https://tdwas.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-primary transition-colors flex items-center gap-1.5"
+            >
+              Powered by <span className="text-slate-300">TDWAS Technology</span>
+            </a>
           </div>
         </div>
 
@@ -223,6 +232,16 @@ const EnhancedLoginForm = () => {
                   Sign in with Microsoft
                 </Button>
               </div>
+            </div>
+            <div className="mt-8 text-center">
+              <a 
+                href="https://tdwas.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[10px] text-slate-400 font-bold uppercase tracking-widest hover:text-primary transition-colors"
+              >
+                Learn more about TDWAS Technology
+              </a>
             </div>
           </div>
         </div>
