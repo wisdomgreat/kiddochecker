@@ -22,6 +22,25 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ─── Email & SMS Helpers (Ported from Edge Functions) ────────────────────────
+async function sendEmail({ to, subject, html }) {
+  try {
+    const data = await resend.emails.send({
+      from: 'KiddoChecker <noreply@kiddochecker.com>',
+      to: [to],
+      subject: subject,
+      html: html,
+    });
+    return { success: true, data };
+  } catch (err) {
+    console.error('[Bridge] Email Error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 // ─── Auto-Migration Logic ───────────────────────────────────────────────────
 async function runMigrations() {
   console.log('[Bridge] Checking for database migrations...');
@@ -96,8 +115,8 @@ app.get('/api/profile', verifyToken, async (req, res) => {
       // 2. NEW USER: Auto-create profile for brand new signups
       console.log(`[Bridge] New user detected. Creating profile for: ${userEmail}`);
       const createQuery = `
-        INSERT INTO public.profiles (email, azure_oid, first_name, last_name)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO public.profiles (email, azure_oid, first_name, last_name, role)
+        VALUES ($1, $2, $3, $4, 'parent')
         RETURNING *
       `;
       const [firstName, lastName] = (req.user.name || 'New User').split(' ');
@@ -113,6 +132,16 @@ app.get('/api/profile', verifyToken, async (req, res) => {
     }
 
     const internalId = userData.id;
+
+    // ─── Role Enforcement ──────────────────────────────────────────────────
+    // Only allow 'parent' role to access the frontend (as per original app)
+    if (userData.role !== 'parent' && userData.role !== 'admin' && userData.role !== 'staff') {
+      console.warn(`[Bridge] Access denied for role: ${userData.role}`);
+      return res.status(403).json({ 
+        error: 'Access Restricted', 
+        message: 'This portal is for Parents only. Please use the Staff or Admin portal.' 
+      });
+    }
 
     // 4. Role-Based MFA Logic
     const mfaRequiredRoles = ['admin', 'staff', 'teacher', 'volunteer'];
@@ -147,6 +176,24 @@ app.get('/api/profile', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('[Bridge] Profile fetch failed:', err);
     res.status(500).json({ error: 'Data retrieval failed', details: err.message });
+  }
+});
+
+/**
+ * Email Proxy (Ported from Supabase Edge Function)
+ * Allows the frontend to send emails through Resend via the Bridge
+ */
+app.post('/api/send-email', verifyToken, async (req, res) => {
+  const { to, subject, html, message } = req.body;
+  
+  // Use either the provided HTML or wrap the message in a basic template
+  const finalHtml = html || `<div style="font-family: sans-serif; padding: 20px;">${message}</div>`;
+  
+  const result = await sendEmail({ to, subject, html: finalHtml });
+  if (result.success) {
+    res.json({ data: result.data, error: null });
+  } else {
+    res.status(500).json({ data: null, error: result.error });
   }
 });
 
