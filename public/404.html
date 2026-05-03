@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - KiddoChecker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #4f46e5;
+            --glass: rgba(255, 255, 255, 0.7);
+            --bg: #f8fafc;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            padding: 3rem;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 8rem;
+            margin: 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        h2 {
+            font-size: 2rem;
+            color: #1e293b;
+            margin-top: 0;
+        }
+
+        p {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.5);
+            background: var(--secondary);
+        }
+
+        .floating-objects div {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(79, 70, 229, 0.1));
+            border-radius: 50%;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-objects">
+        <div class="obj1" style="width: 300px; height: 300px; top: -50px; left: -50px;"></div>
+        <div class="obj2" style="width: 200px; height: 200px; bottom: 50px; right: -50px;"></div>
+        <div class="obj3" style="width: 150px; height: 150px; top: 20%; right: 20%;"></div>
+    </div>
+
+    <div class="container">
+        <h1 id="error-code">404</h1>
+        <h2>Oops! Page Lost</h2>
+        <p>Even the best check-in systems miss a kid sometimes. Let's get you back to the safety of the dashboard.</p>
+        <a href="/" class="btn">Return Home</a>
+    </div>
+
+    <script>
+        gsap.from(".container", {
+            duration: 1.5,
+            y: 100,
+            opacity: 0,
+            ease: "power4.out"
+        });
+
+        gsap.to(".obj1", {
+            duration: 20,
+            x: 100,
+            y: 50,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+
+        gsap.to(".obj2", {
+            duration: 15,
+            x: -50,
+            y: -100,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+
+        gsap.to(".obj3", {
+            duration: 12,
+            scale: 1.2,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+
+        // Split text animation for 404
+        gsap.from("#error-code", {
+            duration: 2,
+            scale: 0.5,
+            opacity: 0,
+            ease: "elastic.out(1, 0.3)",
+            delay: 0.5
+        });
+    </script>
+</body>
+</html>
