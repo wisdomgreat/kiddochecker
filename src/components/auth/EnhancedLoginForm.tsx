@@ -95,11 +95,11 @@ const EnhancedLoginForm = () => {
             </div>
 
             <div className="space-y-6">
-              <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1]">
+              <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1] text-white">
                 Securing the Future <br/>
                 <span className="text-primary">of Childcare.</span>
               </h1>
-              <p className="text-slate-400 text-lg md:text-xl max-w-md font-medium">
+              <p className="text-slate-300 text-lg md:text-xl max-w-md font-medium">
                 Universal safety management for children's organizations.
               </p>
               
@@ -110,8 +110,8 @@ const EnhancedLoginForm = () => {
                       <f.icon className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-base text-slate-100">{f.title}</h4>
-                      <p className="text-sm text-slate-500 leading-relaxed max-w-xs">{f.desc}</p>
+                      <h4 className="font-bold text-base text-white">{f.title}</h4>
+                      <p className="text-sm text-slate-300 leading-relaxed max-w-xs">{f.desc}</p>
                     </div>
                   </div>
                 ))}
