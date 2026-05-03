@@ -21,11 +21,11 @@ param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:la
 
 @description('The Resend API Key for email delivery.')
 @secure()
-param resendApiKey string = 're_pending_config'
+param resendApiKey string
 
 @description('The Bridge Secret for JWT signing.')
 @secure()
-param bridgeSecret string = 'kiddochecker-super-secret-2026'
+param bridgeSecret string
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
@@ -283,7 +283,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
           env: [
             {
               name: 'DB_HOST'
-              value: '10.0.1.4'
+              value: '${dbServerName}.private.postgres.database.azure.com'
             }
             {
               name: 'DB_PASSWORD'
