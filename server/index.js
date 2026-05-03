@@ -22,16 +22,26 @@ const pool = new Pool({
 });
 
 // Self-healing: Ensure schema and table exist
-pool.query(`
-  CREATE SCHEMA IF NOT EXISTS auth;
-  CREATE TABLE IF NOT EXISTS auth.verification_codes (
-    email TEXT PRIMARY KEY,
-    code TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes')
-  );
-`).then(() => console.log('[DB] Auth schema and table verified.'))
-  .catch(err => console.error('[DB] Schema Setup Error:', err));
+async function setupDatabase() {
+  console.log('[DB] Attempting to verify schema...');
+  try {
+    await pool.query(`
+      CREATE SCHEMA IF NOT EXISTS auth;
+      CREATE TABLE IF NOT EXISTS auth.verification_codes (
+        email TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '15 minutes')
+      );
+    `);
+    console.log('[DB] Auth schema and table verified.');
+  } catch (err) {
+    console.error('[DB] Schema Setup Error (Non-Fatal):', err.message);
+  }
+}
+
+// Initialize DB in background
+setupDatabase();
 
 app.use(cors());
 app.use(express.json());
