@@ -48,6 +48,4 @@ jobs:
           deploymentName: 'api-${{ github.sha }}'
           parameters: >
             administratorLoginPassword=${{ secrets.DB_PASSWORD }}
-            resendApiKey=${{ secrets.RESEND_API_KEY }}
-            bridgeSecret=${{ secrets.BRIDGE_SECRET }}
             apiImage=${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}

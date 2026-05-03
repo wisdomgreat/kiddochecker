@@ -21,11 +21,11 @@ param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:la
 
 @description('The Resend API Key for email delivery.')
 @secure()
-param resendApiKey string = ''
+param resendApiKey string = 're_fzzhs1Gi_3EGMrF9BG8HfsAB5ANgykb2V'
 
 @description('The Bridge Secret for JWT signing.')
 @secure()
-param bridgeSecret string = ''
+param bridgeSecret string = 'kiddochecker-super-secret-2026'
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
@@ -264,6 +264,14 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
         {
           name: 'db-password'
           value: administratorLoginPassword
+        }
+        {
+          name: 'resend-api-key'
+          value: 're_fzzhs1Gi_3EGMrF9BG8HfsAB5ANgykb2V'
+        }
+        {
+          name: 'bridge-secret'
+          value: 'kiddochecker-super-secret-2026'
         }
       ]
     }
