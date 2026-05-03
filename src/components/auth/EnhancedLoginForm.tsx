@@ -1,204 +1,205 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Shield, QrCode, ShieldCheck, Activity, AlertCircle, Mail, Lock } from 'lucide-react';
+import { Loader2, Shield, QrCode, ShieldCheck, Activity, AlertCircle, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useTranslation } from '@/lib/i18n';
+import gsap from 'gsap';
 
 const EnhancedLoginForm = () => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState<'email' | 'code'>('email');
   const [isLoading, setIsLoading] = useState(false);
-  const [isMsLoading, setIsMsLoading] = useState(false);
   const [error, setError] = useState('');
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, loading, signIn, signInWithPassword } = useAuth();
-  const { t } = useTranslation();
- 
+  const { user, loading, sendNativeCode, verifyNativeCode, signIn } = useAuth();
+  
+  const formRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!loading && user) {
       navigate('/', { replace: true });
     }
   }, [user, loading, navigate]);
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email) return;
     
     setIsLoading(true);
     setError('');
     try {
-      await signInWithPassword(email, password);
-      toast({ title: t('welcome'), description: t('subtitle') });
+      await sendNativeCode(email);
+      
+      // Animate transition to code step
+      gsap.to(formRef.current, {
+        duration: 0.4,
+        x: -50,
+        opacity: 0,
+        onComplete: () => {
+          setStep('code');
+          gsap.fromTo(formRef.current, { x: 50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4 });
+        }
+      });
+
+      toast({ title: "Code Sent", description: "Check your inbox for your 6-digit code." });
     } catch (err: any) {
-      setError(err.message || "Invalid credentials");
+      setError(err.message || "Failed to send verification code");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMicrosoftLogin = async () => {
-    setIsMsLoading(true);
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code) return;
+    
+    setIsLoading(true);
     setError('');
     try {
-      await signIn();
-      toast({ title: t('welcome'), description: t('subtitle') });
+      await verifyNativeCode(email, code);
+      toast({ title: "Welcome Back", description: "Identity verified successfully." });
     } catch (err: any) {
-      setError(err.message || "An error occurred during Microsoft login");
+      setError(err.message || "Invalid or expired code");
     } finally {
-      setIsMsLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const features = [
-    { icon: QrCode, title: 'QR Check-in', desc: 'Secure contactless entry for children.' },
-    { icon: ShieldCheck, title: 'Staff Verification', desc: 'Background track approved personnel.' },
-    { icon: Activity, title: 'Live Feed', desc: 'Real-time attendance and safety alerts.' },
-  ];
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6 lg:p-8">
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-card border rounded-lg overflow-hidden shadow-sm">
-        
-        {/* INFO PANEL */}
-        <div className="p-8 lg:p-12 bg-muted/30 border-r hidden lg:flex flex-col justify-between">
-          <div className="space-y-12">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-primary/10 rounded border">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
-              <span className="font-bold text-lg tracking-tight">KiddoChecker</span>
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-4 font-['Outfit']">
+      {/* BACKGROUND DECO */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[120px]" />
+      </div>
 
-            <div className="space-y-6">
-              <h1 className="text-4xl font-bold tracking-tight text-foreground">
-                Securing the Future of Childcare.
-              </h1>
-              <p className="text-muted-foreground text-lg">
-                Universal safety management for children's organizations.
-              </p>
-              
-              <div className="space-y-4 pt-4">
-                {features.map((f, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="mt-1">
-                      <f.icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm">{f.title}</h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
-                    </div>
+      <div className="w-full max-w-[450px] relative z-10">
+        <div className="bg-white/70 backdrop-blur-2xl border border-white/50 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] p-8 md:p-12">
+          
+          {/* LOGO */}
+          <div className="flex flex-col items-center gap-4 mb-10">
+            <div className="p-3 bg-primary rounded-2xl shadow-lg shadow-primary/20">
+              <Shield className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900">KiddoChecker</h1>
+              <p className="text-slate-500 text-sm font-medium">Securing the Future of Childcare</p>
+            </div>
+          </div>
+
+          <div ref={formRef}>
+            {step === 'email' ? (
+              <form onSubmit={handleSendCode} className="space-y-6">
+                <div className="space-y-2 text-center mb-6">
+                  <h2 className="text-xl font-bold text-slate-800">Welcome Back</h2>
+                  <p className="text-sm text-slate-500">Enter your email to receive a secure login code.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-slate-700 font-semibold ml-1">Email Address</Label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <Input 
+                      id="email"
+                      placeholder="name@example.com"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-12 h-14 rounded-2xl border-slate-200 bg-white/50 focus:bg-white transition-all text-base"
+                      required
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
+                </div>
 
-          <div className="text-xs text-muted-foreground font-medium pt-8">
-            &copy; 2026 KiddoChecker Inc. &bull; Secure Multi-Auth Gateway
-          </div>
-        </div>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading} 
+                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex gap-2"
+                >
+                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+                    <>Send Magic Code <ArrowRight className="h-5 w-5" /></>
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyCode} className="space-y-6">
+                <div className="space-y-2 text-center mb-6">
+                  <h2 className="text-xl font-bold text-slate-800">Check Your Email</h2>
+                  <p className="text-sm text-slate-500">We sent a 6-digit code to <br/><span className="font-bold text-slate-700">{email}</span></p>
+                </div>
 
-        {/* AUTH FORM PANEL */}
-        <div className="p-8 lg:p-12 flex flex-col justify-center">
-          <div className="w-full max-w-sm mx-auto space-y-8">
-            <div className="space-y-2 text-center">
-              <h2 className="text-3xl font-bold tracking-tight">Sign In</h2>
-              <p className="text-sm text-muted-foreground font-medium">Access your organization's dashboard.</p>
-            </div>
-
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="code" className="text-slate-700 font-semibold ml-1">Verification Code</Label>
                   <Input 
-                    id="email"
-                    placeholder="name@example.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-10"
+                    id="code"
+                    placeholder="000000"
+                    type="text"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    className="h-16 text-center text-3xl font-black tracking-[0.5em] rounded-2xl border-slate-200 bg-white/50 focus:bg-white transition-all"
                     required
+                    autoFocus
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 h-10"
-                    required
-                  />
-                </div>
-              </div>
-              <Button 
-                type="submit" 
-                disabled={isLoading || loading} 
-                className="w-full h-11 font-bold text-base"
-              >
-                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Continue with Email'}
-              </Button>
-            </form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground font-bold">Or continue with</span>
-              </div>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading} 
+                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all bg-green-600 hover:bg-green-700 flex gap-2"
+                >
+                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+                    <>Verify & Sign In <CheckCircle2 className="h-5 w-5" /></>
+                  )}
+                </Button>
+
+                <button 
+                  type="button"
+                  onClick={() => setStep('email')}
+                  className="w-full text-center text-sm font-bold text-primary hover:underline"
+                >
+                  Edit email address
+                </button>
+              </form>
+            )}
+          </div>
+
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
             </div>
+          )}
 
-            <div className="space-y-4">
+          <div className="mt-8 pt-8 border-t border-slate-100">
+            <div className="text-center space-y-4">
+              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Enterprise Access</p>
               <Button 
-                variant="outline"
-                onClick={handleMicrosoftLogin} 
-                disabled={isMsLoading || loading} 
-                className="w-full h-11 font-bold gap-3 transition-all border-2 hover:bg-muted/50"
+                variant="ghost" 
+                onClick={() => signIn()}
+                className="w-full h-12 rounded-xl text-slate-600 font-semibold gap-3 hover:bg-slate-50"
               >
-                {isMsLoading ? (
-                  <Loader2 className="animate-spin h-5 w-5" />
-                ) : (
-                  <>
-                    <svg className="h-5 w-5 fill-current" viewBox="0 0 23 23">
-                      <path d="M11.5 0h11.5v11.5h-11.5zM0 0h11.5v11.5h-11.5zM11.5 11.5h11.5v11.5h-11.5zM0 11.5h11.5v11.5h-11.5z" />
-                    </svg>
-                    Microsoft Account
-                  </>
-                )}
+                <svg className="h-5 w-5" viewBox="0 0 23 23">
+                  <path fill="#f3f3f3" d="M0 0h23v23H0z"/><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/>
+                </svg>
+                Azure Employee Login
               </Button>
-
-              {error && (
-                <div className="p-4 bg-destructive/10 text-destructive text-sm font-bold rounded border border-destructive/20 flex items-center gap-3">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  {error}
-                </div>
-              )}
-
-              <div className="pt-4 text-center">
-                <p className="text-[10px] text-muted-foreground leading-relaxed px-4">
-                  By signing in, you agree to our security policies and terms of service.
-                </p>
-              </div>
             </div>
           </div>
         </div>
 
+        <p className="mt-8 text-center text-[10px] text-slate-400 font-medium uppercase tracking-widest">
+          &copy; 2026 KiddoChecker &bull; Secure Infrastructure
+        </p>
       </div>
     </div>
   );
 };
 
 export default EnhancedLoginForm;
-EnhancedLoginForm;

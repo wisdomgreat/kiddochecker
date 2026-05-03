@@ -21,6 +21,8 @@ export interface AuthContextType {
   signOut: () => Promise<void>;
   signIn: () => Promise<void>;
   signInWithPassword: (email: string, pass: string) => Promise<void>;
+  sendNativeCode: (email: string) => Promise<void>;
+  verifyNativeCode: (email: string, code: string) => Promise<void>;
   refreshUserRole: () => Promise<void>;
   refreshMfaStatus: () => Promise<void>;
   isAdmin: boolean;
@@ -73,6 +75,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(data.user);
   };
 
+  // ─── Native Bridge Auth (Option 2) ─────────────────────────────────────────
+  const sendNativeCode = async (email: string) => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/send-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to send code');
+    }
+  };
+
+  const verifyNativeCode = async (email: string, code: string) => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code })
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Invalid code');
+    }
+    const { token, profile } = await res.json();
+    localStorage.setItem('bridge_token', token);
+    setUser(profile);
+    setSession({ access_token: token });
+    await fetchRoleForUser(profile.id);
+  };
+
   // ─── Universal Sign Out ─────────────────────────────────────────────────────
   const signOut = async () => {
     try {
@@ -90,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRole(null);
+      localStorage.removeItem('bridge_token');
     } catch (e) {
       console.error("[Auth] Sign out error:", e);
     }
@@ -141,7 +174,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await fetchRoleForUser(msalUser.id);
         setLoading(false);
       } 
-      // Priority 2: Supabase (Email/Pass)
+      // Priority 2: Native Bridge Token
+      else if (localStorage.getItem('bridge_token')) {
+        const token = localStorage.getItem('bridge_token');
+        setSession({ access_token: token });
+        try {
+          const profile = await apiFetch('/api/profile');
+          setUser(profile);
+          await fetchRoleForUser(profile.id);
+        } catch (e) {
+          console.error("[Auth] Bridge session invalid:", e);
+          localStorage.removeItem('bridge_token');
+        }
+        setLoading(false);
+      }
+      // Priority 3: Supabase (Email/Pass)
       else {
         const { data: { session: sbSession } } = await supabase.auth.getSession();
         if (sbSession) {
@@ -207,6 +254,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     signIn,
     signInWithPassword,
+    sendNativeCode,
+    verifyNativeCode,
     refreshUserRole: async () => { if (user) fetchRoleForUser(user.id); },
     refreshMfaStatus: async () => {},
     isAdmin,
