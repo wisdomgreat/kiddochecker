@@ -148,7 +148,7 @@ const EnhancedUserManagement = () => {
       refetchUsers();
       refetchRoles();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to create user",
@@ -174,7 +174,7 @@ const EnhancedUserManagement = () => {
       });
       refetchRoles();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to update role",
@@ -199,7 +199,7 @@ const EnhancedUserManagement = () => {
       refetchUsers();
       refetchRoles();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to delete user",

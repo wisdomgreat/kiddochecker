@@ -62,8 +62,9 @@ const LogIncidentDialog: React.FC<LogIncidentDialogProps> = ({
       toast({ title: "Incident Logged", description: "This report has been permanently linked to the session dossier." });
       onSuccess();
       onClose();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err) {
+      const error = err as Error;
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }

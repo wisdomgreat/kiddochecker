@@ -22,6 +22,20 @@ export interface Class {
   created_at: string;
 }
 
+export interface Incident {
+  id: string;
+  type: string;
+  severity: string;
+  description: string;
+  created_at: string;
+}
+
+export interface CareLog {
+  id: string;
+  event_type: string;
+  created_at: string;
+}
+
 export interface AttendanceRecord {
   id: string;
   child_id: string;
@@ -49,8 +63,8 @@ export interface AttendanceRecord {
   manual_override_reason?: string;
   witness_id?: string;
   room_transitions?: any[];
-  incidents?: any[];
-  care_logs?: any[];
+  incidents?: Incident[];
+  care_logs?: CareLog[];
 }
 
 export interface AttendanceSummary {

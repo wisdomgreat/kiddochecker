@@ -112,7 +112,7 @@ const ForensicTimeline: React.FC<ForensicTimelineProps> = ({ record }) => {
               <div className="space-y-3 pt-4 border-t border-border/50">
                 <span className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em]">Activity Ledger</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {record.care_logs.map((log: any) => (
+                  {record.care_logs.map((log) => (
                     <div key={log.id} className="flex items-center gap-3 p-2 bg-background/50 rounded-xl border border-border/50">
                       <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                       <div className="flex-1 min-w-0">
@@ -128,7 +128,7 @@ const ForensicTimeline: React.FC<ForensicTimelineProps> = ({ record }) => {
             {record.incidents && record.incidents.length > 0 && (
               <div className="space-y-3 pt-4 border-t border-border/50">
                 <span className="text-[9px] font-black uppercase text-destructive tracking-[0.2em]">Safety Incidents Captured</span>
-                {record.incidents.map((inc: any) => (
+                {record.incidents.map((inc) => (
                   <div key={inc.id} className="p-4 bg-destructive/5 border border-destructive/20 rounded-2xl space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
