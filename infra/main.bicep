@@ -21,7 +21,7 @@ param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:la
 
 @description('The Resend API Key for email delivery.')
 @secure()
-param resendApiKey string
+param resendApiKey string = 're_pending_config'
 
 @description('The Bridge Secret for JWT signing.')
 @secure()
