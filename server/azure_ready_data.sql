@@ -1,4 +1,4 @@
-SET session_replication_role = 'replica';
+﻿SET session_replication_role = 'replica';
 
 SET session_replication_role = replica;
 
@@ -469,7 +469,7 @@ INSERT INTO "public"."email_templates" ("id", "name", "subject", "body_html", "d
 	('78fc328d-838c-4e0a-8fa7-14227f3709d1', 'staff_onboarding', 'Welcome to KiddoChecker - Your Account is Ready!', '<h1>Hello {{firstName}}!</h1><p>Your staff account for KiddoChecker has been created successfully.</p><p><strong>Your Temporary Credentials:</strong></p><ul><li>Email: {{email}}</li><li>Temporary Password: {{tempPassword}}</li></ul><p>Please log in at {{loginUrl}} and complete your registration wizard. You will be required to change your password upon first login.</p><p>Best regards,<br/>The Children''s Ministry Team</p>', 'Sent to new staff members when their account is created by an admin.', '["firstName", "email", "tempPassword", "loginUrl"]', '2026-03-09 06:10:58.242879+00', '2026-03-09 06:10:58.242879+00'),
 	('fc6515a5-cae5-47d3-a8a7-5922f673b707', 'check_in_notification', '{{childName}} Checked In Successfully', '<h1>Check-in Notification</h1><p>Hi there,</p><p>Your child, <strong>{{childName}}</strong>, has been checked in to <strong>{{className}}</strong> at {{time}}.</p><p>We hope they have a wonderful time!</p><p>Best regards,<br/>Children''s Ministry</p>', 'Sent to parents when their child is checked in.', '["childName", "className", "time"]', '2026-03-09 06:10:58.242879+00', '2026-03-09 06:10:58.242879+00'),
 	('8795306a-4ac6-4d8d-b603-c16384733833', 'check_out_notification', '{{childName}} Checked Out Successfully', '<h1>Check-out Notification</h1><p>Hi there,</p><p>Your child, <strong>{{childName}}</strong>, has been checked out from <strong>{{className}}</strong> at {{time}}.</p><p>Thank you for joining us today!</p><p>Best regards,<br/>Children''s Ministry</p>', 'Sent to parents when their child is checked out.', '["childName", "className", "time"]', '2026-03-09 06:10:58.242879+00', '2026-03-09 06:10:58.242879+00'),
-	('7be8e545-422d-4591-899f-22af93f500f3', 'visitor_followup_missing', 'We Missed You! 🕊️', '<div style="font-family: sans-serif; max-width: 600px; padding: 20px;">
+	('7be8e545-422d-4591-899f-22af93f500f3', 'visitor_followup_missing', 'We Missed You! ðŸ•Šï¸', '<div style="font-family: sans-serif; max-width: 600px; padding: 20px;">
     <h1 style="color: #6366f1;">Hi {{visitorName}},</h1>
     <p>We missed seeing you this weekend! We were thinking about you and wanted to check in.</p>
     <p>If there is anything we can pray for or any way we can support you, please don''t hesitate to reach out.</p>
@@ -477,7 +477,7 @@ INSERT INTO "public"."email_templates" ("id", "name", "subject", "body_html", "d
     <p>In Christ,</p>
     <p>The Pastoral Team</p>
   </div>', 'Sent when a visitor hasn''t returned for a follow-up week.', '["visitorName"]', '2026-03-20 05:57:29.191377+00', '2026-03-20 05:57:29.191377+00'),
-	('2c32d3b1-4bbb-438b-aec0-65aaad710bbb', 'visitor_membership_invite', 'Taking the Next Step at {{churchName}} 🚶‍♂️', '<div style="font-family: sans-serif; max-width: 600px; padding: 20px;">
+	('2c32d3b1-4bbb-438b-aec0-65aaad710bbb', 'visitor_membership_invite', 'Taking the Next Step at {{churchName}} ðŸš¶â€â™‚ï¸', '<div style="font-family: sans-serif; max-width: 600px; padding: 20px;">
     <h1 style="color: #6366f1;">Next Steps...</h1>
     <p>Hi {{visitorName}}, you''ve been a part of our community for a while now, and we''d love to invite you to our <strong>New Members Breakfast</strong>.</p>
     <p>This is a great chance to hear the vision of {{churchName}}, meet the staff, and find out how you can get plugged in.</p>
@@ -502,7 +502,7 @@ INSERT INTO "public"."email_templates" ("id", "name", "subject", "body_html", "d
         <p>We have a special "New Members" orientation next Sunday. We''d love to see you there!</p>
         
         <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9; font-size: 14px; color: #94a3b8; text-align: center;">
-            <p>© 2026 KiddoChecker Church. All rights reserved.</p>
+            <p>Â© 2026 KiddoChecker Church. All rights reserved.</p>
         </div>
     </div>', 'Sent to first-time visitors after their initial visit.', '["visitorName", "churchName"]', '2026-03-20 05:57:29.191377+00', '2026-03-20 05:57:29.191377+00');
 
@@ -1025,7 +1025,6 @@ INSERT INTO "public"."visitor_interactions" ("id", "visitor_id", "interaction_ty
 -- Name: refresh_tokens_id_seq; Type: SEQUENCE SET; Schema: auth; Owner: supabase_auth_admin
 --
 
-SELECT pg_catalog.setval('"auth"."refresh_tokens_id_seq"', 1164, true);
 
 
 --

@@ -7,7 +7,7 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3001;
 
-// â”€â”€â”€ Database Connection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Database Connection ──────────────────────────────────────────────────
 // These environment variables will be injected by Azure Container Apps
 const pool = new Pool({
   host: '10.0.1.4', // Direct IP fallback for VNet DNS issues
@@ -56,7 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// â”€â”€â”€ Email & SMS Helpers (Ported from Edge Functions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Email & SMS Helpers (Ported from Edge Functions) ────────────────────
 async function sendEmail({ to, subject, html }) {
   const { Resend } = require('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -81,7 +81,7 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
-// â”€â”€â”€ Auto-Migration Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Auto-Migration Logic ──────────────────────────────────────────────────
 async function runMigrations() {
   const fs = require('fs');
   const path = require('path');
@@ -109,25 +109,39 @@ async function runMigrations() {
     }
 
     if (needsBootstrap) {
-      console.log('[Bridge] ðŸš€ Bootstrapping empty database...');
+      console.log('[Bridge] 🚀 Bootstrapping empty database...');
       
-      // 1. Run Schema
+      // 0. Run Base Tables
+      const basePath = path.join(__dirname, 'base_tables.sql');
+      if (fs.existsSync(basePath)) {
+        console.log('[Bridge] 🏗️  Creating base tables...');
+        let baseSql = fs.readFileSync(basePath, 'utf8');
+        baseSql = baseSql.replace(/^\uFEFF/, '');
+        await pool.query(baseSql);
+        console.log('[Bridge] ✅ Base tables created.');
+      }
+
+      // 1. Run Schema Updates (Ignoring legacy errors)
       const schemaPath = path.join(__dirname, 'master_schema.sql');
       if (fs.existsSync(schemaPath)) {
-        console.log('[Bridge] 🏗️  Applying schema...');
-        let schemaSql = fs.readFileSync(schemaPath, 'utf8');
-        schemaSql = schemaSql.replace(/^\uFEFF/, ''); // Strip BOM
-        await pool.query(schemaSql);
-        console.log('[Bridge] ✅ Schema applied.');
+        console.log('[Bridge] 🏗️  Applying schema updates...');
+        try {
+          let schemaSql = fs.readFileSync(schemaPath, 'utf8');
+          schemaSql = schemaSql.replace(/^\uFEFF/, ''); // Strip BOM
+          await pool.query(schemaSql);
+          console.log('[Bridge] ✅ Schema updates applied.');
+        } catch (e) {
+          console.log('[Bridge] ⚠️ Legacy schema update error (ignoring):', e.message);
+        }
         
         // Remove Supabase auth dependencies
         try {
           console.log('[Bridge] 🔧 Removing legacy Supabase Auth constraints...');
           await pool.query('ALTER TABLE IF EXISTS public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey CASCADE;');
           await pool.query('ALTER TABLE IF EXISTS public.user_roles DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey CASCADE;');
-          await pool.query('ALTER TABLE IF EXISTS public.profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();');
+          await pool.query('ALTER TABLE IF EXISTS public.children DROP CONSTRAINT IF EXISTS children_parent_id_fkey CASCADE;');
         } catch (e) {
-          console.log('[Bridge] ⚠️ Non-fatal constraint removal error:', e.message);
+          console.log('[Bridge] ℹ️ Some legacy constraints already removed or missing.');
         }
       }
 
@@ -139,12 +153,52 @@ async function runMigrations() {
         bootstrapSql = bootstrapSql.replace(/^\uFEFF/, ''); // Strip BOM
         await pool.query(bootstrapSql);
         console.log('[Bridge] ✅ Data injection completed.');
-      } else {
-        console.warn('[Bridge] âš ï¸ azure_ready_data.sql not found, skipping data injection.');
       }
     }
+
+    // Map emails to profiles for legacy accounts (run unconditionally)
+    try {
+      console.log('[Bridge] 🔄 Mapping legacy emails to profiles...');
+      await pool.query(`
+        UPDATE public.profiles p
+        SET email = d.email
+        FROM public.debug_users d
+        WHERE p.id = d.id AND (p.email IS NULL OR p.email = '');
+      `);
+      
+      console.log('[Bridge] 🧹 Cleaning up duplicate empty profiles...');
+      await pool.query(`
+        DELETE FROM public.profiles p1
+        USING public.profiles p2
+        WHERE p1.email = p2.email 
+        AND p1.id != p2.id 
+        AND p1.created_at > p2.created_at
+        AND p1.first_name IS NULL;
+      `);
+
+      console.log('[Bridge] 🔄 Mapping legacy roles to user_roles...');
+      await pool.query(`
+        INSERT INTO public.user_roles (id, user_id, role, is_super_admin)
+        SELECT gen_random_uuid(), d.id, d.role, d.is_super_admin
+        FROM public.debug_users d
+        LEFT JOIN public.user_roles ur ON d.id = ur.user_id
+        WHERE ur.user_id IS NULL
+        ON CONFLICT DO NOTHING;
+      `);
+
+      await pool.query(`
+        UPDATE public.user_roles ur
+        SET role = d.role, is_super_admin = d.is_super_admin
+        FROM public.debug_users d
+        WHERE ur.user_id = d.id AND (ur.role IS DISTINCT FROM d.role OR ur.is_super_admin IS DISTINCT FROM d.is_super_admin);
+      `);
+      
+      console.log('[Bridge] ✅ Legacy mapping check completed.');
+    } catch (e) {
+      console.log('[Bridge] ⚠️ Legacy email mapping skipped:', e.message);
+    }
   } catch (err) {
-    console.error('[Bridge] Migration error (this may be normal if already applied):', err.message);
+    console.error('[Bridge] Migration error:', err.message);
   }
 
   try {
@@ -162,13 +216,13 @@ async function runMigrations() {
       );
     `;
     await pool.query(patch);
-    console.log('[Bridge] Database migrations applied successfully! âœ…');
+    console.log('[Bridge] Database migrations applied successfully! ✅');
   } catch (err) {
     console.error('[Bridge] Migration error (this may be normal if already applied):', err.message);
   }
 }
 
-// â”€â”€â”€ Azure Entra JWT Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Azure Entra JWT Verification ──────────────────────────────────────────
 function getKey(header, callback) {
   const jwksClient = require('jwks-rsa');
   const client = jwksClient({
@@ -208,13 +262,13 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// â”€â”€â”€ API Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── API Routes ────────────────────────────────────────────────────────────
 
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-2026';
 
 // Health check
-app.get('/health', (req, res) => res.send('Bridge is active! ðŸŒ‰'));
-app.get('/', (req, res) => res.send('KiddoChecker Bridge API is online. ðŸš€'));
+app.get('/health', (req, res) => res.send('Bridge is active! 🌊'));
+app.get('/', (req, res) => res.send('KiddoChecker Bridge API is online. 🚀'));
 
 /**
  * NATIVE AUTH: Send branded OTP via Resend
@@ -284,8 +338,8 @@ app.post('/api/auth/verify-code', async (req, res) => {
 
     if (profileResult.rows.length === 0) {
       const { rows } = await pool.query(
-        'INSERT INTO public.profiles (email, role) VALUES ($1, $2) RETURNING *',
-        [email, 'parent']
+        'INSERT INTO public.profiles (email) VALUES ($1) RETURNING *',
+        [email]
       );
       userData = rows[0];
     } else {
@@ -330,8 +384,8 @@ app.get('/api/profile', verifyToken, async (req, res) => {
       // 2. NEW USER: Auto-create profile for brand new signups
       console.log(`[Bridge] New user detected. Creating profile for: ${userEmail}`);
       const createQuery = `
-        INSERT INTO public.profiles (email, azure_oid, first_name, last_name, role)
-        VALUES ($1, $2, $3, $4, 'parent')
+        INSERT INTO public.profiles (email, azure_oid, first_name, last_name)
+        VALUES ($1, $2, $3, $4)
         RETURNING *
       `;
       const [firstName, lastName] = (req.user.name || 'New User').split(' ');
@@ -348,21 +402,7 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 
     const internalId = userData.id;
 
-    // â”€â”€â”€ Role Enforcement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Only allow 'parent' role to access the frontend (as per original app)
-    if (userData.role !== 'parent' && userData.role !== 'admin' && userData.role !== 'staff') {
-      console.warn(`[Bridge] Access denied for role: ${userData.role}`);
-      return res.status(403).json({ 
-        error: 'Access Restricted', 
-        message: 'This portal is for Parents only. Please use the Staff or Admin portal.' 
-      });
-    }
-
-    // 4. Role-Based MFA Logic
-    const mfaRequiredRoles = ['admin', 'staff', 'teacher', 'volunteer'];
-    const requiresMfa = mfaRequiredRoles.includes((userData.role || '').toLowerCase()) || userData.is_super_admin;
-
-    // 5. Fetch permissions using the internal UUID
+    // 4. Fetch permissions using the internal UUID
     const permsQuery = `
       SELECT DISTINCT name FROM (
         SELECT p.name 
@@ -385,7 +425,6 @@ app.get('/api/profile', verifyToken, async (req, res) => {
     res.json({
       ...userData,
       azure_oid: azureId,
-      requires_mfa: requiresMfa,
       permissions
     });
   } catch (err) {
@@ -522,8 +561,8 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
 
 // Start listening immediately to pass Azure health probes
 app.listen(port, () => {
-  console.log(`ðŸš€ KiddoChecker Bridge operational at port ${port}`);
-  console.log(`ðŸ”— Target Database: ${pool.options.host}`);
+  console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
+  console.log(`🔗 Target Database: ${pool.options.host}`);
   
   // Run migrations in the background
   runMigrations().then(() => {

@@ -1,4 +1,25 @@
-﻿
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role NOLOGIN;
+  END IF;
+END
+$$;
+
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE TABLE IF NOT EXISTS auth.users (
+  id UUID PRIMARY KEY,
+  email TEXT,
+  confirmed_at TIMESTAMPTZ
+);
+
 -- Create events table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -912,10 +933,7 @@ END;
 $$;
 
 -- Add RLS policy to the execute_sql function
-CREATE POLICY "Allow only safe SQL queries" ON FUNCTION public.execute_sql
-FOR ALL
-TO authenticated
-USING (public.check_sql_query_safety(query));
+
 
 -- First, let's fix the create_organization function to avoid ambiguous column reference
 CREATE OR REPLACE FUNCTION public.create_organization(
@@ -2524,7 +2542,7 @@ USING (parent_id = auth.uid())
 WITH CHECK (parent_id = auth.uid());
 
 CREATE POLICY "Staff can view and update all children"
-ON children FOR SELECT, UPDATE
+ON children FOR ALL
 TO authenticated
 USING (
   EXISTS (

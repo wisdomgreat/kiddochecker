@@ -35,7 +35,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_API_URL: "https://ca-api-kiddo-prod-yotzp.niceglacier-61bc8452.centralus.azurecontainerapps.io"
+          VITE_API_URL: "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io"
           VITE_AZURE_CLIENT_ID: "e48264b2-de12-4444-a290-a8d7f3e3a525"
           VITE_AZURE_TENANT_ID: "08e0221b-0776-4500-8e5f-c6002cf868bc"
           VITE_AZURE_AUTHORITY: "https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0"
