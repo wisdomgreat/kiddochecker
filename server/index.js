@@ -115,7 +115,8 @@ async function runMigrations() {
       const schemaPath = path.join(__dirname, 'master_schema.sql');
       if (fs.existsSync(schemaPath)) {
         console.log('[Bridge] 🏗️  Applying schema...');
-        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        let schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        schemaSql = schemaSql.replace(/^\uFEFF/, ''); // Strip BOM
         await pool.query(schemaSql);
         console.log('[Bridge] ✅ Schema applied.');
         
@@ -133,10 +134,11 @@ async function runMigrations() {
       // 2. Run Data
       const sqlPath = path.join(__dirname, 'azure_ready_data.sql');
       if (fs.existsSync(sqlPath)) {
-        console.log('[Bridge] ðŸ“¦ Injecting production data...');
-        const bootstrapSql = fs.readFileSync(sqlPath, 'utf8');
+        console.log('[Bridge] 📦 Injecting production data...');
+        let bootstrapSql = fs.readFileSync(sqlPath, 'utf8');
+        bootstrapSql = bootstrapSql.replace(/^\uFEFF/, ''); // Strip BOM
         await pool.query(bootstrapSql);
-        console.log('[Bridge] âœ… Data injection completed.');
+        console.log('[Bridge] ✅ Data injection completed.');
       } else {
         console.warn('[Bridge] âš ï¸ azure_ready_data.sql not found, skipping data injection.');
       }
@@ -150,11 +152,9 @@ async function runMigrations() {
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS azure_oid TEXT;
       CREATE INDEX IF NOT EXISTS idx_profiles_azure_oid ON public.profiles(azure_oid);
       CREATE SCHEMA IF NOT EXISTS auth;
-      CREATE EXTENSION IF NOT EXISTS pgcrypto;
-      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
       CREATE TABLE IF NOT EXISTS auth.verification_codes (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email TEXT NOT NULL,
         code TEXT NOT NULL,
         expires_at TIMESTAMP WITH TIME ZONE DEFAULT (now() + interval '10 minutes'),
