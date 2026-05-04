@@ -6,6 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 const msalInstance = new PublicClientApplication(msalConfig);
 
 export const getAccessToken = async () => {
+    // 0. Check Custom Bridge Token First
+    const bridgeToken = localStorage.getItem('bridge_token');
+    if (bridgeToken) {
+        return bridgeToken;
+    }
+
     // 1. Check MSAL (Microsoft)
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
