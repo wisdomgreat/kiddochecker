@@ -156,6 +156,16 @@ async function runMigrations() {
       }
     }
 
+    // Always run fixes
+    const fixPath = path.join(__dirname, 'fix_missing_functions.sql');
+    if (fs.existsSync(fixPath)) {
+      console.log('[Bridge] 🔧 Applying missing function fixes...');
+      let fixSql = fs.readFileSync(fixPath, 'utf8');
+      fixSql = fixSql.replace(/^\uFEFF/, '');
+      await pool.query(fixSql);
+      console.log('[Bridge] ✅ Functions restored.');
+    }
+
     // Map emails to profiles for legacy accounts (run unconditionally)
     try {
       console.log('[Bridge] 🔄 Mapping legacy emails to profiles...');
@@ -163,7 +173,7 @@ async function runMigrations() {
         UPDATE public.profiles p
         SET email = d.email
         FROM public.debug_users d
-        WHERE p.id = d.id AND (p.email IS NULL OR p.email = '');
+        WHERE p.id = d.id::uuid AND (p.email IS NULL OR p.email = '');
       `);
       
       console.log('[Bridge] 🧹 Cleaning up duplicate empty profiles...');
@@ -179,9 +189,9 @@ async function runMigrations() {
       console.log('[Bridge] 🔄 Mapping legacy roles to user_roles...');
       await pool.query(`
         INSERT INTO public.user_roles (id, user_id, role, is_super_admin)
-        SELECT gen_random_uuid(), d.id, d.role, d.is_super_admin
+        SELECT gen_random_uuid(), d.id::uuid, d.role, d.is_super_admin
         FROM public.debug_users d
-        LEFT JOIN public.user_roles ur ON d.id = ur.user_id
+        LEFT JOIN public.user_roles ur ON d.id::uuid = ur.user_id
         WHERE ur.user_id IS NULL
         ON CONFLICT DO NOTHING;
       `);
@@ -190,7 +200,7 @@ async function runMigrations() {
         UPDATE public.user_roles ur
         SET role = d.role, is_super_admin = d.is_super_admin
         FROM public.debug_users d
-        WHERE ur.user_id = d.id AND (ur.role IS DISTINCT FROM d.role OR ur.is_super_admin IS DISTINCT FROM d.is_super_admin);
+        WHERE ur.user_id = d.id::uuid AND (ur.role IS DISTINCT FROM d.role OR ur.is_super_admin IS DISTINCT FROM d.is_super_admin);
       `);
       
       console.log('[Bridge] ✅ Legacy mapping check completed.');
@@ -372,12 +382,19 @@ app.get('/api/profile', verifyToken, async (req, res) => {
     let lookupQuery = `
       SELECT p.*, r.role, r.is_super_admin, r.verification_status 
       FROM public.profiles p
-      LEFT JOIN public.user_roles r ON p.id = r.user_id
+      LEFT JOIN public.user_roles r ON p.id::text = r.user_id::text
       WHERE p.azure_oid = $1 OR p.email = $2
       LIMIT 1
     `;
     
-    let userResult = await pool.query(lookupQuery, [azureId, userEmail]);
+    let userResult;
+    try {
+      userResult = await pool.query(lookupQuery, [azureId, userEmail]);
+    } catch (lookupErr) {
+      console.error('[Bridge] Lookup Query Failed:', lookupErr.message);
+      throw new Error(`Lookup failed: ${lookupErr.message}`);
+    }
+    
     let userData;
 
     if (userResult.rows.length === 0) {
@@ -402,24 +419,34 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 
     const internalId = userData.id;
 
-    // 4. Fetch permissions using the internal UUID
+    // 4. Handle Super Admin Status
+    if (userData.is_super_admin) {
+      console.log(`[Bridge] Super Admin detected: ${userEmail}. Granting all permissions.`);
+      return res.json({
+        ...userData,
+        azure_oid: azureId,
+        permissions: ['*'], // Special wildcard for UI
+        role: 'super_admin' // Force super_admin role for UI
+      });
+    }
+
+    // 5. Fetch permissions using the internal UUID (Resilient Query)
     const permsQuery = `
-      SELECT DISTINCT name FROM (
-        SELECT p.name 
-        FROM public.permissions p
-        JOIN public.role_permissions rp ON p.id = rp.permission_id
-        JOIN public.user_roles ur ON rp.role_id = ur.custom_role_id
-        WHERE ur.user_id = $1
-        UNION
-        SELECT p.name 
-        FROM public.permissions p
-        JOIN public.group_permissions gp ON p.id = gp.permission_id
-        JOIN public.user_security_groups usg ON gp.group_id = usg.group_id
-        WHERE usg.user_id = $1
-      ) combined_perms
+      SELECT DISTINCT p.name 
+      FROM public.permissions p
+      JOIN public.role_permissions rp ON p.id::text = rp.permission_id::text
+      JOIN public.user_roles ur ON rp.role_id::text = ur.custom_role_id::text
+      WHERE ur.user_id::text = $1::text
     `;
     
-    const permsResult = await pool.query(permsQuery, [internalId]);
+    let permsResult;
+    try {
+      permsResult = await pool.query(permsQuery, [internalId]);
+    } catch (permsErr) {
+      console.warn('[Bridge] Permissions lookup failed (ignoring):', permsErr.message);
+      permsResult = { rows: [] };
+    }
+    
     const permissions = permsResult.rows.map(r => r.name);
 
     res.json({
@@ -490,11 +517,36 @@ app.post('/api/query', verifyToken, async (req, res) => {
     const values = [];
     
     if (filters && filters.length > 0) {
-      const filterClauses = filters.map((f, i) => {
-        values.push(f.value);
-        return `${f.column} ${f.operator || '='} $${i + 1}`;
-      });
-      query += ` WHERE ${filterClauses.join(' AND ')}`;
+      const filterClauses = filters.map(f => {
+        if (f.operator === 'or') {
+          // Format: "col1.eq.val1,col2.eq.val2"
+          const parts = f.value.split(',');
+          const orConditions = parts.map(p => {
+            const [col, op, val] = p.split('.');
+            const pIdx = values.push(val);
+            const sqlOp = op === 'eq' ? '=' : op === 'neq' ? '<>' : op;
+            return `${col} ${sqlOp} $${pIdx}`;
+          });
+          return `(${orConditions.join(' OR ')})`;
+        } else if (f.operator === 'in') {
+          const pIdxs = f.value.map(v => values.push(v));
+          return `${f.column} IN (${pIdxs.map(i => `$${i}`).join(', ')})`;
+        } else if (f.operator === 'limit') {
+          return null;
+        } else {
+          const pIdx = values.push(f.value);
+          return `${f.column} ${f.operator || '='} $${pIdx}`;
+        }
+      }).filter(c => c !== null);
+
+      if (filterClauses.length > 0) {
+        query += ` WHERE ${filterClauses.join(' AND ')}`;
+      }
+
+      const limitFilter = filters.find(f => f.operator === 'limit');
+      if (limitFilter) {
+        query += ` LIMIT ${parseInt(limitFilter.value)}`;
+      }
     }
 
     const result = await pool.query(query, values);
@@ -516,12 +568,20 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
     let query = '';
     let values = [];
 
-    if (action === 'insert') {
+    if (action === 'insert' || action === 'upsert') {
       const keys = Object.keys(data);
       values = Object.values(data);
       const columns = keys.join(', ');
       const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-      query = `INSERT INTO ${table} (${columns}) VALUES (${placeholders}) RETURNING *`;
+      query = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`;
+      
+      if (action === 'upsert') {
+        // Simple heuristic for upsert: assume 'id' is the conflict target
+        const updatePart = keys.map((k, i) => `${k} = EXCLUDED.${k}`).join(', ');
+        query += ` ON CONFLICT (id) DO UPDATE SET ${updatePart}`;
+      }
+      
+      query += ` RETURNING *`;
     } 
     else if (action === 'update') {
       const keys = Object.keys(data);
