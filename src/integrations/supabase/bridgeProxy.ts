@@ -45,40 +45,52 @@ export const createBridgeProxy = () => {
         });
         return { data: res.data?.[0] || null, error: res.error };
       },
-      insert: async (data: any) => {
-        const res = await apiFetch('/api/mutate', {
-          method: 'POST',
-          body: JSON.stringify({ table, action: 'insert', data })
-        });
-        return { data: Array.isArray(res.data) ? res.data[0] : (res.data || null), error: res.error };
+      insert: (data: any) => {
+        filters.push({ action: 'insert', data });
+        return builder;
       },
-      upsert: async (data: any) => {
-        const res = await apiFetch('/api/mutate', {
-          method: 'POST',
-          body: JSON.stringify({ table, action: 'upsert', data, filters })
-        });
-        return { data: res.data || null, error: res.error };
+      upsert: (data: any) => {
+        filters.push({ action: 'upsert', data });
+        return builder;
       },
-      update: async (data: any) => {
-        const res = await apiFetch('/api/mutate', {
-          method: 'POST',
-          body: JSON.stringify({ table, action: 'update', data, filters })
-        });
-        return { data: res.data || null, error: res.error };
+      update: (data: any) => {
+        filters.push({ action: 'update', data });
+        return builder;
       },
-      delete: async () => {
-        const res = await apiFetch('/api/mutate', {
+      delete: () => {
+        filters.push({ action: 'delete' });
+        return builder;
+      },
+      single: async () => {
+        const mutation = filters.find(f => f.action);
+        if (mutation) {
+          const res = await apiFetch('/api/mutate', {
+            method: 'POST',
+            body: JSON.stringify({ table, action: mutation.action, data: mutation.data, filters: filters.filter(f => !f.action) })
+          });
+          return { data: Array.isArray(res.data) ? res.data[0] : (res.data || null), error: res.error };
+        }
+        const res = await apiFetch('/api/query', {
           method: 'POST',
-          body: JSON.stringify({ table, action: 'delete', filters })
+          body: JSON.stringify({ table, select: selectCols, filters })
         });
-        return { data: res.data || null, error: res.error };
+        return { data: res.data?.[0] || null, error: res.error };
       },
       then: async (resolve: any, reject: any) => {
         try {
-          const res = await apiFetch('/api/query', {
-            method: 'POST',
-            body: JSON.stringify({ table, select: selectCols, filters })
-          });
+          const mutation = filters.find(f => f.action);
+          let res;
+          if (mutation) {
+            res = await apiFetch('/api/mutate', {
+              method: 'POST',
+              body: JSON.stringify({ table, action: mutation.action, data: mutation.data, filters: filters.filter(f => !f.action) })
+            });
+          } else {
+            res = await apiFetch('/api/query', {
+              method: 'POST',
+              body: JSON.stringify({ table, select: selectCols, filters })
+            });
+          }
           resolve(res);
         } catch (err) {
           reject(err);
