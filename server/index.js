@@ -7,10 +7,10 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3001;
 
-// ─── Database Connection ───────────────────────────────────────────────────
+// â”€â”€â”€ Database Connection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // These environment variables will be injected by Azure Container Apps
 const pool = new Pool({
-  host: process.env.DB_HOST || '10.0.1.4',
+  host: '10.0.1.4', // Direct IP fallback for VNet DNS issues
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER || 'kiddomin',
   password: process.env.DB_PASSWORD,
@@ -56,7 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── Email & SMS Helpers (Ported from Edge Functions) ────────────────────────
+// â”€â”€â”€ Email & SMS Helpers (Ported from Edge Functions) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendEmail({ to, subject, html }) {
   const { Resend } = require('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -81,7 +81,7 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
-// ─── Auto-Migration Logic ───────────────────────────────────────────────────
+// â”€â”€â”€ Auto-Migration Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function runMigrations() {
   const fs = require('fs');
   const path = require('path');
@@ -109,14 +109,36 @@ async function runMigrations() {
     }
 
     if (needsBootstrap) {
-      console.log('[Bridge] 🚀 Bootstrapping empty database with production data...');
+      console.log('[Bridge] ðŸš€ Bootstrapping empty database...');
+      
+      // 1. Run Schema
+      const schemaPath = path.join(__dirname, 'master_schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        console.log('[Bridge] 🏗️  Applying schema...');
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        await pool.query(schemaSql);
+        console.log('[Bridge] ✅ Schema applied.');
+        
+        // Remove Supabase auth dependencies
+        try {
+          console.log('[Bridge] 🔧 Removing legacy Supabase Auth constraints...');
+          await pool.query('ALTER TABLE IF EXISTS public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey CASCADE;');
+          await pool.query('ALTER TABLE IF EXISTS public.user_roles DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey CASCADE;');
+          await pool.query('ALTER TABLE IF EXISTS public.profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();');
+        } catch (e) {
+          console.log('[Bridge] ⚠️ Non-fatal constraint removal error:', e.message);
+        }
+      }
+
+      // 2. Run Data
       const sqlPath = path.join(__dirname, 'azure_ready_data.sql');
       if (fs.existsSync(sqlPath)) {
+        console.log('[Bridge] ðŸ“¦ Injecting production data...');
         const bootstrapSql = fs.readFileSync(sqlPath, 'utf8');
         await pool.query(bootstrapSql);
-        console.log('[Bridge] ✅ Database bootstrap completed successfully.');
+        console.log('[Bridge] âœ… Data injection completed.');
       } else {
-        console.warn('[Bridge] ⚠️ azure_ready_data.sql not found, skipping bootstrap.');
+        console.warn('[Bridge] âš ï¸ azure_ready_data.sql not found, skipping data injection.');
       }
     }
   } catch (err) {
@@ -140,13 +162,13 @@ async function runMigrations() {
       );
     `;
     await pool.query(patch);
-    console.log('[Bridge] Database migrations applied successfully! ✅');
+    console.log('[Bridge] Database migrations applied successfully! âœ…');
   } catch (err) {
     console.error('[Bridge] Migration error (this may be normal if already applied):', err.message);
   }
 }
 
-// ─── Azure Entra JWT Verification ──────────────────────────────────────────
+// â”€â”€â”€ Azure Entra JWT Verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function getKey(header, callback) {
   const jwksClient = require('jwks-rsa');
   const client = jwksClient({
@@ -186,13 +208,13 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// ─── API Routes ────────────────────────────────────────────────────────────
+// â”€â”€â”€ API Routes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-2026';
 
 // Health check
-app.get('/health', (req, res) => res.send('Bridge is active! 🌉'));
-app.get('/', (req, res) => res.send('KiddoChecker Bridge API is online. 🚀'));
+app.get('/health', (req, res) => res.send('Bridge is active! ðŸŒ‰'));
+app.get('/', (req, res) => res.send('KiddoChecker Bridge API is online. ðŸš€'));
 
 /**
  * NATIVE AUTH: Send branded OTP via Resend
@@ -208,7 +230,7 @@ app.post('/api/auth/send-code', async (req, res) => {
     console.log(`[AUTH] Saving code to DB...`);
     // 1. Save code to DB
     await pool.query(
-      'INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET code = $2, created_at = NOW()',
+      "INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET code = $2, created_at = NOW(), expires_at = NOW() + interval '10 minutes'",
       [email, code]
     );
 
@@ -326,7 +348,7 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 
     const internalId = userData.id;
 
-    // ─── Role Enforcement ──────────────────────────────────────────────────
+    // â”€â”€â”€ Role Enforcement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Only allow 'parent' role to access the frontend (as per original app)
     if (userData.role !== 'parent' && userData.role !== 'admin' && userData.role !== 'staff') {
       console.warn(`[Bridge] Access denied for role: ${userData.role}`);
@@ -500,8 +522,8 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
 
 // Start listening immediately to pass Azure health probes
 app.listen(port, () => {
-  console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
-  console.log(`🔗 Target Database: ${pool.options.host}`);
+  console.log(`ðŸš€ KiddoChecker Bridge operational at port ${port}`);
+  console.log(`ðŸ”— Target Database: ${pool.options.host}`);
   
   // Run migrations in the background
   runMigrations().then(() => {
