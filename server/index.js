@@ -249,7 +249,14 @@ app.post('/api/query', verifyToken, async (req, res) => {
     if (needsAttendanceJoin) {
       sql = `
         SELECT t.*,
-          jsonb_build_object('id', c.id, 'first_name', c.first_name, 'last_name', c.last_name) as child,
+          jsonb_build_object(
+            'id', c.id, 
+            'first_name', c.first_name, 
+            'last_name', c.last_name, 
+            'parent_id', c.parent_id::text,
+            'email', c.email,
+            'phone', c.phone
+          ) as child,
           jsonb_build_object('id', cl.id, 'name', cl.name) as class
         FROM public.attendance t
         LEFT JOIN public.children c ON t.child_id = c.id
