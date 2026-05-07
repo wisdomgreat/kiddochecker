@@ -316,6 +316,8 @@ app.post('/api/query', verifyToken, async (req, res) => {
       sql += ` LIMIT ${parseInt(limit)}`;
     }
     
+    console.log('[Bridge] Executing SQL:', sql);
+    console.log('[Bridge] With Values:', JSON.stringify(values));
     const result = await pool.query(sql, values);
     console.log(`[Bridge] query success [${table}]: returned ${result.rows.length} rows`);
     res.json({ data: result.rows, error: null });

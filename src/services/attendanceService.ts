@@ -152,7 +152,9 @@ export class AttendanceService {
         return [];
       }
 
-      return (data as any) || [];
+      const records = (data as any) || [];
+      console.log(`[Bridge] Received ${records.length} checked-in children`);
+      return records;
     } catch (error) {
       console.error("[Bridge] Exception fetching checked-in children:", error);
       return [];
