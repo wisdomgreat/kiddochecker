@@ -267,11 +267,11 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
         {
           name: 'resend-api-key'
-          value: resendApiKey
+          value: 're_fzzhs1Gi_3EGMrF9BG8HfsAB5ANgykb2V'
         }
         {
           name: 'bridge-secret'
-          value: bridgeSecret
+          value: 'kiddochecker-super-secret-2026'
         }
       ]
     }
