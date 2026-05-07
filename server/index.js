@@ -8,9 +8,8 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // ─── Database Connection ──────────────────────────────────────────────────
-// These environment variables will be injected by Azure Container Apps
 const pool = new Pool({
-  host: '10.0.1.4', // Direct IP fallback for VNet DNS issues
+  host: '10.0.1.4',
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER || 'kiddomin',
   password: process.env.DB_PASSWORD,
@@ -39,233 +38,118 @@ async function setupDatabase() {
   }
 }
 
-// Initialize DB in background
 setupDatabase();
 
 app.use(cors({
-  origin: '*',
-  methods: '*',
-  allowedHeaders: '*'
+  origin: ['https://happy-glacier-0746a2210.7.azurestaticapps.net', 'https://kiddochecker.com'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bridge-Secret'],
+  credentials: true
 }));
 app.use(express.json());
-app.use((req, res, next) => {
-  res.setTimeout(15000, () => {
-    console.warn(`[Bridge] Request timed out: ${req.method} ${req.url}`);
-    res.status(408).send('Request Timeout');
-  });
-  next();
-});
 
-// ─── Email & SMS Helpers (Ported from Edge Functions) ────────────────────
+// ─── Email & SMS Helpers ─────────────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
   const { Resend } = require('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
   try {
-    console.log(`[AUTH] Calling Resend API for: ${to}`);
     const data = await resend.emails.send({
       from: 'KiddoChecker <noreply@kiddochecker.com>',
       to: [to],
       subject: subject,
       html: html,
     });
-    clearTimeout(timeoutId);
     return { success: true, data };
   } catch (err) {
-    clearTimeout(timeoutId);
     console.error('[Bridge] Email Error:', err.message);
-    if (err.name === 'AbortError') return { success: false, error: 'Email service timed out' };
     return { success: false, error: err.message };
   }
 }
 
 // ─── Auto-Migration Logic ──────────────────────────────────────────────────
 async function runMigrations() {
+  console.log('[Bridge] Starting resilient database migrations...');
   const fs = require('fs');
   const path = require('path');
-  
-  try {
-    console.log('[Bridge] Checking for database migrations...');
-    
-    // Check if profiles table exists and has data
-    const tableCheck = await pool.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'profiles'
-      );
-    `);
-    
-    const tableExists = tableCheck.rows[0].exists;
-    let needsBootstrap = !tableExists;
 
-    if (tableExists) {
-      const dataCheck = await pool.query('SELECT COUNT(*) FROM public.profiles');
-      if (parseInt(dataCheck.rows[0].count) === 0) {
-        needsBootstrap = true;
-      }
-    }
+  const migrations = [
+    { name: 'pgcrypto', sql: 'CREATE EXTENSION IF NOT EXISTS "pgcrypto";' },
+    { name: 'report_seals', sql: `CREATE TABLE IF NOT EXISTS public.report_seals (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), report_type TEXT, generated_at TIMESTAMPTZ DEFAULT now(), generated_by_profile UUID, seal_hash TEXT, metadata JSONB);` },
+    { name: 'col_qr_token', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS qr_token TEXT;' },
+    { name: 'col_device_id', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS device_id TEXT;' },
+    { name: 'col_health_fever', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_fever BOOLEAN DEFAULT false;' },
+    { name: 'col_health_cough', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_cough BOOLEAN DEFAULT false;' },
+    { name: 'col_device_metadata', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS device_metadata JSONB DEFAULT \'{}\'::jsonb;' },
+    { name: 'col_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS method TEXT;' },
+    { name: 'col_station', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS station TEXT;' },
+    { name: 'app_role_type', sql: `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN CREATE TYPE app_role AS ENUM ('admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'parent', 'kiosk'); END IF; END $$;` },
+    { name: 'checkin_child', sql: `CREATE OR REPLACE FUNCTION public.checkin_child(p_child_id UUID, p_class_id UUID DEFAULT NULL, p_checked_in_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_special_instructions TEXT DEFAULT NULL, p_health_fever BOOLEAN DEFAULT false, p_health_cough BOOLEAN DEFAULT false, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_device_id TEXT DEFAULT NULL) RETURNS UUID AS $$ DECLARE v_attendance_id UUID; v_existing_id UUID; BEGIN SELECT id INTO v_existing_id FROM public.attendance WHERE child_id = p_child_id AND checked_out_at IS NULL AND attendance_date = CURRENT_DATE LIMIT 1; IF v_existing_id IS NOT NULL THEN RAISE EXCEPTION 'Child is already checked in'; END IF; INSERT INTO public.attendance (child_id, class_id, checked_in_by, qr_token, method, station, special_instructions, health_fever, health_cough, device_metadata, device_id, checked_in_at, attendance_date) VALUES (p_child_id, p_class_id, p_checked_in_by, p_qr_token, p_method, p_station, p_special_instructions, p_health_fever, p_health_cough, p_device_metadata, p_device_id, now(), CURRENT_DATE) RETURNING id INTO v_attendance_id; RETURN v_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'checkout_child', sql: `CREATE OR REPLACE FUNCTION public.checkout_child(p_attendance_id UUID, p_checked_out_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_signature_data TEXT DEFAULT NULL, p_override_reason TEXT DEFAULT NULL, p_pickup_snapshot JSONB DEFAULT NULL, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_witness_id UUID DEFAULT NULL, p_device_id TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN UPDATE public.attendance SET checked_out_at = now(), checked_out_by = p_checked_out_by::text, checked_out_method = p_method, checked_out_station = p_station, signature_data = p_signature_data, override_reason = p_override_reason, pickup_snapshot = p_pickup_snapshot::text, device_metadata = p_device_metadata, witness_id = p_witness_id, device_id = p_device_id WHERE id = p_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'youth_self_check_action', sql: `CREATE OR REPLACE FUNCTION public.youth_self_check_action(p_pin_code TEXT, p_kiosk_id TEXT) RETURNS JSONB AS $$ DECLARE v_child_id UUID; v_child_name TEXT; BEGIN SELECT id, first_name || ' ' || last_name INTO v_child_id, v_child_name FROM public.children WHERE youth_pin = p_pin_code LIMIT 1; IF v_child_id IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Invalid PIN'); END IF; RETURN jsonb_build_object('success', true, 'child_id', v_child_id, 'child_name', v_child_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_parent_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_parent_for_kiosk(p_search_val TEXT, p_pin TEXT) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, phone TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, p.phone FROM public.profiles p WHERE (p.phone = p_search_val OR p.email = p_search_val) AND p.security_pin = p_pin; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_children_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_children_for_kiosk(p_parent_id UUID, p_pin TEXT) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, age INTEGER, class_id UUID) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.class_id FROM public.children c JOIN public.profiles p ON c.parent_id = p.id WHERE p.id = p_parent_id AND p.security_pin = p_pin; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'verify_staff_pin_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.verify_staff_pin_for_kiosk(p_pin TEXT) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, role TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, ur.role::TEXT FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.security_pin = p_pin AND ur.role IN ('admin', 'super_admin', 'staff', 'teacher') LIMIT 1; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_terminal_security_stats', sql: `CREATE OR REPLACE FUNCTION public.get_terminal_security_stats() RETURNS TABLE (active_kiosks bigint, authorized_devices bigint, active_staff_sessions bigint, security_alerts_24h bigint) AS $$ BEGIN RETURN QUERY SELECT (SELECT COUNT(*) FROM public.devices WHERE type = 'kiosk' AND is_active = true) as active_kiosks, (SELECT COUNT(*) FROM public.devices WHERE is_authorized = true) as authorized_devices, (SELECT COUNT(*) FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE ur.role IN ('staff', 'admin', 'super_admin')) as active_staff_sessions, 0::bigint as security_alerts_24h; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_attendance_stats', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_stats() RETURNS TABLE (total_checkins bigint, total_on_site bigint, total_departed bigint, total_late_pickups bigint) AS $$ BEGIN RETURN QUERY SELECT (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE) as total_checkins, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at IS NULL) as total_on_site, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at IS NOT NULL) as total_departed, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at > (attendance_date + time '18:00')) as total_late_pickups; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_attendance_summary_secure', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_summary_secure(p_date date DEFAULT CURRENT_DATE) RETURNS TABLE (attendance_date date, class_id uuid, class_name text, total_children bigint, checked_in_count bigint, checked_out_count bigint, currently_present bigint) AS $$ BEGIN RETURN QUERY SELECT a.attendance_date, c.id as class_id, c.name as class_name, COUNT(DISTINCT a.child_id) as total_children, COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL THEN a.child_id END) as checked_in_count, COUNT(DISTINCT CASE WHEN a.checked_out_at IS NOT NULL THEN a.child_id END) as checked_out_count, COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL AND a.checked_out_at IS NULL THEN a.child_id END) as currently_present FROM public.attendance a LEFT JOIN public.classes c ON a.class_id = c.id WHERE a.attendance_date = p_date GROUP BY a.attendance_date, c.id, c.name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_attendance_report', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_report(start_date date, end_date date) RETURNS TABLE (attendance_date date, class_id uuid, class_name text, total_checked_in bigint, total_checked_out bigint) AS $$ BEGIN RETURN QUERY SELECT a.attendance_date, c.id as class_id, COALESCE(c.name, 'Unassigned') as class_name, COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_in_at IS NOT NULL) as total_checked_in, COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_out_at IS NOT NULL) as total_checked_out FROM public.attendance a LEFT JOIN public.classes c ON a.class_id = c.id WHERE a.attendance_date BETWEEN start_date AND end_date GROUP BY a.attendance_date, c.id, c.name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_liability_audit_report', sql: `CREATE OR REPLACE FUNCTION public.get_liability_audit_report(start_date date, end_date date) RETURNS TABLE (attendance_id UUID, attendance_date DATE, child_name TEXT, child_age INTEGER, has_allergies BOOLEAN, class_name TEXT, checked_in_at TIMESTAMPTZ, checked_in_by_name TEXT, checked_in_by_role TEXT, checked_in_method TEXT, checked_in_station TEXT, checked_out_at TIMESTAMPTZ, checked_out_by_name TEXT, checked_out_by_role TEXT, checked_out_method TEXT, checked_out_station TEXT, duration_hours NUMERIC, health_fever BOOLEAN, health_cough BOOLEAN, special_instructions TEXT, device_ua TEXT) LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN RETURN QUERY SELECT a.id as attendance_id, a.attendance_date, CONCAT(ch.first_name, ' ', ch.last_name) as child_name, ch.age as child_age, (ch.allergies IS NOT NULL AND ch.allergies <> '') as has_allergies, COALESCE(cl.name, 'Unassigned') as class_name, a.checked_in_at, COALESCE(CONCAT(p_in.first_name, ' ', p_in.last_name), 'System/PIN') as checked_in_by_name, COALESCE(ur_in.role::text, 'parent') as checked_in_by_role, a.checked_in_method, a.checked_in_station, a.checked_out_at, COALESCE(CONCAT(p_out.first_name, ' ', p_out.last_name), 'N/A') as checked_out_by_name, COALESCE(ur_out.role::text, 'parent') as checked_out_by_role, a.checked_out_method, a.checked_out_station, CASE WHEN a.checked_out_at IS NOT NULL THEN EXTRACT(EPOCH FROM (a.checked_out_at - a.checked_in_at)) / 3600.0 ELSE NULL END as duration_hours, a.health_fever, a.health_cough, a.special_instructions, a.device_metadata->>'userAgent' as device_ua FROM public.attendance a JOIN public.children ch ON a.child_id = ch.id LEFT JOIN public.classes cl ON a.class_id = cl.id LEFT JOIN public.profiles p_in ON a.checked_in_by = p_in.id LEFT JOIN public.profiles p_out ON a.checked_out_by = p_out.id LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_in_by LIMIT 1) ur_in ON TRUE LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_out_by LIMIT 1) ur_out ON TRUE WHERE a.attendance_date BETWEEN start_date AND end_date ORDER BY a.attendance_date DESC, a.checked_in_at DESC; END; $$;` },
+    { name: 'get_users_with_roles', sql: `DROP FUNCTION IF EXISTS public.get_users_with_roles(); CREATE OR REPLACE FUNCTION public.get_users_with_roles() RETURNS TABLE (id UUID, email TEXT, first_name TEXT, last_name TEXT, role TEXT, created_at TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT p.id, p.email, p.first_name, p.last_name, ur.role::TEXT, p.created_at FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_current_user_role', sql: `CREATE OR REPLACE FUNCTION public.get_current_user_role(p_user_id UUID DEFAULT NULL) RETURNS TEXT AS $$ DECLARE v_role TEXT; BEGIN SELECT role::TEXT INTO v_role FROM public.user_roles WHERE user_id = p_user_id LIMIT 1; RETURN COALESCE(v_role, 'parent'); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'check_user_permission', sql: `CREATE OR REPLACE FUNCTION public.check_user_permission(p_user_id UUID, p_permission_name TEXT) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id; IF v_is_admin THEN RETURN TRUE; END IF; RETURN EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON rp.permission_id = p.id JOIN public.user_roles ur ON ur.role::text = rp.role_id::text WHERE ur.user_id = p_user_id AND p.name = p_permission_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` }
 
-    if (needsBootstrap) {
-      console.log('[Bridge] 🚀 Bootstrapping empty database...');
-      
-      // 0. Run Base Tables
-      const basePath = path.join(__dirname, 'base_tables.sql');
-      if (fs.existsSync(basePath)) {
-        console.log('[Bridge] 🏗️  Creating base tables...');
-        let baseSql = fs.readFileSync(basePath, 'utf8');
-        baseSql = baseSql.replace(/^\uFEFF/, '');
-        await pool.query(baseSql);
-        console.log('[Bridge] ✅ Base tables created.');
-      }
+  ];
 
-      // 1. Run Schema Updates (Ignoring legacy errors)
-      const schemaPath = path.join(__dirname, 'master_schema.sql');
-      if (fs.existsSync(schemaPath)) {
-        console.log('[Bridge] 🏗️  Applying schema updates...');
-        try {
-          let schemaSql = fs.readFileSync(schemaPath, 'utf8');
-          schemaSql = schemaSql.replace(/^\uFEFF/, ''); // Strip BOM
-          await pool.query(schemaSql);
-          console.log('[Bridge] ✅ Schema updates applied.');
-        } catch (e) {
-          console.log('[Bridge] ⚠️ Legacy schema update error (ignoring):', e.message);
-        }
-        
-        // Remove Supabase auth dependencies
-        try {
-          console.log('[Bridge] 🔧 Removing legacy Supabase Auth constraints...');
-          await pool.query('ALTER TABLE IF EXISTS public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey CASCADE;');
-          await pool.query('ALTER TABLE IF EXISTS public.user_roles DROP CONSTRAINT IF EXISTS user_roles_user_id_fkey CASCADE;');
-          await pool.query('ALTER TABLE IF EXISTS public.children DROP CONSTRAINT IF EXISTS children_parent_id_fkey CASCADE;');
-        } catch (e) {
-          console.log('[Bridge] ℹ️ Some legacy constraints already removed or missing.');
-        }
-      }
-
-      // 2. Run Data
-      const sqlPath = path.join(__dirname, 'azure_ready_data.sql');
-      if (fs.existsSync(sqlPath)) {
-        console.log('[Bridge] 📦 Injecting production data...');
-        let bootstrapSql = fs.readFileSync(sqlPath, 'utf8');
-        bootstrapSql = bootstrapSql.replace(/^\uFEFF/, ''); // Strip BOM
-        await pool.query(bootstrapSql);
-        console.log('[Bridge] ✅ Data injection completed.');
-      }
-    }
-
-    // Always run fixes
-    const fixPath = path.join(__dirname, 'fix_missing_functions.sql');
-    if (fs.existsSync(fixPath)) {
-      console.log('[Bridge] 🔧 Applying missing function fixes...');
-      let fixSql = fs.readFileSync(fixPath, 'utf8');
-      fixSql = fixSql.replace(/^\uFEFF/, '');
-      await pool.query(fixSql);
-      console.log('[Bridge] ✅ Functions restored.');
-    }
-
-    // Map emails to profiles for legacy accounts (run unconditionally)
-    try {
-      console.log('[Bridge] 🔄 Mapping legacy emails to profiles...');
-      await pool.query(`
-        UPDATE public.profiles p
-        SET email = d.email
-        FROM public.debug_users d
-        WHERE p.id = d.id::uuid AND (p.email IS NULL OR p.email = '');
-      `);
-      
-      console.log('[Bridge] 🧹 Cleaning up duplicate empty profiles...');
-      await pool.query(`
-        DELETE FROM public.profiles p1
-        USING public.profiles p2
-        WHERE p1.email = p2.email 
-        AND p1.id != p2.id 
-        AND p1.created_at > p2.created_at
-        AND p1.first_name IS NULL;
-      `);
-
-      console.log('[Bridge] 🔄 Mapping legacy roles to user_roles...');
-      await pool.query(`
-        INSERT INTO public.user_roles (id, user_id, role, is_super_admin)
-        SELECT gen_random_uuid(), d.id::uuid, d.role, d.is_super_admin
-        FROM public.debug_users d
-        LEFT JOIN public.user_roles ur ON d.id::uuid = ur.user_id
-        WHERE ur.user_id IS NULL
-        ON CONFLICT DO NOTHING;
-      `);
-
-      await pool.query(`
-        UPDATE public.user_roles ur
-        SET role = d.role, is_super_admin = d.is_super_admin
-        FROM public.debug_users d
-        WHERE ur.user_id = d.id::uuid AND (ur.role IS DISTINCT FROM d.role OR ur.is_super_admin IS DISTINCT FROM d.is_super_admin);
-      `);
-      
-      console.log('[Bridge] ✅ Legacy mapping check completed.');
-    } catch (e) {
-      console.log('[Bridge] ⚠️ Legacy email mapping skipped:', e.message);
-    }
-  } catch (err) {
-    console.error('[Bridge] Migration error:', err.message);
+  for (const m of migrations) {
+    try { await pool.query(m.sql); console.log(`[DB] Migration SUCCESS: ${m.name}`); } 
+    catch (err) { console.error(`[DB] Migration FAILED [${m.name}]:`, err.message); }
   }
 
   try {
-    const patch = `
-      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS azure_oid TEXT;
-      CREATE INDEX IF NOT EXISTS idx_profiles_azure_oid ON public.profiles(azure_oid);
-      CREATE SCHEMA IF NOT EXISTS auth;
-
-      CREATE TABLE IF NOT EXISTS auth.verification_codes (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        email TEXT NOT NULL,
-        code TEXT NOT NULL,
-        expires_at TIMESTAMP WITH TIME ZONE DEFAULT (now() + interval '10 minutes'),
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-      );
-    `;
-    await pool.query(patch);
-    console.log('[Bridge] Database migrations applied successfully! ✅');
-  } catch (err) {
-    console.error('[Bridge] Migration error (this may be normal if already applied):', err.message);
-  }
+    const tableCheck = await pool.query("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'profiles');");
+    if (tableCheck.rows[0].exists) {
+      const counts = await pool.query("SELECT (SELECT COUNT(*) FROM public.profiles) as p, (SELECT COUNT(*) FROM public.children) as c");
+      if ((parseInt(counts.rows[0].p) === 0 || parseInt(counts.rows[0].c) === 0) && process.env.SKIP_BOOTSTRAP !== 'true') {
+        console.log('[Bridge] Empty DB detected. Bootstrapping...');
+        const sqlPath = path.join(__dirname, 'azure_ready_data.sql');
+        if (fs.existsSync(sqlPath)) {
+          let sql = fs.readFileSync(sqlPath, 'utf8').replace(/^\uFEFF/, '');
+          await pool.query(sql);
+          console.log('[Bridge] Data injected.');
+        }
+      }
+    }
+    await pool.query(`ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS azure_oid TEXT; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN DEFAULT false; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT;`);
+  } catch (err) { console.error('[Bridge] Post-migration error:', err.message); }
 }
 
-// ─── Azure Entra JWT Verification ──────────────────────────────────────────
+(async () => {
+  try {
+
+  } catch (err) { console.error('[PROBE] Master Key error:', err.message); }
+  await runMigrations();
+})();
+
+// ─── JWT & Auth ──────────────────────────────────────────────────────────
+const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-2026';
+
 function getKey(header, callback) {
   const jwksClient = require('jwks-rsa');
-  const client = jwksClient({
-    jwksUri: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/discovery/v2.0/keys`
-  });
-  
-  client.getSigningKey(header.kid, function(err, key) {
-    const signingKey = key.publicKey || key.rsaPublicKey;
-    callback(null, signingKey);
-  });
+  const client = jwksClient({ jwksUri: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/discovery/v2.0/keys' });
+  client.getSigningKey(header.kid, (err, key) => callback(null, key.publicKey || key.rsaPublicKey));
 }
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).send('Access Denied: No Token Provided');
-
+  if (!authHeader) return res.status(401).send('No Token');
   const token = authHeader.split(' ')[1];
-  
-  // 1. Try Bridge Native Token first (Faster)
   try {
-    const decoded = jwt.verify(token, BRIDGE_SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(token, BRIDGE_SECRET);
     return next();
-  } catch (bridgeErr) {
-    // 2. Fallback to Azure Token verification
-    jwt.verify(token, getKey, {
-      audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525',
-      issuer: `https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0`
-    }, (err, decoded) => {
-      if (err) {
-        console.error('[Bridge] Token invalid for both Bridge and Azure');
-        return res.status(403).send('Invalid Token');
-      }
+  } catch (e) {
+    jwt.verify(token, getKey, { audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525', issuer: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0' }, (err, decoded) => {
+      if (err) return res.status(403).send('Invalid Token');
       req.user = decoded;
       next();
     });
@@ -273,361 +157,242 @@ const verifyToken = (req, res, next) => {
 };
 
 // ─── API Routes ────────────────────────────────────────────────────────────
+app.get('/health', (req, res) => res.send('OK'));
+app.get('/', (req, res) => res.send('Online'));
 
-const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-2026';
-
-// Health check
-app.get('/health', (req, res) => res.send('Bridge is active! 🌊'));
-app.get('/', (req, res) => res.send('KiddoChecker Bridge API is online. 🚀'));
-
-/**
- * NATIVE AUTH: Send branded OTP via Resend
- */
-app.post('/api/auth/send-code', async (req, res) => {
+app.post(['/api/auth/send-code', '/auth/send-code'], async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-
-  console.log(`[AUTH] Generating code for: ${email}`);
-  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
-  
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  console.log(`[Bridge] Auth: Generated code ${code} for ${email}`);
   try {
-    console.log(`[AUTH] Saving code to DB...`);
-    // 1. Save code to DB
     await pool.query(
-      "INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET code = $2, created_at = NOW(), expires_at = NOW() + interval '10 minutes'",
+      'INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET code = $2, created_at = NOW(), expires_at = (NOW() + INTERVAL \'15 minutes\')',
       [email, code]
     );
-
-    // 2. Send Branded Email
-    const html = `
-      <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 40px; border: 1px solid #e2e8f0; border-radius: 24px;">
-        <h2 style="color: #6366f1;">Your KiddoChecker Code</h2>
-        <p style="font-size: 16px; color: #475569;">Enter this code to access your dashboard. It expires in 10 minutes.</p>
-        <div style="background: #f8fafc; padding: 20px; border-radius: 16px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #4f46e5; margin: 20px 0;">
-          ${code}
-        </div>
-        <p style="font-size: 12px; color: #94a3b8;">If you didn't request this, you can safely ignore this email.</p>
-      </div>
-    `;
-
-    console.log(`[AUTH] Sending email via Resend...`);
-    await sendEmail({ to: email, subject: `${code} is your KiddoChecker code`, html });
-    
-    console.log(`[AUTH] Success! Code sent to ${email}`);
-    res.json({ success: true, message: 'Code sent!' });
+    await sendEmail({
+      to: email,
+      subject: 'KiddoChecker Verification Code',
+      html: `<div style="font-family:sans-serif;padding:20px;background:#f9f9f9;border-radius:10px;">
+              <h2 style="color:#2563eb;">KiddoChecker Verification</h2>
+              <p>Your verification code is: <strong style="font-size:24px;color:#1e40af;">${code}</strong></p>
+              <p style="color:#666;font-size:12px;">This code will expire in 15 minutes.</p>
+             </div>`
+    });
+    res.json({ success: true });
   } catch (err) {
-    console.error('[AUTH] ERROR in send-code:', err);
-    res.status(500).json({ error: 'Failed to send verification code', details: err.message });
+    console.error('[Bridge] send-code error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
-/**
- * NATIVE AUTH: Verify code and issue JWT
- */
-app.post('/api/auth/verify-code', async (req, res) => {
+app.post(['/api/auth/verify-code', '/auth/verify-code'], async (req, res) => {
   const { email, code } = req.body;
-  
   try {
-    // 1. Check code
     const result = await pool.query(
-      'SELECT * FROM auth.verification_codes WHERE email = $1 AND code = $2 AND expires_at > now() ORDER BY created_at DESC LIMIT 1',
+      'SELECT * FROM auth.verification_codes WHERE email = $1 AND code = $2 AND expires_at > NOW()',
       [email, code]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid or expired code' });
-    }
-
-    // 2. Clean up codes for this email
-    await pool.query('DELETE FROM auth.verification_codes WHERE email = $1', [email]);
-
-    // 3. Provision / Link User
-    let profileQuery = 'SELECT * FROM public.profiles WHERE email = $1 LIMIT 1';
-    let profileResult = await pool.query(profileQuery, [email]);
-    let userData;
-
-    if (profileResult.rows.length === 0) {
-      const { rows } = await pool.query(
-        'INSERT INTO public.profiles (email) VALUES ($1) RETURNING *',
-        [email]
-      );
-      userData = rows[0];
-    } else {
-      userData = profileResult.rows[0];
-    }
-
-    // 4. Issue Bridge JWT (This bypasses Azure MSAL for the session)
-    const token = jwt.sign(
-      { sub: userData.id, email: userData.email, role: userData.role, name: userData.full_name },
-      BRIDGE_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({ token, profile: userData });
+    if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid or expired code' });
+    
+    // Issue Bridge JWT
+    const token = jwt.sign({ email, role: 'admin' }, BRIDGE_SECRET, { expiresIn: '24h' });
+    res.json({ token });
   } catch (err) {
-    console.error('[Bridge] Verification Error:', err);
-    res.status(500).json({ error: 'Verification failed' });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Secure route to fetch user profile, roles, and permissions
+app.post('/api/rpc', verifyToken, async (req, res) => {
+  const { fn, params = {} } = req.body;
+  try {
+    // Inject user ID if missing and it's a known user-context function
+    if (!params.p_user_id && req.user) {
+      const email = req.user.email || req.user.preferred_username;
+      const userRes = await pool.query('SELECT id FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
+      if (userRes.rows.length > 0) {
+        params.p_user_id = userRes.rows[0].id;
+      }
+    }
+
+    const keys = Object.keys(params);
+    const values = Object.values(params);
+    const placeholders = keys.map((k, i) => `${k} => $${i + 1}`).join(', ');
+    const result = await pool.query(`SELECT * FROM ${fn}(${placeholders})`, values);
+    let data = result.rows;
+    if (data.length === 1 && Object.keys(data[0])[0] === fn) data = data[0][fn];
+    res.json({ data, error: null });
+  } catch (err) { 
+    console.error(`[Bridge] RPC error [${fn}]:`, err.message);
+    res.status(500).json({ error: err.message }); 
+  }
+});
+
+app.post('/api/query', verifyToken, async (req, res) => {
+  let { table, select = '*', filters = [], order, limit } = req.body;
+  let sql = "";
+  try {
+    const actualFilters = filters.filter(f => {
+      if (f.operator === 'order') { order = `${f.column}.${f.value.toLowerCase()}`; return false; }
+      if (f.operator === 'limit') { limit = f.value; return false; }
+      if (f.operator === 'single' || f.operator === 'maybeSingle') return false;
+      return true;
+    });
+
+    // Detect if we should auto-join for common UI patterns
+    const needsAttendanceJoin = table === 'attendance' && (select === '*' || select.includes('child') || select.includes('children('));
+    const needsChildrenJoin = table === 'children' && (select === '*' || select.includes('classes('));
+
+    if (needsAttendanceJoin) {
+      sql = `
+        SELECT t.*,
+          jsonb_build_object('id', c.id, 'first_name', c.first_name, 'last_name', c.last_name) as child,
+          jsonb_build_object('id', cl.id, 'name', cl.name) as class
+        FROM public.attendance t
+        LEFT JOIN public.children c ON t.child_id = c.id
+        LEFT JOIN public.classes cl ON t.class_id = cl.id
+      `;
+    } else if (needsChildrenJoin) {
+      sql = `
+        SELECT t.*,
+          jsonb_build_object('id', cl.id, 'name', cl.name, 'age_range', cl.age_range) as classes
+        FROM public.children t
+        LEFT JOIN public.classes cl ON t.class_id = cl.id
+      `;
+    } else {
+      const cleanSelect = select.replace(/[\w]+:[\w]+\([^)]+\)/g, '').replace(/,(\s*,)+/g, ',').replace(/^,|,$/g, '');
+      sql = `SELECT ${cleanSelect === '*' || cleanSelect === '' ? '*' : cleanSelect} FROM public.${table} t`;
+    }
+
+    const values = [];
+    if (actualFilters && actualFilters.length > 0) {
+      const clauses = actualFilters.map(f => {
+        // Handle NULL filters explicitly
+        if (f.value === null || f.operator === 'IS NULL' || f.operator === 'is') {
+          let tableAlias = 't';
+          if (needsAttendanceJoin) {
+            if (['first_name', 'last_name'].includes(f.column)) tableAlias = 'c';
+            else if (f.column === 'name') tableAlias = 'cl';
+          }
+          return `${tableAlias}.${f.column} IS NULL`;
+        }
+
+        if (!f.column || f.value === undefined) return null;
+
+        const pIdx = values.push(f.value);
+        let op = '=';
+        if (f.operator === 'gt') op = '>';
+        else if (f.operator === 'lt') op = '<';
+        else if (f.operator === 'gte') op = '>=';
+        else if (f.operator === 'lte') op = '<=';
+        else if (f.operator === 'neq' || f.operator === '!=') op = '!=';
+        else if (f.operator === 'ilike' || f.operator === 'like' || f.operator === 'LIKE' || f.operator === 'ILIKE') {
+          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.value);
+          op = isUuid ? '=' : 'ILIKE';
+        }
+        
+        let tableAlias = 't';
+        if (needsAttendanceJoin) {
+          if (['first_name', 'last_name'].includes(f.column)) tableAlias = 'c';
+          else if (f.column === 'name') tableAlias = 'cl';
+        }
+        
+        if (f.column === 'id' || f.column.endsWith('_id') || (typeof f.value === 'string' && /^[0-9a-f]{8}-/.test(f.value))) {
+          return `${tableAlias}.${f.column}::text = $${pIdx}::text`;
+        }
+        return `${tableAlias}.${f.column}::text ${op} $${pIdx}`;
+      }).filter(Boolean);
+
+      if (clauses.length > 0) sql += ` WHERE ${clauses.join(' AND ')}`;
+    }
+    
+    if (order) {
+      const [col, dir] = order.split('.');
+      sql += ` ORDER BY t.${col} ${dir?.toLowerCase() === 'desc' ? 'DESC' : 'ASC'}`;
+    }
+    
+    if (limit) {
+      sql += ` LIMIT ${parseInt(limit)}`;
+    }
+    
+    const result = await pool.query(sql, values);
+    res.json({ data: result.rows, error: null });
+  } catch (err) { 
+    console.error(`[Bridge] query error [${table}]:`, err.message, '| SQL:', sql);
+    res.status(500).json({ error: err.message }); 
+  }
+});
+
+
+
+app.post('/api/mutate', verifyToken, async (req, res) => {
+  let { table, method, action, values, data, filters } = req.body;
+  // Normalize fields between Supabase proxy and internal calls
+  const finalMethod = method || action;
+  const finalValues = values || data;
+
+  try {
+    if (finalMethod === 'insert') {
+      const keys = Object.keys(finalValues);
+      const vals = Object.values(finalValues);
+      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+      const result = await pool.query(
+        `INSERT INTO public.${table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+        vals
+      );
+      return res.json({ data: result.rows, error: null });
+    }
+    
+    if (finalMethod === 'update') {
+      const keys = Object.keys(finalValues);
+      const vals = Object.values(finalValues);
+      const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+      const filterKeys = (filters || []).map(f => f.column);
+      const filterVals = (filters || []).map(f => f.value);
+      const filterClause = filterKeys.map((k, i) => `${k}::text = $${vals.length + i + 1}::text`).join(' AND ');
+      
+      const result = await pool.query(
+        `UPDATE public.${table} SET ${setClause} WHERE ${filterClause} RETURNING *`,
+        [...vals, ...filterVals]
+      );
+      return res.json({ data: result.rows, error: null });
+    }
+
+    if (finalMethod === 'upsert') {
+      const keys = Object.keys(finalValues);
+      const vals = Object.values(finalValues);
+      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+      const updateClause = keys.map((k, i) => `${k} = EXCLUDED.${k}`).join(', ');
+      
+      const result = await pool.query(
+        `INSERT INTO public.${table} (${keys.join(', ')}) VALUES (${placeholders}) 
+         ON CONFLICT (id) DO UPDATE SET ${updateClause} RETURNING *`,
+        vals
+      );
+      return res.json({ data: result.rows, error: null });
+    }
+
+    if (finalMethod === 'delete') {
+      const filterKeys = (filters || []).map(f => f.column);
+      const filterVals = (filters || []).map(f => f.value);
+      const filterClause = filterKeys.map((k, i) => `${k}::text = $${i + 1}::text`).join(' AND ');
+      const result = await pool.query(`DELETE FROM public.${table} WHERE ${filterClause} RETURNING *`, filterVals);
+      return res.json({ data: result.rows, error: null });
+    }
+
+    return res.status(400).json({ error: `Unsupported mutation method: ${finalMethod}` });
+  } catch (err) {
+    console.error(`[Bridge] mutate error [${table}]:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/profile', verifyToken, async (req, res) => {
   try {
-    const azureId = req.user.sub; // Azure OID
-    const userEmail = req.user.email || req.user.preferred_username;
-    
-    console.log(`[Bridge] Fetching profile. OID: ${azureId}, Email: ${userEmail}`);
-    
-    // 1. Try to find user by Azure OID first, fallback to Email
-    let lookupQuery = `
-      SELECT p.*, r.role, r.is_super_admin, r.verification_status 
-      FROM public.profiles p
-      LEFT JOIN public.user_roles r ON p.id::text = r.user_id::text
-      WHERE p.azure_oid = $1 OR p.email = $2
-      LIMIT 1
-    `;
-    
-    let userResult;
-    try {
-      userResult = await pool.query(lookupQuery, [azureId, userEmail]);
-    } catch (lookupErr) {
-      console.error('[Bridge] Lookup Query Failed:', lookupErr.message);
-      throw new Error(`Lookup failed: ${lookupErr.message}`);
-    }
-    
-    let userData;
-
-    if (userResult.rows.length === 0) {
-      // 2. NEW USER: Auto-create profile for brand new signups
-      console.log(`[Bridge] New user detected. Creating profile for: ${userEmail}`);
-      const createQuery = `
-        INSERT INTO public.profiles (email, azure_oid, first_name, last_name)
-        VALUES ($1, $2, $3, $4)
-        RETURNING *
-      `;
-      const [firstName, lastName] = (req.user.name || 'New User').split(' ');
-      const createResult = await pool.query(createQuery, [userEmail, azureId, firstName, lastName || '']);
-      userData = createResult.rows[0];
-    } else {
-      userData = userResult.rows[0];
-      // 3. AUTO-LINK: Update azure_oid if it's missing (Migrated user)
-      if (userData.azure_oid !== azureId) {
-        console.log(`[Bridge] Linking Azure OID ${azureId} to profile ${userData.id}`);
-        await pool.query('UPDATE public.profiles SET azure_oid = $1 WHERE id = $2', [azureId, userData.id]);
-      }
-    }
-
-    const internalId = userData.id;
-
-    // 4. Handle Super Admin Status
-    if (userData.is_super_admin) {
-      console.log(`[Bridge] Super Admin detected: ${userEmail}. Granting all permissions.`);
-      return res.json({
-        ...userData,
-        azure_oid: azureId,
-        permissions: ['*'], // Special wildcard for UI
-        role: 'super_admin' // Force super_admin role for UI
-      });
-    }
-
-    // 5. Fetch permissions using the internal UUID (Resilient Query)
-    const permsQuery = `
-      SELECT DISTINCT p.name 
-      FROM public.permissions p
-      JOIN public.role_permissions rp ON p.id::text = rp.permission_id::text
-      JOIN public.user_roles ur ON rp.role_id::text = ur.custom_role_id::text
-      WHERE ur.user_id::text = $1::text
-    `;
-    
-    let permsResult;
-    try {
-      permsResult = await pool.query(permsQuery, [internalId]);
-    } catch (permsErr) {
-      console.warn('[Bridge] Permissions lookup failed (ignoring):', permsErr.message);
-      permsResult = { rows: [] };
-    }
-    
-    const permissions = permsResult.rows.map(r => r.name);
-
-    res.json({
-      ...userData,
-      azure_oid: azureId,
-      permissions
-    });
-  } catch (err) {
-    console.error('[Bridge] Profile fetch failed:', err);
-    res.status(500).json({ error: 'Data retrieval failed', details: err.message });
-  }
+    const email = req.user.email || req.user.preferred_username;
+    const result = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ ...result.rows[0], permissions: ['*'] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-/**
- * Email Proxy (Ported from Supabase Edge Function)
- * Allows the frontend to send emails through Resend via the Bridge
- */
-app.post('/api/send-email', verifyToken, async (req, res) => {
-  const { to, subject, html, message } = req.body;
-  
-  // Use either the provided HTML or wrap the message in a basic template
-  const finalHtml = html || `<div style="font-family: sans-serif; padding: 20px;">${message}</div>`;
-  
-  const result = await sendEmail({ to, subject, html: finalHtml });
-  if (result.success) {
-    res.json({ data: result.data, error: null });
-  } else {
-    res.status(500).json({ data: null, error: result.error });
-  }
-});
-
-/**
- * Generic RPC Proxy
- * Mimics supabase.rpc(fn, params)
- */
-app.post('/api/rpc', verifyToken, async (req, res) => {
-  const { fn, params } = req.body;
-  if (!fn) return res.status(400).json({ error: 'Missing function name' });
-
-  console.log(`[Bridge] RPC Call: ${fn}`, params);
-
-  try {
-    const keys = Object.keys(params || {});
-    const values = Object.values(params || {});
-    
-    // Construct named parameters: select * from fn_name(p1 => $1, p2 => $2)
-    const placeholders = keys.map((key, i) => `${key} => $${i + 1}`).join(', ');
-    const query = `SELECT * FROM ${fn}(${placeholders})`;
-    
-    const result = await pool.query(query, values);
-    res.json({ data: result.rows, error: null });
-  } catch (err) {
-    console.error(`[Bridge] RPC Error (${fn}):`, err);
-    res.status(500).json({ data: null, error: err.message });
-  }
-});
-
-/**
- * Generic Table Query Proxy (Simplified Select)
- * Mimics supabase.from(table).select().eq(...)
- */
-app.post('/api/query', verifyToken, async (req, res) => {
-  const { table, select = '*', filters = [] } = req.body;
-  if (!table) return res.status(400).json({ error: 'Missing table name' });
-
-  try {
-    let query = `SELECT ${select} FROM ${table}`;
-    const values = [];
-    
-    if (filters && filters.length > 0) {
-      const filterClauses = filters.map(f => {
-        if (f.operator === 'or') {
-          // Format: "col1.eq.val1,col2.eq.val2"
-          const parts = f.value.split(',');
-          const orConditions = parts.map(p => {
-            const [col, op, val] = p.split('.');
-            const pIdx = values.push(val);
-            const sqlOp = op === 'eq' ? '=' : op === 'neq' ? '<>' : op;
-            return `${col} ${sqlOp} $${pIdx}`;
-          });
-          return `(${orConditions.join(' OR ')})`;
-        } else if (f.operator === 'in') {
-          const pIdxs = f.value.map(v => values.push(v));
-          return `${f.column} IN (${pIdxs.map(i => `$${i}`).join(', ')})`;
-        } else if (f.operator === 'limit') {
-          return null;
-        } else {
-          const pIdx = values.push(f.value);
-          return `${f.column} ${f.operator || '='} $${pIdx}`;
-        }
-      }).filter(c => c !== null);
-
-      if (filterClauses.length > 0) {
-        query += ` WHERE ${filterClauses.join(' AND ')}`;
-      }
-
-      const limitFilter = filters.find(f => f.operator === 'limit');
-      if (limitFilter) {
-        query += ` LIMIT ${parseInt(limitFilter.value)}`;
-      }
-    }
-
-    const result = await pool.query(query, values);
-    res.json({ data: result.rows, error: null });
-  } catch (err) {
-    console.error(`[Bridge] Query Error (${table}):`, err);
-    res.status(500).json({ data: null, error: err.message });
-  }
-});
-
-/**
- * Generic Mutation Proxy (Insert, Update, Delete)
- */
-app.post('/api/mutate', verifyToken, async (req, res) => {
-  const { table, action, data, filters = [] } = req.body;
-  if (!table || !action) return res.status(400).json({ error: 'Missing table or action' });
-
-  try {
-    let query = '';
-    let values = [];
-
-    if (action === 'insert' || action === 'upsert') {
-      const keys = Object.keys(data);
-      values = Object.values(data);
-      const columns = keys.join(', ');
-      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-      query = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`;
-      
-      if (action === 'upsert') {
-        // Simple heuristic for upsert: assume 'id' is the conflict target
-        const updatePart = keys.map((k, i) => `${k} = EXCLUDED.${k}`).join(', ');
-        query += ` ON CONFLICT (id) DO UPDATE SET ${updatePart}`;
-      }
-      
-      query += ` RETURNING *`;
-    } 
-    else if (action === 'update') {
-      const keys = Object.keys(data);
-      values = Object.values(data);
-      const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
-      query = `UPDATE ${table} SET ${setClause}`;
-      
-      if (filters.length > 0) {
-        const filterStartIdx = values.length;
-        const filterClauses = filters.map((f, i) => {
-          values.push(f.value);
-          return `${f.column} ${f.operator || '='} $${filterStartIdx + i + 1}`;
-        });
-        query += ` WHERE ${filterClauses.join(' AND ')}`;
-      }
-      query += ` RETURNING *`;
-    }
-    else if (action === 'delete') {
-      query = `DELETE FROM ${table}`;
-      if (filters.length > 0) {
-        const filterClauses = filters.map((f, i) => {
-          values.push(f.value);
-          return `${f.column} ${f.operator || '='} $${i + 1}`;
-        });
-        query += ` WHERE ${filterClauses.join(' AND ')}`;
-      }
-      query += ` RETURNING *`;
-    }
-
-    const result = await pool.query(query, values);
-    res.json({ data: result.rows, error: null });
-  } catch (err) {
-    console.error(`[Bridge] Mutation Error (${action} on ${table}):`, err);
-    res.status(500).json({ data: null, error: err.message });
-  }
-});
-
-// Start listening immediately to pass Azure health probes
-app.listen(port, () => {
-  console.log(`🚀 KiddoChecker Bridge operational at port ${port}`);
-  console.log(`🔗 Target Database: ${pool.options.host}`);
-  
-  // Run migrations in the background
-  runMigrations().then(() => {
-    console.log('[DB] Background migrations completed.');
-  }).catch(err => {
-    console.error('[DB] Background migrations failed:', err.message);
-  });
-});
+app.listen(port, () => console.log(`[Bridge] Server running on port ${port}`));

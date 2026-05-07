@@ -37,7 +37,7 @@ export const getAccessToken = async () => {
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const token = await getAccessToken();
-    const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+    const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yzfzx.bluepond-a8d6b99c.centralus.azurecontainer.io";
     
     const headers = {
         ...options.headers,
@@ -51,8 +51,13 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     });
 
     if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "API Request failed");
+        const errorText = await response.text();
+        console.error(`[Bridge] API Error: ${endpoint}`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+        });
+        throw new Error(errorText || `API Request failed: ${response.statusText}`);
     }
 
     return response.json();

@@ -118,10 +118,10 @@ export class AttendanceService {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      // Using Bridge for table query
+      // Using Bridge with explicit joins for names and classes
       const { data, error } = await bridge
         .from('attendance')
-        .select('*')
+        .select('*, child:children(*), class:classes(*)')
         .eq('attendance_date', today);
 
       if (error) {
@@ -138,10 +138,11 @@ export class AttendanceService {
 
   static async getCheckedInChildren(): Promise<AttendanceRecord[]> {
     try {
+      // Use .is('checked_out_at', null) for proper SQL 'IS NULL' handling through bridge
       const { data, error } = await bridge
         .from('attendance')
-        .select('*')
-        .eq('checked_out_at', null);
+        .select('*, child:children(*), class:classes(*)')
+        .is('checked_out_at', null);
 
       if (error) {
         console.error("[Bridge] Error fetching checked-in children:", error);

@@ -4,14 +4,48 @@ import { apiFetch } from '@/lib/apiClient';
  * A Robust Proxy for the Supabase Client
  * Redirects .from().select() and .rpc() to the Azure Bridge API
  * Gracefully handles missing methods (like realtime .channel())
+ * Delegates non-migrated features (storage, functions) to the real client
  */
-export const createBridgeProxy = () => {
+export const createBridgeProxy = (realClient: any) => {
   const createBuilder = (table: string) => {
     let filters: any[] = [];
     let selectCols = '*';
 
+    const exec = async (isQuery: boolean) => {
+      let res;
+      try {
+        const mutation = filters.find(f => f.action);
+        if (mutation) {
+          res = await apiFetch('/api/mutate', {
+            method: 'POST',
+            body: JSON.stringify({ 
+              table, 
+              action: mutation.action, 
+              data: mutation.data, 
+              options: mutation.options,
+              filters: filters.filter(f => !f.action) 
+            })
+          });
+        } else {
+          res = await apiFetch('/api/query', {
+            method: 'POST',
+            body: JSON.stringify({ table, select: selectCols, filters })
+          });
+        }
+        
+        // Handle single() or maybeSingle() expectations
+        const isSingle = filters.some(f => f.operator === 'single' || f.operator === 'maybeSingle');
+        const data = isSingle ? (Array.isArray(res.data) ? res.data[0] : (res.data || null)) : res.data;
+        
+        return { data, error: res.error, count: res.count };
+      } catch (err: any) {
+        console.error(`[BridgeProxy] Error in ${isQuery ? 'query' : 'mutation'}:`, err);
+        return { data: null, error: err.message || 'API request failed' };
+      }
+    };
+
     const builder: any = {
-      select: (cols = '*') => {
+      select: (cols: string = '*') => {
         selectCols = cols;
         return builder;
       },
@@ -20,15 +54,55 @@ export const createBridgeProxy = () => {
         return builder;
       },
       neq: (column: string, value: any) => {
-        filters.push({ column, value, operator: '<>' });
+        filters.push({ column, value, operator: '!=' });
         return builder;
       },
-      or: (condition: string) => {
-        filters.push({ operator: 'or', value: condition });
+      gt: (column: string, value: any) => {
+        filters.push({ column, value, operator: '>' });
+        return builder;
+      },
+      lt: (column: string, value: any) => {
+        filters.push({ column, value, operator: '<' });
+        return builder;
+      },
+      gte: (column: string, value: any) => {
+        filters.push({ column, value, operator: '>=' });
+        return builder;
+      },
+      lte: (column: string, value: any) => {
+        filters.push({ column, value, operator: '<=' });
+        return builder;
+      },
+      like: (column: string, value: any) => {
+        filters.push({ column, value, operator: 'LIKE' });
+        return builder;
+      },
+      ilike: (column: string, value: any) => {
+        filters.push({ column, value, operator: 'ILIKE' });
         return builder;
       },
       in: (column: string, values: any[]) => {
-        filters.push({ column, value: values, operator: 'in' });
+        filters.push({ column, value: values, operator: 'IN' });
+        return builder;
+      },
+      is: (column: string, value: any) => {
+        if (value === null) {
+          filters.push({ column, operator: 'IS NULL' });
+        } else {
+          filters.push({ column, value, operator: '=' });
+        }
+        return builder;
+      },
+      contains: (column: string, value: any) => {
+        filters.push({ column, value, operator: 'CONTAINS' });
+        return builder;
+      },
+      single: () => {
+        filters.push({ operator: 'single' });
+        return builder;
+      },
+      maybeSingle: () => {
+        filters.push({ operator: 'maybeSingle' });
         return builder;
       },
       limit: (count: number) => {
@@ -36,21 +110,15 @@ export const createBridgeProxy = () => {
         return builder;
       },
       order: (column: string, { ascending = true } = {}) => {
+        filters.push({ operator: 'order', column, value: ascending ? 'ASC' : 'DESC' });
         return builder;
-      },
-      single: async () => {
-        const res = await apiFetch('/api/query', {
-          method: 'POST',
-          body: JSON.stringify({ table, select: selectCols, filters })
-        });
-        return { data: res.data?.[0] || null, error: res.error };
       },
       insert: (data: any) => {
         filters.push({ action: 'insert', data });
         return builder;
       },
-      upsert: (data: any) => {
-        filters.push({ action: 'upsert', data });
+      upsert: (data: any, options: any = {}) => {
+        filters.push({ action: 'upsert', data, options });
         return builder;
       },
       update: (data: any) => {
@@ -61,40 +129,10 @@ export const createBridgeProxy = () => {
         filters.push({ action: 'delete' });
         return builder;
       },
-      single: async () => {
-        const mutation = filters.find(f => f.action);
-        if (mutation) {
-          const res = await apiFetch('/api/mutate', {
-            method: 'POST',
-            body: JSON.stringify({ table, action: mutation.action, data: mutation.data, filters: filters.filter(f => !f.action) })
-          });
-          return { data: Array.isArray(res.data) ? res.data[0] : (res.data || null), error: res.error };
-        }
-        const res = await apiFetch('/api/query', {
-          method: 'POST',
-          body: JSON.stringify({ table, select: selectCols, filters })
-        });
-        return { data: res.data?.[0] || null, error: res.error };
-      },
       then: async (resolve: any, reject: any) => {
-        try {
-          const mutation = filters.find(f => f.action);
-          let res;
-          if (mutation) {
-            res = await apiFetch('/api/mutate', {
-              method: 'POST',
-              body: JSON.stringify({ table, action: mutation.action, data: mutation.data, filters: filters.filter(f => !f.action) })
-            });
-          } else {
-            res = await apiFetch('/api/query', {
-              method: 'POST',
-              body: JSON.stringify({ table, select: selectCols, filters })
-            });
-          }
-          resolve(res);
-        } catch (err) {
-          reject(err);
-        }
+        const res = await exec(false);
+        if (res.error && !res.data) reject(res.error);
+        else resolve(res);
       }
     };
 
@@ -117,27 +155,61 @@ export const createBridgeProxy = () => {
       });
       return { data: res.data, error: res.error };
     },
-    channel: () => ({
-      on: () => ({ subscribe: () => ({ unsubscribe: () => {} }) }),
-      subscribe: () => ({ unsubscribe: () => {} })
-    }),
     auth: {
-      getSession: async () => ({ data: { session: null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      getSession: async () => {
+        const token = localStorage.getItem('bridge_token');
+        if (!token) return { data: { session: null }, error: null };
+        try {
+          const profile = await apiFetch('/api/profile');
+          return { data: { session: { access_token: token, user: profile } }, error: null };
+        } catch (e) {
+          return { data: { session: null }, error: e };
+        }
+      },
       getUser: async () => {
-        const profile = await apiFetch('/api/profile');
-        return { data: { user: profile }, error: null };
+        const token = localStorage.getItem('bridge_token');
+        if (!token) return { data: { user: null }, error: null };
+        try {
+          const profile = await apiFetch('/api/profile');
+          return { data: { user: profile }, error: null };
+        } catch (e) {
+          return { data: { user: null }, error: e };
+        }
+      },
+      onAuthStateChange: (callback: any) => {
+        // Mock implementation
+        return { data: { subscription: { unsubscribe: () => {} } } };
+      },
+      signOut: async () => {
+        localStorage.removeItem('bridge_token');
+        return { error: null };
       },
       signInWithPassword: async () => {
-         throw new Error("Legacy sign-in is disabled. Please use Azure login.");
+        throw new Error("Direct password login via Bridge is deprecated. Use OTP or Azure Entra.");
+      },
+      setSession: async (session: any) => {
+        if (session?.access_token) {
+          localStorage.setItem('bridge_token', session.access_token);
+        }
+        return { data: { session }, error: null };
       }
-    }
+    },
+    // Realistic mock for realtime channels
+    channel: (name: string) => ({
+      on: () => ({ subscribe: (cb: any) => { if (cb) cb('SUBSCRIBED'); } }),
+      subscribe: (cb: any) => { if (cb) cb('SUBSCRIBED'); return { unsubscribe: () => {} }; },
+      unsubscribe: () => {}
+    }),
+    removeChannel: () => {},
+    // Delegate non-migrated features to the real client
+    storage: realClient?.storage,
+    functions: realClient?.functions,
   };
 
-  // Proxy the client to catch missing top-level methods
   return new Proxy(client, {
     get: (target, prop) => {
       if (prop in target) return target[prop];
+      if (realClient && prop in realClient) return realClient[prop];
       return () => client;
     }
   });

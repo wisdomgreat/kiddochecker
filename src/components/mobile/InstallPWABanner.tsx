@@ -7,17 +7,27 @@ import { usePWAInstall } from "@/hooks/usePWAInstall";
 const InstallPWABanner = () => {
     const { isInstallable, isInstalled, installPWA } = usePWAInstall();
     const [isVisible, setIsVisible] = useState(false);
-    const [dismissed, setDismissed] = useState(false);
+    const [dismissed, setDismissed] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('pwa-banner-dismissed') === 'true';
+    });
 
     useEffect(() => {
-        // Show banner 3 seconds after load if installable and not already installed/dismissed
-        if (isInstallable && !isInstalled && !dismissed) {
-            const timer = setTimeout(() => setIsVisible(true), 3000);
-            return () => clearTimeout(timer);
-        } else {
+        if (dismissed || !isInstallable || isInstalled) {
             setIsVisible(false);
+            return;
         }
+
+        // Show banner 3 seconds after load
+        const timer = setTimeout(() => setIsVisible(true), 3000);
+        return () => clearTimeout(timer);
     }, [isInstallable, isInstalled, dismissed]);
+
+    const handleDismiss = () => {
+        setIsVisible(false);
+        setDismissed(true);
+        localStorage.setItem('pwa-banner-dismissed', 'true');
+    };
 
     if (!isVisible) return null;
 
@@ -34,10 +44,7 @@ const InstallPWABanner = () => {
                     <div className="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/20 blur-[40px] rounded-full animate-pulse" />
                     
                     <button 
-                        onClick={() => {
-                            setIsVisible(false);
-                            setDismissed(true);
-                        }}
+                        onClick={handleDismiss}
                         className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                     >
                         <X className="h-4 w-4 text-slate-400" />
@@ -70,10 +77,7 @@ const InstallPWABanner = () => {
                         </Button>
                         <Button 
                             variant="ghost" 
-                            onClick={() => {
-                                setIsVisible(false);
-                                setDismissed(true);
-                            }}
+                            onClick={handleDismiss}
                             className="h-12 px-6 rounded-[1.2rem] font-bold text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-600"
                         >
                             Later

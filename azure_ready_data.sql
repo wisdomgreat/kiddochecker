@@ -1,4 +1,4 @@
-﻿SET session_replication_role = 'replica';
+SET session_replication_role = 'replica';
 
 SET session_replication_role = replica;
 
@@ -252,7 +252,7 @@ INSERT INTO "public"."child_medical_profiles" ("id", "child_id", "blood_type", "
 
 INSERT INTO "public"."profiles" ("id", "first_name", "last_name", "phone", "created_at", "updated_at", "address", "qr_code_data", "security_question", "security_answer", "security_answer_hash", "security_pin", "staff_pin", "avatar_url", "photo_url", "has_active_background_check", "bio", "specialties", "preferred_class_id", "max_hours_per_week", "department", "gender", "date_of_birth", "marital_status", "secondary_phone", "city", "state", "zip_code", "country", "occupation", "emergency_contact_name", "emergency_contact_phone", "website", "social_links", "email", "supervisor_id") VALUES
 	('b7d060ac-2044-4ffb-8ba3-de46d183c05a', 'GVA-TAB-1', '(Kiosk)', NULL, '2026-04-29 23:08:55.519333+00', '2026-04-29 23:08:55.631989+00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL, 40, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'USA', NULL, NULL, NULL, NULL, '{}', NULL, NULL),
-	('4f102c68-f2d1-4111-90cb-4e587ede99ee', 'Sheryl', 'Dubon', '4168307753', '2026-04-29 23:50:58.81943+00', '2026-04-29 23:55:26.283959+00', '', NULL, NULL, NULL, NULL, '999999', NULL, '', '', false, NULL, NULL, NULL, 40, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'USA', NULL, NULL, NULL, NULL, '{}', NULL, NULL),
+	('4f102c68-f2d1-4111-90cb-4e587ede99ee', 'Sheryl', 'Dubon', '4168307753', '2026-04-29 23:50:58.81943+00', '2026-04-29 23:55:26.283959+00', '', NULL, NULL, NULL, NULL, NULL, NULL, '', '', false, NULL, NULL, NULL, 40, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'USA', NULL, NULL, NULL, NULL, '{}', NULL, NULL),
 	('0b90bed6-9260-4705-808f-ca61de570d90', 'Test', 'User', NULL, '2026-02-24 17:40:47.186278+00', '2026-02-24 17:40:47.186278+00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL, 40, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'USA', NULL, NULL, NULL, NULL, '{}', NULL, NULL),
 	('e057b71e-b198-4fd8-aa60-0f9a6ba9b9c9', 'Daramola', 'Titilayo', '7782560796', '2025-08-02 18:59:15.958736+00', '2026-04-30 11:22:26.772329+00', 'ABC address', NULL, NULL, NULL, NULL, '123456', NULL, '', '', false, NULL, NULL, NULL, 40, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'USA', NULL, NULL, NULL, NULL, '{}', NULL, NULL),
 	('9955bf52-fdb6-46f1-8fb8-56a97b2fad8a', 'Test', 'User', NULL, '2026-03-07 13:23:42.397054+00', '2026-03-07 13:23:42.397054+00', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, false, NULL, NULL, NULL, 40, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'USA', NULL, NULL, NULL, NULL, '{}', NULL, NULL),

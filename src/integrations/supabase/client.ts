@@ -9,19 +9,21 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Migration Switch: If true, all supabase.from() calls go to Azure via the Bridge
 const USE_AZURE_BRIDGE = import.meta.env.VITE_USE_AZURE_BRIDGE === 'true';
 
+const realClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
+});
+
 export const supabase = USE_AZURE_BRIDGE 
-  ? createBridgeProxy() 
-  : createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    });
+  ? createBridgeProxy(realClient) 
+  : realClient;
 
 // Helper functions for session management
 export const getCurrentUser = async () => {

@@ -32,9 +32,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network-first strategy for API calls, cache-first for assets
-  if (event.request.url.includes('/functions/') || event.request.url.includes('/rest/') || event.request.url.includes('/auth/')) {
-    // Network only for API calls
+  // Network-only for API calls and non-GET requests
+  const isApi = event.request.url.includes('/api/') || 
+                event.request.url.includes('/functions/') || 
+                event.request.url.includes('/rest/') || 
+                event.request.url.includes('/auth/');
+  
+  if (event.request.method !== 'GET' || isApi) {
     return;
   }
 

@@ -39,6 +39,7 @@ jobs:
           VITE_AZURE_CLIENT_ID: "e48264b2-de12-4444-a290-a8d7f3e3a525"
           VITE_AZURE_TENANT_ID: "08e0221b-0776-4500-8e5f-c6002cf868bc"
           VITE_AZURE_AUTHORITY: "https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0"
+          VITE_USE_AZURE_BRIDGE: "true"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

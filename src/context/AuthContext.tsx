@@ -107,24 +107,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ─── Universal Sign Out ─────────────────────────────────────────────────────
   const signOut = async () => {
+    console.log('[Auth] Initiating sign out...');
     try {
-      // 1. Clear Supabase
-      await supabase.auth.signOut();
-      
-      // 2. Clear MSAL
-      if (accounts.length > 0) {
-        await instance.logoutPopup({
-          postLogoutRedirectUri: "/",
-          mainWindowRedirectUri: "/"
-        });
-      }
-
+      // 1. Clear Local State IMMEDIATELY
       setUser(null);
       setSession(null);
       setUserRole(null);
       localStorage.removeItem('bridge_token');
+
+      // 2. Try to clear Supabase
+      try {
+        await supabase.auth.signOut();
+      } catch (sbErr) {
+        console.warn("[Auth] Supabase signout error:", sbErr);
+      }
+      
+      // 3. Try to clear MSAL
+      if (accounts.length > 0) {
+        try {
+          await instance.logoutPopup({
+            postLogoutRedirectUri: "/",
+            mainWindowRedirectUri: "/",
+            // Use 'none' to avoid interaction if possible during tests
+            // but for production popup is safer
+          });
+        } catch (msalErr) {
+          console.warn("[Auth] MSAL logout error:", msalErr);
+        }
+      }
+
+      // 4. Force reload as a final fail-safe to clear all memory states
+      window.location.href = "/";
     } catch (e) {
-      console.error("[Auth] Sign out error:", e);
+      console.error("[Auth] Global sign out error:", e);
+      // Fallback
+      localStorage.clear();
+      window.location.href = "/";
     }
   };
 
@@ -144,6 +162,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      // Sync the user state with the database profile (ensures user.id is the UUID)
+      setUser(data);
+
       let finalRole = data.role || 'parent';
       if (data.is_super_admin) finalRole = 'super_admin';
       
@@ -160,46 +181,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ─── Session Sync Logic ─────────────────────────────────────────────────────
   useEffect(() => {
     const syncSession = async () => {
-      // Priority 1: MSAL (Microsoft)
-      if (inProgress === InteractionStatus.None && isAuthenticated && accounts.length > 0) {
-        const account = accounts[0];
-        const msalUser = {
-          id: account.localAccountId || account.homeAccountId,
-          email: account.username,
-          name: account.name,
-          user_metadata: { full_name: account.name, email: account.username }
-        };
-        setUser(msalUser);
-        setSession({ access_token: "msal-managed" });
-        await fetchRoleForUser(msalUser.id);
-        setLoading(false);
-      } 
-      // Priority 2: Native Bridge Token
-      else if (localStorage.getItem('bridge_token')) {
-        const token = localStorage.getItem('bridge_token');
-        setSession({ access_token: token });
-        try {
-          const profile = await apiFetch('/api/profile');
-          setUser(profile);
-          await fetchRoleForUser(profile.id);
-        } catch (e) {
-          console.error("[Auth] Bridge session invalid:", e);
-          localStorage.removeItem('bridge_token');
-        }
-        setLoading(false);
+      console.log('[Auth] Syncing session... MSAL Status:', inProgress);
+      
+      // 1. Wait for MSAL to settle before deciding there's no user
+      if (inProgress !== InteractionStatus.None) {
+        console.log('[Auth] MSAL is busy, waiting...');
+        return;
       }
-      // Priority 3: Supabase (Email/Pass)
-      else {
-        const { data: { session: sbSession } } = await supabase.auth.getSession();
-        if (sbSession) {
-          setUser(sbSession.user);
-          setSession(sbSession);
-          await fetchRoleForUser(sbSession.user.id);
-        } else {
-          setUser(null);
-          setSession(null);
-          setUserRole(null);
+
+      try {
+        // Priority 1: MSAL (Microsoft)
+        if (isAuthenticated && accounts.length > 0) {
+          console.log('[Auth] MSAL Authenticated');
+          const account = accounts[0];
+          const msalUser = {
+            id: account.localAccountId || account.homeAccountId,
+            email: account.username,
+            name: account.name,
+            user_metadata: { full_name: account.name, email: account.username }
+          };
+          setUser(msalUser);
+          setSession({ access_token: "msal-managed" });
+          await fetchRoleForUser(msalUser.id);
+        } 
+        // Priority 2: Native Bridge Token
+        else if (localStorage.getItem('bridge_token')) {
+          console.log('[Auth] Bridge Token Found');
+          const token = localStorage.getItem('bridge_token');
+          setSession({ access_token: token });
+          try {
+            const profile = await apiFetch('/api/profile');
+            setUser(profile);
+            await fetchRoleForUser(profile.id);
+          } catch (e) {
+            console.error("[Auth] Bridge session invalid:", e);
+            localStorage.removeItem('bridge_token');
+            setUser(null);
+            setSession(null);
+          }
         }
+        // Priority 3: Supabase (Email/Pass)
+        else {
+          console.log('[Auth] Checking Supabase Session');
+          const { data: { session: sbSession } } = await supabase.auth.getSession();
+          if (sbSession) {
+            setUser(sbSession.user);
+            setSession(sbSession);
+            await fetchRoleForUser(sbSession.user.id);
+          } else {
+            console.log('[Auth] No active session found');
+            setUser(null);
+            setSession(null);
+            setUserRole(null);
+          }
+        }
+      } catch (err) {
+        console.error('[Auth] Global Sync Error:', err);
+      } finally {
         setLoading(false);
       }
     };
