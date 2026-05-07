@@ -633,10 +633,23 @@ const KioskCheckInSystem = () => {
 
   useEffect(() => {
     let baseList = checkedInChildren;
-    if (parentLoggedIn) baseList = checkedInChildren.filter((r) => r.child?.parent_id === (parentChildren[0]?.parent_id || ''));
-    else if (!staffAuthed) baseList = [];
+    if (parentLoggedIn) {
+      const pid = parentChildren[0]?.parent_id || '';
+      console.log(`[Kiosk] Filtering for parent ${pid}. Total records: ${checkedInChildren.length}`);
+      baseList = checkedInChildren.filter((r) => {
+        const cpid = r.child?.parent_id;
+        const match = cpid === pid;
+        if (!match) console.log(`[Kiosk] Child ${r.child?.first_name} parent ${cpid} does not match ${pid}`);
+        return match;
+      });
+    } else if (!staffAuthed) {
+      baseList = [];
+    }
 
-    if (!checkoutSearch.trim()) { setCheckoutFilteredChildren(baseList); return; }
+    if (!checkoutSearch.trim()) { 
+      setCheckoutFilteredChildren(baseList); 
+      return; 
+    }
     const filtered = baseList.filter((r) => `${r.child?.first_name || ''} ${r.child?.last_name || ''}`.toLowerCase().includes(checkoutSearch.toLowerCase()));
     setCheckoutFilteredChildren(filtered);
   }, [checkoutSearch, checkedInChildren, parentLoggedIn, staffAuthed, parentChildren]);
