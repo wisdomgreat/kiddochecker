@@ -63,8 +63,8 @@ const EnhancedLoginForm = () => {
     try {
       await verifyNativeCode(email, code);
       toast({ title: "Welcome Back", description: "Identity verified successfully." });
-      // Force immediate redirect to resolve the "need to refresh" issue
-      navigate('/', { replace: true });
+      // Use hard reload to ensure all contexts are fully refreshed with the new token
+      window.location.href = '/';
     } catch (err: any) {
       setError(err.message || "Invalid or expired code");
     } finally {
