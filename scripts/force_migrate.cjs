@@ -66,8 +66,36 @@ async function forceMigrate() {
     console.log('   ✅ Youth RPC injected.');
 
     // 4. Inject Core Check-in RPCs
-    console.log('[4] Injecting checkin/checkout RPCs...');
+    console.log('[4] Injecting checkin/checkout/lookup RPCs...');
     await pool.query(`
+      CREATE OR REPLACE FUNCTION public.get_parent_for_kiosk(p_search_val text, p_pin text)
+      RETURNS TABLE (
+        id uuid,
+        first_name text,
+        last_name text,
+        phone text
+      ) LANGUAGE plpgsql SECURITY DEFINER AS $$
+      BEGIN
+        RETURN QUERY
+        SELECT p.id, p.first_name, p.last_name, p.phone
+        FROM public.profiles p
+        WHERE (
+            regexp_replace(p.phone, '\\D', '', 'g') ILIKE '%' || regexp_replace(p_search_val, '\\D', '', 'g') || '%'
+            OR p.first_name ILIKE '%' || p_search_val || '%' 
+            OR p.last_name ILIKE '%' || p_search_val || '%'
+          )
+          AND p.security_pin = p_pin
+        LIMIT 5;
+      END; $$;
+
+      CREATE TABLE IF NOT EXISTS public.message_read_receipts (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        message_id UUID REFERENCES public.messages(id),
+        user_id UUID REFERENCES public.profiles(id),
+        read_at TIMESTAMPTZ DEFAULT now(),
+        created_at TIMESTAMPTZ DEFAULT now()
+      );
+
       CREATE OR REPLACE FUNCTION public.checkin_child(
         p_child_id UUID,
         p_class_id UUID DEFAULT NULL,

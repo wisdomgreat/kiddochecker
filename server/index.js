@@ -206,7 +206,8 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
   const { fn, params = {} } = req.body;
   try {
     // Inject user ID if missing and it's a known user-context function
-    if (!params.p_user_id && req.user) {
+    const skipUserId = ['get_parent_for_kiosk', 'verify_staff_pin_for_kiosk', 'get_staff_shifts_for_kiosk'].includes(fn);
+    if (!params.p_user_id && req.user && !skipUserId) {
       const email = req.user.email || req.user.preferred_username;
       const userRes = await pool.query('SELECT id FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
       if (userRes.rows.length > 0) {
