@@ -21,6 +21,7 @@ const pool = new Pool({
 
 // Self-healing: Ensure schema and table exist
 async function setupDatabase() {
+  console.log('[DB] Initializing schema verification...');
   console.log('[DB] Attempting to verify schema...');
   try {
     await pool.query(`
