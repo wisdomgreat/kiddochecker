@@ -138,11 +138,14 @@ export class AttendanceService {
 
   static async getCheckedInChildren(): Promise<AttendanceRecord[]> {
     try {
+      const today = new Date().toISOString().split('T')[0];
       // Use .is('checked_out_at', null) for proper SQL 'IS NULL' handling through bridge
+      // Also filter by today's date to keep the 'Present' count consistent with 'Total'
       const { data, error } = await bridge
         .from('attendance')
         .select('*, child:children(*), class:classes(*)')
-        .is('checked_out_at', null);
+        .is('checked_out_at', null)
+        .eq('attendance_date', today);
 
       if (error) {
         console.error("[Bridge] Error fetching checked-in children:", error);

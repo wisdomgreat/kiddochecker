@@ -16,6 +16,7 @@ export const createBridgeProxy = (realClient: any) => {
       try {
         const mutation = filters.find(f => f.action);
         if (mutation) {
+          console.log(`[BridgeProxy] Mutating ${table}:`, mutation.action, mutation.data);
           res = await apiFetch('/api/mutate', {
             method: 'POST',
             body: JSON.stringify({ 
@@ -47,43 +48,43 @@ export const createBridgeProxy = (realClient: any) => {
     const builder: any = {
       select: (cols: string = '*') => {
         selectCols = cols;
-        return builder;
+        return proxy;
       },
       eq: (column: string, value: any) => {
         filters.push({ column, value, operator: '=' });
-        return builder;
+        return proxy;
       },
       neq: (column: string, value: any) => {
         filters.push({ column, value, operator: '!=' });
-        return builder;
+        return proxy;
       },
       gt: (column: string, value: any) => {
         filters.push({ column, value, operator: '>' });
-        return builder;
+        return proxy;
       },
       lt: (column: string, value: any) => {
         filters.push({ column, value, operator: '<' });
-        return builder;
+        return proxy;
       },
       gte: (column: string, value: any) => {
         filters.push({ column, value, operator: '>=' });
-        return builder;
+        return proxy;
       },
       lte: (column: string, value: any) => {
         filters.push({ column, value, operator: '<=' });
-        return builder;
+        return proxy;
       },
       like: (column: string, value: any) => {
         filters.push({ column, value, operator: 'LIKE' });
-        return builder;
+        return proxy;
       },
       ilike: (column: string, value: any) => {
         filters.push({ column, value, operator: 'ILIKE' });
-        return builder;
+        return proxy;
       },
       in: (column: string, values: any[]) => {
         filters.push({ column, value: values, operator: 'IN' });
-        return builder;
+        return proxy;
       },
       is: (column: string, value: any) => {
         if (value === null) {
@@ -91,43 +92,55 @@ export const createBridgeProxy = (realClient: any) => {
         } else {
           filters.push({ column, value, operator: '=' });
         }
-        return builder;
+        return proxy;
+      },
+      or: (filter: string) => {
+        filters.push({ operator: 'OR', value: filter });
+        return proxy;
       },
       contains: (column: string, value: any) => {
         filters.push({ column, value, operator: 'CONTAINS' });
-        return builder;
+        return proxy;
       },
       single: () => {
         filters.push({ operator: 'single' });
-        return builder;
+        return proxy;
       },
       maybeSingle: () => {
         filters.push({ operator: 'maybeSingle' });
-        return builder;
+        return proxy;
       },
       limit: (count: number) => {
         filters.push({ operator: 'limit', value: count });
-        return builder;
+        return proxy;
       },
       order: (column: string, { ascending = true } = {}) => {
         filters.push({ operator: 'order', column, value: ascending ? 'ASC' : 'DESC' });
-        return builder;
+        return proxy;
       },
       insert: (data: any) => {
         filters.push({ action: 'insert', data });
-        return builder;
+        return proxy;
       },
       upsert: (data: any, options: any = {}) => {
         filters.push({ action: 'upsert', data, options });
-        return builder;
+        return proxy;
       },
       update: (data: any) => {
         filters.push({ action: 'update', data });
-        return builder;
+        return proxy;
       },
       delete: () => {
         filters.push({ action: 'delete' });
-        return builder;
+        return proxy;
+      },
+      match: (obj: any) => {
+        Object.entries(obj).forEach(([k, v]) => filters.push({ column: k, value: v, operator: '=' }));
+        return proxy;
+      },
+      not: (column: string, operator: string, value: any) => {
+        filters.push({ column, value, operator: `NOT ${operator}` });
+        return proxy;
       },
       then: async (resolve: any, reject: any) => {
         const res = await exec(false);
@@ -136,14 +149,15 @@ export const createBridgeProxy = (realClient: any) => {
       }
     };
 
-    // Proxy the builder to catch missing chaining methods
-    return new Proxy(builder, {
+    const proxy: any = new Proxy(builder, {
       get: (target, prop) => {
         if (prop in target) return target[prop];
         // Fallback for missing methods (returns builder for chaining)
-        return () => builder;
+        return () => proxy;
       }
     });
+
+    return proxy;
   };
 
   const client: any = {

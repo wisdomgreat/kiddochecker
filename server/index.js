@@ -325,12 +325,18 @@ app.post('/api/query', verifyToken, async (req, res) => {
 
 
 app.post('/api/mutate', verifyToken, async (req, res) => {
+  console.log('[Bridge] Mutation Request:', JSON.stringify(req.body, null, 2));
   let { table, method, action, values, data, filters } = req.body;
+  
   // Normalize fields between Supabase proxy and internal calls
-  const finalMethod = method || action;
-  const finalValues = values || data;
+  const finalMethod = method || action || req.body.method || req.body.action;
+  const finalValues = values || data || req.body.values || req.body.data;
 
   try {
+    if (!finalMethod) {
+      console.error('[Bridge] Mutation error: No method/action specified in body');
+      return res.status(400).json({ error: 'Unsupported mutation method: undefined' });
+    }
     if (finalMethod === 'insert') {
       const keys = Object.keys(finalValues);
       const vals = Object.values(finalValues);
