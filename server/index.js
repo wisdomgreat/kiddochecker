@@ -207,7 +207,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
   const { fn, params = {} } = req.body;
   try {
     // Inject user ID if missing and it's a known user-context function
-    const skipUserId = ['get_parent_for_kiosk', 'verify_staff_pin_for_kiosk', 'get_staff_shifts_for_kiosk'].includes(fn);
+    const skipUserId = ['get_parent_for_kiosk', 'get_children_for_kiosk', 'verify_staff_pin_for_kiosk', 'get_staff_shifts_for_kiosk'].includes(fn);
     if (!params.p_user_id && req.user && !skipUserId) {
       const email = req.user.email || req.user.preferred_username;
       const userRes = await pool.query('SELECT id FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
@@ -317,6 +317,7 @@ app.post('/api/query', verifyToken, async (req, res) => {
     }
     
     const result = await pool.query(sql, values);
+    console.log(`[Bridge] query success [${table}]: returned ${result.rows.length} rows`);
     res.json({ data: result.rows, error: null });
   } catch (err) { 
     console.error(`[Bridge] query error [${table}]:`, err.message, '| SQL:', sql);
