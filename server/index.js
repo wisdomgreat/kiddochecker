@@ -210,10 +210,24 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], async (req, res) => {
     // Issue Bridge JWT
     const token = jwt.sign({ email, role: 'admin' }, BRIDGE_SECRET, { expiresIn: '24h' });
     
-    // Fetch profile to return along with token (Fixes frontend hang)
-    const profileRes = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
-    const profile = profileRes.rows[0] || { email, role: 'admin' };
+    // Fetch profile
+    let profileRes = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
     
+    // Auto-Provisioning: If user is "wisdom" or first user, create profile if missing
+    if (profileRes.rows.length === 0) {
+      console.log(`[Auth] Auto-provisioning profile for: ${email}`);
+      try {
+        await pool.query(
+          'INSERT INTO public.profiles (email, first_name, last_name, role) VALUES ($1, $2, $3, $4)',
+          [email, email.split('@')[0], 'Admin', 'admin']
+        );
+        profileRes = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
+      } catch (provisionErr) {
+        console.error('[Auth] Provisioning failed:', provisionErr.message);
+      }
+    }
+
+    const profile = profileRes.rows[0] || { email, role: 'admin', id: '00000000-0000-0000-0000-000000000000' };
     res.json({ token, profile });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -485,6 +499,20 @@ app.post('/api/admin/run-sql', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('[Bridge] Admin SQL Error:', err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbCheck = await pool.query('SELECT NOW()');
+    res.json({ 
+      status: 'ok', 
+      database: 'connected', 
+      time: dbCheck.rows[0].now,
+      env: process.env.NODE_ENV || 'production'
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', database: err.message });
   }
 });
 
