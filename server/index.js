@@ -82,11 +82,18 @@ async function runMigrations() {
     { name: 'col_health_fever', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_fever BOOLEAN DEFAULT false;' },
     { name: 'col_health_cough', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_cough BOOLEAN DEFAULT false;' },
     { name: 'col_device_metadata', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS device_metadata JSONB DEFAULT \'{}\'::jsonb;' },
-    { name: 'col_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS method TEXT;' },
-    { name: 'col_station', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS station TEXT;' },
+    { name: 'col_status', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS status TEXT DEFAULT \'present\';' },
+    { name: 'col_checked_in_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_in_method TEXT;' },
+    { name: 'col_checked_out_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_out_method TEXT;' },
+    { name: 'col_checked_in_station', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_in_station TEXT;' },
+    { name: 'col_checked_out_station', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_out_station TEXT;' },
+    { name: 'col_signature_data', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS signature_data TEXT;' },
+    { name: 'col_override_reason', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS override_reason TEXT;' },
+    { name: 'col_pickup_snapshot', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS pickup_snapshot JSONB DEFAULT \'{}\'::jsonb;' },
+    { name: 'col_witness_id', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS witness_id UUID;' },
     { name: 'app_role_type', sql: `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN CREATE TYPE app_role AS ENUM ('admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'parent', 'kiosk'); END IF; END $$;` },
-    { name: 'checkin_child', sql: `CREATE OR REPLACE FUNCTION public.checkin_child(p_child_id UUID, p_class_id UUID DEFAULT NULL, p_checked_in_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_special_instructions TEXT DEFAULT NULL, p_health_fever BOOLEAN DEFAULT false, p_health_cough BOOLEAN DEFAULT false, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_device_id TEXT DEFAULT NULL) RETURNS UUID AS $$ DECLARE v_attendance_id UUID; v_existing_id UUID; BEGIN SELECT id INTO v_existing_id FROM public.attendance WHERE child_id = p_child_id AND checked_out_at IS NULL AND attendance_date = CURRENT_DATE LIMIT 1; IF v_existing_id IS NOT NULL THEN RAISE EXCEPTION 'Child is already checked in'; END IF; INSERT INTO public.attendance (child_id, class_id, checked_in_by, qr_token, method, station, special_instructions, health_fever, health_cough, device_metadata, device_id, checked_in_at, attendance_date) VALUES (p_child_id, p_class_id, p_checked_in_by, p_qr_token, p_method, p_station, p_special_instructions, p_health_fever, p_health_cough, p_device_metadata, p_device_id, now(), CURRENT_DATE) RETURNING id INTO v_attendance_id; RETURN v_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'checkout_child', sql: `CREATE OR REPLACE FUNCTION public.checkout_child(p_attendance_id UUID, p_checked_out_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_signature_data TEXT DEFAULT NULL, p_override_reason TEXT DEFAULT NULL, p_pickup_snapshot JSONB DEFAULT NULL, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_witness_id UUID DEFAULT NULL, p_device_id TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN UPDATE public.attendance SET checked_out_at = now(), checked_out_by = p_checked_out_by::text, checked_out_method = p_method, checked_out_station = p_station, signature_data = p_signature_data, override_reason = p_override_reason, pickup_snapshot = p_pickup_snapshot::text, device_metadata = p_device_metadata, witness_id = p_witness_id, device_id = p_device_id WHERE id = p_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'checkin_child', sql: `CREATE OR REPLACE FUNCTION public.checkin_child(p_child_id UUID, p_class_id UUID DEFAULT NULL, p_checked_in_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_special_instructions TEXT DEFAULT NULL, p_health_fever BOOLEAN DEFAULT false, p_health_cough BOOLEAN DEFAULT false, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS UUID AS $$ DECLARE v_attendance_id UUID; BEGIN INSERT INTO public.attendance (child_id, class_id, checked_in_by, qr_token, checked_in_method, checked_in_station, special_instructions, health_fever, health_cough, device_metadata, device_id, checked_in_at, attendance_date, status) VALUES (p_child_id, p_class_id, COALESCE(p_checked_in_by, p_user_id), p_qr_token, p_method, p_station, p_special_instructions, p_health_fever, p_health_cough, p_device_metadata, p_device_id, now(), CURRENT_DATE, 'present') RETURNING id INTO v_attendance_id; RETURN v_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'checkout_child', sql: `CREATE OR REPLACE FUNCTION public.checkout_child(p_attendance_id UUID, p_checked_out_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_signature_data TEXT DEFAULT NULL, p_override_reason TEXT DEFAULT NULL, p_pickup_snapshot JSONB DEFAULT '{}'::jsonb, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_witness_id UUID DEFAULT NULL, p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS VOID AS $$ BEGIN UPDATE public.attendance SET checked_out_at = now(), checked_out_by = COALESCE(p_checked_out_by, p_user_id), checked_out_method = p_method, checked_out_station = p_station, signature_data = p_signature_data, override_reason = p_override_reason, pickup_snapshot = p_pickup_snapshot, device_metadata = p_device_metadata, witness_id = p_witness_id, device_id = p_device_id, status = 'checked_out' WHERE id = p_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'youth_self_check_action', sql: `CREATE OR REPLACE FUNCTION public.youth_self_check_action(p_pin_code TEXT, p_kiosk_id TEXT) RETURNS JSONB AS $$ DECLARE v_child_id UUID; v_child_name TEXT; BEGIN SELECT id, first_name || ' ' || last_name INTO v_child_id, v_child_name FROM public.children WHERE youth_pin = p_pin_code LIMIT 1; IF v_child_id IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Invalid PIN'); END IF; RETURN jsonb_build_object('success', true, 'child_id', v_child_id, 'child_name', v_child_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_parent_for_kiosk(p_search_val TEXT, p_pin TEXT) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, phone TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, p.phone FROM public.profiles p WHERE (regexp_replace(p.phone, '\\D', '', 'g') ILIKE '%' || regexp_replace(p_search_val, '\\D', '', 'g') || '%' OR p.first_name ILIKE '%' || p_search_val || '%' OR p.last_name ILIKE '%' || p_search_val || '%') AND p.security_pin = p_pin LIMIT 5; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_children_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_children_for_kiosk(p_parent_id UUID, p_pin TEXT) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, age INTEGER, class_id UUID) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.class_id FROM public.children c JOIN public.profiles p ON c.parent_id = p.id WHERE p.id = p_parent_id AND p.security_pin = p_pin; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
@@ -100,8 +107,7 @@ async function runMigrations() {
     { name: 'get_current_user_role', sql: `CREATE OR REPLACE FUNCTION public.get_current_user_role(p_user_id UUID DEFAULT NULL) RETURNS TEXT AS $$ DECLARE v_role TEXT; BEGIN SELECT role::TEXT INTO v_role FROM public.user_roles WHERE user_id = p_user_id LIMIT 1; RETURN COALESCE(v_role, 'parent'); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_available_recipients', sql: `CREATE OR REPLACE FUNCTION public.get_available_recipients(p_user_id UUID) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, role TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, ur.role::TEXT FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id != p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_children_with_classes', sql: `CREATE OR REPLACE FUNCTION public.get_parent_children_with_classes(parent_user_id UUID DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, medical_info TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, notes TEXT, current_class_name TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.allergies, c.medical_info, c.emergency_contact_name, c.emergency_contact_phone, c.notes, cl.name as current_class_name FROM public.children c LEFT JOIN public.classes cl ON c.class_id = cl.id WHERE c.parent_id = COALESCE(parent_user_id, p_user_id); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'checkin_child', sql: `CREATE OR REPLACE FUNCTION public.checkin_child(p_child_id UUID, p_class_id UUID DEFAULT NULL, p_checked_in_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_special_instructions TEXT DEFAULT NULL, p_health_fever BOOLEAN DEFAULT false, p_health_cough BOOLEAN DEFAULT false, p_device_metadata JSONB DEFAULT '{}', p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS UUID AS $$ DECLARE v_id UUID; BEGIN INSERT INTO public.attendance (child_id, class_id, checked_in_by, qr_token, method, station, special_instructions, health_fever, health_cough, device_metadata, device_id, check_in_time, status) VALUES (p_child_id, p_class_id, COALESCE(p_checked_in_by, p_user_id), p_qr_token, p_method, p_station, p_special_instructions, p_health_fever, p_health_cough, p_device_metadata, p_device_id, NOW(), 'present') RETURNING id INTO v_id; RETURN v_id; END; $$ LANGUAGE plpgsql;` },
-    { name: 'checkout_child', sql: `CREATE OR REPLACE FUNCTION public.checkout_child(p_attendance_id UUID, p_checked_out_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_signature_data TEXT DEFAULT NULL, p_override_reason TEXT DEFAULT NULL, p_pickup_snapshot TEXT DEFAULT NULL, p_device_metadata JSONB DEFAULT '{}', p_witness_id UUID DEFAULT NULL, p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS VOID AS $$ BEGIN UPDATE public.attendance SET checked_out_by = COALESCE(p_checked_out_by, p_user_id), check_out_time = NOW(), status = 'checked_out', qr_token = COALESCE(p_qr_token, qr_token), method = p_method, station = p_station, signature_data = p_signature_data, override_reason = p_override_reason, pickup_snapshot = p_pickup_snapshot, device_metadata = p_device_metadata, witness_id = p_witness_id, device_id = p_device_id WHERE id = p_attendance_id; END; $$ LANGUAGE plpgsql;` },
+    { name: 'get_church_stats', sql: `CREATE OR REPLACE FUNCTION public.get_church_stats(p_user_id UUID DEFAULT NULL) RETURNS JSONB AS $$ BEGIN RETURN jsonb_build_object('total_members', (SELECT COUNT(*) FROM public.profiles), 'active_volunteers', (SELECT COUNT(*) FROM public.user_roles WHERE role = 'volunteer'), 'upcoming_events', (SELECT COUNT(*) FROM public.events WHERE event_date >= CURRENT_DATE)); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_staff_shifts_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_staff_shifts_for_kiosk() RETURNS TABLE (id UUID, staff_id UUID, start_time TIMESTAMPTZ, end_time TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT s.id, s.staff_id, s.start_time, s.end_time FROM public.staff_shifts s WHERE s.start_time::date = CURRENT_DATE; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'check_user_permission', sql: `CREATE OR REPLACE FUNCTION public.check_user_permission(p_user_id UUID, p_permission_name TEXT) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id; IF v_is_admin THEN RETURN TRUE; END IF; RETURN EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON rp.permission_id = p.id JOIN public.user_roles ur ON ur.role::text = rp.role_id::text WHERE ur.user_id = p_user_id AND p.name = p_permission_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` }
@@ -203,34 +209,71 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], async (req, res) => {
     
     // Issue Bridge JWT
     const token = jwt.sign({ email, role: 'admin' }, BRIDGE_SECRET, { expiresIn: '24h' });
-    res.json({ token });
+    
+    // Fetch profile to return along with token (Fixes frontend hang)
+    const profileRes = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
+    const profile = profileRes.rows[0] || { email, role: 'admin' };
+    
+    res.json({ token, profile });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.post('/api/rpc', verifyToken, async (req, res) => {
-  const { fn, params = {} } = req.body;
+  const { rpc_name, fn, params, args } = req.body;
+  const finalFn = rpc_name || fn;
+  const finalParams = params || args || {};
+  
   try {
-    // Inject user ID if missing and it's a known user-context function
-    const skipUserId = ['get_parent_for_kiosk', 'get_children_for_kiosk', 'verify_staff_pin_for_kiosk', 'get_staff_shifts_for_kiosk'].includes(fn);
-    if (!params.p_user_id && req.user && !skipUserId) {
+    console.log(`[Bridge] RPC Call: ${finalFn}`, JSON.stringify(finalParams));
+    
+    if (!finalFn) {
+      return res.status(400).json({ error: 'No RPC name specified' });
+    }
+
+    // Inject user ID if missing
+    if (!finalParams.p_user_id && req.user) {
       const email = req.user.email || req.user.preferred_username;
       const userRes = await pool.query('SELECT id FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
       if (userRes.rows.length > 0) {
-        params.p_user_id = userRes.rows[0].id;
+        finalParams.p_user_id = userRes.rows[0].id;
       }
     }
 
-    const keys = Object.keys(params);
-    const values = Object.values(params);
-    const placeholders = keys.map((k, i) => `${k} => $${i + 1}`).join(', ');
-    const result = await pool.query(`SELECT * FROM ${fn}(${placeholders})`, values);
+    let result;
+    if (Array.isArray(finalParams)) {
+      const placeholders = finalParams.map((_, i) => `$${i + 1}`).join(', ');
+      result = await pool.query(`SELECT * FROM public.${finalFn}(${placeholders})`, finalParams);
+    } else {
+      const keys = Object.keys(finalParams);
+      const vals = Object.values(finalParams);
+      
+      // Build placeholders with explicit casting to solve the "function does not exist" type ambiguity
+      const placeholders = keys.map((k, i) => {
+        const val = vals[i];
+        if (k.endsWith('_id') || k === 'p_attendance_id') return `${k} => $${i + 1}::uuid`;
+        if (k.endsWith('_metadata') || k.endsWith('_snapshot')) {
+          // Ensure JSON objects are stringified for pg driver
+          if (val && typeof val === 'object') vals[i] = JSON.stringify(val);
+          return `${k} => $${i + 1}::jsonb`;
+        }
+        if (k.startsWith('p_health_')) return `${k} => $${i + 1}::boolean`;
+        return `${k} => $${i + 1}`;
+      }).join(', ');
+      
+      result = await pool.query(`SELECT * FROM public.${finalFn}(${placeholders})`, vals);
+    }
+
     let data = result.rows;
-    if (data.length === 1 && Object.keys(data[0])[0] === fn) data = data[0][fn];
+    // If it returns a single column named after the function, it's a single value result
+    if (data.length === 1 && Object.keys(data[0])[0] === finalFn) {
+      data = data[0][finalFn];
+    }
+    
     res.json({ data, error: null });
   } catch (err) { 
-    console.error(`[Bridge] RPC error [${fn}]:`, err.message);
+    console.error(`[Bridge] RPC error [${finalFn}]:`, err.message);
     res.status(500).json({ error: err.message }); 
   }
 });
@@ -319,7 +362,8 @@ app.post('/api/query', verifyToken, async (req, res) => {
         return `${tableAlias}.${f.column}::text ${op} $${pIdx}`;
       }).filter(Boolean);
 
-      if (clauses.length > 0) sql += ` WHERE ${clauses.join(' AND ')}`;
+      const validClauses = clauses.filter(Boolean);
+      if (validClauses.length > 0) sql += ` WHERE ${validClauses.join(' AND ')}`;
     }
     
     if (order) {
@@ -357,18 +401,31 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       console.error('[Bridge] Mutation error: No method/action specified in body');
       return res.status(400).json({ error: 'Unsupported mutation method: undefined' });
     }
-    if (finalMethod === 'insert') {
-      const keys = Object.keys(finalValues);
-      const vals = Object.values(finalValues);
-      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-      const result = await pool.query(
-        `INSERT INTO public.${table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
-        vals
-      );
-      return res.json({ data: result.rows, error: null });
-    }
     
-    if (finalMethod === 'update') {
+    if (finalMethod === 'insert' || finalMethod === 'upsert') {
+      const cols = Object.keys(finalValues).join(', ');
+      const placeholders = Object.keys(finalValues).map((_, i) => {
+        const key = Object.keys(finalValues)[i];
+        if (key.endsWith('_id') || key === 'id') return `$${i + 1}::uuid`;
+        return `$${i + 1}`;
+      }).join(', ');
+      const vals = Object.values(finalValues);
+      
+      let sql;
+      if (finalMethod === 'upsert') {
+        const conflictTarget = req.body.options?.onConflict || 'id';
+        const updates = Object.keys(finalValues)
+          .filter(k => k !== conflictTarget)
+          .map((k, i) => `${k} = EXCLUDED.${k}`)
+          .join(', ');
+        sql = `INSERT INTO public.${table} (${cols}) VALUES (${placeholders}) ON CONFLICT (${conflictTarget}) DO UPDATE SET ${updates} RETURNING *`;
+      } else {
+        sql = `INSERT INTO public.${table} (${cols}) VALUES (${placeholders}) RETURNING *`;
+      }
+      
+      const result = await pool.query(sql, vals);
+      return res.json({ data: result.rows, error: null });
+    } else if (finalMethod === 'update') {
       const keys = Object.keys(finalValues);
       const vals = Object.values(finalValues);
       const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
@@ -408,6 +465,7 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
     return res.status(400).json({ error: `Unsupported mutation method: ${finalMethod}` });
   } catch (err) {
     console.error(`[Bridge] mutate error [${table}]:`, err.message);
+    if (err.detail) console.error(`[Bridge] mutate detail:`, err.detail);
     res.status(500).json({ error: err.message });
   }
 });
