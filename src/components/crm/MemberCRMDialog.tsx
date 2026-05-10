@@ -28,7 +28,7 @@ import {
 import { useVisitorInteractions, VisitorInteraction } from '@/hooks/useVisitorInteractions';
 import { useCRMManagement } from '@/hooks/useCRMManagement';
 import { useMembers } from '@/hooks/useMembers';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 

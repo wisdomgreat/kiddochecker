@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Baby, Heart, ShieldAlert, Phone, User, Stethoscope, Info, Pill, Trash2, X, Plus, Key } from "lucide-react";
@@ -68,6 +68,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
 
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("basic");
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(["basic"]));
   const { toast } = useToast();
   const { user, isAdmin, isParent } = useAuth();
 
@@ -151,6 +152,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
         setYouthPin("");
         setAllowSelfCheck(false);
         setActiveTab("basic");
+        setVisitedTabs(new Set(["basic"]));
       }
     };
 
@@ -168,6 +170,15 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
       toast({
         title: "Error",
         description: !user ? "You must be logged in" : "First and last name are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (visitedTabs.size < 3) {
+      toast({
+        title: "Review Required",
+        description: "Please review all tabs (Health & Safety, Youth Self-Check) before saving.",
         variant: "destructive",
       });
       return;
@@ -271,7 +282,14 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
           <div className="absolute -top-12 -right-12 w-48 h-48 bg-card/10 rounded-full blur-3xl pointer-events-none" />
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(val) => {
+            setActiveTab(val);
+            setVisitedTabs(prev => new Set(prev).add(val));
+          }} 
+          className="w-full"
+        >
           <div className="border-b border-slate-100 px-8">
             <TabsList className="bg-transparent h-14 gap-8">
               <TabsTrigger
@@ -710,12 +728,16 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
             type="submit"
             onClick={handleSubmit}
             disabled={loading}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 rounded-xl shadow-lg shadow-indigo-200 transition-all font-bold"
+            className={`px-8 rounded-xl shadow-lg transition-all font-bold ${
+              visitedTabs.size < 3 
+                ? "bg-slate-400 hover:bg-slate-500 cursor-not-allowed opacity-70" 
+                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200"
+            }`}
           >
             {loading ? (
               <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
             ) : (
-              childId ? "Save Changes" : "Register Child"
+              visitedTabs.size < 3 ? "Review All Tabs to Save" : (childId ? "Save Changes" : "Register Child")
             )}
           </Button>
         </DialogFooter>
@@ -725,4 +747,5 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
 };
 
 export default AddEditChildDialog;
+
 

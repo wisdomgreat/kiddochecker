@@ -5,6 +5,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer, X } from 'lucide-react';
@@ -44,6 +45,18 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   const generatedCode = useRef(Math.random().toString(36).substring(2, 6).toUpperCase());
   const displayCode = securityCode || generatedCode.current;
 
+  // Auto-print on mount if open
+  React.useEffect(() => {
+    if (open) {
+      console.log('[Print] Auto-triggering print for child:', child.first_name);
+      // Give it a moment to render the QR code in the DOM before printing
+      const timer = setTimeout(() => {
+        handlePrint();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   const handlePrint = () => {
     const safeFirstName = DOMPurify.sanitize(child.first_name);
     const safeLastName = DOMPurify.sanitize(child.last_name);
@@ -51,164 +64,87 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     const safeClassName = className ? DOMPurify.sanitize(className) : '';
     const safeInstructions = specialInstructions ? DOMPurify.sanitize(specialInstructions) : '';
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow || !printRef.current) return;
+    // Use a hidden iframe for more reliable "silent" printing without popup blockers
+    let printFrame = document.getElementById('silent-print-frame') as HTMLIFrameElement;
+    if (!printFrame) {
+      printFrame = document.createElement('iframe');
+      printFrame.id = 'silent-print-frame';
+      printFrame.style.position = 'fixed';
+      printFrame.style.right = '0';
+      printFrame.style.bottom = '0';
+      printFrame.style.width = '0';
+      printFrame.style.height = '0';
+      printFrame.style.border = '0';
+      document.body.appendChild(printFrame);
+    }
 
-    printWindow.document.write(`
+    const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+    if (!frameDoc) return;
+
+    frameDoc.open();
+    frameDoc.write(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Security Label - ${safeFirstName} ${safeLastName}</title>
           <style>
             @page { margin: 0; size: auto; }
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-              color: #000;
-            }
-            .print-container {
-              display: flex;
-              flex-direction: column;
-              gap: 20px;
-            }
+            body { margin: 0; padding: 0; font-family: sans-serif; color: #000; }
             .label-box {
-              width: 3.5in;
-              height: 2.25in;
-              border: 1px dashed #999;
-              padding: 12px;
-              box-sizing: border-box;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              page-break-inside: avoid;
+              width: 3.5in; height: 2.25in;
+              padding: 12px; box-sizing: border-box;
+              display: flex; flex-direction: column; justify-content: space-between;
+              page-break-after: always;
             }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              border-bottom: 2px solid #000;
-              padding-bottom: 4px;
-              margin-bottom: 8px;
-            }
-            .child-name {
-              font-size: 26px;
-              font-weight: 900;
-              line-height: 1.1;
-              margin: 0;
-              text-transform: uppercase;
-            }
-            .security-code-box {
-              background: #000;
-              color: #fff;
-              padding: 4px 8px;
-              font-family: monospace;
-              font-size: 20px;
-              font-weight: bold;
-              border-radius: 4px;
-              text-align: center;
-            }
-            .allergy-alert {
-              background: #000 !important;
-              color: #fff !important;
-              padding: 4px;
-              font-weight: bold;
-              text-align: center;
-              font-size: 14px;
-              margin: 4px 0;
-              text-transform: uppercase;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .details-row {
-              display: flex;
-              justify-content: space-between;
-              font-size: 12px;
-              font-weight: bold;
-              margin-bottom: 4px;
-            }
-            .qr-area {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-            }
-            .qr-placeholder {
-              width: 50px;
-              height: 50px;
-            }
-            .ticket-title {
-              font-size: 14px;
-              font-weight: bold;
-              text-align: center;
-              border-bottom: 1px solid #000;
-              padding-bottom: 4px;
-              margin-bottom: 8px;
-            }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 4px; }
+            .child-name { font-size: 24px; font-weight: 900; margin: 0; text-transform: uppercase; }
+            .security-code { background: #000; color: #fff; padding: 4px 8px; font-size: 18px; font-weight: bold; border-radius: 4px; }
+            .allergy { background: #000; color: #fff; padding: 4px; font-weight: bold; text-align: center; font-size: 12px; margin: 4px 0; text-transform: uppercase; }
+            .qr-area { display: flex; align-items: center; gap: 10px; }
+            .footer { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; }
           </style>
         </head>
         <body>
-          <div class="print-container">
-            <!-- CHILD LABEL -->
-            <div class="label-box">
-              <div>
-                <div class="header">
-                  <div>
-                    <h1 class="child-name">${safeFirstName}</h1>
-                    <h1 class="child-name">${safeLastName}</h1>
-                  </div>
-                  <div class="security-code-box">${displayCode}</div>
-                </div>
-                ${safeAllergies ? `<div class="allergy-alert">⚠️ ALLERGY: ${safeAllergies}</div>` : ''}
-                ${safeInstructions ? `<div style="font-size:10px; border:1px solid #000; padding:4px; margin-top:4px;"><strong>NOTE:</strong> ${safeInstructions}</div>` : ''}
+          <div class="label-box">
+            <div>
+              <div class="header">
+                <div><div class="child-name">${safeFirstName}</div><div class="child-name">${safeLastName}</div></div>
+                <div class="security-code">${displayCode}</div>
               </div>
-              <div>
-                <div class="details-row">
-                  <span>Class: ${safeClassName || 'N/A'}</span>
-                  <span>Date: ${new Date().toLocaleDateString()}</span>
-                </div>
-                <div class="qr-area">
-                  <div id="qr-inject"></div>
-                  <div style="font-size:10px; line-height:1.2;">
-                    <strong>${t('guardianNotice')}</strong>
-                  </div>
-                </div>
-              </div>
+              ${safeAllergies ? `<div class="allergy">⚠️ ALLERGY: ${safeAllergies}</div>` : ''}
+              ${safeInstructions ? `<div style="font-size:9px; border:1px solid #000; padding:3px; margin-top:3px;"><strong>NOTE:</strong> ${safeInstructions}</div>` : ''}
             </div>
-
-            <!-- PARENT CLAIM TICKET -->
-            <div class="label-box">
-              <div class="ticket-title">${t('claimTicket')}</div>
-              <div style="text-align:center; margin: auto 0;">
-                <div style="font-size: 12px; margin-bottom: 10px;">${t('securityCode')}</div>
-                <div class="security-code-box" style="font-size: 32px; padding: 10px; display:inline-block;">${displayCode}</div>
-                <div style="font-size: 16px; margin-top: 15px; font-weight:bold;">${safeFirstName} ${safeLastName}</div>
-                <div style="font-size: 12px; margin-top: 5px;">Date: ${new Date().toLocaleDateString()}</div>
+            <div>
+              <div class="footer"><span>Class: ${safeClassName || 'N/A'}</span><span>${new Date().toLocaleDateString()}</span></div>
+              <div class="qr-area">
+                <div id="qr-target"></div>
+                <div style="font-size:9px;"><strong>IMPORTANT:</strong> Valid identification required for pickup.</div>
               </div>
             </div>
           </div>
-
+          <div class="label-box">
+            <div style="text-align:center; font-weight:bold; border-bottom:1px solid #000; margin-bottom:10px;">CLAIM TICKET</div>
+            <div style="text-align:center; margin: auto 0;">
+              <div style="font-size:10px;">SECURITY CODE</div>
+              <div style="background:#000; color:#fff; font-size:32px; padding:10px; display:inline-block; font-family:monospace;">${displayCode}</div>
+              <div style="font-size:14px; margin-top:10px; font-weight:bold;">${safeFirstName} ${safeLastName}</div>
+            </div>
+          </div>
           <script>
-            // Inject the QR code SVG from the parent window
-            const qrSvg = window.opener.document.querySelector('.qr-rendered-svg');
+            const qrSvg = window.parent.document.querySelector('.qr-rendered-svg');
             if (qrSvg) {
-              document.getElementById('qr-inject').innerHTML = qrSvg.outerHTML;
-              const injected = document.getElementById('qr-inject').querySelector('svg');
-              if(injected) {
-                injected.setAttribute('width', '50');
-                injected.setAttribute('height', '50');
-              }
+              document.getElementById('qr-target').innerHTML = qrSvg.outerHTML;
+              const injected = document.getElementById('qr-target').querySelector('svg');
+              if(injected) { injected.setAttribute('width', '50'); injected.setAttribute('height', '50'); }
             }
+            window.onload = function() { window.print(); };
           </script>
         </body>
       </html>
     `);
-
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }, 500);
+    frameDoc.close();
+    
+    setTimeout(onClose, 2500);
   };
 
   return (
@@ -284,7 +220,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
           </div>
         </div>
 
-        <div className="flex gap-3 mt-4">
+        <DialogFooter className="flex gap-3 mt-4">
           <Button variant="outline" onClick={onClose} className="flex-1">
             {t('cancel')}
           </Button>
@@ -292,7 +228,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             <Printer className="h-4 w-4 mr-2" />
             {t('printNameTag')}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

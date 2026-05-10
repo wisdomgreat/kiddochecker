@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Phone, Clock, ChevronRight, Star, Globe, Search, Navigation } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { motion } from "framer-motion";
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { useSettings } from "@/hooks/useSettings";

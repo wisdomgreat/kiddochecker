@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { CalendarDays, Users, UserCheck, Clock, TrendingUp, Download, FileText, BarChart3, PieChart as PieChartIcon } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 
 interface AttendanceData {
   attendance_date: string;
@@ -421,35 +421,60 @@ const EnhancedReporting = () => {
                   <tr className="border-b">
                     <th className="text-left p-2">Date</th>
                     <th className="text-left p-2">Child</th>
-                    <th className="text-left p-2">Class</th>
-                    <th className="text-left p-2">Check-in</th>
-                    <th className="text-left p-2">Check-out</th>
+                    <th className="text-left p-2">Safety Check</th>
+                    <th className="text-left p-2">Check-in Info</th>
+                    <th className="text-left p-2">Check-out Info</th>
+                    <th className="text-left p-2">Metadata</th>
                     <th className="text-left p-2">Duration</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDetailedData.slice(0, 20).map((record, index) => (
+                  {filteredDetailedData.slice(0, 50).map((record: any, index) => (
                     <tr key={index} className="border-b hover:bg-gray-50">
-                      <td className="p-2">{new Date(record.attendance_date).toLocaleDateString()}</td>
-                      <td className="p-2 font-medium">{record.child_name}</td>
+                      <td className="p-2 whitespace-nowrap">{new Date(record.attendance_date).toLocaleDateString()}</td>
                       <td className="p-2">
-                        <Badge variant="outline">{record.class_name || 'N/A'}</Badge>
+                        <div className="font-medium">{record.child_name}</div>
+                        <Badge variant="outline" className="text-[10px]">{record.class_name || 'N/A'}</Badge>
                       </td>
                       <td className="p-2">
-                        <div className="flex flex-col">
-                          <span>{record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString() : 'N/A'}</span>
-                          <span className="text-[10px] text-gray-500">By: {record.checked_in_by_name} ({record.checked_in_method})</span>
-                        </div>
-                      </td>
-                      <td className="p-2">
-                        <div className="flex flex-col">
-                          <span>{record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : 'Still checked in'}</span>
-                          {record.check_out_time && (
-                            <span className="text-[10px] text-gray-500">By: {record.checked_out_by_name} ({record.checked_out_method})</span>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant={record.health_fever ? "destructive" : "secondary"} className="text-[9px] py-0">
+                            Fever: {record.health_fever ? 'YES' : 'NO'}
+                          </Badge>
+                          <Badge variant={record.health_cough ? "destructive" : "secondary"} className="text-[9px] py-0">
+                            Cough: {record.health_cough ? 'YES' : 'NO'}
+                          </Badge>
+                          {record.special_instructions && (
+                            <span className="text-[9px] text-blue-600 font-bold max-w-[150px] truncate" title={record.special_instructions}>
+                              Note: {record.special_instructions}
+                            </span>
                           )}
                         </div>
                       </td>
-                      <td className="p-2 font-bold">{record.duration_hours ? `${record.duration_hours.toFixed(1)}h` : 'N/A'}</td>
+                      <td className="p-2">
+                        <div className="flex flex-col text-xs">
+                          <span className="font-bold">{record.check_in_time ? new Date(record.check_in_time).toLocaleTimeString() : 'N/A'}</span>
+                          <span className="text-[10px] text-gray-500">{record.checked_in_by_name} ({record.checked_in_method})</span>
+                          <span className="text-[9px] italic text-gray-400">Loc: {record.checked_in_station || 'Unknown'}</span>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex flex-col text-xs">
+                          <span className="font-bold">{record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : 'ACTIVE'}</span>
+                          {record.check_out_time && (
+                            <>
+                              <span className="text-[10px] text-gray-500">{record.checked_out_by_name} ({record.checked_out_method})</span>
+                              <span className="text-[9px] italic text-gray-400">Loc: {record.checked_out_station || 'Unknown'}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2 max-w-[150px]">
+                        <div className="text-[9px] text-gray-500 truncate" title={record.device_ua}>
+                          {record.device_ua || 'No Metadata'}
+                        </div>
+                      </td>
+                      <td className="p-2 font-bold">{record.duration_hours ? `${record.duration_hours.toFixed(1)}h` : '-'}</td>
                     </tr>
                   ))}
                 </tbody>

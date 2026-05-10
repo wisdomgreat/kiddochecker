@@ -6,16 +6,16 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 40% 98.5%;
+    --foreground: 222.2 47.4% 11.2%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222.2 47.4% 11.2%;
 
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 230 75% 55%; /* Richer indigo */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -32,45 +32,62 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 230 75% 55%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Forensic Semantic Tokens */
+    --success: 150 80% 35%;
+    --warning: 35 90% 45%;
+    --info: 195 90% 45%;
+    
+    --glass-background: 0 0% 100% / 0.7;
+    --glass-border: 214.3 31.8% 91.4% / 0.5;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 224 71% 4%; /* Deeper, richer background */
+    --foreground: 213 31% 91%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 224 71% 7%; /* Slightly lighter than background for depth */
+    --card-foreground: 213 31% 91%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 224 71% 6%;
+    --popover-foreground: 215 20.2% 65.1%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 230 85% 65%; /* Softer, glowing indigo in dark mode */
+    --primary-foreground: 224 71% 4%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 215 27.9% 16.9%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 215 27.9% 12.9%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 215 27.9% 16.9%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 230 85% 65%;
+
+    /* Forensic Semantic Tokens (Dark) */
+    --success: 150 80% 50%;
+    --warning: 35 90% 55%;
+    --info: 195 90% 55%;
+
+    --glass-background: 224 71% 4% / 0.7;
+    --glass-border: 215 27.9% 16.9% / 0.5;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
   }
 
   body {
@@ -80,43 +97,66 @@
 }
 
 @layer components {
-  /* Simple, flat card defaults */
+  /* Premium Glass Surfaces */
+  .glass-card {
+    background: hsl(var(--glass-background));
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--glass-border));
+    @apply rounded-2xl shadow-xl transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    border-color: hsl(var(--primary) / 0.3);
+    @apply shadow-2xl;
+  }
+
+  /* Refined stat cards with depth */
   .stat-card {
-    @apply bg-card text-card-foreground border rounded-lg p-6 shadow-sm transition-shadow hover:shadow-md;
+    @apply bg-card text-card-foreground border rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors font-medium text-sm;
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all font-medium text-sm;
   }
 
   .sidebar-item.active {
-    @apply bg-accent text-foreground font-semibold;
+    @apply bg-primary/10 text-primary font-bold shadow-sm shadow-primary/5;
   }
 
-  /* Simple button styles if using utility classes */
-  .btn-primary {
-    @apply bg-primary text-primary-foreground font-medium py-2 px-4 rounded-md hover:bg-primary/90 transition-colors;
+  /* Forensic Semantic Badges */
+  .badge-success { 
+    background: hsl(var(--success) / 0.1);
+    color: hsl(var(--success));
+    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
+    border-color: hsl(var(--success) / 0.2);
   }
-
-  .btn-secondary {
-    @apply bg-secondary text-secondary-foreground font-medium py-2 px-4 rounded-md hover:bg-secondary/80 transition-colors;
+  
+  .badge-warning { 
+    background: hsl(var(--warning) / 0.1);
+    color: hsl(var(--warning));
+    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
+    border-color: hsl(var(--warning) / 0.2);
   }
-
-  /* Badge helpers */
-  .badge-success { @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/20 shadow-none; }
-  .badge-warning { @apply bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full text-[10px] font-bold border border-amber-500/20 shadow-none; }
-  .badge-danger { @apply bg-destructive/10 text-destructive px-2 py-0.5 rounded-full text-[10px] font-bold border border-destructive/20 shadow-none; }
-  .badge-info { @apply bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px] font-bold border border-primary/20 shadow-none; }
+  
+  .badge-danger { 
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
+    border-color: hsl(var(--destructive) / 0.2);
+  }
+  
+  .badge-info { 
+    background: hsl(var(--info) / 0.1);
+    color: hsl(var(--info));
+    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
+    border-color: hsl(var(--info) / 0.2);
+  }
 
   /* Typography Enhancements */
-  h1 { @apply text-4xl font-bold tracking-tight text-foreground mb-4; }
+  h1 { @apply text-4xl font-extrabold tracking-tight text-foreground mb-4; }
   h2 { @apply text-2xl font-bold tracking-tight text-foreground mb-3; }
-  h3 { @apply text-xl font-bold tracking-tight text-foreground mb-2; }
-  h4 { @apply text-lg font-semibold tracking-tight text-foreground mb-2; }
   
-  .text-title { @apply text-foreground font-bold tracking-tight; }
-  .text-subtitle { @apply text-muted-foreground font-medium text-sm; }
-  .text-label { @apply text-muted-foreground font-bold uppercase text-[10px] tracking-wider; }
+  .text-label { @apply text-muted-foreground font-bold uppercase text-[9px] tracking-[0.2em]; }
 
   /* Smooth scroll and scrollbar */
   html {
@@ -124,15 +164,15 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-muted/20;
+    background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50;
+    background: hsl(var(--muted-foreground) / 0.2);
+    @apply rounded-full hover:bg-muted-foreground/40 transition-colors;
   }
+}
 
-  /* Removed all flashy animations and glassmorphism classes */
-}

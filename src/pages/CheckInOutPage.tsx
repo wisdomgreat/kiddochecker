@@ -11,7 +11,7 @@ import { useChildren } from '@/hooks/useChildren';
 import { useClasses } from '@/hooks/useClasses';
 import { useAttendance } from '@/hooks/useAttendance';
 import AttendanceTable from '@/components/attendance/AttendanceTable';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 const CheckInOutPage = () => {
   const { children, isLoading: childrenLoading } = useChildren();

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useSettings } from '@/hooks/useSettings';
 import { Settings, Building, Palette, Shield, Clock, Users, Mail, ExternalLink, HardDrive, FileWarning, ShieldCheck, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

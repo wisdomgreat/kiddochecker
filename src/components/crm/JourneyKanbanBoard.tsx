@@ -15,7 +15,7 @@ import {
     DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useCRMManagement, EngagementTask } from '@/hooks/useCRMManagement';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useAllUsers } from '@/hooks/useAllUsers';
 import { useMembers } from '@/hooks/useMembers';
 import { Separator } from '@/components/ui/separator';
@@ -25,7 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 const KANBAN_STAGES = [
   { id: 'todo', name: 'Backlog / New', color: 'bg-slate-100 text-slate-600', icon: Clock },

@@ -5,13 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { assignUserRole } from '@/utils/roleUtils';
 import { Loader2, Key, ShieldCheck, RefreshCw } from 'lucide-react';
 import { AppRole } from '@/types/supabase';
-import { useAuth } from '@/context/CleanAuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface EditUserDialogProps {
   user: {

@@ -1,9 +1,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 interface Props {
   children: ReactNode;
@@ -28,87 +26,106 @@ export class AuthErrorBoundary extends Component<Props, State> {
   }
 
   private handleRetry = () => {
+    // Clear stale auth state before reloading
+    try {
+      localStorage.removeItem('session_backup');
+      // Clear any supabase auth tokens that might be corrupted
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') || key.startsWith('supabase.auth.')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      // Ignore storage errors
+    }
     this.setState({ hasError: false, error: undefined });
-    // Force a page reload to reset auth state
     window.location.reload();
   };
 
   private handleLogout = () => {
-    // Clear all auth data and redirect to login
-    localStorage.clear();
-    sessionStorage.clear();
+    // Nuclear option: clear ALL auth data
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      // Ignore
+    }
     window.location.href = '/login';
   };
 
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-[#f8fafc] p-6 overflow-hidden relative">
-          {/* Decorative background elements */}
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-50 rounded-full blur-[120px] opacity-60" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-rose-50 rounded-full blur-[120px] opacity-60" />
-
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-            className="w-full max-w-xl relative z-10"
-          >
-            <div className="bg-card/80 backdrop-blur-2xl border border-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] rounded-[3rem] p-12 text-center space-y-8 overflow-hidden relative group">
-              {/* Subtle top accent */}
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-rose-400 via-indigo-500 to-emerald-400 opacity-80" />
-              
-              <div className="flex flex-col items-center gap-6">
-                <motion.div 
-                  animate={{ 
-                    rotate: [0, -10, 10, -10, 10, 0],
-                    y: [0, -4, 0]
-                  }}
-                  transition={{ 
-                    rotate: { duration: 0.5, delay: 0.2 },
-                    y: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-                  }}
-                  className="w-24 h-24 bg-rose-50 rounded-3xl flex items-center justify-center shadow-inner"
-                >
-                  <AlertTriangle className="h-12 w-12 text-rose-500" />
-                </motion.div>
-                
-                <div className="space-y-4">
-                  <h2 className="text-4xl font-bold text-foreground tracking-tight leading-tight">
-                    Session <span className="text-rose-500">Interrupted</span>
-                  </h2>
-                  <p className="text-slate-500 font-bold leading-relaxed max-w-md mx-auto">
-                    We've encountered a secure authentication sync issue. This usually happens when your connection is unstable or your session has stale data.
-                  </p>
-                </div>
+        <div className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-6">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-6 shadow-lg">
+            {/* Top accent */}
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-400 via-indigo-500 to-emerald-400 rounded-t-2xl" />
+            
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center border border-rose-100">
+                <AlertTriangle className="h-8 w-8 text-rose-500" />
               </div>
+              
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Session <span className="text-rose-500">Interrupted</span>
+                </h2>
+                <p className="text-slate-500 text-sm leading-relaxed">
+                  We've encountered an authentication issue. This usually happens when your session has expired or your connection was interrupted.
+                </p>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+            {this.state.error && (
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-left">
+                <p className="text-xs font-mono text-slate-600 break-words">
+                  {this.state.error.message}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-3">
                 <Button 
                   onClick={this.handleRetry} 
                   variant="outline" 
-                  className="h-16 rounded-2xl border-slate-200 bg-card hover:bg-slate-50 text-slate-700 font-bold text-xs uppercase tracking-widest shadow-sm transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="h-12 rounded-xl gap-2 font-bold"
                 >
-                  <RefreshCw className="h-4 w-4 text-indigo-500" />
-                  Attempt Recovery
+                  <RefreshCw className="h-4 w-4" />
+                  Retry
                 </Button>
                 
                 <Button 
                   onClick={this.handleLogout} 
-                  className="h-16 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs uppercase tracking-widest shadow-xl shadow-slate-200 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  className="h-12 rounded-xl gap-2 font-bold"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Re-Authenticate
+                  Re-Login
                 </Button>
               </div>
-
-              <div className="pt-6 border-t border-slate-100">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                  If issues persist, please contact <span className="text-indigo-600">Central Support</span>
-                </p>
-              </div>
+              
+              <Button 
+                variant="ghost"
+                size="sm"
+                className="text-[10px] text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest"
+                onClick={() => {
+                  console.group('Auth Diagnostic Report');
+                  console.error('Caught Error:', this.state.error);
+                  console.log('LocalStorage State:', { ...localStorage });
+                  console.log('Session Backup:', localStorage.getItem('session_backup'));
+                  console.log('Current URL:', window.location.href);
+                  console.groupEnd();
+                  alert('Diagnostic data logged to browser console (F12)');
+                }}
+              >
+                View Diagnostic Data
+              </Button>
             </div>
-          </motion.div>
+
+            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+              If issues persist, clear your browser cache or contact support
+            </p>
+          </div>
         </div>
       );
     }
@@ -118,4 +135,3 @@ export class AuthErrorBoundary extends Component<Props, State> {
 }
 
 export default AuthErrorBoundary;
-

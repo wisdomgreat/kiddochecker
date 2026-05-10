@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { bridge } from "@/lib/bridgeClient";
+import { useToast } from "@/hooks/useToast";
 
 export interface QRCode {
   id: string;
@@ -24,23 +24,20 @@ export const useQRCodes = () => {
     queryKey: ["qr-codes"],
     queryFn: async (): Promise<QRCode[]> => {
       try {
-        const { data, error } = await supabase
+        // Using the new Bridge Client to fetch from Azure
+        const { data, error } = await bridge
           .from('qr_codes')
-          .select(`
-            *,
-            child:children(first_name, last_name)
-          `)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+          .select('*')
+          .eq('is_active', true);
 
         if (error) {
-          console.error("Error fetching QR codes:", error);
+          console.error("Error fetching QR codes via Bridge:", error);
           return [];
         }
 
         return data || [];
       } catch (error: any) {
-        console.error("Error in useQRCodes:", error);
+        console.error("Error in useQRCodes (Bridge):", error);
         return [];
       }
     },
@@ -50,15 +47,12 @@ export const useQRCodes = () => {
     mutationFn: async (childId: string) => {
       const qrData = window.crypto.randomUUID();
 
-      const { data, error } = await supabase
-        .from('qr_codes')
-        .insert({
-          child_id: childId,
-          qr_data: qrData,
-          is_active: true,
-        })
-        .select()
-        .single();
+      // For generation, we use an RPC if available, or update the bridge to support inserts
+      // Assuming a database function 'generate_qr_code' exists or using the bridge
+      const { data, error } = await bridge.rpc('generate_qr_code_rpc', {
+        p_child_id: childId,
+        p_qr_data: qrData
+      });
 
       if (error) throw error;
       return data;

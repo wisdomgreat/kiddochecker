@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Baby, Calendar, MessageSquare, Clock, CheckCircle, AlertTriangle } from "lucide-react";
@@ -115,4 +115,5 @@ const CleanParentDashboard = () => {
 };
 
 export default CleanParentDashboard;
+
 

@@ -9,6 +9,7 @@ import { AdminAccountStep } from "./AdminAccountStep";
 import { AppearanceStep } from "./AppearanceStep";
 import { WizardNavigation } from "./WizardNavigation";
 import { useOrganizationCreation } from "@/hooks/useOrganizationCreation";
+import { validation } from "@/utils/validation";
 
 const organizationSchema = z.object({
   organizationName: z.string().min(1, "Organization name is required"),
@@ -16,7 +17,14 @@ const organizationSchema = z.object({
   adminLastName: z.string().min(1, "Last name is required"),
   adminEmail: z.string().email("Please enter a valid email address"),
   adminPhone: z.string().optional(),
-  adminPassword: z.string().min(6, "Password must be at least 6 characters"),
+  adminPassword: z.string().superRefine((val, ctx) => {
+    const result = validation.password(val);
+    if (!result.isValid) {
+      result.errors.forEach((err) => {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: err });
+      });
+    }
+  }),
   primaryColor: z.string().default("#6366f1"),
   fontFamily: z.string().default("Inter"),
 });

@@ -1,18 +1,23 @@
 import React, { lazy, Suspense } from "react";
 import "./App.css";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { useTranslation } from "@/lib/i18n";
 import { ThemeProvider } from "@/context/ThemeContext";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import RoleBasedRoute from "@/components/layout/RoleBasedRoute";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
 import AuthErrorBoundary from "@/components/auth/AuthErrorBoundary";
 import { Loader2 } from "lucide-react";
+import MFABarrier from "@/components/auth/MFABarrier";
+import { PublicClientApplication } from "@azure/msal-browser";
+import { MsalProvider } from "@azure/msal-react";
+import { msalConfig } from "@/lib/authConfig";
+
+const msalInstance = new PublicClientApplication(msalConfig);
 
 // ─── Lazy Page Imports (code splitting) ───────────────────────────────────────
 const Index = lazy(() => import("./pages/Index"));
@@ -52,22 +57,32 @@ const AttendanceRewardsPage = lazy(() => import("./pages/AttendanceRewardsPage")
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
 const HelpDocumentation = lazy(() => import("./pages/HelpDocumentation"));
 const AboutUsPage = lazy(() => import("./pages/AboutUsPage"));
-const CentersPage = lazy(() => import("./pages/CentersPage"));
+const CentersPage = lazy(() => import("./pages/CentersPage")); // Removed from routes below
+
 const ShiftManagementPage = lazy(() => import("./pages/ShiftManagementPage"));
 const ChurchManagementPage = lazy(() => import("./pages/ChurchManagementPage"));
 const InstallPWABanner = lazy(() => import("./components/mobile/InstallPWABanner"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-slate-50">
-    <div className="flex flex-col items-center gap-4">
-      <div className="h-10 w-10 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+const PageLoader = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center gap-6">
+        <div className="relative h-16 w-16">
+          <div className="absolute inset-0 bg-primary/20 rounded-2xl blur-xl animate-pulse" />
+          <div className="relative h-full w-full rounded-2xl border border-primary/20 bg-background/50 backdrop-blur-md flex items-center justify-center shadow-2xl">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+        <div className="space-y-1 text-center">
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-foreground">{t('syncingEnvironment')}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{t('authorizingModules')}</p>
+        </div>
       </div>
-      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Environment Syncing</p>
     </div>
-  </div>
-);
+  );
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,16 +97,17 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+      <MsalProvider instance={msalInstance}>
+        <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
-          <Sonner />
           <InstallPWABanner />
           <BrowserRouter>
             <AuthErrorBoundary>
               <LanguageProvider>
                 <ThemeProvider>
                   <AuthProvider>
+                  <MFABarrier>
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       {/* Public Routes */}
@@ -133,36 +149,38 @@ function App() {
                       <Route path="/admin/church" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']} requiredPermission="church_view"><ChurchManagementPage /></RoleBasedRoute>} />
 
                       {/* All Authenticated - but NOT Kiosks */}
-                      <Route path="/messages" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><MessagesPage /></ProtectedRoute>} />
-                      <Route path="/calendar" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><CalendarPage /></ProtectedRoute>} />
+                      <Route path="/messages" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><MessagesPage /></RoleBasedRoute>} />
+                      <Route path="/calendar" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><CalendarPage /></RoleBasedRoute>} />
 
                       {/* Parent-specific routes */}
-                      <Route path="/parent/children" element={<ProtectedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentChildrenPage /></ProtectedRoute>} />
-                      <Route path="/parent/attendance" element={<ProtectedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentAttendancePage /></ProtectedRoute>} />
-                      <Route path="/parent/messages" element={<ProtectedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentMessagesPage /></ProtectedRoute>} />
-                      <Route path="/parent/profile" element={<ProtectedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentProfilePage /></ProtectedRoute>} />
-                      <Route path="/parent/rewards" element={<ProtectedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentRewardsPage /></ProtectedRoute>} />
+                      <Route path="/parent/children" element={<RoleBasedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentChildrenPage /></RoleBasedRoute>} />
+                      <Route path="/parent/attendance" element={<RoleBasedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentAttendancePage /></RoleBasedRoute>} />
+                      <Route path="/parent/messages" element={<RoleBasedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentMessagesPage /></RoleBasedRoute>} />
+                      <Route path="/parent/profile" element={<RoleBasedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentProfilePage /></RoleBasedRoute>} />
+                      <Route path="/parent/rewards" element={<RoleBasedRoute allowedRoles={['parent', 'admin', 'super_admin']}><ParentRewardsPage /></RoleBasedRoute>} />
 
                       <Route path="/admin/verify-staff" element={
                         <RoleBasedRoute allowedRoles={['admin', 'super_admin']}>
                           <AdminDocumentVerification />
                         </RoleBasedRoute>
                       } />
-                      <Route path="/staff/documents" element={<ProtectedRoute allowedRoles={['staff', 'teacher', 'teacher_assistant', 'admin', 'super_admin']}><StaffDocumentUpload /></ProtectedRoute>} />
-                      <Route path="/profile" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><UserProfile /></ProtectedRoute>} />
+                      <Route path="/staff/documents" element={<RoleBasedRoute allowedRoles={['staff', 'teacher', 'teacher_assistant', 'admin', 'super_admin']}><StaffDocumentUpload /></RoleBasedRoute>} />
+                      <Route path="/profile" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><UserProfile /></RoleBasedRoute>} />
                       <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
                       <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
                       <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><EmailTemplatesPage /></RoleBasedRoute>} />
                       <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
                       <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><SystemHealth /></RoleBasedRoute>} />
-                      <Route path="/help" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><HelpDocumentation /></ProtectedRoute>} />
+                      <Route path="/help" element={<HelpDocumentation />} />
+                      <Route path="/faq" element={<HelpDocumentation />} />
                       <Route path="/about" element={<AboutUsPage />} />
-                      <Route path="/centers" element={<ProtectedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><CentersPage /></ProtectedRoute>} />
+                      {/* Center Finder Removed */}
 
                       {/* Catch all route */}
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </Suspense>
+                  </MFABarrier>
                 </AuthProvider>
               </ThemeProvider>
             </LanguageProvider>
@@ -170,6 +188,7 @@ function App() {
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>
+      </MsalProvider>
     </ErrorBoundary>
   );
 }

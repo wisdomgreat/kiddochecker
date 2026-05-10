@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Lock, Eye, EyeOff, Loader2, CheckCircle2, Smartphone, ArrowLeft } from 'lucide-react';
+import { Shield, Lock, Eye, EyeOff, Loader2, CheckCircle2, Smartphone, ArrowLeft, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
+import { validation } from '@/utils/validation';
 
 const ResetPasswordPage = () => {
   const [password, setPassword] = useState('');
@@ -123,8 +124,9 @@ const ResetPasswordPage = () => {
       return;
     }
 
-    if (password.length < 6) {
-      toast({ title: "Weak Password", description: "Password must be at least 6 characters.", variant: "destructive" });
+    const passwordCheck = validation.password(password);
+    if (!passwordCheck.isValid) {
+      toast({ title: "Weak Password", description: passwordCheck.errors[0], variant: "destructive" });
       setIsLoading(false);
       return;
     }
@@ -211,7 +213,7 @@ const ResetPasswordPage = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="pl-9 pr-9"
-                      placeholder="At least 6 characters"
+                      placeholder="Min 8 chars, upper, lower, number"
                     />
                     <button 
                       type="button" 
@@ -221,6 +223,21 @@ const ResetPasswordPage = () => {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {password.length > 0 && (
+                    <div className="grid grid-cols-2 gap-1 pt-1">
+                      {[
+                        { label: '8+ characters', met: password.length >= 8 },
+                        { label: 'Uppercase letter', met: /[A-Z]/.test(password) },
+                        { label: 'Lowercase letter', met: /[a-z]/.test(password) },
+                        { label: 'Number', met: /\d/.test(password) },
+                      ].map((c) => (
+                        <p key={c.label} className={`text-[11px] flex items-center gap-1 ${c.met ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                          {c.met ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                          {c.label}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useMessages } from '@/hooks/useMessages';
-import { MessageSquare, Plus, Send, Inbox, Users, Bell, Clock, Search, Reply, Sparkles, ChevronRight, AlertCircle } from 'lucide-react';
+import { MessageSquare, Plus, Send, Inbox, Users, Bell, Clock, Search, Reply, Megaphone, Calendar, ChevronRight, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
@@ -110,7 +110,7 @@ const MessagesManagement = () => {
                     <Button 
                         className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-[1.5rem] font-bold uppercase tracking-widest shadow-2xl shadow-indigo-200 transition-all hover:scale-105 active:scale-95 gap-3"
                     >
-                        <Sparkles className="h-5 w-5" />
+                        <Megaphone className="h-5 w-5" />
                         New Broadcast
                     </Button>
                 </DialogTrigger>
@@ -165,14 +165,14 @@ const MessagesManagement = () => {
                                 required
                             />
                         </div>
-                        <div className="flex justify-end gap-4 pt-4">
+                        <DialogFooter className="flex justify-end gap-4 pt-4">
                             <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-xl font-bold uppercase tracking-widest text-[10px]">
                                 Discard
                             </Button>
                             <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl font-bold uppercase tracking-widest shadow-xl shadow-indigo-100 min-w-[200px]">
                                 Send Dispatch
                             </Button>
-                        </div>
+                        </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
@@ -370,8 +370,8 @@ const MessagesManagement = () => {
                      {[
                        { id: 'service', title: 'Service Update', icon: <Bell className="text-indigo-600" />, content: 'Please note that our service schedule has been updated.' },
                        { id: 'emergency', title: 'Emergency Alert', icon: <AlertCircle className="text-rose-600" />, content: 'Important safety information for all members.' },
-                       { id: 'event', title: 'Event Reminder', icon: <Sparkles className="text-emerald-600" />, content: 'Don\'t forget about our upcoming event!' },
-                       { id: 'weather', title: 'Weather Advisory', icon: <Bell className="text-amber-600" />, content: 'Inclement weather update: Stay tuned for potential delays.' },
+                       { id: 'event', title: 'Event Reminder', icon: <Calendar className="text-emerald-600" />, content: 'Don\'t forget about our upcoming event!' },
+                       { id: 'weather', title: 'Weather Advisory', icon: <Megaphone className="text-amber-600" />, content: 'Inclement weather update: Stay tuned for potential delays.' },
                      ].map(tmpl => (
                        <motion.div key={tmpl.id} variants={itemVariants}>
                          <Card 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useChildren } from '@/hooks/useChildren';
 import { Search, UserPlus, LogOut, Users, Clock, QrCode } from 'lucide-react';
@@ -54,7 +54,7 @@ export const CheckInOutManager: React.FC = () => {
     try {
       await checkIn({
         childId: selectedChild,
-        classId: selectedClass || undefined
+        classId: (selectedClass && selectedClass !== 'none') ? selectedClass : undefined
       });
       
       // Reset selections
@@ -216,7 +216,7 @@ export const CheckInOutManager: React.FC = () => {
                   <SelectValue placeholder="Choose class" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific class</SelectItem>
+                  <SelectItem value="none">No specific class</SelectItem>
                   {classes.map((classItem) => (
                     <SelectItem key={classItem.id} value={classItem.id}>
                       {classItem.name}

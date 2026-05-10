@@ -8,8 +8,10 @@ export interface UserProfile {
   role: string;
   isActive: boolean;
   isSuperAdmin?: boolean;
+  isVolunteer?: boolean;
   createdAt?: string;
   phone?: string;
+  children?: number;
 }
 
 export interface CreateUserRequest {

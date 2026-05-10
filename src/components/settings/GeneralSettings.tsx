@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { generalSettingsSchema, defaultValues, type GeneralSettingsFormValues } from "./schemas/generalSettingsSchema";
@@ -44,7 +44,7 @@ const GeneralSettings = () => {
     if (orgSettings) {
       form.reset({
         churchName: orgSettings.name || "",
-        timeZone: "America/New_York",
+        timeZone: (orgSettings as any).timezone || "America/New_York",
         address: "",
         checkInWindow: "15",
         allowLateCheckIn: true,
@@ -64,6 +64,7 @@ const GeneralSettings = () => {
           name: values.churchName,
           logo_url: values.logoUrl,
           show_center_finder: values.showCenterFinder,
+          timezone: values.timeZone,
         })
         .eq("id", orgSettings?.id)
         .select()

@@ -11,7 +11,7 @@ import { AssignTeacherDialog } from '@/components/classes/AssignTeacherDialog';
 import { ClassRosterDialog } from '@/components/classes/ClassRosterDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Class } from '@/types/classes';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const ClassesPage = () => {
   const { classes, isLoading, error, refetch, addClass, updateClass, deleteClass, isAddingClass, isUpdatingClass } = useClasses();

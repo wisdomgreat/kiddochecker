@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, X, Loader2, AlertCircle } from 'lucide-react';
 import { useSettings } from "@/hooks/useSettings";
@@ -73,24 +73,44 @@ export const ImageUpload = ({
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
 
-      // Upload to Supabase
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      // Try Supabase Storage first
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
 
-      const { data, error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file, { upsert: true });
+        const { data, error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(filePath);
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
+          onUpload(publicUrl);
+          setIsUploading(false);
+          toast({ title: 'Image uploaded successfully' });
+          return;
+        }
+        console.warn("[Storage] Supabase upload error, falling back to Base64:", uploadError);
+      } catch (e) {
+        console.warn("[Storage] Supabase storage exception, falling back to Base64:", e);
+      }
 
-      onUpload(publicUrl);
-      toast({ title: 'Image uploaded successfully' });
+      // Fallback: Base64 (Data URL)
+      // This ensures photos work even if Supabase Storage is restricted during migration
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        onUpload(base64String);
+        setIsUploading(false);
+        toast({ 
+          title: 'Image Attached (Failsafe Mode)', 
+          description: 'Photo will be stored directly in the record.' 
+        });
+      };
+      reader.readAsDataURL(file);
 
     } catch (error: any) {
       toast({

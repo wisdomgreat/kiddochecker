@@ -6,7 +6,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { QUERY_KEYS } from '@/lib/queryKeys';
 import type { StaffMember, AddStaffData, UpdateStaffData } from '@/types/staff';
 
@@ -70,6 +70,7 @@ export const useStaffManagement = () => {
             specialties: staffData.specialties,
             maxHoursPerWeek: staffData.max_hours_per_week,
             staffGroups: staffData.staff_groups,
+            supervisorId: staffData.supervisor_id,
           },
         }
       );
@@ -149,6 +150,7 @@ export const useStaffManagement = () => {
               staffGroups: updates.staff_groups,
               specialties: updates.specialties,
               maxHoursPerWeek: updates.max_hours_per_week,
+              supervisorId: updates.supervisor_id,
             },
           },
         }

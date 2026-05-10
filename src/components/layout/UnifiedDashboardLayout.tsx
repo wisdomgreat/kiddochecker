@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Navigate } from "react-router-dom";
@@ -43,3 +43,4 @@ const UnifiedDashboardLayout = ({ children }: UnifiedDashboardLayoutProps) => {
 };
 
 export default UnifiedDashboardLayout;
+

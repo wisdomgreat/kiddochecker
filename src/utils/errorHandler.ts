@@ -1,6 +1,6 @@
 
 import { PostgrestError } from '@supabase/supabase-js';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/useToast';
 
 // Function to extract human-readable error messages from Supabase errors
 export function getErrorMessage(error: unknown): string {

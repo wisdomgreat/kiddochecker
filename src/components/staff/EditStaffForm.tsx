@@ -30,7 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { useStaff, StaffMember } from "@/hooks/useStaff";
 import { AppRole } from "@/types/supabase";
 

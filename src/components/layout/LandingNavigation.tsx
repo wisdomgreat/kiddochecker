@@ -3,8 +3,8 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/CleanAuthContext";
-import { useDashboardNavigation } from "@/hooks/use-dashboard-navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { useDashboardNavigation } from "@/hooks/useDashboardNavigation";
 import { Menu, X, Shield, ArrowRight } from "lucide-react";
 
 const LandingNavigation = () => {
@@ -110,4 +110,5 @@ const LandingNavigation = () => {
 };
 
 export default LandingNavigation;
+
 

@@ -8,6 +8,14 @@ interface ClassAttendanceReportProps {
   selectedDate: string;
 }
 
+interface ClassStat {
+  class_id: string;
+  class_name: string;
+  total_children: number;
+  checked_in_count: number;
+  currently_present: number;
+}
+
 export const ClassAttendanceReport = ({ selectedDate }: ClassAttendanceReportProps) => {
   const { data: classStats = [], isLoading } = useQuery({
     queryKey: ['class-attendance-stats', selectedDate],
@@ -17,7 +25,7 @@ export const ClassAttendanceReport = ({ selectedDate }: ClassAttendanceReportPro
       });
 
       if (error) throw error;
-      return data || [];
+      return (data || []) as ClassStat[];
     },
   });
 
@@ -47,7 +55,7 @@ export const ClassAttendanceReport = ({ selectedDate }: ClassAttendanceReportPro
           </div>
         ) : (
           <div className="space-y-4">
-            {classStats.map((classStat: any) => {
+            {classStats.map((classStat) => {
               const attendanceRate = classStat.total_children > 0
                 ? Math.round((classStat.checked_in_count / classStat.total_children) * 100)
                 : 0;

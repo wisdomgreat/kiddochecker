@@ -1,32 +1,17 @@
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import React, { createContext, useEffect, useState, useCallback, useRef } from 'react';
+import { useMsal, useIsAuthenticated } from "@azure/msal-react";
+import { InteractionStatus } from "@azure/msal-browser";
 import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/apiClient';
 import { AppRole } from '@/types/supabase';
-import { useToast } from '@/hooks/use-toast';
-
-// Utility function for exponential backoff retry
-const fetchWithRetry = async <T,>(
-  fetchFn: () => Promise<T>,
-  maxRetries = 3,
-  baseDelay = 1000
-): Promise<T> => {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fetchFn();
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-      const delay = baseDelay * Math.pow(2, i);
-      console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw new Error('Max retries exceeded');
-};
+import { useToast } from '@/hooks/useToast';
+import { useIdleTimeout } from '@/hooks/useIdleTimeout';
+import { loginRequest } from '@/lib/authConfig';
 
 export interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any | null;
+  session: any | null;
   userRole: AppRole | null;
   loading: boolean;
   mfaLevel: 'aal1' | 'aal2';
@@ -34,6 +19,10 @@ export interface AuthContextType {
   isMfaEnrolled: boolean;
   mfaFactors: any[];
   signOut: () => Promise<void>;
+  signIn: () => Promise<void>;
+  signInWithPassword: (email: string, pass: string) => Promise<void>;
+  sendNativeCode: (email: string) => Promise<void>;
+  verifyNativeCode: (email: string, code: string) => Promise<void>;
   refreshUserRole: () => Promise<void>;
   refreshMfaStatus: () => Promise<void>;
   isAdmin: boolean;
@@ -52,337 +41,261 @@ export interface AuthContextType {
   userPermissions: string[];
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const { instance, accounts, inProgress } = useMsal();
+  const isAuthenticated = useIsAuthenticated();
+  
+  const [user, setUser] = useState<any | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
-  const [mfaLevel, setMfaLevel] = useState<'aal1' | 'aal2'>('aal1');
-  const [isMfaPending, setIsMfaPending] = useState(false);
-  const [isMfaEnrolled, setIsMfaEnrolled] = useState(false);
-  const [mfaFactors, setMfaFactors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  const currentUserIdRef = useRef<string | null>(null);
   const { toast } = useToast();
 
-  const refreshMfaStatus = useCallback(async () => {
+  // ─── MSAL Sign In ───────────────────────────────────────────────────────────
+  const signIn = async () => {
     try {
-      const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (!error && data) {
-        setMfaLevel(data.currentLevel as any || 'aal1');
-        setIsMfaPending(data.nextLevel === 'aal2' && data.currentLevel !== 'aal2');
-      }
-
-      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
-      if (!factorsError && factors) {
-         setMfaFactors(factors.all || []);
-         setIsMfaEnrolled(factors.all.length > 0);
-      }
+      await instance.loginPopup(loginRequest);
     } catch (e) {
-      console.warn("MFA level fetching failed", e);
+      console.error("[Auth] MSAL error:", e);
+      throw e;
     }
-  }, []);
+  };
 
-  // Session backup to localStorage — stores only non-PII (userId, not email)
-  useEffect(() => {
-    if (session && user) {
-      localStorage.setItem('session_backup', JSON.stringify({
-        userId: user.id,
-        timestamp: Date.now()
-      }));
-    } else {
-      localStorage.removeItem('session_backup');
+  // ─── Email/Pass Sign In ─────────────────────────────────────────────────────
+  const signInWithPassword = async (email: string, pass: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    setSession(data.session);
+    setUser(data.user);
+  };
+
+  // ─── Native Bridge Auth (Option 2) ─────────────────────────────────────────
+  const sendNativeCode = async (email: string) => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/send-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to send code');
     }
-  }, [session, user]);
+  };
 
-  // Network status monitoring
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      console.log('Connection restored');
-      toast({
-        title: "Connection Restored",
-        description: "You're back online.",
-      });
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      console.log('Connection lost');
-      toast({
-        title: "Connection Lost",
-        description: "You're offline. The app will reconnect when your connection is restored.",
-        variant: "destructive",
-      });
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [toast]);
-
-  const refreshUserRole = useCallback(async () => {
-    if (!user?.id) {
-      setUserRole(null);
-      setLoading(false);
-      return;
+  const verifyNativeCode = async (email: string, code: string) => {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code })
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Invalid code');
     }
+    const { token, profile } = await res.json();
+    localStorage.setItem('bridge_token', token);
+    setUser(profile);
+    setSession({ access_token: token });
+    await fetchRoleForUser(profile.id);
+  };
 
-    console.log('Refreshing user role for:', user.id);
-    
-    // Safety timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      console.warn('Role fetching timed out after 10s');
-      setLoading(false);
-    }, 10000);
-
+  // ─── Universal Sign Out ─────────────────────────────────────────────────────
+  const signOut = async () => {
+    console.log('[Auth] Initiating sign out...');
     try {
-      // We add a tiny delay to ensure Auth state is fully established on the backend before querying RLS
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select(`
-          *,
-          custom_roles (
-            role_permissions (
-              permissions (name)
-            )
-          )
-        `)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching user role (Supabase):", error);
-        toast({
-          title: "Role Connection Error",
-          description: `Error: ${error.message}. Please refresh your page.`,
-          variant: "destructive",
-        });
-        setUserRole(null);
-        return;
-      }
-
-      if (!data) {
-        console.warn('No role found in DB for user record:', user.id);
-        // Default to parent or keep null
-        setUserRole(null);
-        return;
-      }
-
-      console.log('Raw DB Role data received:', data);
-      
-      const roleData = data as any;
-      let finalRole = roleData.role || 'parent';
-      
-      if (roleData.is_super_admin === true || roleData.role === 'super_admin') {
-         finalRole = 'super_admin';
-      }
-      
-      const finalStatus = roleData.verification_status || 'unverified';
-      setUserRole(finalRole as AppRole);
-      setVerificationStatus(finalStatus);
-
-      const perms: string[] = [];
-      if (roleData.custom_roles?.role_permissions) {
-        roleData.custom_roles.role_permissions.forEach((rp: any) => {
-          if (rp.permissions?.name) {
-            perms.push(rp.permissions.name);
-          }
-        });
-      }
-      setUserPermissions(perms);
-
-    } catch (err: any) {
-      console.error("Exception in refreshUserRole:", err);
-      setUserRole(null);
-    } finally {
-      clearTimeout(timeoutId);
-      setLoading(false);
-    }
-  }, [user?.id, toast]);
-
-  const signOut = useCallback(async () => {
-    try {
-      setLoading(true);
+      // 1. Clear Local State IMMEDIATELY
       setUser(null);
       setSession(null);
       setUserRole(null);
-      setVerificationStatus(null);
-      localStorage.removeItem('qa_simulate_role');
+      localStorage.removeItem('bridge_token');
 
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Error signing out:", error);
-        toast({
-          title: "Sign Out Error",
-          description: "There was an issue signing out. Please try again.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Signed Out",
-          description: "You have been successfully signed out.",
-        });
-      }
-    } catch (error) {
-      console.error("Exception during sign out:", error);
-      toast({
-        title: "Sign Out Error",
-        description: "An unexpected error occurred during sign out.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  const hasRole = useCallback((role: AppRole): boolean => {
-    if (!userRole) return false;
-    if (userRole === 'super_admin') return true;
-    return userRole === role;
-  }, [userRole]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!mounted) return;
-
-        if (event === 'SIGNED_OUT' || !session) {
-          setSession(null);
-          setUser(null);
-          setUserRole(null);
-          setVerificationStatus(null);
-          localStorage.removeItem('session_backup');
-          setLoading(false);
-          return;
-        }
-
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user && mounted) {
-          refreshMfaStatus();
-          // Defer role fetch to prevent blocking
-          setTimeout(() => {
-            if (mounted) {
-              refreshUserRole();
-            }
-          }, 0);
-        }
-
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    );
-
-    // Get initial session with timeout and retry
-    const getInitialSession = async () => {
+      // 2. Try to clear Supabase
       try {
-        const { data: { session }, error } = await fetchWithRetry(
-          async () => {
-            const result = await Promise.race([
-              supabase.auth.getSession(),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Session fetch timeout')), 30000)
-              )
-            ]);
-            return result as any;
-          },
-          3,
-          1000
-        );
-
-        if (!mounted) return;
-
-        if (error) {
-          console.error("Error getting session:", error);
-          setLoading(false);
-          return;
-        }
-
-        if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-          await refreshMfaStatus();
-          await refreshUserRole();
-        }
-
-        if (mounted) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Exception getting initial session:", error);
-        if (mounted) {
-          setLoading(false);
-          // Show error message but don't crash
-          toast({
-            title: "Connection Issue",
-            description: "Please refresh the page if you continue to see loading screens.",
-            variant: "destructive",
+        await supabase.auth.signOut();
+      } catch (sbErr) {
+        console.warn("[Auth] Supabase signout error:", sbErr);
+      }
+      
+      // 3. Try to clear MSAL
+      if (accounts.length > 0) {
+        try {
+          await instance.logoutPopup({
+            postLogoutRedirectUri: "/",
+            mainWindowRedirectUri: "/",
+            // Use 'none' to avoid interaction if possible during tests
+            // but for production popup is safer
           });
+        } catch (msalErr) {
+          console.warn("[Auth] MSAL logout error:", msalErr);
         }
       }
-    };
 
-    getInitialSession();
+      // 4. Force reload as a final fail-safe to clear all memory states
+      window.location.href = "/";
+    } catch (e) {
+      console.error("[Auth] Global sign out error:", e);
+      // Fallback
+      localStorage.clear();
+      window.location.href = "/";
+    }
+  };
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [refreshUserRole, toast]);
-  // QA Simulation Mode (Development Only)
-  const [qaRole, setQaRole] = useState<AppRole | null>(null);
+  // ─── Role Fetching (Database) ───────────────────────────────────────────────
+  const fetchRoleForUser = useCallback(async (userId: string) => {
+    console.log('[Auth] Syncing roles from Azure Bridge for:', userId);
+    currentUserIdRef.current = userId;
 
-  useEffect(() => {
-    const simulateRole = localStorage.getItem('qa_simulate_role');
-    if (simulateRole) setQaRole(simulateRole as AppRole);
-    
-    const handleStorageChange = () => {
-      setQaRole((localStorage.getItem('qa_simulate_role') as AppRole) || null);
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    try {
+      const data = await apiFetch('/api/profile');
+
+      if (currentUserIdRef.current !== userId) return;
+
+      if (!data) {
+        console.warn("[Auth] No profile returned from Bridge");
+        setUserRole('parent');
+        return;
+      }
+
+      // Sync the user state with the database profile (ensures user.id is the UUID)
+      setUser(data);
+
+      let finalRole = data.role || 'parent';
+      if (data.is_super_admin) finalRole = 'super_admin';
+      
+      setUserRole(finalRole as AppRole);
+      setVerificationStatus(data.verification_status || 'unverified');
+      setUserPermissions(data.permissions || []);
+
+    } catch (err) {
+      console.error("[Auth] Data Bridge sync error:", err);
+      setUserRole('parent');
+    }
   }, []);
 
-  // Override role flags if in QA mode
-  const effectiveRole = qaRole || userRole;
-  const effectiveUser = qaRole ? ({ id: '00000000-0000-0000-0000-000000000000', email: 'qa@test.com' } as any) : user;
+  // ─── Session Sync Logic ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const syncSession = async () => {
+      console.log('[Auth] Syncing session... MSAL Status:', inProgress);
+      
+      // 1. Wait for MSAL to settle before deciding there's no user
+      if (inProgress !== InteractionStatus.None) {
+        console.log('[Auth] MSAL is busy, waiting...');
+        return;
+      }
 
-  const isAdmin = effectiveRole === 'admin' || effectiveRole === 'super_admin';
-  const isSuperAdmin = effectiveRole === 'super_admin';
-  const isParent = effectiveRole === 'parent';
-  const isStaff = effectiveRole === 'staff';
-  const isTeacher = effectiveRole === 'teacher';
-  const isTeacherAssistant = effectiveRole === 'teacher_assistant';
-  const isVolunteer = effectiveRole === 'volunteer';
-  const isKiosk = effectiveRole === 'kiosk';
-  const isRegularUser = effectiveRole === 'regular_user';
+      try {
+        // Priority 1: MSAL (Microsoft)
+        if (isAuthenticated && accounts.length > 0) {
+          console.log('[Auth] MSAL Authenticated');
+          const account = accounts[0];
+          const msalUser = {
+            id: account.localAccountId || account.homeAccountId,
+            email: account.username,
+            name: account.name,
+            user_metadata: { full_name: account.name, email: account.username }
+          };
+          setUser(msalUser);
+          setSession({ access_token: "msal-managed" });
+          await fetchRoleForUser(msalUser.id);
+        } 
+        // Priority 2: Native Bridge Token
+        else if (localStorage.getItem('bridge_token')) {
+          console.log('[Auth] Bridge Token Found');
+          const token = localStorage.getItem('bridge_token');
+          setSession({ access_token: token });
+          try {
+            const profile = await apiFetch('/api/profile');
+            setUser(profile);
+            await fetchRoleForUser(profile.id);
+          } catch (e) {
+            console.error("[Auth] Bridge session invalid:", e);
+            localStorage.removeItem('bridge_token');
+            setUser(null);
+            setSession(null);
+          }
+        }
+        // Priority 3: Supabase (Email/Pass)
+        else {
+          console.log('[Auth] Checking Supabase Session');
+          const { data: { session: sbSession } } = await supabase.auth.getSession();
+          if (sbSession) {
+            setUser(sbSession.user);
+            setSession(sbSession);
+            await fetchRoleForUser(sbSession.user.id);
+          } else {
+            console.log('[Auth] No active session found');
+            setUser(null);
+            setSession(null);
+            setUserRole(null);
+          }
+        }
+      } catch (err) {
+        console.error('[Auth] Global Sync Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const isVerifiedStaff =
-    (isStaff || isTeacher || isTeacherAssistant || isAdmin) &&
-    (qaRole ? true : (verificationStatus === 'verified'));
+    syncSession();
+
+    // Listen for Supabase changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session && !accounts.length) {
+        setUser(session.user);
+        setSession(session);
+        fetchRoleForUser(session.user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [isAuthenticated, accounts, inProgress, fetchRoleForUser]);
+
+  // ─── Idle Timeout ───────────────────────────────────────────────────────────
+  const idleTime = (userRole === 'admin' || userRole === 'super_admin' || userRole === 'staff' || userRole === 'teacher') 
+    ? 30 * 60 * 1000 : 4 * 60 * 60 * 1000;
+
+  useIdleTimeout(() => {
+    if (user) {
+      toast({ title: "Session Expired", description: "Signed out due to inactivity.", variant: "destructive" });
+      signOut();
+    }
+  }, idleTime, !!user && userRole !== 'kiosk');
+
+  // ─── Derived State ──────────────────────────────────────────────────────────
+  const isSuperAdmin = userRole === 'super_admin';
+  const isAdmin = userRole === 'admin' || isSuperAdmin;
+  const isParent = userRole === 'parent';
+  const isStaff = userRole === 'staff';
+  const isTeacher = userRole === 'teacher';
+  const isTeacherAssistant = userRole === 'teacher_assistant';
+  const isVolunteer = userRole === 'volunteer';
+  const isKiosk = userRole === 'kiosk';
+  const isRegularUser = userRole === 'regular_user';
+  
+  const isVerifiedStaff = (isStaff || isTeacher || isAdmin) && verificationStatus === 'verified';
 
   const value = {
-    user: effectiveUser,
-    session: qaRole ? ({} as any) : session,
-    userRole: effectiveRole,
-    loading: qaRole ? false : loading,
+    user,
+    session,
+    userRole,
+    loading,
+    mfaLevel: 'aal1',
+    isMfaPending: false,
+    isMfaEnrolled: true,
+    mfaFactors: [],
     signOut,
-    refreshUserRole,
-    refreshMfaStatus,
+    signIn,
+    signInWithPassword,
+    sendNativeCode,
+    verifyNativeCode,
+    refreshUserRole: async () => { if (user) fetchRoleForUser(user.id); },
+    refreshMfaStatus: async () => {},
     isAdmin,
     isSuperAdmin,
     isParent,
@@ -392,37 +305,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isVolunteer,
     isKiosk,
     isRegularUser,
-    verificationStatus: qaRole ? 'verified' : verificationStatus,
+    verificationStatus,
     isVerifiedStaff,
-    mfaLevel,
-    isMfaPending: qaRole ? false : isMfaPending,
-    isMfaEnrolled,
-    mfaFactors,
-    hasRole: (role: AppRole) => {
-      if (!effectiveRole) return false;
-      if (effectiveRole === 'super_admin') return true;
-      return effectiveRole === role;
-    },
-    hasPermission: (permissionName: string) => {
-      if (effectiveRole === 'super_admin') return true;
-      if (qaRole) return true; // Grant all permissions in QA mode
-      return userPermissions.includes(permissionName);
-    },
+    hasRole: (role: AppRole) => isSuperAdmin || userRole === role,
+    hasPermission: (perm: string) => isSuperAdmin || userPermissions.includes(perm),
     userPermissions,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-

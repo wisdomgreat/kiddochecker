@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Monitor,
   Plus,
@@ -14,7 +14,6 @@ import {
   Smartphone,
   CheckCircle2,
   Shield,
-  Zap,
   Copy,
   Clock,
   Activity,
@@ -53,7 +52,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { cn } from "@/lib/utils";
@@ -410,7 +409,7 @@ const DeviceEnrollmentPage = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                <Zap className="h-8 w-8 text-indigo-600" />
+                <Monitor className="h-8 w-8 text-indigo-600" />
                 Device Enrollment
               </h1>
               <p className="text-slate-500 mt-1">
@@ -544,17 +543,17 @@ const DeviceEnrollmentPage = () => {
                 {
                   step: "1",
                   title: "Register Device",
-                  desc: "Click 'Enroll Device' to add an authorized device along with a generated code to your system.",
+                  desc: "Click 'Enroll Device' to generate a secure Reference Code for your new terminal.",
                 },
                 {
                   step: "2",
-                  title: "Apply to Device",
-                  desc: "Keep track of this code; it securely identifies the device within your organization.",
+                  title: "Activate Terminal",
+                  desc: "Navigate to /device-login on the tablet/kiosk and enter the Reference Code + Master PIN.",
                 },
                 {
                   step: "3",
-                  title: "Track & Audit",
-                  desc: "Device appears in the list with its active status and full activity logging.",
+                  title: "Lock to Kiosk",
+                  desc: "The device will securely authorize and lock into the immersive Check-In interface.",
                 },
               ].map((s) => (
                 <div
@@ -572,6 +571,32 @@ const DeviceEnrollmentPage = () => {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-indigo-100/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest">Direct Activation URL</p>
+                <div className="flex items-center gap-2">
+                  <code className="bg-white/80 border border-indigo-100 px-3 py-1.5 rounded-lg text-sm font-mono font-bold text-indigo-700">
+                    {window.location.origin}/device-login
+                  </code>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-indigo-400"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/device-login`);
+                      toast({ title: "URL Copied" });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 bg-white/50 px-3 py-2 rounded-xl border border-indigo-50">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                <span>Devices must be authorized via Reference Code before accessing check-in.</span>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -730,7 +755,7 @@ const DeviceEnrollmentPage = () => {
           <DialogContent className="max-w-md rounded-3xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-indigo-600" /> Enroll New Device
+                <Plus className="h-5 w-5 text-indigo-600" /> Enroll New Device
               </DialogTitle>
               <DialogDescription>
                 Add a new authorized device to your organization records with a
@@ -927,4 +952,5 @@ const DeviceEnrollmentPage = () => {
 };
 
 export default DeviceEnrollmentPage;
+
 

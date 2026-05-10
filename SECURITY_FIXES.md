@@ -749,3 +749,25 @@ verify_security_answer(user_id, answer) -> returns BOOLEAN
 
 **PHASE 4 STATUS: COMPLETE** ✅
 All batches (4A: Messaging, 4B: Settings & Reports) fully implemented and functional.
+
+---
+
+# Phase 3 & 4 - Security Hardening & Session Security ✅ **COMPLETE**
+
+## ✅ Completed Batches
+
+### Phase 3: RLS & Backend Security Hardening
+- ✅ **Privilege Escalation Mitigation**: Hardened `handle_new_user()` to prevent role-injection via user metadata.
+- ✅ **Secure Org Promotion**: Secured `assign_organization_creator_role()` to prevent unauthorized organization takeovers.
+- ✅ **RPC Authorization**: Added server-side staff/admin checks to sensitive data functions (`get_staff_members`, `get_attendance_report`).
+- ✅ **MFA UX Improvement**: Replaced disruptive login redirects with a non-bypassable **MFA Barrier Overlay**, preserving user context while enforcing security.
+- ✅ **Strict Routing**: Refactored `RoleBasedRoute` to use strict **AND** logic between roles and permissions.
+
+### Phase 4: Session Security & Rate Limiting
+- ✅ **Idle Session Timeout**: Automatic logout after 30 minutes (Staff/Admin) or 4 hours (Parents) of inactivity.
+- ✅ **Rate Limiting**: Implemented `security_attempts` tracking table and auto-lockout (15 mins) for brute-force PIN attempts.
+- ✅ **Active Session Monitoring**: Created a user dashboard to view all active devices/IPs and revoke individual sessions remotely.
+- ✅ **Client-side Hardening**: Secured `checkUserPermission` in the Supabase client to use authoritative server-side RPC checks.
+
+**Impact**: The platform now meets enterprise-grade security standards with protection against brute-force attacks, session hijacking, and privilege escalation.
+

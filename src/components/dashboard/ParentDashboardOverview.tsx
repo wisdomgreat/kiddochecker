@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { Clock, MapPin, User, Calendar, AlertTriangle, CheckCircle, Plus } from "lucide-react";
 import { useParentChildren } from "@/hooks/useParentChildren";
 import { useAttendance } from "@/hooks/useAttendance";

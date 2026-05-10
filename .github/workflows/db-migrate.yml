@@ -1,0 +1,79 @@
+name: 🐘 Database Migration
+
+on:
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Open Firewall & Run Migration
+        run: |
+          # 1. Dynamically find the server name
+          DB_SERVER_NAME=$(az postgres flexible-server list --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
+          echo "Found Server: $DB_SERVER_NAME"
+
+          # 2. Enable Public Access temporarily and WAIT for propagation
+          echo "Unlocking Public Access window..."
+          az postgres flexible-server update \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name $DB_SERVER_NAME \
+            --public-access Enabled
+          
+          echo "Waiting 30 seconds for Azure to propagate networking changes..."
+          sleep 30
+
+          # 3. Add GitHub Runner IP to firewall
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "Allowing Runner IP: $RUNNER_IP"
+          az postgres flexible-server firewall-rule create \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name $DB_SERVER_NAME \
+            --rule-name "GitHubRunner" \
+            --start-ip-address $RUNNER_IP \
+            --end-ip-address $RUNNER_IP
+
+          # 4. Run the SQL Migration
+          npm install pg
+          node -e "
+          const { Client } = require('pg');
+          const fs = require('fs');
+          const client = new Client({
+            host: '$DB_SERVER_NAME.postgres.database.azure.com',
+            user: 'kiddomin',
+            password: '${{ secrets.DB_PASSWORD }}',
+            database: 'postgres',
+            ssl: true
+          });
+          async function run() {
+            try {
+              await client.connect();
+              const sql = fs.readFileSync('supabase/migrations/20261020000000_multi_tenancy_foundation.sql', 'utf8');
+              await client.query(sql);
+              console.log('Migration Successful!');
+            } catch (err) {
+              console.error('Migration Failed:', err);
+              process.exit(1);
+            } finally {
+              await client.end();
+            }
+          }
+          run();
+          "
+
+      - name: Hardening - Disable Public Access
+        if: always()
+        run: |
+          DB_SERVER_NAME=$(az postgres flexible-server list --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --query "[0].name" -o tsv)
+          az postgres flexible-server update \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name $DB_SERVER_NAME \
+            --public-access Disabled

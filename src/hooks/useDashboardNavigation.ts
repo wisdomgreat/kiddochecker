@@ -1,6 +1,6 @@
 
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { AppRole } from "@/types/supabase";
 
 export const useDashboardNavigation = () => {
@@ -25,6 +25,9 @@ export const useDashboardNavigation = () => {
       case 'teacher_assistant':
         navigate('/teacher-dashboard');
         break;
+      case 'kiosk':
+        navigate('/check-in');
+        break;
       case 'parent':
       default:
         navigate('/parent-dashboard');
@@ -44,6 +47,8 @@ export const useDashboardNavigation = () => {
       case 'teacher':
       case 'teacher_assistant':
         return '/teacher-dashboard';
+      case 'kiosk':
+        return '/check-in';
       case 'parent':
       default:
         return '/parent-dashboard';
@@ -55,4 +60,5 @@ export const useDashboardNavigation = () => {
     getDashboardPath,
   };
 };
+
 

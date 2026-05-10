@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, User } from "lucide-react";
@@ -55,4 +55,5 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({ className }) => {
     </div>
   );
 };
+
 

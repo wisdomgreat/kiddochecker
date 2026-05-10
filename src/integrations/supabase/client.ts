@@ -1,11 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
+import { createBridgeProxy } from './bridgeProxy';
 import type { Database } from './types';
 import { AppRole, CustomRole, Permission, RolePermission } from '@/types/supabase';
 
 const SUPABASE_URL = "https://pxqztqcukuilqdermblq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4cXp0cWN1a3VpbHFkZXJtYmxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA4MzYwODgsImV4cCI6MjA1NjQxMjA4OH0.2mZ8Dn2DX5SAQw2dHwPdHy6bQK5OhNTVI-1HVvXXlOs";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+// Migration Switch: If true, all supabase.from() calls go to Azure via the Bridge
+const USE_AZURE_BRIDGE = import.meta.env.VITE_USE_AZURE_BRIDGE === 'true';
+
+const realClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -16,6 +20,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
     },
   },
 });
+
+export const supabase = USE_AZURE_BRIDGE 
+  ? createBridgeProxy(realClient) 
+  : realClient;
 
 // Helper functions for session management
 export const getCurrentUser = async () => {
@@ -212,43 +220,31 @@ export const isSetupCompleted = async () => {
 };
 
 // Check if user has specific permission
-export const checkUserPermission = async (resource: string, action: string): Promise<boolean> => {
+// Supports legacy (permissionName) or granular (resource, action)
+export const checkUserPermission = async (resourceOrName: string, optionalAction?: string): Promise<boolean> => {
   try {
     const user = await getCurrentUser();
-    
     if (!user) return false;
     
-    // Check if the user is an admin (has all permissions)
-    const { data: roleData } = await supabase
-      .from('user_roles')
-      .select('is_super_admin, role')
-      .eq('user_id', user.id)
-      .limit(1)
-      .single();
-      
-    if (roleData?.is_super_admin || roleData?.role === 'super_admin') {
-      return true;
-    }
+    // Determine the permission name to check
+    const permissionName = optionalAction 
+      ? `${optionalAction}_${resourceOrName}` 
+      : resourceOrName;
+
+    console.log(`Checking permission: ${permissionName} for user: ${user.id}`);
     
-    // Check specific permission
-    const { data, error } = await supabase
-      .from('role_permissions')
-      .select(`
-        permission_id,
-        permissions:permission_id (
-          resource,
-          action
-        )
-      `)
-      .eq('permissions.resource', resource)
-      .eq('permissions.action', action);
+    // Use the secure RPC that checks both role-based and custom-role permissions
+    const { data, error } = await supabase.rpc('check_user_permission', {
+      p_user_id: user.id,
+      p_permission_name: permissionName
+    });
     
     if (error) {
-      console.error("Error checking permission:", error);
+      console.error("Error in checkUserPermission RPC:", error);
       return false;
     }
     
-    return (data && data.length > 0) || false;
+    return !!data;
   } catch (error) {
     console.error("Error in checkUserPermission:", error);
     return false;

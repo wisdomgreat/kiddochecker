@@ -1,4 +1,4 @@
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Home, Users, Settings, LogOut, BarChart3, Calendar, MessageSquare } from "lucide-react";
@@ -86,4 +86,5 @@ export const ModernSidebar = ({ className }: SidebarProps = {}) => {
     </div>
   );
 };
+
 

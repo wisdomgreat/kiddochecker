@@ -5,6 +5,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -12,7 +13,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { useClasses } from '@/hooks/useClasses';
-import { Users, Clock, StickyNote, ActivitySquare, AlertTriangle, Check } from 'lucide-react';
+import { Users, Clock, StickyNote, ActivitySquare, AlertTriangle, Check, Lock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '@/lib/i18n';
 import { useSettings } from '@/hooks/useSettings';
 import { useLanguage } from '@/context/LanguageContext';
@@ -83,27 +85,40 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                     Target Class
                 </div>
                 <RadioGroup value={selectedClass} onValueChange={setSelectedClass} className="grid grid-cols-1 gap-2">
-                  {classes?.map((cls) => (
+                  {classes?.filter(cls => !initialClassId || cls.id === initialClassId).map((cls) => (
                     <div
                       key={cls.id}
-                      onClick={() => setSelectedClass(cls.id)}
+                      onClick={() => {
+                        if (!initialClassId) setSelectedClass(cls.id);
+                      }}
                       className={cn(
-                        "relative flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:bg-muted/30",
+                        "relative flex items-center gap-4 p-4 rounded-lg border transition-all",
+                        !initialClassId && "cursor-pointer hover:bg-muted/30",
                         selectedClass === cls.id ? "border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-900" : "border-slate-200"
                       )}
                     >
                       <RadioGroupItem value={cls.id} id={cls.id} className="sr-only" />
                       <div className="flex-1 space-y-1">
-                          <Label htmlFor={cls.id} className="font-bold text-sm cursor-pointer block">{cls.name}</Label>
+                          <Label htmlFor={cls.id} className={cn("font-bold text-sm block", !initialClassId && "cursor-pointer")}>{cls.name}</Label>
                           {cls.age_range && (
                             <p className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1">
                               <Clock className="w-3 h-3" /> {cls.age_range}
                             </p>
                           )}
                       </div>
-                      {selectedClass === cls.id && <Check className="w-4 h-4" />}
+                      {selectedClass === cls.id && (
+                        <div className="flex items-center gap-2">
+                           {initialClassId && <Badge variant="outline" className="text-[9px] font-bold uppercase text-emerald-600 border-emerald-200 bg-emerald-50">Assigned</Badge>}
+                           <Check className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
                   ))}
+                  {initialClassId && classes?.length && classes.length > 1 && (
+                    <p className="text-[10px] text-center text-muted-foreground font-medium italic mt-2">
+                      Class locked based on child's assigned registry.
+                    </p>
+                  )}
                 </RadioGroup>
               </div>
 

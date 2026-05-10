@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { useStaffInvitations } from '@/hooks/useStaffInvitations';
 import { useStaffManagement } from '@/hooks/useStaffManagement';
 import { Mail, Send, RefreshCw, UserPlus, Clock, CheckCircle, XCircle } from 'lucide-react';

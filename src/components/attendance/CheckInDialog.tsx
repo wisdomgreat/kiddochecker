@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Shield } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useEmailNotifications } from '@/hooks/useEmailNotifications';
 
@@ -15,7 +15,7 @@ interface CheckInDialogProps {
   onSuccess: () => void;
 }
 
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { AttendanceService } from '@/services/attendanceService';
 
 export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogProps) => {
@@ -78,10 +78,11 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
 
       const result = await AttendanceService.checkInChild({
         childId: selectedChild,
-        classId: selectedClass || undefined,
+        classId: (selectedClass && selectedClass !== 'none') ? selectedClass : undefined,
         checkedInBy: user?.id,
         method: 'staff_dashboard',
-        station: 'Manual Dashboard'
+        station: 'Manual Dashboard',
+        deviceId: user?.user_metadata?.device_id
       });
 
       if (!result.success) {
@@ -140,52 +141,75 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Manual Check-In</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Select Child</Label>
+      <DialogContent className="sm:max-w-[500px] p-0 border-none bg-background shadow-2xl rounded-[2.5rem] overflow-hidden">
+        <div className="bg-primary p-10 text-primary-foreground relative overflow-hidden shrink-0">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-background/10 rounded-full blur-3xl -mr-32 -mt-32" />
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-2xl bg-background/10 backdrop-blur-md border border-background/20 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Manual Admission Terminal</span>
+            </div>
+            <DialogTitle className="text-3xl font-black tracking-tighter leading-none mb-2">
+              Staff Authorization
+            </DialogTitle>
+            <p className="text-sm text-white/70 font-medium leading-relaxed mt-4">
+              Authorized manual check-in for children without physical credentials. This action will be logged in the permanent audit trail.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-10 space-y-6">
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Select Child from Registry</Label>
             <Select value={selectedChild} onValueChange={setSelectedChild}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a child..." />
+              <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-transparent focus:bg-background transition-all font-bold px-4">
+                <SelectValue placeholder="Begin typing or select..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-2xl border-border/50 max-h-[300px]">
                 {children.map((child: any) => (
-                  <SelectItem key={child.id} value={child.id}>
+                  <SelectItem key={child.id} value={child.id} className="font-bold py-3">
                     {child.first_name} {child.last_name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Select Class (Optional)</Label>
+
+          <div className="space-y-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assigned Learning Environment</Label>
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a class..." />
+              <SelectTrigger className="h-14 rounded-2xl bg-muted/30 border-transparent focus:bg-background transition-all font-bold px-4">
+                <SelectValue placeholder="Assign to a class (optional)..." />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">No Class</SelectItem>
+              <SelectContent className="rounded-2xl border-border/50">
+                <SelectItem value="none" className="italic font-medium">No Class Assignment</SelectItem>
                 {classes.map((classItem: any) => (
-                  <SelectItem key={classItem.id} value={classItem.id}>
+                  <SelectItem key={classItem.id} value={classItem.id} className="font-bold py-3">
                     {classItem.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCheckIn} disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Check In
-            </Button>
-          </div>
         </div>
+
+        <DialogFooter className="p-10 bg-muted/50 border-t border-border/50 flex flex-row items-center justify-between sm:justify-between">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-full px-6 font-bold text-xs">Cancel</Button>
+          <Button 
+            onClick={handleCheckIn} 
+            disabled={isLoading}
+            className="rounded-full px-10 h-14 font-black text-[11px] uppercase tracking-[0.2em] bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xl hover:shadow-primary/20 hover:-translate-y-1 active:translate-y-0"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Authorize Check-in"
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

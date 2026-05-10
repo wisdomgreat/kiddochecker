@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/CleanAuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Zap, QrCode } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/useToast";
+import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Award, QrCode } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { useMembers } from "@/hooks/useMembers";
 import { format } from "date-fns";
@@ -35,7 +35,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { Check, PlusCircle } from "lucide-react";
+import { Check, PlusCircle, Smartphone } from "lucide-react";
+import { useNFC } from "@/hooks/useNFC";
 
 interface Milestone {
   type: string;
@@ -77,6 +78,32 @@ const ParentProfile = () => {
   const [isMilestoneOpen, setIsMilestoneOpen] = useState(false);
   const [newMilestoneType, setNewMilestoneType] = useState("Baptism");
   const [newMilestoneDate, setNewMilestoneDate] = useState<Date | undefined>(new Date());
+  const [isRegisteringNFC, setIsRegisteringNFC] = useState(false);
+
+  const { isSupported: nfcSupported, startScanning: startNfc } = useNFC(async (serial) => {
+    console.log('[Profile] NFC Tag detected for registration:', serial);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ nfc_uid: serial } as any)
+        .eq('id', user?.id);
+
+      if (error) throw error;
+
+      toast({ 
+        title: "NFC Linked!", 
+        description: "Your tag has been successfully linked to your profile.",
+      });
+      setIsRegisteringNFC(false);
+      refetch();
+    } catch (err: any) {
+      toast({ 
+        title: "Registration Failed", 
+        description: err.message, 
+        variant: "destructive" 
+      });
+    }
+  });
 
   const { data: profile, isLoading, refetch } = useQuery({
     queryKey: ["profile", user?.id],
@@ -380,6 +407,53 @@ const ParentProfile = () => {
              </p>
           </div>
 
+          {/* NFC Registration Section */}
+          <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 space-y-4">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-100 rounded-xl">
+                        <Smartphone className="h-5 w-5 text-emerald-700" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-foreground leading-tight">Smart Tag (NFC)</h4>
+                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Tap & Go Check-in</p>
+                    </div>
+                </div>
+                {profile?.nfc_uid ? (
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Linked</Badge>
+                ) : (
+                    <Badge variant="outline" className="text-slate-400 border-slate-200">Not Linked</Badge>
+                )}
+             </div>
+
+             <div className="space-y-3">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                   Link a physical NFC tag, sticker, or your phone's digital wallet to skip the phone/PIN entry at the kiosk.
+                </p>
+                
+                {!nfcSupported ? (
+                   <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[10px] text-amber-700 font-medium">
+                      Note: Your current device or browser does not support Web NFC. Please use an Android device with Chrome or ask a staff member for assistance.
+                   </div>
+                ) : (
+                   <Button 
+                      variant={isRegisteringNFC ? "secondary" : "default"}
+                      className={cn(
+                        "w-full rounded-2xl h-12 font-bold transition-all",
+                        isRegisteringNFC ? "animate-pulse bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100"
+                      )}
+                      onClick={() => {
+                        setIsRegisteringNFC(true);
+                        startNfc();
+                        toast({ title: "Ready to Scan", description: "Hold your tag or sticker to the back of your phone now." });
+                      }}
+                   >
+                      {isRegisteringNFC ? "Scanning... Tap Tag Now" : profile?.nfc_uid ? "Update Linked Tag" : "Link New NFC Tag"}
+                   </Button>
+                )}
+             </div>
+          </div>
+
           <div className="h-px bg-slate-100 dark:bg-card/5 my-2" />
 
           {/* Church Membership Section */}
@@ -459,7 +533,7 @@ const ParentProfile = () => {
                                     exit={{ opacity: 0, scale: 0.8 }}
                                 >
                                     <Badge className="bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20 font-bold px-3 py-1 rounded-xl flex items-center gap-2">
-                                        <Zap className="h-3 w-3" />
+                                        <Award className="h-3 w-3" />
                                         {m.type}: {format(new Date(m.date), 'yyyy')}
                                     </Badge>
                                 </motion.div>
@@ -503,7 +577,7 @@ const ParentProfile = () => {
         <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
             <DialogHeader>
                 <DialogTitle className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-                    <Zap className="h-6 w-6 text-indigo-600" />
+                    <Award className="h-6 w-6 text-indigo-600" />
                     Record Milestone
                 </DialogTitle>
                 <DialogDescription className="font-bold text-slate-400">
@@ -568,4 +642,5 @@ const ParentProfile = () => {
 };
 
 export default ParentProfile;
+
 

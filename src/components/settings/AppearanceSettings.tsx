@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { Moon, Sun, Monitor, Check } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Switch } from "@/components/ui/switch";

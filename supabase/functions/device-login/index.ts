@@ -14,8 +14,8 @@ serve(async (req) => {
   try {
     const { code, pin, forensics } = await req.json();
 
-    if (!code) {
-      return new Response(JSON.stringify({ error: 'Device code is required' }), {
+    if (!code && !forensics?.hardwareId) {
+      return new Response(JSON.stringify({ error: 'Device code or Hardware ID is required' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

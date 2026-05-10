@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import UnifiedDashboardLayout from "@/components/layout/UnifiedDashboardLayout";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { Trophy, Star, Gift, Plus, Edit, Trash2, RefreshCw, CheckCircle2, X, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -365,4 +365,5 @@ const AttendanceRewardsPage = () => {
 };
 
 export default AttendanceRewardsPage;
+
 

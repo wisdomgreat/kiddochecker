@@ -1,6 +1,6 @@
 
 import { ReactNode, useState } from "react";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Home, Users, Calendar, MessageSquare, Settings, BarChart3, Baby, UserPlus } from "lucide-react";
@@ -198,4 +198,5 @@ const MobileFirstLayout = ({ children }: MobileFirstLayoutProps) => {
 };
 
 export default MobileFirstLayout;
+
 

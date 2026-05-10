@@ -20,6 +20,7 @@ interface CreateUserRequest {
   specialties?: string[];
   maxHoursPerWeek?: number;
   staffGroups?: string[];
+  supervisorId?: string;
 }
 
 interface UpdateUserRequest {
@@ -36,6 +37,7 @@ interface UpdateUserRequest {
     staffGroups?: string[];
     specialties?: string[];
     maxHoursPerWeek?: number;
+    supervisorId?: string;
   };
 }
 
@@ -158,7 +160,8 @@ serve(async (req) => {
             staff_pin: (data as CreateUserRequest).staffPin || null,
             department: (data as CreateUserRequest).department || null,
             specialties: (data as CreateUserRequest).specialties || [],
-            max_hours_per_week: (data as CreateUserRequest).maxHoursPerWeek || 40
+            max_hours_per_week: (data as CreateUserRequest).maxHoursPerWeek || 40,
+            supervisor_id: (data as CreateUserRequest).supervisorId || null
           }, { onConflict: 'id' });
 
         if (profileError) {
@@ -233,6 +236,7 @@ serve(async (req) => {
               department: updates.department,
               specialties: updates.specialties,
               max_hours_per_week: updates.maxHoursPerWeek,
+              supervisor_id: updates.supervisorId,
             })
             .eq('id', userId);
 

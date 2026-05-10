@@ -1,18 +1,26 @@
-import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
-const anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
-const supabase = createClient(supabaseUrl, anonKey);
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL!,
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
+);
 
 async function dumpRoles() {
-  const { data, error } = await supabase.rpc('get_all_user_roles');
-  
+  console.log('Fetching user roles as anon...');
+  // Since we don't have service role, we hope some are public or we can guess UIDs
+  const { data, error } = await supabase
+    .from('user_roles')
+    .select('*');
+
   if (error) {
-    console.error('Error fetching roles:', error);
+    console.error('Error:', error);
   } else {
-    console.log('All user_roles in database:');
-    console.log(JSON.stringify(data, null, 2));
+    console.log('Roles found:', data?.length);
+    console.log('Roles data:', data);
   }
 }
 

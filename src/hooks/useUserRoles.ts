@@ -2,6 +2,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { UserProfile } from "@/types/users";
+import { AppRole } from "@/types/supabase";
+
+interface UserWithRoleRPC {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: AppRole | null;
+  is_super_admin: boolean | null;
+  is_active: boolean | null;
+  is_volunteer: boolean | null;
+  phone: string | null;
+  created_at: string | null;
+  children_count: number | null;
+}
 
 const useUserRoles = () => {
   return useQuery({
@@ -20,12 +35,12 @@ const useUserRoles = () => {
 
         console.log("Raw user data:", data);
 
-        if (!data || data.length === 0) {
+        if (!data || (data as any).length === 0) {
           console.log("No users found");
           return [];
         }
 
-        const formattedUsers = data.map((user: any) => ({
+        const formattedUsers: UserProfile[] = (data as UserWithRoleRPC[]).map((user) => ({
           id: user.id,
           email: user.email || '',
           firstName: user.first_name || '',

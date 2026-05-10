@@ -9,7 +9,7 @@ import NotificationSettings from "@/components/settings/NotificationSettings";
 import SecuritySettings from "@/components/settings/SecuritySettings";
 import AppearanceSettings from "@/components/settings/AppearanceSettings";
 import CentersSettings from "@/components/settings/CentersSettings";
-import { Settings as SettingsIcon, User, Bell, Shield, Palette, MapPin, Sparkles, ChevronRight } from "lucide-react";
+import { Settings as SettingsIcon, User, Bell, Shield, Palette, MapPin, ShieldCheck, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -148,7 +148,7 @@ const Settings = () => {
         >
           <div className="flex items-center gap-4">
              <div className="h-10 w-10 rounded-xl bg-card dark:bg-slate-900 flex items-center justify-center shadow-md">
-                <Sparkles className="h-5 w-5 text-indigo-500" />
+                <ShieldCheck className="h-5 w-5 text-indigo-500" />
              </div>
              <div>
                 <p className="text-[10px] font-bold text-foreground dark:text-white uppercase tracking-widest">Global Encryption Active</p>

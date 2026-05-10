@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { 
   Home, 
@@ -107,4 +107,5 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 };
 
 export default Sidebar;
+
 

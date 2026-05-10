@@ -1,6 +1,6 @@
 
 import { ReactNode } from "react";
-import { useAuth } from "@/context/CleanAuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 
@@ -40,4 +40,5 @@ const AdminGuard = ({ children, fallback }: AdminGuardProps) => {
 };
 
 export default AdminGuard;
+
 

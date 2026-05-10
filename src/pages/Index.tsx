@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import UnifiedDashboard from '@/components/dashboard/UnifiedDashboard';
 import UnifiedDashboardLayout from '@/components/layout/UnifiedDashboardLayout';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, userRole, loading } = useAuth();
+  const { user, userRole, loading, isMfaPending } = useAuth();
 
   useEffect(() => {
     console.log('Index page - User:', user?.id, 'Role:', userRole, 'Loading:', loading);
@@ -20,11 +20,14 @@ const Index = () => {
       return;
     }
 
-    // If we have a user and role (or waiting for role), show the unified dashboard
-    // No more redirects - just show the appropriate dashboard content
-  }, [user, userRole, loading, navigate]);
+    if (userRole === 'kiosk') {
+      navigate('/check-in', { replace: true });
+      return;
+    }
 
-  // Show loading while determining authentication state
+    // MFA logic removed - now handled by MFABarrier globally
+  }, [user, loading, navigate]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -36,9 +39,8 @@ const Index = () => {
     );
   }
 
-  // Show login page if no user
   if (!user) {
-    return null; // Will redirect to login in useEffect
+    return null;
   }
 
   // Show unified dashboard for authenticated users
@@ -50,4 +52,3 @@ const Index = () => {
 };
 
 export default Index;
-

@@ -17,7 +17,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 const WorkingParentDashboard = () => {
   const navigate = useNavigate();

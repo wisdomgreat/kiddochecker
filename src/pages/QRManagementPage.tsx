@@ -8,13 +8,13 @@ import {
     List, ChevronDown, AlertTriangle, CheckCircle2, Phone,
     RefreshCw, Settings, X, Eye, BookOpen, Loader2, ShieldAlert
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -428,4 +428,5 @@ const QRManagementPage = () => {
 };
 
 export default QRManagementPage;
+
 

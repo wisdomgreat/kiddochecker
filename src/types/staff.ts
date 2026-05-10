@@ -22,6 +22,7 @@ export interface StaffMember {
   staff_groups?: string[]; // IDs of groups
   specialties?: string[];
   max_hours_per_week?: number;
+  supervisor_id?: string;
 }
 
 export interface AddStaffData {
@@ -36,12 +37,13 @@ export interface AddStaffData {
   specialties?: string[];
   max_hours_per_week?: number;
   staff_groups?: string[];
+  supervisor_id?: string;
 }
 
 export interface UpdateStaffData {
   userId: string;
   updates: Partial<Pick<StaffMember,
-    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin' | 'department' | 'staff_groups' | 'specialties' | 'max_hours_per_week'
+    'first_name' | 'last_name' | 'phone' | 'role' | 'is_active' | 'is_volunteer' | 'staff_pin' | 'department' | 'staff_groups' | 'specialties' | 'max_hours_per_week' | 'supervisor_id'
   >>;
 }
 

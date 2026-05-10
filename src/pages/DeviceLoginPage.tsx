@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Shield, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/useToast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const DeviceLogin = () => {
     const navigate = useNavigate();
@@ -37,12 +38,26 @@ const DeviceLogin = () => {
         await executeLogin(true);
     };
 
+    const { user, isKiosk } = useAuth();
+
+    // --- REDIRECT IF ALREADY AUTHED ---
+    React.useEffect(() => {
+        if (user && isKiosk) {
+            navigate("/check-in", { replace: true });
+        }
+    }, [user, isKiosk, navigate]);
+
     // --- SILENT RE-AUTH ---
     React.useEffect(() => {
         const attemptSilentReauth = async () => {
+            if (user && isKiosk) return; // Already there
+            
             setLoading(true);
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            await executeLogin(false, true); // Silent mode
+            // Wait for potential session recovery from Supabase
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Try silent re-auth
+            await executeLogin(false, true); 
         };
         attemptSilentReauth();
     }, []);
@@ -62,14 +77,20 @@ const DeviceLogin = () => {
             fingerprint = canvas.toDataURL();
         }
 
-        const rawId = `${ua}|${platform}|${screen}|${timezone}|${language}|${fingerprint.slice(-50)}`;
-        let hardwareId = 'kc-id-';
-        for (let i = 0; i < rawId.length; i++) {
-            const char = rawId.charCodeAt(i);
-            const bit = (char.toString(16));
-            if (i % 8 === 0) hardwareId += bit;
+        // --- PERSISTENCE LOGIC ---
+        // We use a stored ID if available to prevent re-auth failures when browser fingerprints drift
+        let hardwareId = localStorage.getItem('kiosk_hardware_id');
+        
+        if (!hardwareId) {
+            const rawId = `${ua}|${platform}|${screen}|${timezone}|${language}|${fingerprint.slice(-50)}`;
+            hardwareId = 'kc-id-';
+            for (let i = 0; i < rawId.length; i++) {
+                const char = rawId.charCodeAt(i);
+                const bit = (char.toString(16));
+                if (i % 8 === 0) hardwareId += bit;
+            }
+            hardwareId = hardwareId.slice(0, 32);
         }
-        hardwareId = hardwareId.slice(0, 32);
 
         return {
             combined: hardwareId,
@@ -144,6 +165,11 @@ const DeviceLogin = () => {
                 title: "Device Activated!",
                 description: `Successfully locked to ${data.device.name}.`,
             });
+
+            // Store the hardware ID for future silent re-auth
+            if (forensics.hardwareId) {
+                localStorage.setItem('kiosk_hardware_id', forensics.hardwareId);
+            }
 
             navigate("/check-in", { replace: true });
 

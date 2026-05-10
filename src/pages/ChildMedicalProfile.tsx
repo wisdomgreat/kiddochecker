@@ -5,6 +5,7 @@ import MedicalProfileEditor from '@/components/children/MedicalProfileEditor';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import { useChildren } from '@/hooks/useChildren';
+import { supabase } from '@/integrations/supabase/client';
 
 const ChildMedicalProfile = () => {
     const { id } = useParams<{ id: string }>();
@@ -12,6 +13,17 @@ const ChildMedicalProfile = () => {
     const { children } = useChildren();
 
     const child = children?.find((c: any) => c.id === id);
+    
+    React.useEffect(() => {
+        if (id) {
+            supabase.rpc('log_sensitive_access', {
+                p_resource_type: 'child_medical_notes',
+                p_resource_id: id
+            }).then(({ error }) => {
+                if (error) console.error('[Audit] Failed to log medical access:', error);
+            });
+        }
+    }, [id]);
 
     if (!id) return null;
 
