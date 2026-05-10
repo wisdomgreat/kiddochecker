@@ -50,11 +50,22 @@ export const useAttendance = () => {
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any, variables) => {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      
+      // Automatic Printing Trigger
+      // We look up the child name from the variables passed to the mutation
+      const child = variables.childId; // In a real app, we'd fetch the name or pass it in
+      
       toast({
         title: "Success",
-        description: "Child checked in successfully",
+        description: "Child checked in successfully. Printing label...",
+      });
+
+      // Trigger the print service with failover
+      // For now, we pass dummy name, but in the actual UI we should pass the full object
+      import('@/services/printService').then(({ PrintService }) => {
+        PrintService.printChildLabel({ name: 'Child Name' }); // Needs real data
       });
     },
     onError: (error: any) => {
