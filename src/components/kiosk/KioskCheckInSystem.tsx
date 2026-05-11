@@ -119,7 +119,36 @@ const KioskCheckInSystem = () => {
   useEffect(() => {
     loadTodayData();
     requestGeo();
+    restoreSession();
   }, []);
+
+  const restoreSession = async () => {
+    const savedId = window.localStorage.getItem('kiosk_active_parent_id');
+    const savedName = window.localStorage.getItem('kiosk_active_parent_name');
+    if (savedId && savedName && !parentLoggedIn) {
+      console.log('[Kiosk] Attempting session restoration for:', savedName);
+      setIsLoading(true);
+      try {
+        // Fetch children without PIN if we have a valid session
+        const { data: kids, error } = await supabase
+          .from('children')
+          .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+          .eq('parent_id', savedId);
+
+        if (!error && kids && kids.length > 0) {
+          setParentName(savedName);
+          setParentProfileId(savedId);
+          setParentChildren(kids as any);
+          setParentLoggedIn(true);
+          console.log('[Kiosk] Session restored successfully.');
+        }
+      } catch (err) {
+        console.error('[Kiosk] Session restoration failed:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   // ─── NFC Integration ──────────────────────────────────────────────────────
   const { isSupported: nfcSupported, startScanning: startNfc } = useNFC((serial) => {
