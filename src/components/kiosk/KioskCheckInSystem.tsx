@@ -663,20 +663,13 @@ const KioskCheckInSystem = () => {
   };
 
   useEffect(() => {
-    console.log(`[Kiosk] Filter Run | parentLoggedIn: ${parentLoggedIn} | staffAuthed: ${staffAuthed} | Total Records: ${checkedInChildren.length}`);
+    console.log(`[Kiosk] Filter Run | parentLoggedIn: ${parentLoggedIn} | Total Records: ${checkedInChildren.length}`);
     let baseList = checkedInChildren;
     
     if (parentLoggedIn) {
-      const pid = parentProfileId || parentChildren[0]?.parent_id || '';
-      console.log(`[Kiosk] Target Parent ID: ${pid} from parentProfileId/parentChildren`);
-      baseList = checkedInChildren.filter((r) => {
-        const cpid = r.child?.parent_id;
-        const match = cpid === pid;
-        console.log(`[Kiosk] Checking child ${r.child?.first_name}: Parent ID in record: ${cpid} | Target: ${pid} | Match: ${match}`);
-        return match;
-      });
+      const myChildIds = new Set(parentChildren.map(c => c.id));
+      baseList = checkedInChildren.filter((r) => myChildIds.has(r.child_id));
     } else if (!staffAuthed) {
-      console.log('[Kiosk] No parent or staff login detected. Hiding list for security.');
       baseList = [];
     }
 
