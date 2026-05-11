@@ -56,6 +56,7 @@ const KioskCheckInSystem = () => {
   const [parentPin, setParentPin] = useState('');
   const [parentLoggedIn, setParentLoggedIn] = useState(false);
   const [parentName, setParentName] = useState('');
+  const [parentProfileId, setParentProfileId] = useState<string | null>(null);
   const [parentChildren, setParentChildren] = useState<Child[]>([]);
   const [parentLoginError, setParentLoginError] = useState('');
   const [activeInput, setActiveInput] = useState<'phone' | 'pin'>('phone');
@@ -359,6 +360,7 @@ const KioskCheckInSystem = () => {
       }));
       
       setParentName(`${parent.first_name} ${parent.last_name}`);
+      setParentProfileId(parent.id);
       setParentChildren(kidsWithClasses || []);
       setParentLoggedIn(true);
       
@@ -636,8 +638,8 @@ const KioskCheckInSystem = () => {
     let baseList = checkedInChildren;
     
     if (parentLoggedIn) {
-      const pid = parentChildren[0]?.parent_id || '';
-      console.log(`[Kiosk] Target Parent ID: ${pid} from parentChildren:`, parentChildren[0]);
+      const pid = parentProfileId || parentChildren[0]?.parent_id || '';
+      console.log(`[Kiosk] Target Parent ID: ${pid} from parentProfileId/parentChildren`);
       baseList = checkedInChildren.filter((r) => {
         const cpid = r.child?.parent_id;
         const match = cpid === pid;

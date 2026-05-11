@@ -21,8 +21,7 @@ const pool = new Pool({
 
 // Self-healing: Ensure schema and table exist
 async function setupDatabase() {
-  console.log('[DB] Initializing schema verification...');
-  console.log('[DB] Attempting to verify schema...');
+  console.log('[DB] Running migrations and schema verification...');
   try {
     await pool.query(`
       CREATE SCHEMA IF NOT EXISTS auth;
@@ -96,7 +95,7 @@ async function runMigrations() {
     { name: 'checkout_child', sql: `CREATE OR REPLACE FUNCTION public.checkout_child(p_attendance_id UUID, p_checked_out_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_signature_data TEXT DEFAULT NULL, p_override_reason TEXT DEFAULT NULL, p_pickup_snapshot JSONB DEFAULT '{}'::jsonb, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_witness_id UUID DEFAULT NULL, p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS VOID AS $$ BEGIN UPDATE public.attendance SET checked_out_at = now(), checked_out_by = COALESCE(p_checked_out_by, p_user_id), checked_out_method = p_method, checked_out_station = p_station, signature_data = p_signature_data, override_reason = p_override_reason, pickup_snapshot = p_pickup_snapshot, device_metadata = p_device_metadata, witness_id = p_witness_id, device_id = p_device_id, status = 'checked_out' WHERE id = p_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'youth_self_check_action', sql: `CREATE OR REPLACE FUNCTION public.youth_self_check_action(p_pin_code TEXT, p_kiosk_id TEXT) RETURNS JSONB AS $$ DECLARE v_child_id UUID; v_child_name TEXT; BEGIN SELECT id, first_name || ' ' || last_name INTO v_child_id, v_child_name FROM public.children WHERE youth_pin = p_pin_code LIMIT 1; IF v_child_id IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Invalid PIN'); END IF; RETURN jsonb_build_object('success', true, 'child_id', v_child_id, 'child_name', v_child_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_parent_for_kiosk(p_search_val TEXT, p_pin TEXT, p_user_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, phone TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, p.phone FROM public.profiles p WHERE (regexp_replace(p.phone, '\\D', '', 'g') ILIKE '%' || regexp_replace(p_search_val, '\\D', '', 'g') || '%' OR p.first_name ILIKE '%' || p_search_val || '%' OR p.last_name ILIKE '%' || p_search_val || '%') AND p.security_pin = p_pin LIMIT 5; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'get_children_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_children_for_kiosk(p_parent_id UUID, p_pin TEXT, p_user_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, age INTEGER, class_id UUID) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.class_id FROM public.children c JOIN public.profiles p ON c.parent_id = p.id WHERE p.id = p_parent_id AND p.security_pin = p_pin; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_children_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_children_for_kiosk(p_parent_id UUID, p_pin TEXT, p_user_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, age INTEGER, class_id UUID, parent_id UUID) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.class_id, c.parent_id FROM public.children c JOIN public.profiles p ON c.parent_id = p.id WHERE p.id = p_parent_id AND p.security_pin = p_pin; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'verify_staff_pin_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.verify_staff_pin_for_kiosk(p_pin TEXT, p_user_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, role TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, ur.role::TEXT FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE (p.staff_pin = p_pin OR p.security_pin = p_pin) AND ur.role IN ('admin', 'super_admin', 'staff', 'teacher') LIMIT 1; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_terminal_security_stats', sql: `CREATE OR REPLACE FUNCTION public.get_terminal_security_stats() RETURNS TABLE (active_kiosks bigint, authorized_devices bigint, active_staff_sessions bigint, security_alerts_24h bigint) AS $$ BEGIN RETURN QUERY SELECT (SELECT COUNT(*) FROM public.devices WHERE type = 'kiosk' AND is_active = true) as active_kiosks, (SELECT COUNT(*) FROM public.devices WHERE is_authorized = true) as authorized_devices, (SELECT COUNT(*) FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE ur.role IN ('staff', 'admin', 'super_admin')) as active_staff_sessions, 0::bigint as security_alerts_24h; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_attendance_stats', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_stats() RETURNS TABLE (total_checkins bigint, total_on_site bigint, total_departed bigint, total_late_pickups bigint) AS $$ BEGIN RETURN QUERY SELECT (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE) as total_checkins, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at IS NULL) as total_on_site, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at IS NOT NULL) as total_departed, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at > (attendance_date + time '18:00')) as total_late_pickups; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
@@ -266,14 +265,32 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       // Build placeholders with explicit casting to solve the "function does not exist" type ambiguity
       const placeholders = keys.map((k, i) => {
         const val = vals[i];
-        if (k.endsWith('_id') || k === 'p_attendance_id' || k === 'p_parent_id') return `${k} => $${i + 1}::uuid`;
-        if (k === 'p_search_val' || k === 'p_pin') return `${k} => $${i + 1}::text`;
+        
+        // UUID Types (Fixed: Exempting device_id and kiosk_id which are TEXT)
+        if ((k.endsWith('_id') || k.endsWith('_by') || k === 'p_attendance_id' || k === 'p_witness_id') && 
+            k !== 'p_device_id' && k !== 'p_kiosk_id') {
+          return `${k} => $${i + 1}::uuid`;
+        }
+        
+        // JSONB Types
         if (k.endsWith('_metadata') || k.endsWith('_snapshot')) {
-          // Ensure JSON objects are stringified for pg driver
           if (val && typeof val === 'object') vals[i] = JSON.stringify(val);
           return `${k} => $${i + 1}::jsonb`;
         }
-        if (k.startsWith('p_health_')) return `${k} => $${i + 1}::boolean`;
+        
+        // Boolean Types
+        if (k.startsWith('p_health_')) {
+          return `${k} => $${i + 1}::boolean`;
+        }
+        
+        // Text Types (Explicitly cast to avoid "unknown" errors for nulls)
+        if (k === 'p_qr_token' || k === 'p_method' || k === 'p_station' || 
+            k === 'p_special_instructions' || k === 'p_device_id' || 
+            k === 'p_search_val' || k === 'p_pin' || k === 'p_signature_data' || 
+            k === 'p_override_reason') {
+          return `${k} => $${i + 1}::text`;
+        }
+        
         return `${k} => $${i + 1}`;
       }).join(', ');
       
