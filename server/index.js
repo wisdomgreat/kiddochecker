@@ -2,10 +2,17 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// ─── Middleware ───────────────────────────────────────────────────────────
+app.use(helmet()); // Secure Express apps by setting various HTTP headers
+app.use(morgan('combined')); // HTTP request logger
 
 // ─── Database Connection ──────────────────────────────────────────────────
 const pool = new Pool({
@@ -172,7 +179,14 @@ const verifyToken = (req, res, next) => {
 app.get('/health', (req, res) => res.send('OK'));
 app.get('/', (req, res) => res.send('Online'));
 
-app.post(['/api/auth/send-code', '/auth/send-code'], async (req, res) => {
+// Rate limiting for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+
+app.post(['/api/auth/send-code', '/auth/send-code'], authLimiter, async (req, res) => {
   const { email } = req.body;
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   console.log(`[Bridge] Auth: Generated code ${code} for ${email}`);
