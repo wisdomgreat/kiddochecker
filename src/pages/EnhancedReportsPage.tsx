@@ -363,23 +363,6 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                     className="pl-10 pr-4 py-2 bg-background border border-border rounded-xl text-xs font-semibold outline-none focus:ring-2 ring-primary/20 w-64" 
                   />
                 </div>
-<<<<<<< HEAD
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
-                  <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow>
-                        <TableHead className="pl-8 text-[10px] font-bold uppercase tracking-wider">Child Identity</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider">Check-In Node</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider">Check-Out Node</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider">Verify</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider text-right pr-8">Auth Cycle</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detailedAttendance?.map((log: any, i: number) => (
-=======
                 <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
                   <SelectTrigger className="w-[180px] rounded-xl h-9 bg-background">
                     <SelectValue placeholder="All Classes" />
@@ -413,7 +396,6 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                         return matchesSearch && matchesClass;
                       })
                       .map((log: any, i: number) => (
->>>>>>> azure-migration
                         <TableRow key={i} className="hover:bg-muted/20 transition-colors border-border">
                           <TableCell className="pl-8 py-4">
                             <div className="flex flex-col">
