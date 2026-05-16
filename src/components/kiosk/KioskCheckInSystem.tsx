@@ -210,10 +210,6 @@ const KioskCheckInSystem = () => {
     }
   };
 
-  useEffect(() => {
-    if (nfcSupported) startNfc();
-  }, [nfcSupported, startNfc]);
-
   const handleNfcLogin = async (serial: string) => {
     try {
       setIsLoading(true);
@@ -229,19 +225,44 @@ const KioskCheckInSystem = () => {
         return;
       }
 
-      // Handle login based on profile type
-      if (data.role === 'parent') {
+      // Query user_roles table for ultimate role assignment correctness
+      const { data: roleRes } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.id)
+        .maybeSingle();
+
+      const userRole = roleRes?.role || data.role || 'parent';
+
+      // Handle login based on resolved role type
+      if (userRole === 'parent') {
         setParentPhone(data.phone || '');
         setParentName(`${data.first_name} ${data.last_name}`);
+        setParentProfileId(data.id);
+
         const kids = await supabase.from('children').select('*').eq('parent_id', data.id);
-        setParentChildren(kids.data || []);
+        const kidsWithClasses = await Promise.all(((kids.data) || []).map(async (k: any) => {
+          const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
+          return { ...k, class_id: c?.class_id };
+        }));
+
+        setParentChildren(kidsWithClasses || []);
         setParentLoggedIn(true);
         setActiveTab('parent');
+
+        window.localStorage.setItem('kiosk_active_parent_id', data.id);
+        window.localStorage.setItem('kiosk_active_parent_name', `${data.first_name} ${data.last_name}`);
+
+        await logActivity('parent_login', { parent_id: data.id, parent_name: `${data.first_name} ${data.last_name}` });
+        startAutoLogoutTimer(120);
         showSuccess(`Welcome back, ${data.first_name}!`);
-      } else if (['staff', 'teacher', 'admin', 'super_admin'].includes(data.role)) {
+      } else if (['staff', 'teacher', 'admin', 'super_admin'].includes(userRole)) {
         setStaffAuthed(true);
         setStaffName(`${data.first_name} ${data.last_name}`);
         setActiveTab('staff');
+        await logActivity('staff_login', { staff_id: data.id, staff_name: `${data.first_name} ${data.last_name}` });
+        fetchStaffShifts();
+        startAutoLogoutTimer(2700);
         showSuccess(`Staff access granted: ${data.first_name}`);
       }
     } catch (err) {
@@ -751,6 +772,20 @@ const KioskCheckInSystem = () => {
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {settings?.name || 'KiddoChecker'}
           </Badge>
+          {nfcSupported ? (
+            <Badge variant="outline" className="h-6 gap-1.5 font-bold border-emerald-500/30 text-emerald-700 bg-emerald-50/50">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              NFC Active
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="h-6 gap-1.5 font-bold border-slate-500/30 text-slate-700 bg-slate-50/50">
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-slate-400" />
+              NFC Standby
+            </Badge>
+          )}
         </div>
         
         <div className="flex items-center gap-4">
@@ -1195,6 +1230,45 @@ const KioskCheckInSystem = () => {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+          {/* Dev Mode NFC Emulator */}
+          {(!nfcSupported || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+            <div className="mt-8 p-5 bg-slate-950 text-slate-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800 shadow-xl">
+              <div className="flex items-center gap-3">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                </span>
+                <div>
+                  <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-0.5">Developer Console</p>
+                  <p className="text-sm font-bold text-slate-200">Hardware NFC Simulator</p>
+                </div>
+              </div>
+              <div className="flex gap-2 w-full md:w-auto">
+                <Input 
+                  placeholder="Tag UID (e.g. nfc-101)" 
+                  className="bg-slate-900 border-slate-700 text-white h-9 text-xs rounded-xl" 
+                  id="dev-nfc-input"
+                />
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="h-9 px-4 font-bold bg-blue-600 text-white hover:bg-blue-500 rounded-xl"
+                  onClick={() => {
+                    const el = document.getElementById('dev-nfc-input') as HTMLInputElement;
+                    const val = el?.value || 'nfc-101';
+                    console.log('[Dev NFC] Simulating NFC tap with serial:', val);
+                    if (isRegisteringNFC) {
+                      handleNfcRegister(val);
+                    } else {
+                      handleNfcLogin(val);
+                    }
+                  }}
+                >
+                  Simulate Tap
+                </Button>
+              </div>
             </div>
           )}
         </div>

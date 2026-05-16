@@ -80,6 +80,7 @@ async function runMigrations() {
   const path = require('path');
 
   const migrations = [
+    { name: 'col_nfc_uid', sql: 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS nfc_uid TEXT UNIQUE;' },
     { name: 'pgcrypto', sql: 'CREATE EXTENSION IF NOT EXISTS "pgcrypto";' },
     { name: 'report_seals', sql: `CREATE TABLE IF NOT EXISTS public.report_seals (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), report_type TEXT, generated_at TIMESTAMPTZ DEFAULT now(), generated_by_profile UUID, seal_hash TEXT, metadata JSONB);` },
     { name: 'message_read_receipts', sql: `CREATE TABLE IF NOT EXISTS public.message_read_receipts (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), message_id UUID REFERENCES public.messages(id), user_id UUID REFERENCES public.profiles(id), read_at TIMESTAMPTZ DEFAULT now(), created_at TIMESTAMPTZ DEFAULT now());` },
