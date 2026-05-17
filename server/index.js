@@ -47,6 +47,130 @@ async function setupDatabase() {
 
 setupDatabase();
 
+// ─── Hourly Database & Schema Integrity Compliance Sweep (COMP-03) ───────────
+async function runComplianceHealthCheck() {
+  console.log('[COMPLIANCE] Executing database connection and schema integrity compliance sweep...');
+  try {
+    // 1. Connection & Pool State Inspection
+    const startTime = Date.now();
+    await pool.query('SELECT 1;');
+    const latency = Date.now() - startTime;
+    
+    const poolStats = {
+      totalConnections: pool.totalCount,
+      idleConnections: pool.idleCount,
+      waitingRequests: pool.waitingCount
+    };
+    
+    console.log(`[COMPLIANCE] Connection healthy. Latency: ${latency}ms. Pool stats:`, poolStats);
+    
+    // 2. Schema Drift Analysis
+    const tablesRes = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public';
+    `);
+    
+    const existingTables = new Set(tablesRes.rows.map(r => r.table_name.toLowerCase()));
+    const requiredTables = ['profiles', 'children', 'attendance', 'kiosk_settings', 'activity_logs'];
+    const missingTables = requiredTables.filter(t => !existingTables.has(t));
+    
+    if (missingTables.length > 0) {
+      console.error(`[CRITICAL] [SCHEMA_DRIFT] Missing compliance tables in public schema: ${missingTables.join(', ')}`);
+    } else {
+      console.log('[COMPLIANCE] All required public compliance schemas are verified and intact.');
+    }
+  } catch (err) {
+    console.error('[CRITICAL] [COMPLIANCE_FAILURE] Database connection check failed:', err.message);
+  }
+}
+
+// Run immediately on startup and schedule hourly sweep
+runComplianceHealthCheck();
+setInterval(runComplianceHealthCheck, 60 * 60 * 1000);
+
+// ─── Location IP Security Lockdown Verification Helpers ───────────────────
+function ipMatches(clientIp, allowedList) {
+  let ip = clientIp.trim();
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.substring(7); // Normalize IPv6-mapped IPv4
+  }
+
+  const allowed = allowedList.split(',').map(s => s.trim()).filter(Boolean);
+  
+  for (const range of allowed) {
+    let normRange = range;
+    if (normRange.startsWith('::ffff:')) normRange = normRange.substring(7);
+    
+    // Wildcard or exact matching
+    if (ip === normRange || normRange === '*') {
+      return true;
+    }
+    
+    // Simple wildcards like 192.168.1.*
+    if (normRange.includes('*')) {
+      const regexStr = '^' + normRange.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$';
+      const regex = new RegExp(regexStr);
+      if (regex.test(ip)) {
+        return true;
+      }
+    }
+    
+    // CIDR support
+    if (normRange.includes('/')) {
+      try {
+        const [subnet, mask] = normRange.split('/');
+        const maskNum = parseInt(mask, 10);
+        
+        const ipParts = ip.split('.').map(Number);
+        const subParts = subnet.split('.').map(Number);
+        
+        if (ipParts.length === 4 && subParts.length === 4) {
+          const ipNum = (ipParts[0] << 24) + (ipParts[1] << 16) + (ipParts[2] << 8) + ipParts[3];
+          const subNum = (subParts[0] << 24) + (subParts[1] << 16) + (subParts[2] << 8) + subParts[3];
+          
+          const bitMask = maskNum === 0 ? 0 : (~0 << (32 - maskNum));
+          
+          if ((ipNum & bitMask) === (subNum & bitMask)) {
+            return true;
+          }
+        }
+      } catch (cidrErr) {
+        console.error('[IP Check] CIDR parsing failed for range:', range, cidrErr.message);
+      }
+    }
+  }
+  return false;
+}
+
+async function checkIpAuthorized(clientIp) {
+  try {
+    const lockRes = await pool.query(
+      "SELECT setting_value FROM public.kiosk_settings WHERE setting_key = 'enable_ip_lockdown' LIMIT 1"
+    );
+    const enableLockdown = lockRes.rows[0]?.setting_value === 'true';
+    if (!enableLockdown) {
+      return { authorized: true };
+    }
+
+    const ipsRes = await pool.query(
+      "SELECT setting_value FROM public.kiosk_settings WHERE setting_key = 'allowed_ips' LIMIT 1"
+    );
+    const allowedIps = ipsRes.rows[0]?.setting_value || '127.0.0.1, ::1';
+
+    const isMatched = ipMatches(clientIp, allowedIps);
+    return {
+      authorized: isMatched,
+      allowedIps,
+      enableLockdown
+    };
+  } catch (err) {
+    console.error('[IP Verification] DB Query Failed (fail-open):', err.message);
+    return { authorized: true, error: err.message };
+  }
+}
+
+
 app.use(cors({
   origin: ['https://happy-glacier-0746a2210.7.azurestaticapps.net', 'https://kiddochecker.com'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -80,6 +204,8 @@ async function runMigrations() {
   const path = require('path');
 
   const migrations = [
+    { name: 'kiosk_settings_table', sql: 'CREATE TABLE IF NOT EXISTS public.kiosk_settings (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), setting_key TEXT UNIQUE NOT NULL, setting_value TEXT NOT NULL, description TEXT, created_at TIMESTAMPTZ DEFAULT now(), updated_at TIMESTAMPTZ DEFAULT now());' },
+    { name: 'seed_kiosk_settings_ips', sql: "INSERT INTO public.kiosk_settings (setting_key, setting_value, description) VALUES ('allowed_ips', '127.0.0.1, ::1', 'Comma-separated list of authorized kiosk IP ranges or CIDRs'), ('enable_ip_lockdown', 'false', 'Enable dynamic location IP-address check-in locks') ON CONFLICT (setting_key) DO NOTHING;" },
     { name: 'col_nfc_uid', sql: 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS nfc_uid TEXT UNIQUE;' },
     { name: 'pgcrypto', sql: 'CREATE EXTENSION IF NOT EXISTS "pgcrypto";' },
     { name: 'report_seals', sql: `CREATE TABLE IF NOT EXISTS public.report_seals (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), report_type TEXT, generated_at TIMESTAMPTZ DEFAULT now(), generated_by_profile UUID, seal_hash TEXT, metadata JSONB);` },
@@ -260,6 +386,19 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'No RPC name specified' });
     }
 
+    // IP lockdown verification for Kiosk PIN/Login RPCs
+    const kioskRpcs = ['get_parent_for_kiosk', 'verify_staff_pin_for_kiosk', 'youth_self_check_action'];
+    if (kioskRpcs.includes(finalFn)) {
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || req.ip;
+      const ipCheck = await checkIpAuthorized(clientIp);
+      if (!ipCheck.authorized) {
+        console.warn(`[Security Alert] Blocked Kiosk RPC login call ${finalFn} from unauthorized IP: ${clientIp}. Allowed: ${ipCheck.allowedIps}`);
+        return res.status(403).json({
+          error: `ACCESS_DENIED: Access blocked from IP address ${clientIp}. This terminal is not registered inside the authorized physical facility network.`
+        });
+      }
+    }
+
     // Inject user ID if missing
     if (!finalParams.p_user_id && req.user) {
       const email = req.user.email || req.user.preferred_username;
@@ -329,6 +468,19 @@ app.post('/api/query', verifyToken, async (req, res) => {
   let { table, select = '*', filters = [], order, limit } = req.body;
   let sql = "";
   try {
+    // IP lockdown verification for Kiosk NFC Login queries
+    const isNfcQuery = table === 'profiles' && filters && filters.some(f => f.column === 'nfc_uid');
+    if (isNfcQuery) {
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || req.ip;
+      const ipCheck = await checkIpAuthorized(clientIp);
+      if (!ipCheck.authorized) {
+        console.warn(`[Security Alert] Blocked Kiosk NFC query from unauthorized IP: ${clientIp}. Allowed: ${ipCheck.allowedIps}`);
+        return res.status(403).json({
+          error: `ACCESS_DENIED: Access blocked from IP address ${clientIp}. This terminal is not registered inside the authorized physical facility network.`
+        });
+      }
+    }
+
     const actualFilters = filters.filter(f => {
       if (f.operator === 'order') { order = `${f.column}.${f.value.toLowerCase()}`; return false; }
       if (f.operator === 'limit') { limit = f.value; return false; }

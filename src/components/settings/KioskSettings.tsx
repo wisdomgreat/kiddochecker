@@ -7,13 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/useToast";
-import { Monitor, Save, Loader2, Lock } from "lucide-react";
+import { Monitor, Save, Loader2, Lock, Globe, ShieldAlert } from "lucide-react";
 
 const KioskSettings = () => {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [pin, setPin] = useState("");
     const [requirePin, setRequirePin] = useState(false);
+    const [allowedIps, setAllowedIps] = useState("127.0.0.1, ::1");
+    const [enableIpLockdown, setEnableIpLockdown] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const { data: settings, isLoading } = useQuery({
@@ -32,9 +34,13 @@ const KioskSettings = () => {
         if (settings) {
             const pinSetting = settings.find(s => s.setting_key === 'kiosk_pin');
             const requirePinSetting = settings.find(s => s.setting_key === 'require_pin');
+            const allowedIpsSetting = settings.find(s => s.setting_key === 'allowed_ips');
+            const enableIpLockdownSetting = settings.find(s => s.setting_key === 'enable_ip_lockdown');
 
             if (pinSetting) setPin(pinSetting.setting_value);
             if (requirePinSetting) setRequirePin(requirePinSetting.setting_value === 'true');
+            if (allowedIpsSetting) setAllowedIps(allowedIpsSetting.setting_value);
+            if (enableIpLockdownSetting) setEnableIpLockdown(enableIpLockdownSetting.setting_value === 'true');
         }
     }, [settings]);
 
@@ -61,6 +67,26 @@ const KioskSettings = () => {
                 } as any, { onConflict: 'setting_key' });
 
             if (requireError) throw requireError;
+
+            // Upsert Allowed IPs
+            const { error: ipsError } = await (supabase
+                .from('kiosk_settings' as any) as any)
+                .upsert({
+                    setting_key: 'allowed_ips',
+                    setting_value: allowedIps
+                } as any, { onConflict: 'setting_key' });
+
+            if (ipsError) throw ipsError;
+
+            // Upsert Enable IP Lockdown
+            const { error: lockdownError } = await (supabase
+                .from('kiosk_settings' as any) as any)
+                .upsert({
+                    setting_key: 'enable_ip_lockdown',
+                    setting_value: enableIpLockdown ? 'true' : 'false'
+                } as any, { onConflict: 'setting_key' });
+
+            if (lockdownError) throw lockdownError;
 
             toast({
                 title: "Settings Saved",
@@ -90,22 +116,22 @@ const KioskSettings = () => {
     }
 
     return (
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border-slate-200/80 bg-white/70 backdrop-blur-md">
             <CardHeader className="border-b bg-muted/20">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded border border-primary/20">
                         <Monitor className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                        <CardTitle>Kiosk Security</CardTitle>
-                        <CardDescription>Configure access control for the check-in station.</CardDescription>
+                        <CardTitle className="text-lg font-bold tracking-tight">Kiosk Security</CardTitle>
+                        <CardDescription>Configure access control and location security locks for the check-in station.</CardDescription>
                     </div>
                 </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
-                <div className="flex items-center justify-between p-4 border rounded-md bg-muted/30">
+                <div className="flex items-center justify-between p-4 border border-slate-100 rounded-lg bg-slate-50/50">
                     <div className="space-y-1">
-                        <Label className="text-sm font-bold">Require PIN for Kiosk</Label>
+                        <Label className="text-sm font-bold text-slate-800">Require PIN for Kiosk</Label>
                         <p className="text-xs text-muted-foreground">
                             Force staff to enter a PIN to access child data at the kiosk.
                         </p>
@@ -116,7 +142,7 @@ const KioskSettings = () => {
                     />
                 </div>
 
-                <div className={`space-y-3 ${!requirePin && 'opacity-50 pointer-events-none'}`}>
+                <div className={`space-y-3 transition-all duration-300 ${!requirePin && 'opacity-50 pointer-events-none'}`}>
                     <div className="space-y-1.5">
                         <Label htmlFor="kiosk-pin" className="text-xs font-bold uppercase text-muted-foreground">Station Master PIN</Label>
                         <div className="relative max-w-xs">
@@ -127,7 +153,7 @@ const KioskSettings = () => {
                                 value={pin}
                                 onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
                                 placeholder="6-digit PIN"
-                                className="pl-9 font-mono tracking-widest h-10"
+                                className="pl-9 font-mono tracking-widest h-10 border-slate-200"
                             />
                             <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         </div>
@@ -137,7 +163,46 @@ const KioskSettings = () => {
                     </div>
                 </div>
 
-                <div className="pt-2">
+                {/* ─── Location Security / IP Lockdown Section ─── */}
+                <div className="border-t border-slate-100 pt-6">
+                    <div className="flex items-center justify-between p-4 border border-rose-100 rounded-lg bg-rose-50/30">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <ShieldAlert className="h-4 w-4 text-rose-500" />
+                                <Label className="text-sm font-bold text-slate-800">Location IP Address Lockdown</Label>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Lock kiosk operations strictly to verified physical facility network IP ranges.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={enableIpLockdown}
+                            onCheckedChange={setEnableIpLockdown}
+                        />
+                    </div>
+
+                    <div className={`space-y-3 mt-4 transition-all duration-300 ${!enableIpLockdown && 'opacity-50 pointer-events-none'}`}>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="allowed-ips" className="text-xs font-bold uppercase text-muted-foreground">Authorized IP Addresses / Ranges</Label>
+                            <div className="relative">
+                                <Input
+                                    id="allowed-ips"
+                                    type="text"
+                                    value={allowedIps}
+                                    onChange={(e) => setAllowedIps(e.target.value)}
+                                    placeholder="e.g. 127.0.0.1, 10.0.0.0/8, 192.168.1.*"
+                                    className="pl-9 font-mono text-xs h-10 border-slate-200"
+                                />
+                                <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground leading-normal">
+                                Enter a comma-separated list of IPv4/IPv6 addresses, wildcard segments (e.g. <code className="font-mono bg-slate-100 px-1 rounded text-[9px]">192.168.1.*</code>), or subnet blocks (e.g. <code className="font-mono bg-slate-100 px-1 rounded text-[9px]">10.0.0.0/8</code>).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex justify-end">
                     <Button onClick={saveSettings} disabled={saving} className="min-w-[140px]">
                         {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         Save Kiosk Settings

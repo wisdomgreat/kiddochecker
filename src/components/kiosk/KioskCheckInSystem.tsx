@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle, Maximize, Loader2,
   MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone
+  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone, ShieldAlert
 } from 'lucide-react';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -51,6 +51,7 @@ const KioskCheckInSystem = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showStaffKeyboard, setShowStaffKeyboard] = useState(false);
+  const [securityBlockedIp, setSecurityBlockedIp] = useState<string | null>(null);
 
   const [parentPhone, setParentPhone] = useState('');
   const [parentPin, setParentPin] = useState('');
@@ -265,8 +266,14 @@ const KioskCheckInSystem = () => {
         startAutoLogoutTimer(2700);
         showSuccess(`Staff access granted: ${data.first_name}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[NFC] Login failed:', err);
+      const errMsg = err.message || '';
+      if (errMsg.includes('ACCESS_DENIED')) {
+        const ipMatch = errMsg.match(/IP address\s+([^\s\.]+)/);
+        const ip = ipMatch ? ipMatch[1] : 'External IP';
+        setSecurityBlockedIp(ip);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -352,6 +359,13 @@ const KioskCheckInSystem = () => {
         return result as any; 
       } catch (err: any) {
         lastError = err;
+        const errMsg = err.message || '';
+        if (errMsg.includes('ACCESS_DENIED')) {
+          const ipMatch = errMsg.match(/IP address\s+([^\s\.]+)/);
+          const ip = ipMatch ? ipMatch[1] : 'External IP';
+          setSecurityBlockedIp(ip);
+          return { data: null, error: err };
+        }
         await new Promise(r => setTimeout(r, 500 * (i + 1)));
       }
     }
@@ -436,7 +450,12 @@ const KioskCheckInSystem = () => {
 
   const handleParentCheckIn = (child: Child) => {
     if (checkedInChildIds.has(child.id)) {
-      toast({ title: "Already In", description: `${child.first_name} is already checked in.`, variant: "destructive" });
+      const record = checkedInChildren.find(r => r.child_id === child.id && !r.checked_out_at);
+      if (record) {
+        initiateCheckOut(record);
+      } else {
+        toast({ title: "Already In", description: `${child.first_name} is already checked in.`, variant: "destructive" });
+      }
       return;
     }
 
@@ -976,19 +995,23 @@ const KioskCheckInSystem = () => {
                 {parentChildren.map(child => {
                   const checked = alreadyIn(child.id);
                   return (
-                    <Card key={child.id} className={cn("overflow-hidden cursor-pointer hover:border-primary/50 transition-all rounded-2xl shadow-sm", checked && "bg-muted/30 border-primary/20 opacity-80")}>
+                    <Card key={child.id} className={cn("overflow-hidden cursor-pointer hover:border-primary/50 transition-all rounded-2xl shadow-sm", checked ? "border-red-200 hover:border-red-400 bg-red-50/10" : "hover:border-primary/50")}>
                         <CardContent className="p-5" onClick={() => handleParentCheckIn(child)}>
                             <div className="flex items-center gap-5">
-                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl transition-all shadow-inner", checked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl transition-all shadow-inner", checked ? "bg-red-500 text-white shadow-red-100" : "bg-muted text-muted-foreground")}>
                                     {checked ? <CheckCircle className="w-7 h-7" /> : child.first_name[0]}
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-bold text-base">{child.first_name} {child.last_name}</p>
-                                    <p className="text-[10px] uppercase font-bold text-muted-foreground">
-                                        {checked ? "Already in session" : "Available for check-in"}
+                                    <p className={cn("text-[10px] uppercase font-bold", checked ? "text-red-500 animate-pulse" : "text-muted-foreground")}>
+                                        {checked ? "Checked In • Tap to Check Out" : "Available for check-in"}
                                     </p>
                                 </div>
-                                {!checked && <ArrowRight className="w-4 h-4 text-muted-foreground" />}
+                                {checked ? (
+                                    <LogOut className="w-4 h-4 text-red-500 animate-pulse" />
+                                ) : (
+                                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -1327,6 +1350,47 @@ const KioskCheckInSystem = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ─── IP Lockdown Block Warning Screen ─── */}
+      {securityBlockedIp && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-xl animate-fade-in">
+          <div className="max-w-md w-full mx-4 p-8 rounded-2xl border border-rose-500/35 bg-slate-900/90 text-white shadow-2xl shadow-rose-950/40 text-center space-y-6">
+            <div className="inline-flex p-4 bg-rose-500/10 border border-rose-500/25 rounded-full text-rose-500 animate-pulse">
+              <ShieldAlert className="h-10 w-10" />
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-xl font-black tracking-tight text-rose-500 uppercase">Terminal Access Locked</h2>
+              <p className="text-xs font-semibold tracking-wider text-rose-400 uppercase">Unauthorized Physical Location Network</p>
+            </div>
+            
+            <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-950/50 text-left space-y-3">
+              <p className="text-xs text-rose-200 leading-relaxed">
+                This kiosk check-in terminal is attempting to authenticate from an external, unauthorized IP address:
+              </p>
+              <div className="font-mono text-sm bg-rose-950/40 text-rose-300 py-1.5 px-3 rounded border border-rose-900 font-bold select-all text-center">
+                {securityBlockedIp}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                To enable access, this IP address must be registered under the authorized location settings in the Admin Dashboard panel.
+              </p>
+            </div>
+            
+            <div className="pt-2 flex flex-col gap-2">
+              <Button 
+                onClick={() => setSecurityBlockedIp(null)} 
+                variant="outline" 
+                className="w-full bg-slate-800 border-slate-700 text-white hover:bg-slate-700/80 hover:text-white"
+              >
+                Dismiss Notice
+              </Button>
+              <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wide">
+                Security Policy SEC-01 • Active Protection
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
