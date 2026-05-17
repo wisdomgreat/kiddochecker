@@ -2,7 +2,7 @@
 import { toast } from "@/hooks/useToast";
 
 export class PrintService {
-  private static PROXY_URL = 'http://localhost:3001/print';
+  private static PROXY_URL = 'http://localhost:3003/print';
 
   /**
    * Attempts silent printing via local proxy. 

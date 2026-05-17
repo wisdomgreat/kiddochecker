@@ -57,12 +57,38 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     }
   }, [open]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const safeFirstName = DOMPurify.sanitize(child.first_name);
     const safeLastName = DOMPurify.sanitize(child.last_name);
     const safeAllergies = child.allergies ? DOMPurify.sanitize(child.allergies) : '';
     const safeClassName = className ? DOMPurify.sanitize(className) : '';
     const safeInstructions = specialInstructions ? DOMPurify.sanitize(specialInstructions) : '';
+
+    console.log('[Printer] Attempting silent network printing via proxy...');
+    try {
+      const response = await fetch('http://localhost:3003/print', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          labelData: {
+            name: `${safeFirstName} ${safeLastName}`,
+            allergies: safeAllergies,
+            class: safeClassName,
+            instructions: safeInstructions,
+            securityCode: displayCode,
+            qrData: qrData
+          }
+        }),
+      });
+
+      if (response.ok) {
+        console.log('[Printer] Silent print successful via proxy.');
+        setTimeout(onClose, 1500);
+        return;
+      }
+    } catch (err) {
+      console.warn('[Printer] Local print proxy unavailable. Falling back to browser print...');
+    }
 
     // Use a hidden iframe for more reliable "silent" printing without popup blockers
     let printFrame = document.getElementById('silent-print-frame') as HTMLIFrameElement;
