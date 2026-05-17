@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-05-17)
 
 **Core value:** Provide a completely reliable, zero-downtime, and Ofsted-compliant child attendance tracking loop that guarantees no child checked-in goes missing from the checkout screen, fully backed by robust backend security.
-**Current focus:** Phase 2: $0-cost Print Proxy Integration
+**Current focus:** Phase 3: Location Security & IP Lockdown
 
 ## Current Position
 
-Phase: 2 of 6 ($0-cost Print Proxy Integration)
+Phase: 3 of 6 (Location Security & IP Lockdown)
 Plan: 0 of 1 in current phase
 Status: Ready to plan
-Last activity: 2026-05-17 — Completed Phase 1 (NFC "Tap & Go" Scanning)
+Last activity: 2026-05-17 — Completed Phase 2 ($0-cost Print Proxy Integration)
 
-Progress: [██░░░░░░░░] 25.0%
+Progress: [███░░░░░░░] 37.5%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 0 min
 - Total execution time: 0.0 hours
 
@@ -28,6 +28,7 @@ Progress: [██░░░░░░░░] 25.0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | Phase 1: NFC Scanning | 1 | 1 | 0 min |
+| Phase 2: Print Proxy | 1 | 1 | 0 min |
 | Phase 4: Security Hardening | 1 | 1 | 0 min |
 
 **Recent Trend:**
