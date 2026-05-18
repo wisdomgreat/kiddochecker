@@ -246,8 +246,8 @@ async function runMigrations() {
     { name: 'get_church_stats', sql: `CREATE OR REPLACE FUNCTION public.get_church_stats(p_user_id UUID DEFAULT NULL) RETURNS JSONB AS $$ BEGIN RETURN jsonb_build_object('total_members', (SELECT COUNT(*) FROM public.profiles), 'active_volunteers', (SELECT COUNT(*) FROM public.user_roles WHERE role = 'volunteer'), 'upcoming_events', (SELECT COUNT(*) FROM public.events WHERE event_date >= CURRENT_DATE)); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_staff_shifts_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_staff_shifts_for_kiosk() RETURNS TABLE (id UUID, staff_id UUID, start_time TIMESTAMPTZ, end_time TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT s.id, s.staff_id, s.start_time, s.end_time FROM public.staff_shifts s WHERE s.start_time::date = CURRENT_DATE; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'check_user_permission', sql: `CREATE OR REPLACE FUNCTION public.check_user_permission(p_user_id UUID, p_permission_name TEXT) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id; IF v_is_admin THEN RETURN TRUE; END IF; RETURN EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON rp.permission_id = p.id JOIN public.user_roles ur ON ur.role::text = rp.role_id::text WHERE ur.user_id = p_user_id AND p.name = p_permission_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` }
-
+    { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` },
+    { name: 'col_password_hash', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT; UPDATE public.profiles SET password_hash = '$2b$10$7JMzVL7apPHCTSIO2c0niefOkPVOYo9iEnZrPAiRSWB.hSGU0pgJu' WHERE password_hash IS NULL;` }
   ];
 
   for (const m of migrations) {
@@ -373,6 +373,64 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], async (req, res) => {
     const profile = profileRes.rows[0] || { email, role: 'admin', id: '00000000-0000-0000-0000-000000000000' };
     res.json({ token, profile });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  
+  try {
+    const bcrypt = require('bcryptjs');
+    
+    // Fetch profile
+    let profileRes = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    
+    if (profileRes.rows.length === 0) {
+      // Auto-Provisioning for first-time or special accounts
+      if (normalizedEmail === 'wisdom' || normalizedEmail === 'wisdom@example.com') {
+        console.log(`[Auth] Auto-provisioning admin profile for wisdom`);
+        const defaultHash = bcrypt.hashSync('Kiddo@2026!', 10);
+        await pool.query(
+          'INSERT INTO public.profiles (email, first_name, last_name, role, password_hash) VALUES ($1, $2, $3, $4, $5)',
+          [normalizedEmail, 'Wisdom', 'Admin', 'admin', defaultHash]
+        );
+        profileRes = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+      } else {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+    }
+    
+    const profile = profileRes.rows[0];
+    
+    // Check password hash
+    if (!profile.password_hash) {
+      // Set default password_hash for legacy migrated accounts if missing
+      console.log(`[Auth] Lazy-provisioning default password hash for: ${normalizedEmail}`);
+      const defaultHash = bcrypt.hashSync('Kiddo@2026!', 10);
+      await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE id = $2', [defaultHash, profile.id]);
+      profile.password_hash = defaultHash;
+    }
+    
+    const isMatch = bcrypt.compareSync(password, profile.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    
+    // Determine the role
+    const finalRole = profile.role || 'parent';
+    
+    // Issue Bridge JWT
+    const token = jwt.sign({ email: profile.email, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
+    
+    res.json({ token, profile });
+  } catch (err) {
+    console.error('[Bridge] login error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

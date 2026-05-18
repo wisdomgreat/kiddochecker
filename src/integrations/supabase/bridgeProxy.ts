@@ -198,8 +198,23 @@ export const createBridgeProxy = (realClient: any) => {
         localStorage.removeItem('bridge_token');
         return { error: null };
       },
-      signInWithPassword: async () => {
-        throw new Error("Direct password login via Bridge is deprecated. Use OTP or Azure Entra.");
+      signInWithPassword: async ({ email, password }: any) => {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          if (!res.ok) {
+            const error = await res.json();
+            return { data: { session: null, user: null }, error: new Error(error.error || 'Login failed') };
+          }
+          const { token, profile } = await res.json();
+          localStorage.setItem('bridge_token', token);
+          return { data: { session: { access_token: token, user: profile }, user: profile }, error: null };
+        } catch (e: any) {
+          return { data: { session: null, user: null }, error: e };
+        }
       },
       setSession: async (session: any) => {
         if (session?.access_token) {

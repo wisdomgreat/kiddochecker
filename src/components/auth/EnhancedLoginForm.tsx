@@ -10,14 +10,14 @@ import gsap from 'gsap';
 
 const EnhancedLoginForm = () => {
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, loading, sendNativeCode, verifyNativeCode, signIn } = useAuth();
+  const { user, loading, signInWithPassword, signIn } = useAuth();
   
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -27,46 +27,18 @@ const EnhancedLoginForm = () => {
     }
   }, [user, loading, navigate]);
 
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     
     setIsLoading(true);
     setError('');
     try {
-      await sendNativeCode(email);
-      
-      gsap.to(formRef.current, {
-        duration: 0.4,
-        x: -50,
-        opacity: 0,
-        onComplete: () => {
-          setStep('code');
-          gsap.fromTo(formRef.current, { x: 50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4 });
-        }
-      });
-
-      toast({ title: "Code Sent", description: "Check your inbox for your 6-digit code." });
-    } catch (err: any) {
-      setError(err.message || "Failed to send verification code");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!code) return;
-    
-    setIsLoading(true);
-    setError('');
-    try {
-      await verifyNativeCode(email, code);
+      await signInWithPassword(email, password);
       toast({ title: "Welcome Back", description: "Identity verified successfully." });
-      // Use hard reload to ensure all contexts are fully refreshed with the new token
       window.location.href = '/';
     } catch (err: any) {
-      setError(err.message || "Invalid or expired code");
+      setError(err.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -138,13 +110,13 @@ const EnhancedLoginForm = () => {
         {/* RIGHT PANEL: AUTH FORM */}
         <div className="lg:col-span-5 p-10 md:p-16 flex flex-col justify-center bg-white/50">
           <div className="w-full max-w-sm mx-auto" ref={formRef}>
-            {step === 'email' ? (
-              <form onSubmit={handleSendCode} className="space-y-8">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Sign In</h2>
-                  <p className="text-slate-500 font-medium">Enter your email to access your dashboard.</p>
-                </div>
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Sign In</h2>
+                <p className="text-slate-500 font-medium">Enter your credentials to access your dashboard.</p>
+              </div>
 
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Email Address</Label>
                   <div className="relative group">
@@ -161,64 +133,47 @@ const EnhancedLoginForm = () => {
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  disabled={isLoading} 
-                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
-                >
-                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                    <>Continue <ArrowRight className="h-5 w-5" /></>
-                  )}
-                </Button>
-
-                {error && (
-                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    {error}
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Password</Label>
+                  <div className="relative group">
+                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <Input 
+                      id="password"
+                      placeholder="••••••••"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 hover:text-primary transition-colors"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
                   </div>
+                </div>
+              </div>
+
+              <Button 
+                type="submit" 
+                disabled={isLoading} 
+                className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
+              >
+                {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+                  <>Sign In <ArrowRight className="h-5 w-5" /></>
                 )}
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyCode} className="space-y-8">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Verify Code</h2>
-                  <p className="text-slate-500 font-medium">We sent a 6-digit code to <br/><span className="text-primary font-bold">{email}</span></p>
+              </Button>
+
+              {error && (
+                <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="code" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest text-center block w-full">6-Digit Verification Code</Label>
-                  <Input 
-                    id="code"
-                    placeholder="000000"
-                    type="text"
-                    maxLength={6}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                    className="h-20 text-center text-4xl font-black tracking-[0.4em] rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all shadow-inner"
-                    required
-                    autoFocus
-                  />
-                </div>
-
-                <Button 
-                  type="submit" 
-                  disabled={isLoading} 
-                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-green-500/20 hover:shadow-green-500/30 transition-all bg-green-600 hover:bg-green-700 flex gap-2 active:scale-[0.98]"
-                >
-                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                    <>Verify & Sign In <CheckCircle2 className="h-5 w-5" /></>
-                  )}
-                </Button>
-
-                <button 
-                  type="button"
-                  onClick={() => setStep('email')}
-                  className="w-full text-center text-sm font-bold text-primary hover:underline transition-all"
-                >
-                  Edit email address
-                </button>
-              </form>
-            )}
+              )}
+            </form>
 
             <div className="mt-12 pt-8 border-t border-slate-100">
               <div className="text-center space-y-4">
