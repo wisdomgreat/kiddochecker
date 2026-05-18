@@ -44,6 +44,32 @@ type KioskTab = 'parent' | 'youth' | 'staff' | 'checkout';
 const KioskCheckInSystem = () => {
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
+  const [activeOrgId, setActiveOrgId] = useState<string>(() => window.localStorage.getItem('kiosk_active_org_id') || '00000000-0000-0000-0000-000000000001');
+  const [organizations, setOrganizations] = useState<any[]>([
+    { id: '00000000-0000-0000-0000-000000000001', name: 'English Congregation', slug: 'english', language_code: 'en' },
+    { id: '00000000-0000-0000-0000-000000000002', name: 'Spanish Congregation', slug: 'spanish', language_code: 'es' }
+  ]);
+
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const { data, error } = await supabase.from('organizations').select('*');
+        if (!error && data && data.length > 0) {
+          setOrganizations(data);
+          const currentValid = data.some(o => o.id === activeOrgId);
+          if (!currentValid) {
+            setActiveOrgId(data[0].id);
+            window.localStorage.setItem('kiosk_active_org_id', data[0].id);
+            setLanguage(data[0].language_code || 'en');
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load organizations from database:', err);
+      }
+    };
+    fetchOrgs();
+  }, []);
+
   const [activeTab, setActiveTab] = useState<KioskTab>('parent');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayCount, setTodayCount] = useState(0);
@@ -119,6 +145,9 @@ const KioskCheckInSystem = () => {
 
   useEffect(() => {
     loadTodayData();
+  }, [activeOrgId]);
+
+  useEffect(() => {
     requestGeo();
     restoreSession();
   }, []);
@@ -134,7 +163,8 @@ const KioskCheckInSystem = () => {
         const { data: kids, error } = await supabase
           .from('children')
           .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
-          .eq('parent_id', savedId);
+          .eq('parent_id', savedId)
+          .eq('organization_id', activeOrgId);
 
         if (!error && kids && kids.length > 0) {
           setParentName(savedName);
@@ -241,7 +271,7 @@ const KioskCheckInSystem = () => {
         setParentName(`${data.first_name} ${data.last_name}`);
         setParentProfileId(data.id);
 
-        const kids = await supabase.from('children').select('*').eq('parent_id', data.id);
+        const kids = await supabase.from('children').select('*').eq('parent_id', data.id).eq('organization_id', activeOrgId);
         const kidsWithClasses = await Promise.all(((kids.data) || []).map(async (k: any) => {
           const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
           return { ...k, class_id: c?.class_id };
@@ -304,9 +334,9 @@ const KioskCheckInSystem = () => {
 
   const loadTodayData = async () => {
     try {
-      const todayData = await AttendanceService.getTodaysAttendance();
+      const todayData = await AttendanceService.getTodaysAttendance(activeOrgId);
       setTodayCount(todayData.length);
-      const presentData = await AttendanceService.getCheckedInChildren();
+      const presentData = await AttendanceService.getCheckedInChildren(activeOrgId);
       const ids = new Set<string>();
       presentData.forEach((r) => ids.add(r.child_id));
       setCheckedInChildIds(ids);
@@ -392,7 +422,8 @@ const KioskCheckInSystem = () => {
     try {
       const { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
         p_search_val: cleanPhone || parentPhone.trim(),
-        p_pin: parentPin.trim()
+        p_pin: parentPin.trim(),
+        p_org_id: activeOrgId
       });
 
       if (error || !matched || (matched as any).length === 0) {
@@ -405,7 +436,8 @@ const KioskCheckInSystem = () => {
       const parent = (matched as any)[0];
       let { data: kids, error: kidsError } = await safeRPC('get_children_for_kiosk', {
         p_parent_id: parent.id,
-        p_pin: parentPin
+        p_pin: parentPin,
+        p_org_id: activeOrgId
       });
 
       if (kidsError) console.warn('[Kiosk] get_children_for_kiosk error:', kidsError);
@@ -414,7 +446,8 @@ const KioskCheckInSystem = () => {
         const { data: fallbackKids } = await supabase
           .from('children')
           .select('id, first_name, last_name, age, allergies, notes, parent_id')
-          .eq('parent_id', parent.id);
+          .eq('parent_id', parent.id)
+          .eq('organization_id', activeOrgId);
         if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
       }
       
@@ -583,7 +616,7 @@ const KioskCheckInSystem = () => {
     if (!staffAuthed || staffSearchTerm.length < 2) { setStaffSearchResults([]); return; }
     const t_out = setTimeout(async () => {
       const cleaned = staffSearchTerm.trim();
-      let query = supabase.from('children').select('*');
+      let query = supabase.from('children').select('*').eq('organization_id', activeOrgId);
       if (cleaned.includes(' ')) {
         const parts = cleaned.split(' ').filter(p => p.length > 0);
         if (parts.length >= 2) query = query.ilike('first_name', `%${parts[0]}%`).ilike('last_name', `%${parts[1]}%`);
@@ -595,7 +628,7 @@ const KioskCheckInSystem = () => {
       setStaffSearchResults(data || []);
     }, 300);
     return () => clearTimeout(t_out);
-  }, [staffSearchTerm, staffAuthed]);
+  }, [staffSearchTerm, staffAuthed, activeOrgId]);
 
   const handleStaffCheckIn = (child: Child) => {
     if (checkedInChildIds.has(child.id)) {
@@ -632,7 +665,7 @@ const KioskCheckInSystem = () => {
         return;
       }
       if (result.type === 'parent') {
-        const { data: kids } = await supabase.from('children').select('*').eq('parent_id', result.id);
+        const { data: kids } = await supabase.from('children').select('*').eq('parent_id', result.id).eq('organization_id', activeOrgId);
         if (kids && kids.length > 0) {
           setParentChildren(kids as any);
           setParentLoggedIn(true);
@@ -642,7 +675,7 @@ const KioskCheckInSystem = () => {
         return;
       }
       if (result.type === 'child') {
-        const { data: child } = await supabase.from('children').select('*, class_id').eq('id', result.id).maybeSingle();
+        const { data: child } = await supabase.from('children').select('*, class_id').eq('id', result.id).eq('organization_id', activeOrgId).maybeSingle();
         if (child) {
           if (checkedInChildIds.has(child.id)) {
             const record = checkedInChildren.find((r: any) => r.child_id === child.id);
@@ -680,7 +713,8 @@ const KioskCheckInSystem = () => {
         specialInstructions,
         hasFever,
         hasCough,
-        deviceId: (user as any)?.user_metadata?.device_id
+        deviceId: (user as any)?.user_metadata?.device_id,
+        orgId: activeOrgId
       });
 
       if (result.success) {
@@ -807,6 +841,37 @@ const KioskCheckInSystem = () => {
           )}
         </div>
         
+        {/* Premium Glassmorphic Congregation Switcher */}
+        <div className="relative flex items-center bg-muted/70 p-1.5 rounded-full border border-border/40 shadow-inner max-w-sm backdrop-blur-md">
+          {organizations.map((org) => {
+            const isActive = activeOrgId === org.id;
+            return (
+              <button
+                key={org.id}
+                onClick={() => {
+                  if (activeOrgId !== org.id) {
+                    setActiveOrgId(org.id);
+                    window.localStorage.setItem('kiosk_active_org_id', org.id);
+                    setLanguage(org.language_code || 'en');
+                    handleGlobalLogout();
+                    toast({
+                      title: `Switched to ${org.name}`,
+                      description: `Enforcing strict boundary isolation. All active sessions cleared.`,
+                    });
+                  }
+                }}
+                className={`relative px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider transition-all duration-300 ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {org.slug === 'english' ? '🇬🇧 EN' : org.slug === 'spanish' ? '🇪🇸 ES' : org.name}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1303,6 +1368,7 @@ const KioskCheckInSystem = () => {
         onConfirm={handleClassSelected} 
         childName={selectedChild?.first_name || ''} 
         initialClassId={selectedChild?.class_id}
+        orgId={activeOrgId}
       />
       
       {selectedChild && (

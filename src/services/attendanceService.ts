@@ -13,6 +13,7 @@ export interface CheckInData {
   hasCough?: boolean;
   deviceMetadata?: Record<string, any>;
   deviceId?: string;
+  orgId?: string;
 }
 
 export interface CheckOutData {
@@ -63,7 +64,8 @@ export class AttendanceService {
         p_health_fever: data.hasFever || false,
         p_health_cough: data.hasCough || false,
         p_device_metadata: metadata,
-        p_device_id: data.deviceId || null
+        p_device_id: data.deviceId || null,
+        p_org_id: data.orgId || null
       });
 
       if (error) {
@@ -114,15 +116,21 @@ export class AttendanceService {
     }
   }
 
-  static async getTodaysAttendance(): Promise<AttendanceRecord[]> {
+  static async getTodaysAttendance(orgId?: string): Promise<AttendanceRecord[]> {
     try {
       const today = new Date().toISOString().split('T')[0];
 
       // Using Bridge with explicit joins for names and classes
-      const { data, error } = await bridge
+      let query = bridge
         .from('attendance')
         .select('*, child:children(*), class:classes(*)')
         .eq('attendance_date', today);
+
+      if (orgId) {
+        query = query.eq('organization_id', orgId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("[Bridge] Error fetching attendance:", error);
@@ -136,16 +144,22 @@ export class AttendanceService {
     }
   }
 
-  static async getCheckedInChildren(): Promise<AttendanceRecord[]> {
+  static async getCheckedInChildren(orgId?: string): Promise<AttendanceRecord[]> {
     try {
       const today = new Date().toISOString().split('T')[0];
       // Use .is('checked_out_at', null) for proper SQL 'IS NULL' handling through bridge
       // Also filter by today's date to keep the 'Present' count consistent with 'Total'
-      const { data, error } = await bridge
+      let query = bridge
         .from('attendance')
         .select('*, child:children(*), class:classes(*)')
         .is('checked_out_at', null)
         .eq('attendance_date', today);
+
+      if (orgId) {
+        query = query.eq('organization_id', orgId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("[Bridge] Error fetching checked-in children:", error);

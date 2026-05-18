@@ -25,6 +25,7 @@ interface ClassSelectionDialogProps {
   onConfirm: (classId: string, specialInstructions: string, hasFever: boolean, hasCough: boolean) => void;
   childName: string;
   initialClassId?: string;
+  orgId?: string;
 }
 
 const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
@@ -33,12 +34,13 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
   onConfirm,
   childName,
   initialClassId,
+  orgId,
 }) => {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [instructions, setInstructions] = useState('');
   const [hasFever, setHasFever] = useState<boolean | null>(null);
   const [hasCough, setHasCough] = useState<boolean | null>(null);
-  const { classes, isLoading } = useClasses();
+  const { classes, isLoading } = useClasses(orgId);
   const { t } = useTranslation();
   const { settings } = useSettings();
 
