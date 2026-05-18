@@ -701,8 +701,7 @@ const KioskCheckInSystem = () => {
     try {
       const { data: classData } = await supabase.from('classes').select('name').eq('id', classId).single();
       let actorId = (user as any)?.id;
-      const storedParentId = window.localStorage.getItem('kiosk_active_parent_id');
-      if (parentLoggedIn && storedParentId) actorId = storedParentId;
+      if (parentLoggedIn) actorId = parentProfileId || window.localStorage.getItem('kiosk_active_parent_id') || actorId;
 
       const result = await AttendanceService.checkInChild({
         childId: selectedChild.id,
@@ -760,7 +759,7 @@ const KioskCheckInSystem = () => {
     setIsLoading(true);
     try {
       let actorId = (await supabase.auth.getUser()).data.user?.id;
-      if (parentLoggedIn && parentChildren.length > 0) actorId = parentChildren[0].parent_id;
+      if (parentLoggedIn) actorId = parentProfileId || parentChildren[0]?.parent_id || actorId;
 
       const result = await AttendanceService.checkOutChild({
         attendanceId: record.id,
