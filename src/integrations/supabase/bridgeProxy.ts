@@ -209,7 +209,11 @@ export const createBridgeProxy = (realClient: any) => {
             const error = await res.json();
             return { data: { session: null, user: null }, error: new Error(error.error || 'Login failed') };
           }
-          const { token, profile } = await res.json();
+          const data = await res.json();
+          if (data.mfaRequired) {
+            return { data: { mfaRequired: true, email: data.email }, error: null };
+          }
+          const { token, profile } = data;
           localStorage.setItem('bridge_token', token);
           return { data: { session: { access_token: token, user: profile }, user: profile }, error: null };
         } catch (e: any) {
@@ -221,6 +225,85 @@ export const createBridgeProxy = (realClient: any) => {
           localStorage.setItem('bridge_token', session.access_token);
         }
         return { data: { session }, error: null };
+      },
+      mfa: {
+        listFactors: async () => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/list`, {
+              headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              }
+            });
+            if (!res.ok) return { data: { all: [] }, error: new Error('Failed to list factors') };
+            const data = await res.json();
+            return { data: { all: data.all || [] }, error: null };
+          } catch (e: any) {
+            return { data: { all: [] }, error: e };
+          }
+        },
+        enroll: async ({ friendlyName, issuer }: any) => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/enroll`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              },
+              body: JSON.stringify({ friendlyName, issuer })
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              return { data: null, error: new Error(error.error || 'Failed to enroll') };
+            }
+            const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        },
+        challenge: async ({ factorId }: any) => {
+          return { data: { id: 'mock-challenge-id' }, error: null };
+        },
+        verify: async ({ factorId, challengeId, code }: any) => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/verify`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              },
+              body: JSON.stringify({ factorId, challengeId, code })
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              return { data: null, error: new Error(error.error || 'Failed to verify') };
+            }
+            const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        },
+        unenroll: async ({ factorId }: any) => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/unenroll`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              },
+              body: JSON.stringify({ factorId })
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              return { data: null, error: new Error(error.error || 'Failed to unenroll') };
+            }
+            const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        }
       }
     },
     // Realistic mock for realtime channels

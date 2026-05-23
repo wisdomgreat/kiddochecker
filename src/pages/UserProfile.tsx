@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User, Mail, Phone, MapPin, Save, Loader2, Key, QrCode, ShieldCheck, BadgeCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { QRCodeSVG } from "qrcode.react";
+import MfaEnrollment from "@/components/auth/MfaEnrollment";
 
 const profileSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
@@ -294,6 +295,9 @@ const UserProfile = () => {
                 </p>
               </CardContent>
             </Card>
+
+            {/* MFA Protection Panel */}
+            <MfaEnrollment />
           </div>
         </div>
       </div>

@@ -11,6 +11,8 @@ import gsap from 'gsap';
 const EnhancedLoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [step, setStep] = useState<'login' | 'mfa'>('login');
+  const [mfaCode, setMfaCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,11 +36,47 @@ const EnhancedLoginForm = () => {
     setIsLoading(true);
     setError('');
     try {
-      await signInWithPassword(email, password);
+      const res: any = await signInWithPassword(email, password);
+      if (res?.error) {
+        throw res.error;
+      }
+      if (res?.data?.mfaRequired) {
+        setStep('mfa');
+        toast({ title: "MFA Code Required", description: "Please enter your 2FA authenticator code." });
+        return;
+      }
       toast({ title: "Welcome Back", description: "Identity verified successfully." });
       window.location.href = '/';
     } catch (err: any) {
       setError(err.message || "Invalid email or password");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode) return;
+    
+    setIsLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login/mfa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: mfaCode })
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Invalid verification code');
+      }
+      const { token } = await res.json();
+      localStorage.setItem('bridge_token', token);
+      
+      toast({ title: "Welcome Back", description: "Identity verified successfully." });
+      window.location.href = '/';
+    } catch (err: any) {
+      setError(err.message || "Invalid or expired MFA code");
     } finally {
       setIsLoading(false);
     }
@@ -110,70 +148,129 @@ const EnhancedLoginForm = () => {
         {/* RIGHT PANEL: AUTH FORM */}
         <div className="lg:col-span-5 p-10 md:p-16 flex flex-col justify-center bg-white/50">
           <div className="w-full max-w-sm mx-auto" ref={formRef}>
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Sign In</h2>
-                <p className="text-slate-500 font-medium">Enter your credentials to access your dashboard.</p>
-              </div>
-
-              <div className="space-y-4">
+            {step === 'login' ? (
+              <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Email Address</Label>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                    <Input 
-                      id="email"
-                      placeholder="name@example.com"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
-                      required
-                    />
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Sign In</h2>
+                  <p className="text-slate-500 font-medium">Enter your credentials to access your dashboard.</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Email Address</Label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="email"
+                        placeholder="name@example.com"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Password</Label>
+                    <div className="relative group">
+                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="password"
+                        placeholder="••••••••"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 hover:text-primary transition-colors"
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Password</Label>
-                  <div className="relative group">
-                    <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                    <Input 
-                      id="password"
-                      placeholder="••••••••"
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 hover:text-primary transition-colors"
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                </div>
-              </div>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading} 
+                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
+                >
+                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+                    <>Sign In <ArrowRight className="h-5 w-5" /></>
+                  )}
+                </Button>
 
-              <Button 
-                type="submit" 
-                disabled={isLoading} 
-                className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
-              >
-                {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                  <>Sign In <ArrowRight className="h-5 w-5" /></>
+                {error && (
+                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
                 )}
-              </Button>
-
-              {error && (
-                <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  {error}
+              </form>
+            ) : (
+              <form onSubmit={handleMfaVerify} className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Two-Factor Auth</h2>
+                  <p className="text-slate-500 font-medium">Enter the 6-digit code from your authenticator app to complete sign-in.</p>
                 </div>
-              )}
-            </form>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="mfaCode" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Verification Code</Label>
+                    <div className="relative group">
+                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="mfaCode"
+                        placeholder="000000"
+                        type="text"
+                        maxLength={6}
+                        value={mfaCode}
+                        onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-center text-xl font-mono tracking-[0.3em] font-medium"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={isLoading} 
+                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
+                >
+                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+                    <>Verify Code <ArrowRight className="h-5 w-5" /></>
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setStep('login');
+                    setMfaCode('');
+                    setError('');
+                  }}
+                  className="w-full h-12 rounded-xl text-slate-500 font-semibold"
+                >
+                  Back to Sign In
+                </Button>
+
+                {error && (
+                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
+              </form>
+            )}
 
             <div className="mt-12 pt-8 border-t border-slate-100">
               <div className="text-center space-y-4">

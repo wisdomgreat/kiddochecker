@@ -247,7 +247,7 @@ async function runMigrations() {
     { name: 'get_staff_shifts_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_staff_shifts_for_kiosk() RETURNS TABLE (id UUID, staff_id UUID, start_time TIMESTAMPTZ, end_time TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT s.id, s.staff_id, s.start_time, s.end_time FROM public.staff_shifts s WHERE s.start_time::date = CURRENT_DATE; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'check_user_permission', sql: `CREATE OR REPLACE FUNCTION public.check_user_permission(p_user_id UUID, p_permission_name TEXT) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id; IF v_is_admin THEN RETURN TRUE; END IF; RETURN EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON rp.permission_id = p.id JOIN public.user_roles ur ON ur.role::text = rp.role_id::text WHERE ur.user_id = p_user_id AND p.name = p_permission_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` },
-    { name: 'col_password_hash', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT; UPDATE public.profiles SET password_hash = '$2b$10$7JMzVL7apPHCTSIO2c0niefOkPVOYo9iEnZrPAiRSWB.hSGU0pgJu' WHERE password_hash IS NULL;` }
+    { name: 'col_password_hash', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT; UPDATE public.profiles SET password_hash = '$2b$10$7JMzVL7apPHCTSIO2c0niefOkPVOYo9iEnZrPAiRSWB.hSGU0pgJu' WHERE password_hash IS NULL; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_secret TEXT; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE;` }
   ];
 
   for (const m of migrations) {
@@ -279,6 +279,71 @@ async function runMigrations() {
   } catch (err) { console.error('[PROBE] Master Key error:', err.message); }
   await runMigrations();
 })();
+
+// ─── TOTP & MFA Helpers ───────────────────────────────────────────────────
+function generateSecret() {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let secret = '';
+  for (let i = 0; i < 16; i++) {
+    secret += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return secret;
+}
+
+function base32Decode(base32Str) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const cleaned = base32Str.replace(/=+$/, '').toUpperCase();
+  let bits = 0;
+  let value = 0;
+  const output = [];
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const idx = alphabet.indexOf(cleaned[i]);
+    if (idx === -1) throw new Error('Invalid base32 character');
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      output.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(output);
+}
+
+function generateTOTP(secret, timeWindow = 0) {
+  const crypto = require('crypto');
+  const key = base32Decode(secret);
+  const epoch = Math.floor(Date.now() / 1000);
+  const time = Math.floor(epoch / 30) + timeWindow;
+
+  const timeBuffer = Buffer.alloc(8);
+  let tempTime = BigInt(time);
+  for (let i = 7; i >= 0; i--) {
+    timeBuffer[i] = Number(tempTime & 255n);
+    tempTime >>= 8n;
+  }
+
+  const hmac = crypto.createHmac('sha1', key).update(timeBuffer).digest();
+  
+  const offset = hmac[hmac.length - 1] & 15;
+  const codeBin = ((hmac[offset] & 127) << 24) |
+                  ((hmac[offset + 1] & 255) << 16) |
+                  ((hmac[offset + 2] & 255) << 8) |
+                  (hmac[offset + 3] & 255);
+  
+  const code = codeBin % 1000000;
+  return code.toString().padStart(6, '0');
+}
+
+function verifyTOTP(secret, userCode) {
+  if (!secret || !userCode) return false;
+  for (let window = -1; window <= 1; window++) {
+    if (generateTOTP(secret, window) === userCode.trim()) {
+      return true;
+    }
+  }
+  return false;
+}
 
 // ─── JWT & Auth ──────────────────────────────────────────────────────────
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-2026';
@@ -425,12 +490,131 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
     // Determine the role
     const finalRole = profile.role || 'parent';
     
+    // Check if MFA is enabled
+    if (profile.mfa_enabled) {
+      return res.json({ 
+        mfaRequired: true, 
+        email: profile.email,
+        message: 'Multi-factor authentication required.'
+      });
+    }
+
+    const isPrivileged = ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer'].includes(finalRole);
+    const mfaSetupRequired = isPrivileged && !profile.mfa_enabled;
+
     // Issue Bridge JWT
+    const token = jwt.sign({ email: profile.email, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
+    
+    res.json({ token, profile, mfaSetupRequired });
+  } catch (err) {
+    console.error('[Bridge] login error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── MFA & TOTP Endpoints ─────────────────────────────────────────────────
+app.post(['/api/auth/login/mfa', '/auth/login/mfa'], async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and MFA code are required' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  
+  try {
+    const result = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid verification code' });
+    }
+    const profile = result.rows[0];
+    
+    if (!profile.mfa_secret || !profile.mfa_enabled) {
+      return res.status(400).json({ error: 'MFA not enabled for this account' });
+    }
+    
+    const verified = verifyTOTP(profile.mfa_secret, code);
+    if (!verified) {
+      return res.status(401).json({ error: 'Invalid verification code' });
+    }
+    
+    const finalRole = profile.role || 'parent';
     const token = jwt.sign({ email: profile.email, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
     
     res.json({ token, profile });
   } catch (err) {
-    console.error('[Bridge] login error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/auth/mfa/list', verifyToken, async (req, res) => {
+  const email = req.user.email || req.user.preferred_username;
+  try {
+    const result = await pool.query('SELECT mfa_enabled, id FROM public.profiles WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
+    if (result.rows.length === 0) return res.json({ all: [] });
+    const profile = result.rows[0];
+    if (profile.mfa_enabled) {
+      return res.json({
+        all: [{
+          id: 'totp-factor-' + profile.id,
+          factorType: 'totp',
+          friendlyName: email,
+          status: 'verified'
+        }]
+      });
+    }
+    res.json({ all: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/mfa/enroll', verifyToken, async (req, res) => {
+  const email = req.user.email || req.user.preferred_username;
+  const { friendlyName, issuer } = req.body;
+  try {
+    const secret = generateSecret();
+    const otpauthUri = `otpauth://totp/${encodeURIComponent(issuer || 'KiddoChecker')}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent(issuer || 'KiddoChecker')}`;
+    const qr_code = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUri)}`;
+    
+    await pool.query('UPDATE public.profiles SET mfa_secret = $1, mfa_enabled = false WHERE LOWER(email) = LOWER($2)', [secret, email]);
+    
+    res.json({
+      id: 'totp-factor-pending',
+      totp: {
+        qr_code
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/mfa/verify', verifyToken, async (req, res) => {
+  const email = req.user.email || req.user.preferred_username;
+  const { code } = req.body;
+  try {
+    const result = await pool.query('SELECT mfa_secret FROM public.profiles WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Profile not found' });
+    
+    const secret = result.rows[0].mfa_secret;
+    if (!secret) return res.status(400).json({ error: 'MFA not enrolled yet' });
+    
+    const verified = verifyTOTP(secret, code);
+    if (!verified) return res.status(400).json({ error: 'Invalid verification code' });
+    
+    await pool.query('UPDATE public.profiles SET mfa_enabled = true WHERE LOWER(email) = LOWER($1)', [email]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/mfa/unenroll', verifyToken, async (req, res) => {
+  const email = req.user.email || req.user.preferred_username;
+  try {
+    await pool.query('UPDATE public.profiles SET mfa_secret = NULL, mfa_enabled = false WHERE LOWER(email) = LOWER($1)', [email]);
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
