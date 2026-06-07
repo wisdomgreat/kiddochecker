@@ -19,22 +19,43 @@ const ForgotPasswordPage = () => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const isAzure = !!import.meta.env.VITE_API_URL;
 
-      if (error) {
-        toast({
-          title: "Request Failed",
-          description: error.message,
-          variant: "destructive"
+      if (isAzure) {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim() })
         });
-      } else {
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Request failed');
+        }
+        
         setIsSent(true);
         toast({
-          title: "Email Sent",
-          description: "Check your inbox for password reset instructions."
+          title: "Request Processed",
+          description: "If an account exists, you will receive a reset link shortly."
         });
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+
+        if (error) {
+          toast({
+            title: "Request Failed",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else {
+          setIsSent(true);
+          toast({
+            title: "Email Sent",
+            description: "Check your inbox for password reset instructions."
+          });
+        }
       }
     } catch (err: any) {
       toast({

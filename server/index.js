@@ -72,7 +72,7 @@ async function runComplianceHealthCheck() {
     `);
     
     const existingTables = new Set(tablesRes.rows.map(r => r.table_name.toLowerCase()));
-    const requiredTables = ['profiles', 'children', 'attendance', 'kiosk_settings', 'activity_logs'];
+    const requiredTables = ['profiles', 'children', 'attendance', 'kiosk_settings', 'activity_logs', 'password_reset_tokens'];
     const missingTables = requiredTables.filter(t => !existingTables.has(t));
     
     if (missingTables.length > 0) {
@@ -218,6 +218,7 @@ async function runMigrations() {
     { name: 'col_health_fever', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_fever BOOLEAN DEFAULT false;' },
     { name: 'col_health_cough', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_cough BOOLEAN DEFAULT false;' },
     { name: 'col_device_metadata', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS device_metadata JSONB DEFAULT \'{}\'::jsonb;' },
+    { name: 'password_reset_tokens', sql: 'CREATE TABLE IF NOT EXISTS public.password_reset_tokens (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT NOT NULL, token TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ DEFAULT now());' },
     { name: 'col_status', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS status TEXT DEFAULT \'present\';' },
     { name: 'col_checked_in_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_in_method TEXT;' },
     { name: 'col_checked_out_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_out_method TEXT;' },
@@ -281,11 +282,14 @@ async function runMigrations() {
 })();
 
 // ─── TOTP & MFA Helpers ───────────────────────────────────────────────────
+const crypto = require('crypto');
+
 function generateSecret() {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const randomBytes = crypto.randomBytes(16);
   let secret = '';
   for (let i = 0; i < 16; i++) {
-    secret += alphabet[Math.floor(Math.random() * alphabet.length)];
+    secret += alphabet[randomBytes[i] % alphabet.length];
   }
   return secret;
 }
@@ -311,7 +315,6 @@ function base32Decode(base32Str) {
 }
 
 function generateTOTP(secret, timeWindow = 0) {
-  const crypto = require('crypto');
   const key = base32Decode(secret);
   const epoch = Math.floor(Date.now() / 1000);
   const time = Math.floor(epoch / 30) + timeWindow;
@@ -337,8 +340,14 @@ function generateTOTP(secret, timeWindow = 0) {
 
 function verifyTOTP(secret, userCode) {
   if (!secret || !userCode) return false;
+  
+  const userCodeBuf = Buffer.from(userCode.trim().padStart(6, '0'));
+  
   for (let window = -1; window <= 1; window++) {
-    if (generateTOTP(secret, window) === userCode.trim()) {
+    const generatedCode = generateTOTP(secret, window);
+    const generatedBuf = Buffer.from(generatedCode);
+    
+    if (userCodeBuf.length === generatedBuf.length && crypto.timingSafeEqual(userCodeBuf, generatedBuf)) {
       return true;
     }
   }
@@ -406,7 +415,7 @@ app.post(['/api/auth/send-code', '/auth/send-code'], authLimiter, async (req, re
   }
 });
 
-app.post(['/api/auth/verify-code', '/auth/verify-code'], async (req, res) => {
+app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req, res) => {
   const { email, code } = req.body;
   try {
     const result = await pool.query(
@@ -421,28 +430,171 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], async (req, res) => {
     // Fetch profile
     let profileRes = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
     
-    // Auto-Provisioning: If user is "wisdom" or first user, create profile if missing
     if (profileRes.rows.length === 0) {
-      console.log(`[Auth] Auto-provisioning profile for: ${email}`);
-      try {
-        await pool.query(
-          'INSERT INTO public.profiles (email, first_name, last_name, role) VALUES ($1, $2, $3, $4)',
-          [email, email.split('@')[0], 'Admin', 'admin']
-        );
-        profileRes = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
-      } catch (provisionErr) {
-        console.error('[Auth] Provisioning failed:', provisionErr.message);
-      }
+      return res.status(401).json({ error: 'Profile not found. Please contact an administrator.' });
     }
 
-    const profile = profileRes.rows[0] || { email, role: 'admin', id: '00000000-0000-0000-0000-000000000000' };
+    const profile = profileRes.rows[0];
     res.json({ token, profile });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
+app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  try {
+    const profileRes = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    if (profileRes.rows.length === 0) {
+      return res.json({ success: true, message: 'If the email exists, a reset link was sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await pool.query(
+      'INSERT INTO public.password_reset_tokens (email, token, expires_at) VALUES ($1, $2, $3)',
+      [normalizedEmail, token, expiresAt]
+    );
+
+    const resetLink = `https://${req.headers.host || 'localhost'}/reset-password?token=${token}`;
+    
+    try {
+      const { Resend } = require('resend');
+      let resendKey = process.env.RESEND_API_KEY;
+      let fromDomain = 'updates@kiddochecker.com';
+      try {
+        const settingsRes = await pool.query('SELECT resend_api_key, resend_domain FROM public.communication_settings LIMIT 1');
+        if (settingsRes.rows.length > 0) {
+          if (settingsRes.rows[0].resend_api_key) resendKey = settingsRes.rows[0].resend_api_key;
+          if (settingsRes.rows[0].resend_domain) fromDomain = `updates@${settingsRes.rows[0].resend_domain}`;
+        }
+      } catch (dbErr) {
+        console.error('[Auth] Error fetching communication_settings:', dbErr.message);
+      }
+      
+      if (!resendKey) {
+        console.log(`\n==============================================`);
+        console.log(`[AUTH] No Resend API key found. Mocking email delivery for: ${normalizedEmail}`);
+        console.log(`[AUTH] RESET LINK: ${resetLink}`);
+        console.log(`==============================================\n`);
+      } else {
+        const resend = new Resend(resendKey);
+        await resend.emails.send({
+          from: `KiddoChecker <${fromDomain}>`,
+          to: normalizedEmail,
+          subject: 'Reset Your KiddoChecker Password',
+          html: `<p>Hello,</p><p>You requested a password reset. Click the link below to securely reset your password:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link will expire in 1 hour. If you did not request this, please ignore this email.</p>`
+        });
+        console.log(`[AUTH] Password reset email sent to ${normalizedEmail} via Resend.`);
+      }
+    } catch (mailErr) {
+      console.error('[Auth] Failed to send email via Resend:', mailErr.message);
+    }
+
+    res.json({ success: true, message: 'If the email exists, a reset link was sent.' });
+  } catch (err) {
+    console.error('[Auth] Forgot password error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password are required' });
+
+  try {
+    const bcrypt = require('bcryptjs');
+    
+    // Find valid token
+    const tokenRes = await pool.query(
+      'SELECT * FROM public.password_reset_tokens WHERE token = $1 AND expires_at > NOW() LIMIT 1',
+      [token]
+    );
+
+    if (tokenRes.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const email = tokenRes.rows[0].email;
+    const newHash = bcrypt.hashSync(newPassword, 10);
+
+    // Update password
+    await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE LOWER(email) = $2', [newHash, email]);
+
+    // Delete token
+    await pool.query('DELETE FROM public.password_reset_tokens WHERE token = $1', [token]);
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('[Auth] Reset password error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => {
+  const { email, password, firstName, lastName, phone, role } = req.body;
+  if (!email || !password || !firstName || !lastName) {
+    return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const bcrypt = require('bcryptjs');
+
+  try {
+    // 1. Check if user already exists
+    const checkRes = await pool.query('SELECT id FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    if (checkRes.rows.length > 0) {
+      return res.status(400).json({ error: 'An account with this email already exists' });
+    }
+
+    // 2. Generate hash
+    const newHash = bcrypt.hashSync(password, 10);
+    const finalRole = role || 'parent';
+
+    // 3. Perform a transactional insert
+    await pool.query('BEGIN');
+
+    // Insert profile using gen_random_uuid()
+    const insertProfileSql = `
+      INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role) 
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6) 
+      RETURNING *
+    `;
+    const profileRes = await pool.query(insertProfileSql, [
+      normalizedEmail, 
+      newHash, 
+      firstName.trim(), 
+      lastName.trim(), 
+      (phone || '').trim(), 
+      finalRole
+    ]);
+    const profile = profileRes.rows[0];
+    const newUserId = profile.id;
+
+    // Insert user role
+    await pool.query(
+      `INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES ($1, $2, $3)`,
+      [newUserId, finalRole, finalRole === 'super_admin']
+    );
+
+    await pool.query('COMMIT');
+
+    // 4. Issue Bridge JWT
+    const token = jwt.sign({ email: normalizedEmail, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
+
+    res.json({ token, profile });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error('[Bridge] signup error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
@@ -457,29 +609,15 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
     let profileRes = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
     
     if (profileRes.rows.length === 0) {
-      // Auto-Provisioning for first-time or special accounts
-      if (normalizedEmail === 'wisdom' || normalizedEmail === 'wisdom@example.com') {
-        console.log(`[Auth] Auto-provisioning admin profile for wisdom`);
-        const defaultHash = bcrypt.hashSync('Kiddo@2026!', 10);
-        await pool.query(
-          'INSERT INTO public.profiles (email, first_name, last_name, role, password_hash) VALUES ($1, $2, $3, $4, $5)',
-          [normalizedEmail, 'Wisdom', 'Admin', 'admin', defaultHash]
-        );
-        profileRes = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
-      } else {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
     
     const profile = profileRes.rows[0];
     
     // Check password hash
     if (!profile.password_hash) {
-      // Set default password_hash for legacy migrated accounts if missing
-      console.log(`[Auth] Lazy-provisioning default password hash for: ${normalizedEmail}`);
-      const defaultHash = bcrypt.hashSync('Kiddo@2026!', 10);
-      await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE id = $2', [defaultHash, profile.id]);
-      profile.password_hash = defaultHash;
+      console.warn(`[Auth] Login attempt on legacy account without password hash: ${normalizedEmail}`);
+      return res.status(403).json({ error: 'Password Reset Required', message: 'This account needs a password reset before logging in.' });
     }
     
     const isMatch = bcrypt.compareSync(password, profile.password_hash);
@@ -513,7 +651,7 @@ app.post(['/api/auth/login', '/auth/login'], async (req, res) => {
 });
 
 // ─── MFA & TOTP Endpoints ─────────────────────────────────────────────────
-app.post(['/api/auth/login/mfa', '/auth/login/mfa'], async (req, res) => {
+app.post(['/api/auth/login/mfa', '/auth/login/mfa'], authLimiter, async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code) {
     return res.status(400).json({ error: 'Email and MFA code are required' });
@@ -844,6 +982,15 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
     if (!finalMethod) {
       console.error('[Bridge] Mutation error: No method/action specified in body');
       return res.status(400).json({ error: 'Unsupported mutation method: undefined' });
+    }
+    
+    // Security: Restrict kiosk_settings mutations to admins/super_admins
+    if (table === 'kiosk_settings') {
+      const role = req.user?.role || 'parent';
+      if (role !== 'admin' && role !== 'super_admin') {
+        console.warn(`[Security] Blocked unauthorized kiosk_settings mutation by role: ${role}`);
+        return res.status(403).json({ error: 'Unauthorized: Only administrators can modify kiosk settings.' });
+      }
     }
     
     if (finalMethod === 'insert' || finalMethod === 'upsert') {

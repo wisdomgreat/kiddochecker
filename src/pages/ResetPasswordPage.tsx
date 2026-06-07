@@ -25,8 +25,12 @@ const ResetPasswordPage = () => {
   useEffect(() => {
     if (loading) return;
     
-    if (!session) {
-      console.log("No session found in ResetPasswordPage after loading, redirecting...");
+    const isAzure = !!import.meta.env.VITE_API_URL;
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasToken = urlParams.has('token');
+    
+    if (!session && (!isAzure || !hasToken)) {
+      console.log("No session or token found in ResetPasswordPage after loading, redirecting...");
       toast({ 
         title: "Session Invalid", 
         description: "Password reset link is missing, expired, or you are not logged in.", 
@@ -77,32 +81,56 @@ const ResetPasswordPage = () => {
 
   const performPasswordReset = async () => {
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
+      const isAzure = !!import.meta.env.VITE_API_URL;
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
 
-      if (error) {
-        console.error("Password update error:", error);
-        if (error.message.includes('AAL2') || error.message.includes('MFA')) {
-          toast({
-            title: "MFA Required",
-            description: "Security check: Please enter your 6-digit MFA code to confirm this change.",
-          });
-          setShowMfa(true);
-        } else {
-          toast({ 
-            title: "Reset Failed", 
-            description: error.message, 
-            variant: "destructive" 
-          });
+      if (isAzure && token) {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, newPassword: password })
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Password reset failed');
         }
-      } else {
+
         setIsSuccess(true);
         toast({
           title: "Password Updated",
           description: "Your password has been changed successfully."
         });
         setTimeout(() => navigate('/login'), 2000);
+      } else {
+        const { error } = await supabase.auth.updateUser({
+          password: password,
+        });
+
+        if (error) {
+          console.error("Password update error:", error);
+          if (error.message.includes('AAL2') || error.message.includes('MFA')) {
+            toast({
+              title: "MFA Required",
+              description: "Security check: Please enter your 6-digit MFA code to confirm this change.",
+            });
+            setShowMfa(true);
+          } else {
+            toast({ 
+              title: "Reset Failed", 
+              description: error.message, 
+              variant: "destructive" 
+            });
+          }
+        } else {
+          setIsSuccess(true);
+          toast({
+            title: "Password Updated",
+            description: "Your password has been changed successfully."
+          });
+          setTimeout(() => navigate('/login'), 2000);
+        }
       }
     } catch (err: any) {
       console.error("Exception in performPasswordReset:", err);

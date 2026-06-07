@@ -198,6 +198,51 @@ export const createBridgeProxy = (realClient: any) => {
         localStorage.removeItem('bridge_token');
         return { error: null };
       },
+      signUp: async ({ email, password, options }: any) => {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              password,
+              firstName: options?.data?.first_name || '',
+              lastName: options?.data?.last_name || '',
+              phone: options?.data?.phone || '',
+              role: options?.data?.role || 'parent'
+            })
+          });
+          if (!res.ok) {
+            const error = await res.json();
+            return { data: { session: null, user: null }, error: new Error(error.error || 'Signup failed') };
+          }
+          const data = await res.json();
+          const { token, profile } = data;
+          if (token) {
+            localStorage.setItem('bridge_token', token);
+          }
+          
+          const sbUser = {
+            id: profile.id,
+            email: profile.email,
+            user_metadata: {
+              first_name: profile.first_name,
+              last_name: profile.last_name,
+              phone: profile.phone
+            }
+          };
+
+          return {
+            data: {
+              session: token ? { access_token: token, user: sbUser } : null,
+              user: sbUser
+            },
+            error: null
+          };
+        } catch (e: any) {
+          return { data: { session: null, user: null }, error: e };
+        }
+      },
       signInWithPassword: async ({ email, password }: any) => {
         try {
           const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {

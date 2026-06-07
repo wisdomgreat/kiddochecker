@@ -173,7 +173,10 @@ const EnhancedLoginForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Password</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Password</Label>
+                      <button type="button" onClick={() => navigate('/forgot-password')} className="text-[10px] font-bold text-primary hover:underline tracking-widest uppercase">Forgot Password?</button>
+                    </div>
                     <div className="relative group">
                       <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
                       <Input 
