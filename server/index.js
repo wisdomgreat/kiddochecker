@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const tenantResolver = require('./middleware/tenantResolver');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -172,12 +173,19 @@ async function checkIpAuthorized(clientIp) {
 
 
 app.use(cors({
-  origin: ['https://happy-glacier-0746a2210.7.azurestaticapps.net', 'https://kiddochecker.com'],
+  origin: [
+    'https://happy-glacier-0746a2210.7.azurestaticapps.net',
+    'https://kiddochecker.com',
+    'https://kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+    'https://es.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+    'https://joint.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Bridge-Secret'],
   credentials: true
 }));
 app.use(express.json());
+app.use(tenantResolver);
 
 // ─── Email & SMS Helpers ─────────────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
@@ -207,6 +215,8 @@ async function runMigrations() {
     { name: 'organizations_table', sql: 'CREATE TABLE IF NOT EXISTS public.organizations (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, slug TEXT UNIQUE NOT NULL, language_code TEXT DEFAULT \'en\', created_at TIMESTAMPTZ DEFAULT now());' },
     { name: 'seed_organizations', sql: 'INSERT INTO public.organizations (id, name, slug, language_code) VALUES (\'00000000-0000-0000-0000-000000000001\', \'English Congregation\', \'english\', \'en\'), (\'00000000-0000-0000-0000-000000000002\', \'Spanish Congregation\', \'spanish\', \'es\') ON CONFLICT (id) DO NOTHING; INSERT INTO public.organizations (id, name, slug, language_code) VALUES (\'00000000-0000-0000-0000-000000000001\', \'English Congregation\', \'english\', \'en\'), (\'00000000-0000-0000-0000-000000000002\', \'Spanish Congregation\', \'spanish\', \'es\') ON CONFLICT (slug) DO NOTHING;' },
     { name: 'col_class_org_id', sql: 'ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.organizations(id);' },
+    // ─── Multi-tenant church lookup table ─────────────────────────────────────
+    { name: 'churches_table', sql: `CREATE TABLE IF NOT EXISTS public.churches (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), domain TEXT UNIQUE NOT NULL, language TEXT, branding_json JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ DEFAULT now()); INSERT INTO public.churches (id, domain, language, branding_json) VALUES ('00000000-0000-0000-0000-000000000001', 'kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net', 'en', '{"name":"English Church"}'), ('00000000-0000-0000-0000-000000000002', 'es.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net', 'es', '{"name":"Spanish Church"}'), ('00000000-0000-0000-0000-000000000000', 'joint.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net', NULL, '{"name":"Joint Service"}') ON CONFLICT (id) DO NOTHING;` },
     { name: 'kiosk_settings_table', sql: 'CREATE TABLE IF NOT EXISTS public.kiosk_settings (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), setting_key TEXT UNIQUE NOT NULL, setting_value TEXT NOT NULL, description TEXT, created_at TIMESTAMPTZ DEFAULT now(), updated_at TIMESTAMPTZ DEFAULT now());' },
     { name: 'seed_kiosk_settings_ips', sql: "INSERT INTO public.kiosk_settings (setting_key, setting_value, description) VALUES ('allowed_ips', '127.0.0.1, ::1', 'Comma-separated list of authorized kiosk IP ranges or CIDRs'), ('enable_ip_lockdown', 'false', 'Enable dynamic location IP-address check-in locks') ON CONFLICT (setting_key) DO NOTHING;" },
     { name: 'col_nfc_uid', sql: 'ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS nfc_uid TEXT UNIQUE;' },
@@ -461,7 +471,10 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
       [normalizedEmail, token, expiresAt]
     );
 
-    const resetLink = `https://${req.headers.host || 'localhost'}/reset-password?token=${token}`;
+    const frontendBase = process.env.FRONTEND_URL
+      || req.headers['x-forwarded-host']
+      || 'https://happy-glacier-0746a2210.7.azurestaticapps.net';
+    const resetLink = `${frontendBase.replace(/\/$/, '')}/reset-password?token=${token}`;
     
     try {
       const { Resend } = require('resend');
@@ -488,7 +501,18 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
           from: `KiddoChecker <${fromDomain}>`,
           to: normalizedEmail,
           subject: 'Reset Your KiddoChecker Password',
-          html: `<p>Hello,</p><p>You requested a password reset. Click the link below to securely reset your password:</p><p><a href="${resetLink}">Reset Password</a></p><p>This link will expire in 1 hour. If you did not request this, please ignore this email.</p>`
+          html: `
+            <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:480px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+              <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:28px 32px">
+                <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700">🔒 KiddoChecker</h1>
+              </div>
+              <div style="padding:32px">
+                <h2 style="margin:0 0 12px;font-size:18px;color:#111827">Reset Your Password</h2>
+                <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6">We received a request to reset your KiddoChecker account password. Click the button below — this link expires in <strong>1 hour</strong>.</p>
+                <a href="${resetLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px">Reset Password</a>
+                <p style="margin:24px 0 0;font-size:12px;color:#9ca3af">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+              </div>
+            </div>`
         });
         console.log(`[AUTH] Password reset email sent to ${normalizedEmail} via Resend.`);
       }
