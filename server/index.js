@@ -497,7 +497,7 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
         console.log(`==============================================\n`);
       } else {
         const resend = new Resend(resendKey);
-        await resend.emails.send({
+        const emailResult = await resend.emails.send({
           from: `KiddoChecker <${fromDomain}>`,
           to: normalizedEmail,
           subject: 'Reset Your KiddoChecker Password',
@@ -514,10 +514,16 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
               </div>
             </div>`
         });
-        console.log(`[AUTH] Password reset email sent to ${normalizedEmail} via Resend.`);
+        if (emailResult.error) {
+          console.error('[AUTH] Resend rejected the email:', JSON.stringify(emailResult.error));
+          // Surface the Resend error so we can diagnose domain issues
+          return res.status(500).json({ error: 'Email delivery failed', detail: emailResult.error.message || emailResult.error.name });
+        }
+        console.log(`[AUTH] Password reset email sent to ${normalizedEmail} via Resend. ID: ${emailResult.data?.id}`);
       }
     } catch (mailErr) {
-      console.error('[Auth] Failed to send email via Resend:', mailErr.message);
+      console.error('[Auth] Failed to send email via Resend:', JSON.stringify(mailErr));
+      return res.status(500).json({ error: 'Email delivery failed', detail: mailErr.message });
     }
 
     res.json({ success: true, message: 'If the email exists, a reset link was sent.' });
