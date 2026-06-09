@@ -19,13 +19,8 @@ param administratorLoginPassword string
 @description('The Docker image for the Data Bridge API.')
 param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
-@description('The Resend API Key for email delivery.')
-@secure()
-param resendApiKey string
-
-@description('The Bridge Secret for JWT signing.')
-@secure()
-param bridgeSecret string
+@description('The frontend SWA URL for password reset links.')
+param frontendUrl string = 'https://happy-glacier-0746a2210.7.azurestaticapps.net'
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
@@ -304,6 +299,10 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'BRIDGE_SECRET'
               secretRef: 'bridge-secret'
+            }
+            {
+              name: 'FRONTEND_URL'
+              value: frontendUrl
             }
           ]
           resources: {

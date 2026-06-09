@@ -46,8 +46,7 @@ jobs:
           resourceGroupName: rg-kiddo
           template: ./infra/main.bicep
           deploymentName: 'api-${{ github.sha }}'
+          failOnStdErr: false
           parameters: >
             administratorLoginPassword=${{ secrets.DB_PASSWORD }}
             apiImage=${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}
-            resendApiKey=${{ secrets.RESEND_API_KEY }}
-            bridgeSecret=${{ secrets.BRIDGE_SECRET }}
