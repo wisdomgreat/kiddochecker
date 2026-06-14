@@ -16,6 +16,13 @@ async function run() {
     console.log('Emails:', emailRows.map(r => r.email).join(', '));
 
     try {
+      const { rows: churchRows } = await pool.query('SELECT id, name, domain FROM public.churches');
+      console.log('Churches:', JSON.stringify(churchRows));
+    } catch (e) {
+      console.error('Error fetching churches:', e.message);
+    }
+
+    try {
       const { rows: settingsRows } = await pool.query('SELECT resend_api_key, resend_domain FROM public.communication_settings LIMIT 1');
       if (settingsRows.length > 0) {
         console.log('Resend Config:', {
