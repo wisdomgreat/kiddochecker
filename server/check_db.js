@@ -11,8 +11,10 @@ const pool = new Pool({
 async function run() {
   try {
     // Check if profiles exist
-    const { rows } = await pool.query('SELECT COUNT(*) FROM public.profiles');
-    console.log('Profiles count:', rows[0].count);
+    const { rows: countRows } = await pool.query('SELECT COUNT(*) FROM public.profiles');
+    console.log('Profiles count:', countRows[0].count);
+    const { rows: emailRows } = await pool.query('SELECT email FROM public.profiles');
+    console.log('Emails:', emailRows.map(r => r.email).join(', '));
     
     // Add default uuid to id
     await pool.query('ALTER TABLE public.profiles ALTER COLUMN id SET DEFAULT gen_random_uuid()');
