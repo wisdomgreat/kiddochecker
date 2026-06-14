@@ -456,9 +456,16 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   const normalizedEmail = email.trim().toLowerCase();
-
+  const client = await pool.connect();
   try {
-    const profileRes = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
+      await client.query('SET app.church_id = $1', [req.tenant.churchId]);
+      if (req.tenant.language) {
+        await client.query('SET app.language = $1', [req.tenant.language]);
+      }
+    }
+
+    const profileRes = await client.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
     if (profileRes.rows.length === 0) {
       return res.json({ success: true, message: 'If the email exists, a reset link was sent.' });
     }
@@ -466,7 +473,7 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    await pool.query(
+    await client.query(
       'INSERT INTO public.password_reset_tokens (email, token, expires_at) VALUES ($1, $2, $3)',
       [normalizedEmail, token, expiresAt]
     );
@@ -479,12 +486,12 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
     try {
       const { Resend } = require('resend');
       let resendKey = process.env.RESEND_API_KEY;
-      let fromDomain = 'updates@kiddochecker.com';
+      let fromDomain = 'updates.kiddochecker.com';
       try {
-        const settingsRes = await pool.query('SELECT resend_api_key, resend_domain FROM public.communication_settings LIMIT 1');
+        const settingsRes = await client.query('SELECT resend_api_key, resend_domain FROM public.communication_settings LIMIT 1');
         if (settingsRes.rows.length > 0) {
           if (settingsRes.rows[0].resend_api_key) resendKey = settingsRes.rows[0].resend_api_key;
-          if (settingsRes.rows[0].resend_domain) fromDomain = `updates@${settingsRes.rows[0].resend_domain}`;
+          if (settingsRes.rows[0].resend_domain) fromDomain = settingsRes.rows[0].resend_domain;
         }
       } catch (dbErr) {
         console.error('[Auth] Error fetching communication_settings:', dbErr.message);
@@ -498,7 +505,7 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
       } else {
         const resend = new Resend(resendKey);
         const emailResult = await resend.emails.send({
-          from: `KiddoChecker <${fromDomain}>`,
+          from: `KiddoChecker <updates@${fromDomain}>`,
           to: normalizedEmail,
           subject: 'Reset Your KiddoChecker Password',
           html: `
@@ -523,13 +530,15 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
       }
     } catch (mailErr) {
       console.error('[Auth] Failed to send email via Resend:', JSON.stringify(mailErr));
-      return res.status(500).json({ error: 'Email delivery failed', detail: mailErr.message });
+      return res.status(500).json({ error: 'Email delivery failed due to network or config error' });
     }
 
     res.json({ success: true, message: 'If the email exists, a reset link was sent.' });
   } catch (err) {
     console.error('[Auth] Forgot password error:', err.message);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -537,11 +546,19 @@ app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, asyn
   const { token, newPassword } = req.body;
   if (!token || !newPassword) return res.status(400).json({ error: 'Token and new password are required' });
 
+  const client = await pool.connect();
   try {
+    if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
+      await client.query('SET app.church_id = $1', [req.tenant.churchId]);
+      if (req.tenant.language) {
+        await client.query('SET app.language = $1', [req.tenant.language]);
+      }
+    }
+
     const bcrypt = require('bcryptjs');
     
     // Find valid token
-    const tokenRes = await pool.query(
+    const tokenRes = await client.query(
       'SELECT * FROM public.password_reset_tokens WHERE token = $1 AND expires_at > NOW() LIMIT 1',
       [token]
     );
@@ -554,15 +571,17 @@ app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, asyn
     const newHash = bcrypt.hashSync(newPassword, 10);
 
     // Update password
-    await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE LOWER(email) = $2', [newHash, email]);
+    await client.query('UPDATE public.profiles SET password_hash = $1 WHERE LOWER(email) = $2', [newHash, email]);
 
     // Delete token
-    await pool.query('DELETE FROM public.password_reset_tokens WHERE token = $1', [token]);
+    await client.query('DELETE FROM public.password_reset_tokens WHERE token = $1', [token]);
 
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
     console.error('[Auth] Reset password error:', err.message);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => {
