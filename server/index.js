@@ -89,16 +89,6 @@ async function setupDatabase() {
   } catch (err) {
     console.error('[DB] Error correcting email typo:', err.message);
   }
-
-  // Temp user listing for verification
-  try {
-    const colsRes = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'profiles' AND table_schema = 'public'");
-    console.log('[DB_PROFILES_COLUMNS]', JSON.stringify(colsRes.rows.map(c => c.column_name)));
-    const usersRes = await pool.query("SELECT * FROM public.profiles");
-    console.log('[DB_USER_LIST]', JSON.stringify(usersRes.rows));
-  } catch (err) {
-    console.error('[DB_USER_LIST] Error:', err.message);
-  }
 }
 
 
