@@ -17,7 +17,7 @@ app.use(morgan('combined')); // HTTP request logger
 
 // ─── Database Connection ──────────────────────────────────────────────────
 const pool = new Pool({
-  host: '10.0.1.4',
+  host: process.env.DB_HOST || '10.0.1.4',
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER || 'kiddomin',
   password: process.env.DB_PASSWORD,
@@ -191,13 +191,17 @@ app.use(tenantResolver);
 async function sendEmail({ to, subject, html }) {
   const { Resend } = require('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
+  // RESEND_FROM_EMAIL can be set in Azure App Settings once domain is verified.
+  // Falls back to Resend's shared test address so emails always deliver.
+  const fromAddress = process.env.RESEND_FROM_EMAIL || 'KiddoChecker <onboarding@resend.dev>';
   try {
     const data = await resend.emails.send({
-      from: 'KiddoChecker <noreply@kiddochecker.com>',
+      from: fromAddress,
       to: [to],
       subject: subject,
       html: html,
     });
+    console.log('[Bridge] Email sent to', to, '| ID:', data?.data?.id);
     return { success: true, data };
   } catch (err) {
     console.error('[Bridge] Email Error:', err.message);
@@ -483,29 +487,36 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
       || 'https://happy-glacier-0746a2210.7.azurestaticapps.net';
     const resetLink = `${frontendBase.replace(/\/$/, '')}/reset-password?token=${token}`;
     
+    // Always log the reset link so it's visible in Azure Container logs for debugging
+    console.log(`[AUTH] Reset link generated for ${normalizedEmail}: ${resetLink}`);
+
     try {
       const { Resend } = require('resend');
       let resendKey = process.env.RESEND_API_KEY;
-      let fromDomain = 'updates.kiddochecker.com';
+      // Use RESEND_FROM_EMAIL env var if set; otherwise fall back to Resend's shared
+      // onboarding address which works without domain verification.
+      let fromAddress = process.env.RESEND_FROM_EMAIL || 'KiddoChecker <onboarding@resend.dev>';
       try {
-        const settingsRes = await client.query('SELECT resend_api_key, resend_domain FROM public.communication_settings LIMIT 1');
+        const settingsRes = await client.query(
+          'SELECT resend_api_key, resend_domain FROM public.communication_settings LIMIT 1'
+        );
         if (settingsRes.rows.length > 0) {
           if (settingsRes.rows[0].resend_api_key) resendKey = settingsRes.rows[0].resend_api_key;
-          if (settingsRes.rows[0].resend_domain) fromDomain = settingsRes.rows[0].resend_domain;
+          if (settingsRes.rows[0].resend_domain) {
+            fromAddress = `KiddoChecker <updates@${settingsRes.rows[0].resend_domain}>`;
+          }
         }
       } catch (dbErr) {
-        console.error('[Auth] Error fetching communication_settings:', dbErr.message);
+        console.error('[Auth] Error fetching communication_settings (non-fatal):', dbErr.message);
       }
-      
+
       if (!resendKey) {
-        console.log(`\n==============================================`);
-        console.log(`[AUTH] No Resend API key found. Mocking email delivery for: ${normalizedEmail}`);
-        console.log(`[AUTH] RESET LINK: ${resetLink}`);
-        console.log(`==============================================\n`);
+        console.log(`[AUTH] No Resend API key configured – email not sent. Reset link logged above.`);
       } else {
         const resend = new Resend(resendKey);
+        console.log(`[AUTH] Sending password reset email to ${normalizedEmail} from ${fromAddress}...`);
         const emailResult = await resend.emails.send({
-          from: `KiddoChecker <updates@${fromDomain}>`,
+          from: fromAddress,
           to: normalizedEmail,
           subject: 'Reset Your KiddoChecker Password',
           html: `
@@ -522,15 +533,17 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
             </div>`
         });
         if (emailResult.error) {
-          console.error('[AUTH] Resend rejected the email:', JSON.stringify(emailResult.error));
-          // Surface the Resend error so we can diagnose domain issues
-          return res.status(500).json({ error: 'Email delivery failed', detail: emailResult.error.message || emailResult.error.name });
+          console.error('[AUTH] Resend API error:', JSON.stringify(emailResult.error));
+          return res.status(500).json({
+            error: 'Email delivery failed',
+            detail: emailResult.error.message || emailResult.error.name
+          });
         }
-        console.log(`[AUTH] Password reset email sent to ${normalizedEmail} via Resend. ID: ${emailResult.data?.id}`);
+        console.log(`[AUTH] Password reset email delivered ✓ to ${normalizedEmail} | Resend ID: ${emailResult.data?.id}`);
       }
     } catch (mailErr) {
-      console.error('[Auth] Failed to send email via Resend:', JSON.stringify(mailErr));
-      return res.status(500).json({ error: 'Email delivery failed due to network or config error' });
+      console.error('[Auth] Unexpected error sending email:', mailErr.message);
+      return res.status(500).json({ error: 'Email delivery failed due to an unexpected error' });
     }
 
     res.json({ success: true, message: 'If the email exists, a reset link was sent.' });
