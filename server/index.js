@@ -89,22 +89,6 @@ async function setupDatabase() {
   } catch (err) {
     console.error('[DB] Error correcting email typo:', err.message);
   }
-
-  // Temp DB stats check
-  try {
-    const client = await pool.connect();
-    try {
-      await client.query('SET row_security = off');
-      const res = await client.query('SELECT count(*), role FROM public.profiles GROUP BY role');
-      console.log('[DB_PROFILES_COUNT_BY_ROLE]', JSON.stringify(res.rows));
-      const childrenCount = await client.query('SELECT count(*) FROM public.children');
-      console.log('[DB_CHILDREN_COUNT]', childrenCount.rows[0].count);
-    } finally {
-      client.release();
-    }
-  } catch (err) {
-    console.error('[DB_STATS_ERROR]', err.message);
-  }
 }
 
 
