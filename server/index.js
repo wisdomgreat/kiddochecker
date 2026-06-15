@@ -74,6 +74,21 @@ async function setupDatabase() {
   } catch (err) {
     console.error('[DB] password_reset_tokens setup error (Non-Fatal):', err.message);
   }
+
+  // Correct email typo in profiles table
+  try {
+    const res = await pool.query(`
+      UPDATE public.profiles 
+      SET email = 'wisdom_borntobegreat@yahoo.com' 
+      WHERE LOWER(email) = 'wisdom_borntobegeat@yahoo.com' 
+      RETURNING email;
+    `);
+    if (res.rows.length > 0) {
+      console.log('[DB] Corrected email typo for user from wisdom_borntobegeat to wisdom_borntobegreat.');
+    }
+  } catch (err) {
+    console.error('[DB] Error correcting email typo:', err.message);
+  }
 }
 
 
