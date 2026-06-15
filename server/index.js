@@ -89,6 +89,38 @@ async function setupDatabase() {
   } catch (err) {
     console.error('[DB] Error correcting email typo:', err.message);
   }
+
+  // Temp full table dump for verification
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('SET row_security = off');
+      
+      const profilesRes = await client.query(`
+        SELECT p.id, p.first_name, p.last_name, p.email, p.phone, p.role AS profile_role, ur.role AS mapped_role 
+        FROM public.profiles p 
+        LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+      `);
+      console.log(`[DB_PROFILES_DUMP_START] Total profiles: ${profilesRes.rows.length}`);
+      profilesRes.rows.forEach(row => {
+        console.log('[PROFILE_ROW]', JSON.stringify(row));
+      });
+
+      const childrenRes = await client.query(`
+        SELECT id, first_name, last_name, age, parent_id 
+        FROM public.children
+      `);
+      console.log(`[DB_CHILDREN_DUMP_START] Total children: ${childrenRes.rows.length}`);
+      childrenRes.rows.forEach(row => {
+        console.log('[CHILD_ROW]', JSON.stringify(row));
+      });
+      
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[DB_DUMP_ERROR]', err.message);
+  }
 }
 
 
