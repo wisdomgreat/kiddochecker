@@ -23,10 +23,17 @@ async function run() {
     }
 
     try {
+      console.log('=== Clearing placeholder Resend API key for Church ID 1 ===');
+      const { rowCount } = await pool.query('UPDATE public.communication_settings SET resend_api_key = NULL WHERE church_id = 1');
+      console.log(`Updated ${rowCount} row(s)`);
+    } catch (e) {
+      console.error('Error clearing placeholder key:', e.message);
+    }
+    
+    try {
       const { rows: churches } = await pool.query('SELECT id, name FROM public.churches');
       for (const church of churches) {
         console.log(`=== Testing for Church ID: ${church.id} (${church.name}) ===`);
-        // We set the church_id on the connection client to test RLS
         const client = await pool.connect();
         try {
           await client.query('SET app.church_id = $1', [church.id]);
