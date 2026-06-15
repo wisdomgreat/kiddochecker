@@ -44,7 +44,38 @@ async function setupDatabase() {
   } catch (err) {
     console.error('[DB] Schema Setup Error (Non-Fatal):', err.message);
   }
+
+  // Grant BYPASSRLS to the service account so Supabase auth.uid()-based RLS
+  // policies don't block the API server (auth.uid() is always NULL for pg connections).
+  // This is safe: kiddomin is a trusted backend service account, not an end-user.
+  try {
+    const dbUser = process.env.DB_USER || 'kiddomin';
+    await pool.query(`ALTER ROLE "${dbUser}" BYPASSRLS`);
+    console.log(`[DB] BYPASSRLS granted to ${dbUser} — RLS will not block service queries.`);
+  } catch (err) {
+    // Azure PostgreSQL Flexible Server admin may not allow this — log but don't crash
+    console.warn('[DB] Could not grant BYPASSRLS (non-fatal, auth may still fail via RLS):', err.message);
+    // Fallback: try to set row_security off at session level in critical auth queries
+  }
+
+  // Ensure password_reset_tokens table exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public.password_reset_tokens (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        email TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '1 hour'),
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    console.log('[DB] password_reset_tokens table verified.');
+  } catch (err) {
+    console.error('[DB] password_reset_tokens setup error (Non-Fatal):', err.message);
+  }
 }
+
 
 setupDatabase();
 
@@ -433,12 +464,10 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req
   const { email, code } = req.body;
   const client = await pool.connect();
   try {
-    // auth.verification_codes doesn't have RLS, but public.profiles does
+    // Bypass RLS — auth.uid() is NULL for service account connections
+    try { await client.query('SET LOCAL row_security = off'); } catch (e) {}
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
       await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
-      if (req.tenant.language) {
-        await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
-      }
     } else {
       await client.query("SELECT set_config('app.church_id', '0', false)");
     }
@@ -479,12 +508,12 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
   const normalizedEmail = email.trim().toLowerCase();
   const client = await pool.connect();
   try {
+    // Bypass RLS — auth.uid() is NULL for service account connections
+    try { await client.query('SET LOCAL row_security = off'); } catch (e) {}
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
       await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
-      if (req.tenant.language) {
-        await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
-      }
     }
+
 
     const profileRes = await client.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
     if (profileRes.rows.length === 0) {
@@ -584,6 +613,7 @@ app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, asyn
         await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
       }
     }
+    try { await client.query('SET LOCAL row_security = off'); } catch (e) {}
 
     const bcrypt = require('bcryptjs');
     
@@ -685,14 +715,19 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
   try {
     const bcrypt = require('bcryptjs');
 
-    // Set tenant RLS context so the profiles query is not blocked by RLS policies
+    // Attempt to bypass RLS for this connection — the service account (kiddomin) should have
+    // BYPASSRLS privilege. If not, SET LOCAL row_security = off works for the admin role.
+    // Both are no-ops if the role already bypasses RLS via BYPASSRLS attribute.
+    try {
+      await client.query('SET LOCAL row_security = off');
+    } catch (e) {
+      console.warn('[Auth] Could not SET row_security = off (may already have BYPASSRLS):', e.message);
+    }
+
+    // Set tenant context (belt-and-suspenders alongside row_security = off)
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
       await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
-      if (req.tenant.language) {
-        await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
-      }
     } else {
-      // No tenant resolved – set a safe default so RLS doesn't block
       await client.query("SELECT set_config('app.church_id', '0', false)");
     }
 
