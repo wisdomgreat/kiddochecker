@@ -27,12 +27,14 @@ async function tenantResolver(req, res, next) {
     if (tenant) {
       req.tenant = { churchId: tenant.id, language: tenant.language };
       // Set session variables for RLS policies
-      await pool.query('SET app.church_id = $1', [tenant.id]);
-      await pool.query('SET app.language = $1', [tenant.language]);
+      await pool.query("SELECT set_config('app.church_id', $1, false)", [String(tenant.id)]);
+      if (tenant.language) {
+        await pool.query("SELECT set_config('app.language', $1, false)", [tenant.language]);
+      }
     } else {
       // No matching tenant – treat as public/joint (id=0)
       req.tenant = { churchId: 0, language: null };
-      await pool.query('SET app.church_id = 0');
+      await pool.query("SELECT set_config('app.church_id', '0', false)");
     }
     next();
   } catch (err) {

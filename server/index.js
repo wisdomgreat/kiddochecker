@@ -459,9 +459,9 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
   const client = await pool.connect();
   try {
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
-      await client.query('SET app.church_id = $1', [req.tenant.churchId]);
+      await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
       if (req.tenant.language) {
-        await client.query('SET app.language = $1', [req.tenant.language]);
+        await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
       }
     }
 
@@ -549,9 +549,9 @@ app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, asyn
   const client = await pool.connect();
   try {
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
-      await client.query('SET app.church_id = $1', [req.tenant.churchId]);
+      await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
       if (req.tenant.language) {
-        await client.query('SET app.language = $1', [req.tenant.language]);
+        await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
       }
     }
 
