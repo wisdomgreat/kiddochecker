@@ -278,7 +278,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
           env: [
             {
               name: 'DB_HOST'
-              value: '${dbServerName}.private.postgres.database.azure.com'
+              value: '10.0.1.4'
             }
             {
               name: 'DB_PASSWORD'
