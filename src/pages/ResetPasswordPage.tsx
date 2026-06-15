@@ -93,8 +93,16 @@ const ResetPasswordPage = () => {
         });
         
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Password reset failed');
+          const text = await res.text();
+          let errorMsg = 'Password reset failed';
+          try {
+            const data = JSON.parse(text);
+            errorMsg = data.error || data.detail || errorMsg;
+          } catch {
+            console.error('[ResetPassword] Non-JSON error response:', text.slice(0, 200));
+            errorMsg = 'Server error – please try again in a moment.';
+          }
+          throw new Error(errorMsg);
         }
 
         setIsSuccess(true);

@@ -29,8 +29,17 @@ const ForgotPasswordPage = () => {
         });
         
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Request failed');
+          const text = await res.text();
+          let errorMsg = 'Request failed';
+          try {
+            const data = JSON.parse(text);
+            errorMsg = data.error || data.detail || errorMsg;
+          } catch {
+            // Server returned HTML (likely a 500 or container crash) — show a friendly message
+            console.error('[ForgotPassword] Non-JSON error response:', text.slice(0, 200));
+            errorMsg = 'Server error – please try again in a moment.';
+          }
+          throw new Error(errorMsg);
         }
         
         setIsSent(true);
