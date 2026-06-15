@@ -89,6 +89,14 @@ async function setupDatabase() {
   } catch (err) {
     console.error('[DB] Error correcting email typo:', err.message);
   }
+
+  // Temp user listing for verification
+  try {
+    const usersRes = await pool.query("SELECT email, role, is_active FROM public.profiles");
+    console.log('[DB_USER_LIST]', JSON.stringify(usersRes.rows));
+  } catch (err) {
+    console.error('[DB_USER_LIST] Error:', err.message);
+  }
 }
 
 
