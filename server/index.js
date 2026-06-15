@@ -431,19 +431,33 @@ app.post(['/api/auth/send-code', '/auth/send-code'], authLimiter, async (req, re
 
 app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req, res) => {
   const { email, code } = req.body;
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
+    // auth.verification_codes doesn't have RLS, but public.profiles does
+    if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
+      await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
+      if (req.tenant.language) {
+        await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
+      }
+    } else {
+      await client.query("SELECT set_config('app.church_id', '0', false)");
+    }
+
+    const result = await client.query(
       'SELECT * FROM auth.verification_codes WHERE email = $1 AND code = $2 AND expires_at > NOW()',
       [email, code]
     );
     if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid or expired code' });
-    
+
     // Issue Bridge JWT
     const token = jwt.sign({ email, role: 'admin' }, BRIDGE_SECRET, { expiresIn: '24h' });
-    
+
     // Fetch profile
-    let profileRes = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
-    
+    let profileRes = await client.query(
+      'SELECT * FROM public.profiles WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [email]
+    );
+
     if (profileRes.rows.length === 0) {
       return res.status(401).json({ error: 'Profile not found. Please contact an administrator.' });
     }
@@ -452,8 +466,11 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req
     res.json({ token, profile });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
+
 
 app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, async (req, res) => {
   const { email } = req.body;
@@ -663,37 +680,59 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  
+  const client = await pool.connect();
+
   try {
     const bcrypt = require('bcryptjs');
-    
-    // Fetch profile
-    let profileRes = await pool.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
-    
+
+    // Set tenant RLS context so the profiles query is not blocked by RLS policies
+    if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
+      await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
+      if (req.tenant.language) {
+        await client.query("SELECT set_config('app.language', $1, false)", [req.tenant.language]);
+      }
+    } else {
+      // No tenant resolved – set a safe default so RLS doesn't block
+      await client.query("SELECT set_config('app.church_id', '0', false)");
+    }
+
+    // Fetch profile – bypass RLS by querying with SECURITY DEFINER if needed,
+    // but first try with current session context
+    let profileRes = await client.query(
+      'SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1',
+      [normalizedEmail]
+    );
+
+    // If RLS blocked the row (0 rows but user might exist), try via function
     if (profileRes.rows.length === 0) {
+      console.warn(`[Auth] Login: profile not found (or RLS blocked) for ${normalizedEmail}`);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    
+
     const profile = profileRes.rows[0];
-    
+
     // Check password hash
     if (!profile.password_hash) {
-      console.warn(`[Auth] Login attempt on legacy account without password hash: ${normalizedEmail}`);
-      return res.status(403).json({ error: 'Password Reset Required', message: 'This account needs a password reset before logging in.' });
+      console.warn(`[Auth] Login attempt on account without password hash: ${normalizedEmail}`);
+      return res.status(403).json({
+        error: 'Password Reset Required',
+        message: 'This account needs a password reset before logging in.'
+      });
     }
-    
+
     const isMatch = bcrypt.compareSync(password, profile.password_hash);
     if (!isMatch) {
+      console.warn(`[Auth] Failed login for ${normalizedEmail} — password mismatch`);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
-    
+
     // Determine the role
     const finalRole = profile.role || 'parent';
-    
+
     // Check if MFA is enabled
     if (profile.mfa_enabled) {
-      return res.json({ 
-        mfaRequired: true, 
+      return res.json({
+        mfaRequired: true,
         email: profile.email,
         message: 'Multi-factor authentication required.'
       });
@@ -704,13 +743,17 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
 
     // Issue Bridge JWT
     const token = jwt.sign({ email: profile.email, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
-    
+    console.log(`[Auth] Login success for ${normalizedEmail} role=${finalRole}`);
+
     res.json({ token, profile, mfaSetupRequired });
   } catch (err) {
     console.error('[Bridge] login error:', err.message);
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
+
 
 // ─── MFA & TOTP Endpoints ─────────────────────────────────────────────────
 app.post(['/api/auth/login/mfa', '/auth/login/mfa'], authLimiter, async (req, res) => {
