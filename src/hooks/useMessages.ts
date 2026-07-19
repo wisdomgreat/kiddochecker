@@ -29,21 +29,22 @@ export interface Message {
 }
 
 export const useMessages = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: messages = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["messages", user?.id],
+    queryKey: ["messages", user?.id, userRole],
     queryFn: async (): Promise<Message[]> => {
       if (!user?.id) return [];
 
       try {
         // Fetch base messages
+        const orFilter = `sender_id.eq.${user.id},recipient_id.eq.${user.id}${userRole ? `,recipient_role.eq.${userRole}` : ''}`;
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select('*')
-          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id},recipient_role.not.is.null`)
+          .or(orFilter)
           .order('created_at', { ascending: false });
 
         if (messagesError) {
