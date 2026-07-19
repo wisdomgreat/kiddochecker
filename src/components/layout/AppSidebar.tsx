@@ -72,6 +72,7 @@ export function AppSidebar() {
       items: [
         { title: t('attendance'), url: "/attendance", icon: ClipboardCheck },
         { title: t('kioskStation'), url: "/check-in", icon: Monitor },
+        { title: t('checkOut'), url: "/check-out", icon: LogOut },
         { title: t('attendanceRewards'), url: "/admin/rewards", icon: Trophy },
       ]
     },
@@ -123,7 +124,9 @@ export function AppSidebar() {
       label: t('operations'),
       items: [
         { title: t('kioskStation'), url: "/check-in", icon: Monitor },
+        { title: t('checkOut'), url: "/check-out", icon: LogOut },
         ...(isStaff || isTeacher || isTeacherAssistant || userRole === 'volunteer' ? [{ title: t('attendance'), url: "/attendance", icon: ClipboardCheck }] : []),
+        { title: t('children'), url: "/children", icon: Baby },
         { title: t('staffSchedules'), url: "/staff/schedules", icon: Calendar },
         { title: t('classes'), url: "/classes", icon: BookOpen },
         { title: 'Congregation', url: "/admin/church", icon: Heart, requiredPermission: 'church_view' },
@@ -188,7 +191,7 @@ export function AppSidebar() {
   if (isAdmin) {
     menuGroups = adminMenuGroups;
   } else if (isStaffRole) {
-    menuGroups = isVerifiedStaff ? staffMenuGroups : unverifiedStaffMenuGroups;
+    menuGroups = (isVerifiedStaff || userRole === 'volunteer') ? staffMenuGroups : unverifiedStaffMenuGroups;
   }
   const portalLabel = isAdmin
     ? 'Admin Dashboard'

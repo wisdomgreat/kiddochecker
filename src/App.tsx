@@ -35,6 +35,7 @@ const CombinedReportsWrapper = lazy(() => import("./pages/CombinedReportsPage"))
 const UsersPage = lazy(() => import("./pages/UsersPage"));
 const RolesPage = lazy(() => import("./pages/RolesPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const ParentRegistration = lazy(() => import("./pages/ParentRegistration"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
@@ -115,6 +116,7 @@ function App() {
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/device-login" element={<DeviceLoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/parent-registration" element={<ParentRegistration />} />
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/landing" element={<LandingPage />} />

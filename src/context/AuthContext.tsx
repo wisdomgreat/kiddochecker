@@ -308,7 +308,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isKiosk = userRole === 'kiosk';
   const isRegularUser = userRole === 'regular_user';
   
-  const isVerifiedStaff = (isStaff || isTeacher || isAdmin) && verificationStatus === 'verified';
+  const isVerifiedStaff = (isStaff || isTeacher || isTeacherAssistant || isAdmin) && verificationStatus === 'verified';
 
   const value = {
     user,
