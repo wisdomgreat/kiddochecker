@@ -1091,6 +1091,46 @@ app.post('/api/query', verifyToken, async (req, res) => {
     const values = [];
     if (actualFilters && actualFilters.length > 0) {
       const clauses = actualFilters.map(f => {
+        if (f.operator === 'OR') {
+          const parts = f.value.split(',');
+          const orClauses = parts.map(part => {
+            const dotIdx1 = part.indexOf('.');
+            const dotIdx2 = part.indexOf('.', dotIdx1 + 1);
+            if (dotIdx1 === -1 || dotIdx2 === -1) return null;
+            
+            const column = part.substring(0, dotIdx1);
+            const op = part.substring(dotIdx1 + 1, dotIdx2);
+            let val = part.substring(dotIdx2 + 1);
+            
+            if (val.startsWith('(') && val.endsWith(')')) val = val.slice(1, -1);
+            if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+            if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1);
+            
+            let sqlOp = '=';
+            if (op === 'eq') sqlOp = '=';
+            else if (op === 'neq') sqlOp = '!=';
+            else if (op === 'gt') sqlOp = '>';
+            else if (op === 'lt') sqlOp = '<';
+            else if (op === 'gte') sqlOp = '>=';
+            else if (op === 'lte') sqlOp = '<=';
+            else if (op === 'is') {
+              if (val === 'null') return `t.${column} IS NULL`;
+              sqlOp = '=';
+            }
+            
+            const pIdx = values.push(val);
+            if (column === 'id' || column.endsWith('_id') || (typeof val === 'string' && /^[0-9a-f]{8}-/.test(val))) {
+              return `t.${column}::text = $${pIdx}::text`;
+            }
+            return `t.${column}::text ${sqlOp} $${pIdx}`;
+          }).filter(Boolean);
+          
+          if (orClauses.length > 0) {
+            return `(${orClauses.join(' OR ')})`;
+          }
+          return null;
+        }
+
         // Handle NULL filters explicitly
         if (f.value === null || f.operator === 'IS NULL' || f.operator === 'is') {
           let tableAlias = 't';
