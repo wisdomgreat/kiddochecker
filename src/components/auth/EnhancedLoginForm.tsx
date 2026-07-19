@@ -209,6 +209,19 @@ const EnhancedLoginForm = () => {
                   )}
                 </Button>
 
+                <div className="text-center pt-2">
+                  <p className="text-sm text-slate-500 font-medium">
+                    Don't have an account?{' '}
+                    <button 
+                      type="button" 
+                      onClick={() => navigate('/parent-registration')} 
+                      className="text-primary hover:underline font-bold"
+                    >
+                      Register here
+                    </button>
+                  </p>
+                </div>
+
                 {error && (
                   <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                     <AlertCircle className="h-4 w-4 shrink-0" />

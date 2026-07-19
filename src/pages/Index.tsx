@@ -15,8 +15,8 @@ const Index = () => {
     if (loading) return;
 
     if (!user) {
-      console.log('No user, redirecting to login');
-      navigate('/login', { replace: true });
+      console.log('No user, redirecting to landing');
+      navigate('/landing', { replace: true });
       return;
     }
 
