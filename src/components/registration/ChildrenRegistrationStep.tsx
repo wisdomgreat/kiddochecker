@@ -119,24 +119,28 @@ export const ChildrenRegistrationStep = ({ children, onChange }: ChildrenRegistr
               />
             </div>
 
-            <div>
-              <Label>Medical Information</Label>
-              <Textarea
-                value={child.medicalInfo}
-                onChange={(e) => updateChild(index, 'medicalInfo', e.target.value)}
-                placeholder="Any medical conditions or medications"
-                rows={2}
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Medical Information</Label>
+                <Textarea
+                  value={child.medicalInfo}
+                  onChange={(e) => updateChild(index, 'medicalInfo', e.target.value)}
+                  placeholder="Any medical conditions or medications"
+                  rows={2}
+                  className="min-h-[80px]"
+                />
+              </div>
 
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                value={child.notes}
-                onChange={(e) => updateChild(index, 'notes', e.target.value)}
-                placeholder="Any additional notes or special needs"
-                rows={2}
-              />
+              <div>
+                <Label>Notes</Label>
+                <Textarea
+                  value={child.notes}
+                  onChange={(e) => updateChild(index, 'notes', e.target.value)}
+                  placeholder="Any additional notes or special needs"
+                  rows={2}
+                  className="min-h-[80px]"
+                />
+              </div>
             </div>
           </div>
         </div>
