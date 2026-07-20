@@ -162,8 +162,11 @@
   }
 
   .nav-item.active {
-    @apply text-primary bg-primary/10 font-semibold;
-    box-shadow: inset 3px 0 0 hsl(var(--primary));
+    @apply text-foreground font-semibold;
+    background: linear-gradient(90deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--primary) / 0.02) 100%);
+    border-left: 2px solid hsl(var(--primary));
+    padding-left: calc(0.75rem - 2px); /* compensate for border so text doesn't shift */
+    border-radius: 0 0.5rem 0.5rem 0;
   }
 
   /* ── Card base ──────────────────────────────────────── */
