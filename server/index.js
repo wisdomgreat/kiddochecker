@@ -1247,9 +1247,12 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       const keys = Object.keys(finalValues);
       const vals = Object.values(finalValues);
       const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
-      const filterKeys = (filters || []).map(f => f.column);
-      const filterVals = (filters || []).map(f => f.value);
-      const filterClause = filterKeys.map((k, i) => `${k}::text = $${vals.length + i + 1}::text`).join(' AND ');
+      const filterItems = (filters || []).filter(f => f && f.column);
+      const filterKeys = filterItems.map(f => f.column);
+      const filterVals = filterItems.map(f => f.value);
+      const filterClause = filterKeys.length > 0
+        ? filterKeys.map((k, i) => `${k}::text = $${vals.length + i + 1}::text`).join(' AND ')
+        : 'TRUE';
       
       const result = await pool.query(
         `UPDATE public.${table} SET ${setClause} WHERE ${filterClause} RETURNING *`,
@@ -1273,9 +1276,12 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
     }
 
     if (finalMethod === 'delete') {
-      const filterKeys = (filters || []).map(f => f.column);
-      const filterVals = (filters || []).map(f => f.value);
-      const filterClause = filterKeys.map((k, i) => `${k}::text = $${i + 1}::text`).join(' AND ');
+      const filterItems = (filters || []).filter(f => f && f.column);
+      const filterKeys = filterItems.map(f => f.column);
+      const filterVals = filterItems.map(f => f.value);
+      const filterClause = filterKeys.length > 0
+        ? filterKeys.map((k, i) => `${k}::text = $${i + 1}::text`).join(' AND ')
+        : 'FALSE';
       const result = await pool.query(`DELETE FROM public.${table} WHERE ${filterClause} RETURNING *`, filterVals);
       return res.json({ data: result.rows, error: null });
     }

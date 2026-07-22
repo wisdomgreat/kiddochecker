@@ -17,6 +17,7 @@ export const createBridgeProxy = (realClient: any) => {
         const mutation = filters.find(f => f.action);
         if (mutation) {
           console.log(`[BridgeProxy] Mutating ${table}:`, mutation.action, mutation.data);
+          const mutationFilters = filters.filter(f => !f.action && f.column);
           res = await apiFetch('/api/mutate', {
             method: 'POST',
             body: JSON.stringify({ 
@@ -24,7 +25,7 @@ export const createBridgeProxy = (realClient: any) => {
               action: mutation.action, 
               data: mutation.data, 
               options: mutation.options,
-              filters: filters.filter(f => !f.action) 
+              filters: mutationFilters 
             })
           });
         } else {
