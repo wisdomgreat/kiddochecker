@@ -358,9 +358,33 @@ export const createBridgeProxy = (realClient: any) => {
       subscribe: (cb: any) => { if (cb) cb('SUBSCRIBED'); return { unsubscribe: () => {} }; },
       unsubscribe: () => {}
     }),
-    removeChannel: () => {},
-    // Delegate non-migrated features to the real client
-    storage: realClient?.storage,
+    // Local Storage Proxy for Azure mode (converts uploads to Data URLs locally without hitting Supabase)
+    storage: {
+      from: (bucket: string) => ({
+        upload: async (path: string, file: any, options?: any) => {
+          console.log(`[BridgeProxy Storage] Local Azure upload for bucket '${bucket}':`, path);
+          if (file instanceof Blob || file instanceof File) {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result as string;
+                resolve({ data: { path: base64, publicUrl: base64, Key: path }, error: null });
+              };
+              reader.onerror = (err) => {
+                resolve({ data: null, error: err });
+              };
+              reader.readAsDataURL(file);
+            });
+          }
+          return { data: { path, publicUrl: '' }, error: null };
+        },
+        getPublicUrl: (path: string) => {
+          return { data: { publicUrl: path } };
+        },
+        remove: async (paths: string[]) => ({ data: paths, error: null }),
+        list: async () => ({ data: [], error: null }),
+      })
+    },
     functions: realClient?.functions,
   };
 
