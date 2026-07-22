@@ -44,14 +44,26 @@ const OrganizationSettings = () => {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (settings: typeof formData) => {
-      const { data, error } = await supabase
-        .from('organization_settings')
-        .upsert(settings)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      if (orgSettings?.id) {
+        const { data, error } = await supabase
+          .from('organization_settings')
+          .update(settings)
+          .eq('id', orgSettings.id)
+          .select()
+          .maybeSingle();
+        
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase
+          .from('organization_settings')
+          .insert([settings])
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-settings'] });
