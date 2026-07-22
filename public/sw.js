@@ -1,7 +1,7 @@
 // KiddoChecker Kiosk Service Worker
 // Enables PWA install and offline capability for kiosk terminals
 
-const CACHE_NAME = 'kiddochecker-kiosk-v1';
+const CACHE_NAME = 'kiddochecker-kiosk-v2';
 const URLS_TO_CACHE = [
   '/',
   '/device-login',
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network-only for API calls and non-GET requests
+  // Network-only for API calls, functions, and non-GET requests
   const isApi = event.request.url.includes('/api/') || 
                 event.request.url.includes('/functions/') || 
                 event.request.url.includes('/rest/') || 
@@ -45,7 +45,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses
         if (response.ok) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -54,8 +53,10 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
-        return caches.match(event.request);
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        return new Response('Network request failed', { status: 503, headers: { 'Content-Type': 'text/plain' } });
       })
   );
 });
