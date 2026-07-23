@@ -251,13 +251,23 @@ async function checkIpAuthorized(clientIp) {
 
 
 app.use(cors({
-  origin: [
-    'https://happy-glacier-0746a2210.7.azurestaticapps.net',
-    'https://kiddochecker.com',
-    'https://kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
-    'https://es.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
-    'https://joint.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
-  ],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowed = [
+      'https://happy-glacier-0746a2210.7.azurestaticapps.net',
+      'https://kiddochecker.com',
+      'https://kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+      'https://es.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+      'https://joint.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+    ];
+    const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const isAzureApp = /\.azurestaticapps\.net$/.test(origin);
+    if (allowed.includes(origin) || isLocalhost || isAzureApp) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Bridge-Secret'],
   credentials: true
@@ -342,7 +352,7 @@ async function runMigrations() {
     { name: 'get_current_user_role', sql: `CREATE OR REPLACE FUNCTION public.get_current_user_role(p_user_id UUID DEFAULT NULL) RETURNS TEXT AS $$ DECLARE v_role TEXT; BEGIN SELECT role::TEXT INTO v_role FROM public.user_roles WHERE user_id = p_user_id LIMIT 1; RETURN COALESCE(v_role, 'parent'); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_available_recipients', sql: `CREATE OR REPLACE FUNCTION public.get_available_recipients(p_user_id UUID) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, role TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, ur.role::TEXT FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id != p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_children_with_classes', sql: `CREATE OR REPLACE FUNCTION public.get_parent_children_with_classes(parent_user_id UUID DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, medical_info TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, notes TEXT, current_class_name TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.allergies, c.medical_info, c.emergency_contact_name, c.emergency_contact_phone, c.notes, cl.name as current_class_name FROM public.children c LEFT JOIN public.classes cl ON c.class_id = cl.id WHERE c.parent_id = COALESCE(parent_user_id, p_user_id); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'get_church_stats', sql: `CREATE OR REPLACE FUNCTION public.get_church_stats(p_user_id UUID DEFAULT NULL) RETURNS JSONB AS $$ BEGIN RETURN jsonb_build_object('total_members', (SELECT COUNT(*) FROM public.profiles), 'active_volunteers', (SELECT COUNT(*) FROM public.user_roles WHERE role = 'volunteer'), 'upcoming_events', (SELECT COUNT(*) FROM public.events WHERE event_date >= CURRENT_DATE)); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_church_stats', sql: `CREATE OR REPLACE FUNCTION public.get_church_stats(p_user_id UUID DEFAULT NULL) RETURNS JSONB AS $$ BEGIN RETURN jsonb_build_object('total_members', (SELECT COUNT(*) FROM public.profiles), 'active_volunteers', (SELECT COUNT(*) FROM public.user_roles WHERE role::text = 'volunteer'), 'upcoming_events', (SELECT COUNT(*) FROM public.events WHERE start_date >= CURRENT_DATE)); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_staff_shifts_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_staff_shifts_for_kiosk() RETURNS TABLE (id UUID, staff_id UUID, start_time TIMESTAMPTZ, end_time TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT s.id, s.staff_id, s.start_time, s.end_time FROM public.staff_shifts s WHERE s.start_time::date = CURRENT_DATE; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'check_user_permission', sql: `CREATE OR REPLACE FUNCTION public.check_user_permission(p_user_id UUID, p_permission_name TEXT) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id; IF v_is_admin THEN RETURN TRUE; END IF; RETURN EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON rp.permission_id = p.id JOIN public.user_roles ur ON ur.role::text = rp.role_id::text WHERE ur.user_id = p_user_id AND p.name = p_permission_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` },
@@ -959,8 +969,8 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
   try {
     console.log(`[Bridge] RPC Call: ${finalFn}`, JSON.stringify(finalParams));
     
-    if (!finalFn) {
-      return res.status(400).json({ error: 'No RPC name specified' });
+    if (!finalFn || typeof finalFn !== 'string' || !/^[a-zA-Z0-9_]+$/.test(finalFn)) {
+      return res.status(400).json({ error: 'Invalid or missing RPC function name' });
     }
 
     // IP lockdown verification for Kiosk PIN/Login RPCs
@@ -1043,6 +1053,9 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
 
 app.post('/api/query', verifyToken, async (req, res) => {
   let { table, select = '*', filters = [], order, limit } = req.body;
+  if (!table || typeof table !== 'string' || !/^[a-zA-Z0-9_]+$/.test(table)) {
+    return res.status(400).json({ error: 'Invalid or missing table name' });
+  }
   let sql = "";
   try {
     // IP lockdown verification for Kiosk NFC Login queries
@@ -1208,9 +1221,20 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   console.log('[Bridge] Mutation Request:', JSON.stringify(req.body, null, 2));
   let { table, method, action, values, data, filters } = req.body;
   
+  if (!table || typeof table !== 'string' || !/^[a-zA-Z0-9_]+$/.test(table)) {
+    return res.status(400).json({ error: 'Invalid or missing table name' });
+  }
+
   // Normalize fields between Supabase proxy and internal calls
   const finalMethod = method || action || req.body.method || req.body.action;
-  const finalValues = values || data || req.body.values || req.body.data;
+  const finalValues = values || data || req.body.values || req.body.data || {};
+
+  // Sanitize empty strings on UUID columns to null
+  Object.keys(finalValues).forEach(k => {
+    if ((k.endsWith('_id') || k === 'id' || k === 'user_id' || k === 'created_by') && finalValues[k] === '') {
+      finalValues[k] = null;
+    }
+  });
 
   try {
     if (!finalMethod) {
@@ -1228,13 +1252,14 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
     }
     
     if (finalMethod === 'insert' || finalMethod === 'upsert') {
-      const cols = Object.keys(finalValues).join(', ');
-      const placeholders = Object.keys(finalValues).map((_, i) => {
-        const key = Object.keys(finalValues)[i];
-        if (key.endsWith('_id') || key === 'id') return `$${i + 1}::uuid`;
+      const keys = Object.keys(finalValues);
+      const vals = Object.values(finalValues);
+      const cols = keys.join(', ');
+      const placeholders = keys.map((key, i) => {
+        const val = vals[i];
+        if ((key.endsWith('_id') || key === 'id') && val !== null) return `$${i + 1}::uuid`;
         return `$${i + 1}`;
       }).join(', ');
-      const vals = Object.values(finalValues);
       
       let sql;
       if (finalMethod === 'upsert') {
