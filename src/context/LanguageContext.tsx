@@ -9,8 +9,14 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  // Try to get from localStorage, default to 'en'
+  // Automatically detect domain entry point (es. for Spanish, default to 'en')
   const [language, setLanguageState] = useState<Language>(() => {
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname.toLowerCase();
+      if (host.startsWith('es.') || host.includes('-es-') || host.includes('spanish')) {
+        return 'es';
+      }
+    }
     const saved = localStorage.getItem('app-language');
     return (saved as Language) || 'en';
   });
