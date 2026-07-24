@@ -47,7 +47,8 @@ const KioskCheckInSystem = () => {
   const [activeOrgId, setActiveOrgId] = useState<string>(() => window.localStorage.getItem('kiosk_active_org_id') || '00000000-0000-0000-0000-000000000001');
   const [organizations, setOrganizations] = useState<any[]>([
     { id: '00000000-0000-0000-0000-000000000001', name: 'English Congregation', slug: 'english', language_code: 'en' },
-    { id: '00000000-0000-0000-0000-000000000002', name: 'Spanish Congregation', slug: 'spanish', language_code: 'es' }
+    { id: '00000000-0000-0000-0000-000000000002', name: 'Spanish Congregation', slug: 'spanish', language_code: 'es' },
+    { id: 'all', name: 'Combined Service / Servicio Combinado', slug: 'combined', language_code: 'es' }
   ]);
 
   useEffect(() => {
@@ -865,7 +866,7 @@ const KioskCheckInSystem = () => {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {org.slug === 'english' ? '🇬🇧 EN' : org.slug === 'spanish' ? '🇪🇸 ES' : org.name}
+                {org.slug === 'english' ? '🇬🇧 EN' : org.slug === 'spanish' ? '🇪🇸 ES' : org.slug === 'combined' ? '🤝 COMBINED / COMBINADO' : org.name}
               </button>
             );
           })}
