@@ -5,14 +5,19 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useDashboardNavigation } from "@/hooks/useDashboardNavigation";
-import { Menu, X, Shield, ArrowRight } from "lucide-react";
-
+import { Menu, X, Shield, ArrowRight, Globe } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const LandingNavigation = () => {
   const { user, userRole } = useAuth();
   const { navigateToDashboard } = useDashboardNavigation();
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const isEs = language === 'es';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -58,6 +63,25 @@ const LandingNavigation = () => {
             {isEs ? "Precios" : "Pricing"}
           </Link>
           <div className="h-4 w-px bg-slate-200 ml-4" />
+
+          {/* Language Switcher */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2 font-bold text-xs rounded-xl">
+                <Globe className="h-4 w-4 text-indigo-600" />
+                <span>{isEs ? "Español" : "English"}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl">
+              <DropdownMenuItem onClick={() => setLanguage('en')} className="font-bold text-xs cursor-pointer">
+                🇺🇸 English
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLanguage('es')} className="font-bold text-xs cursor-pointer">
+                🇪🇸 Español
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {user ? (
             <Button onClick={navigateToDashboard} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-100">
               {getDashboardName()}

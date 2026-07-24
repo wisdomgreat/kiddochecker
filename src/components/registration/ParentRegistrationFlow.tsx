@@ -10,6 +10,7 @@ import { ChildrenRegistrationStep } from "./ChildrenRegistrationStep";
 import { ReviewStep } from "./ReviewStep";
 import { User, Lock, Baby, CheckCircle2, ArrowLeft, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ParentData {
   firstName: string;
@@ -38,6 +39,8 @@ interface ChildData {
 export const ParentRegistrationFlow = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const isEs = language === 'es';
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -66,10 +69,10 @@ export const ParentRegistrationFlow = () => {
   }]);
 
   const steps = [
-    { number: 1, title: "Personal Details", icon: User },
-    { number: 2, title: "Account Password", icon: Lock },
-    { number: 3, title: "Register Children", icon: Baby },
-    { number: 4, title: "Review & Confirm", icon: CheckCircle2 }
+    { number: 1, title: isEs ? "Datos Personales" : "Personal Details", icon: User },
+    { number: 2, title: isEs ? "Contraseña" : "Account Password", icon: Lock },
+    { number: 3, title: isEs ? "Registrar Niños" : "Register Children", icon: Baby },
+    { number: 4, title: isEs ? "Revisar y Confirmar" : "Review & Confirm", icon: CheckCircle2 }
   ];
 
   const validateStep = (step: number): boolean => {
@@ -92,8 +95,8 @@ export const ParentRegistrationFlow = () => {
       setCurrentStep(prev => Math.min(prev + 1, 4));
     } else {
       toast({
-        title: "Please complete required fields",
-        description: "Fill in all required information before proceeding to the next step.",
+        title: isEs ? "Complete los campos requeridos" : "Please complete required fields",
+        description: isEs ? "Complete toda la información requerida antes de continuar." : "Fill in all required information before proceeding to the next step.",
         variant: "destructive"
       });
     }
