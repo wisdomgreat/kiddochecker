@@ -75,46 +75,49 @@ const ClassesPage = () => {
 
           {/* Statistics Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="shadow-sm">
+            <Card className="border border-border/40 shadow-sm bg-card/60 backdrop-blur-md rounded-2xl overflow-hidden hover:shadow-md transition-all">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                    <div className="space-y-1">
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Classes</p>
-                      <h3 className="text-3xl font-bold tracking-tight">
-                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalClasses}
+                      <h3 className="text-3xl font-extrabold tracking-tight">
+                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : stats.totalClasses}
                       </h3>
                    </div>
-                   <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center">
-                      <BookOpen className="h-5 w-5 text-primary" />
+                   <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                      <BookOpen className="h-5 w-5" />
                    </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
+            <Card className="border border-border/40 shadow-sm bg-card/60 backdrop-blur-md rounded-2xl overflow-hidden hover:shadow-md transition-all">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                    <div className="space-y-1">
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total Capacity</p>
-                      <h3 className="text-3xl font-bold tracking-tight">
-                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalCapacity}
+                      <h3 className="text-3xl font-extrabold tracking-tight">
+                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin text-primary" /> : stats.totalCapacity}
                       </h3>
                    </div>
-                   <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-primary" />
+                   <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                      <Users className="h-5 w-5" />
                    </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm bg-primary text-primary-foreground">
+            <Card className="border border-border/40 shadow-sm bg-gradient-to-br from-indigo-600 to-blue-700 text-white rounded-2xl overflow-hidden hover:shadow-lg transition-all">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                    <div className="space-y-1">
-                      <p className="text-xs font-bold opacity-70 uppercase tracking-widest">Active Today</p>
-                      <h3 className="text-3xl font-bold tracking-tight">
-                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.totalClasses}
+                      <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Active Today</p>
+                      <h3 className="text-3xl font-extrabold tracking-tight">
+                        {isLoading ? <Loader2 className="h-6 w-6 animate-spin text-white" /> : stats.totalClasses}
                       </h3>
+                   </div>
+                   <div className="h-11 w-11 rounded-xl bg-white/10 backdrop-blur-md text-white flex items-center justify-center font-bold">
+                      <BookOpen className="h-5 w-5" />
                    </div>
                 </div>
               </CardContent>
