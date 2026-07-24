@@ -9,9 +9,17 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  // Automatically detect domain entry point (es. for Spanish, default to 'en')
+  // Automatically detect domain entry point, query param (?lang=es), or path (/es)
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const langParam = urlParams.get('lang') || urlParams.get('locale');
+      if (langParam === 'es' || langParam === 'spanish') return 'es';
+      if (langParam === 'en' || langParam === 'english') return 'en';
+
+      const path = window.location.pathname.toLowerCase();
+      if (path.startsWith('/es') || path.includes('/spanish')) return 'es';
+
       const host = window.location.hostname.toLowerCase();
       if (host.startsWith('es.') || host.includes('-es-') || host.includes('spanish')) {
         return 'es';
