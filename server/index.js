@@ -1126,8 +1126,9 @@ app.post('/api/query', verifyToken, async (req, res) => {
       `;
     } else {
       const cleanSelect = select
+        .replace(/[\w_]+:\s*[\w_]+\s*\([^)]*\)/g, '')
         .replace(/[\w_]+\s*\([^)]*\)/g, '')
-        .replace(/[\w]+:[\w]+\([^)]+\)/g, '')
+        .replace(/[\w_]+:/g, '')
         .replace(/,(\s*,)+/g, ',')
         .replace(/^,|,$/g, '')
         .trim();
