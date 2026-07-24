@@ -36,6 +36,7 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const [selectedOrgFilter, setSelectedOrgFilter] = useState<string>('all');
 
   // ─── Queries ────────────────────────────────────────────────────────
 
@@ -237,6 +238,19 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
 
       {/* Dynamic Filters */}
       <Card className="bg-muted/30 p-1.5 rounded-2xl flex flex-wrap items-center gap-2 border-none">
+        <Select value={selectedOrgFilter} onValueChange={setSelectedOrgFilter}>
+          <SelectTrigger className="w-[200px] rounded-xl h-9 bg-background font-bold text-xs border-indigo-200">
+            <SelectValue placeholder="Select Congregation" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            <SelectItem value="all">🌍 All Congregations (Combined)</SelectItem>
+            <SelectItem value="00000000-0000-0000-0000-000000000001">🇬🇧 English Congregation</SelectItem>
+            <SelectItem value="00000000-0000-0000-0000-000000000002">🇪🇸 Spanish Congregation</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="h-6 w-[1px] bg-border mx-1" />
+
         <Button variant="ghost" size="sm" onClick={() => setRangeType('week')} className="rounded-xl text-[10px] font-bold uppercase tracking-wider px-4 hover:bg-background transition-all">This Week</Button>
         <Button variant="ghost" size="sm" onClick={() => setRangeType('month')} className="rounded-xl text-[10px] font-bold uppercase tracking-wider px-4 hover:bg-background transition-all">This Month</Button>
         <Button variant="ghost" size="sm" onClick={() => setRangeType('last30')} className="rounded-xl text-[10px] font-bold uppercase tracking-wider px-4 hover:bg-background transition-all">Last 30 Days</Button>
