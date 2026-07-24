@@ -489,8 +489,13 @@ const verifyToken = (req, res, next) => {
 };
 
 // ─── API Routes ────────────────────────────────────────────────────────────
-app.get('/health', (req, res) => res.send('OK'));
-app.get('/', (req, res) => res.send('Online'));
+app.get('/', (req, res) => {
+  if (req.headers.accept && req.headers.accept.includes('application/json')) {
+    return res.json({ status: 'online', service: 'KiddoChecker Azure API Bridge', version: '2.0.0' });
+  }
+  const frontendUrl = process.env.FRONTEND_URL || 'https://happy-glacier-0746a2210.7.azurestaticapps.net';
+  res.redirect(frontendUrl);
+});
 
 // Rate limiting for auth routes
 const authLimiter = rateLimit({
