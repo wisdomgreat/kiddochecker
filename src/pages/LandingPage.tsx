@@ -17,7 +17,12 @@ import { cn } from '@/lib/utils';
 import LandingNavigation from '@/components/layout/LandingNavigation';
 import LandingFooter from '@/components/layout/LandingFooter';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 const LandingPage = () => {
+  const { language } = useLanguage();
+  const isEs = language === 'es';
+
   return (
     <div className="min-h-screen bg-background font-sans">
       <LandingNavigation />
@@ -27,28 +32,33 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1 rounded text-primary text-xs font-bold uppercase tracking-wider">
-              Safety Redefined
+              {isEs ? "Seguridad Redefinida" : "Safety Redefined"}
             </div>
             
             <h1 className="text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.1]">
-              Secure Childcare <br />
-              <span className="text-primary">Management</span> Simplified.
+              {isEs ? (
+                <>Gestión de Cuidado Infantil <br /><span className="text-primary">Segura y Simplificada.</span></>
+              ) : (
+                <>Secure Childcare <br /><span className="text-primary">Management</span> Simplified.</>
+              )}
             </h1>
             
             <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-              Experience the next generation of child safety with contactless check-ins, real-time alerts, and comprehensive staff management.
+              {isEs 
+                ? "Experimente la próxima generación de seguridad infantil con registros sin contacto, alertas en tiempo real y gestión integral del personal."
+                : "Experience the next generation of child safety with contactless check-ins, real-time alerts, and comprehensive staff management."}
             </p>
             
             <div className="flex flex-wrap gap-4 pt-4">
               <Link to="/parent-registration">
                 <Button size="lg" className="h-12 px-8">
-                  Get Started
+                  {isEs ? "Comenzar" : "Get Started"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <Link to="/login">
                 <Button size="lg" variant="outline" className="h-12 px-8">
-                  Login to Portal
+                  {isEs ? "Iniciar Sesión en el Portal" : "Login to Portal"}
                 </Button>
               </Link>
             </div>
@@ -62,7 +72,9 @@ const LandingPage = () => {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground font-medium">
-                Used by 2,000+ childcare providers nationwide
+                {isEs 
+                  ? "Utilizado por más de 2.000 proveedores de cuidado infantil en todo el país"
+                  : "Used by 2,000+ childcare providers nationwide"}
               </p>
             </div>
           </div>
@@ -71,7 +83,9 @@ const LandingPage = () => {
             <div className="bg-muted aspect-video rounded-lg border shadow-sm overflow-hidden p-8 flex items-center justify-center">
               <div className="flex flex-col items-center gap-4">
                 <ShieldCheck className="h-16 w-16 text-primary opacity-20" />
-                <p className="text-muted-foreground text-sm font-medium">Interactive Demo Interface</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  {isEs ? "Interfaz de Demostración Interactiva" : "Interactive Demo Interface"}
+                </p>
               </div>
             </div>
             {/* Simple status card */}
@@ -80,8 +94,12 @@ const LandingPage = () => {
                 <ShieldCheck className="text-primary h-5 w-5" />
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase">System Status</p>
-                <p className="text-sm font-bold">100% Operational</p>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase">
+                  {isEs ? "Estado del Sistema" : "System Status"}
+                </p>
+                <p className="text-sm font-bold">
+                  {isEs ? "100% Operativo" : "100% Operational"}
+                </p>
               </div>
             </div>
           </div>
@@ -91,7 +109,9 @@ const LandingPage = () => {
       {/* Trust Bar */}
       <div className="bg-muted/30 py-8 border-b">
         <div className="max-w-7xl mx-auto px-6 flex flex-wrap justify-center items-center gap-x-12 gap-y-6">
-          <p className="w-full text-center text-muted-foreground font-bold uppercase tracking-widest text-[10px] mb-2 lg:mb-0 lg:w-auto lg:mr-8">Powered By</p>
+          <p className="w-full text-center text-muted-foreground font-bold uppercase tracking-widest text-[10px] mb-2 lg:mb-0 lg:w-auto lg:mr-8">
+            {isEs ? "Tecnología De" : "Powered By"}
+          </p>
           <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-60 grayscale"><Shield className="h-4 w-4" /> SUPABASE</div>
           <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-60 grayscale"><Lock className="h-4 w-4" /> STRIPE</div>
           <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-60 grayscale"><Mail className="h-4 w-4" /> RESEND</div>
@@ -103,25 +123,31 @@ const LandingPage = () => {
       <section id="features" className="py-24 bg-background">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="text-3xl font-bold tracking-tight">Comprehensive Safety Tools</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">Modern management features built for speed, transparency, and most importantly, child protection.</p>
+            <h2 className="text-3xl font-bold tracking-tight">
+              {isEs ? "Herramientas de Seguridad Integrales" : "Comprehensive Safety Tools"}
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              {isEs 
+                ? "Funciones de gestión modernas creadas para velocidad, transparencia y protección infantil."
+                : "Modern management features built for speed, transparency, and most importantly, child protection."}
+            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             <FeatureCard 
               icon={QrCode}
-              title="Secure Check-in"
-              desc="Parents utilize secure QR codes for touchless entries. Enhanced safety through identity verification."
+              title={isEs ? "Registro Seguro" : "Secure Check-in"}
+              desc={isEs ? "Los padres utilizan códigos QR seguros para entradas sin contacto." : "Parents utilize secure QR codes for touchless entries. Enhanced safety through identity verification."}
             />
             <FeatureCard 
               icon={Clock}
-              title="Live Monitoring"
-              desc="Instant presence tracking for all children. View real-time logs and attendance status from any device."
+              title={isEs ? "Monitoreo en Vivo" : "Live Monitoring"}
+              desc={isEs ? "Seguimiento en tiempo real de todos los niños desde cualquier dispositivo." : "Instant presence tracking for all children. View real-time logs and attendance status from any device."}
             />
             <FeatureCard 
               icon={Users}
-              title="Resource Planning"
-              desc="Smart classroom allocation ensuring proper teacher-to-student ratios and medical note alerts."
+              title={isEs ? "Planificación de Recursos" : "Resource Planning"}
+              desc={isEs ? "Asignación inteligente de aulas y control de avisos médicos." : "Smart classroom allocation ensuring proper teacher-to-student ratios and medical note alerts."}
             />
           </div>
         </div>
@@ -132,14 +158,14 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8">
             <h2 className="text-3xl lg:text-4xl font-bold tracking-tight leading-tight">
-              Enterprise Data Protection <br />
-              <span className="text-primary">Standard Security Measures.</span>
+              {isEs ? "Protección de Datos Empresarial" : "Enterprise Data Protection"} <br />
+              <span className="text-primary">{isEs ? "Medidas de Seguridad Estándar." : "Standard Security Measures."}</span>
             </h2>
             <div className="space-y-6">
               {[
-                { t: 'End-to-End Encryption', d: 'Your institutional data is protected in transit and at rest using AES-256 standards.' },
-                { t: 'Compliance Oriented', d: 'Designed to meet rigorous privacy standards including COPPA and SOC 2 requirements.' },
-                { t: 'Restricted Access', d: 'Granular permissions ensure only authorized staff can access sensitive records.' }
+                { t: isEs ? 'Encriptación de Extremo a Extremo' : 'End-to-End Encryption', d: isEs ? 'Sus datos están protegidos en tránsito y en reposo mediante el estándar AES-256.' : 'Your institutional data is protected in transit and at rest using AES-256 standards.' },
+                { t: isEs ? 'Orientado al Cumplimiento' : 'Compliance Oriented', d: isEs ? 'Diseñado para cumplir con rigurosos estándares de privacidad como COPPA.' : 'Designed to meet rigorous privacy standards including COPPA and SOC 2 requirements.' },
+                { t: isEs ? 'Acceso Restringido' : 'Restricted Access', d: isEs ? 'Permisos granulares que garantizan que solo el personal autorizado acceda.' : 'Granular permissions ensure only authorized staff can access sensitive records.' }
               ].map(f => (
                 <div key={f.t} className="flex gap-4">
                   <div className="flex-shrink-0 w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-primary mt-1">
@@ -163,7 +189,7 @@ const LandingPage = () => {
             <div className="h-4 bg-muted rounded w-1/2" />
             <div className="h-24 bg-primary/5 rounded border border-dashed flex flex-col items-center justify-center gap-3">
               <Shield className="h-8 w-8 text-primary opacity-30" />
-              <span className="text-[10px] text-primary/50 font-bold uppercase tracking-widest">Secure Environment</span>
+              <span className="text-[10px] text-primary/50 font-bold uppercase tracking-widest">{isEs ? "Entorno Seguro" : "Secure Environment"}</span>
             </div>
             <div className="h-4 bg-muted rounded w-2/3" />
           </div>
@@ -173,11 +199,15 @@ const LandingPage = () => {
       {/* CTA Section */}
       <section className="py-32 px-6 text-center">
         <div className="max-w-2xl mx-auto space-y-10">
-          <h2 className="text-4xl lg:text-5xl font-bold tracking-tight">Ready to modernize your operations?</h2>
-          <p className="text-lg text-muted-foreground">Start protecting your community today with our intuitive safety platform.</p>
+          <h2 className="text-4xl lg:text-5xl font-bold tracking-tight">
+            {isEs ? "¿Listo para modernizar sus operaciones?" : "Ready to modernize your operations?"}
+          </h2>
+          <p className="text-lg text-muted-foreground">
+            {isEs ? "Comience a proteger su comunidad hoy con nuestra plataforma de seguridad." : "Start protecting your community today with our intuitive safety platform."}
+          </p>
           <Link to="/parent-registration" className="inline-block">
             <Button size="lg" className="h-14 px-12 text-lg">
-              Get Started Now
+              {isEs ? "Comenzar Ahora" : "Get Started Now"}
             </Button>
           </Link>
         </div>
