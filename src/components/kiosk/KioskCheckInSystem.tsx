@@ -950,8 +950,12 @@ const KioskCheckInSystem = () => {
                   <div className="w-12 h-12 mx-auto bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
                     <LogIn className="w-6 h-6 text-slate-500" />
                   </div>
-                  <h2 className="text-xl font-bold tracking-tight">Parent Verification</h2>
-                  <p className="text-sm text-muted-foreground">Sign in with phone or scan QR profile</p>
+                  <h2 className="text-xl font-bold tracking-tight">
+                    {isEs ? "Verificación de Padres" : "Parent Verification"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {isEs ? "Inicie sesión con su teléfono o escanee el QR familiar" : "Sign in with phone or scan QR profile"}
+                  </p>
                 </div>
 
                 <div className="space-y-4 pt-2">
@@ -963,7 +967,9 @@ const KioskCheckInSystem = () => {
                            setShowParentScanner(false);
                         }} />
                       </div>
-                      <Button variant="ghost" onClick={() => setShowParentScanner(false)} className="w-full text-xs font-bold uppercase tracking-wider">Cancel Scan</Button>
+                      <Button variant="ghost" onClick={() => setShowParentScanner(false)} className="w-full text-xs font-bold uppercase tracking-wider">
+                        {isEs ? "Cancelar Escaneo" : "Cancel Scan"}
+                      </Button>
                     </div>
                   ) : (
                     <Button 
@@ -972,7 +978,9 @@ const KioskCheckInSystem = () => {
                       className="w-full h-24 flex flex-col gap-2 rounded-2xl border-dashed border-2 hover:bg-muted/50"
                     >
                       <QrCode className="h-6 w-6 text-primary" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Scan Family QR Code</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider">
+                        {isEs ? "Escanear Código QR Familiar" : "Scan Family QR Code"}
+                      </span>
                     </Button>
                   )}
                   
@@ -983,7 +991,7 @@ const KioskCheckInSystem = () => {
                         value={parentPhone} 
                         onFocus={() => setActiveInput('phone')}
                         onChange={e => setParentPhone(formatPhoneNumber(e.target.value))} 
-                        placeholder="Phone Number" 
+                        placeholder={isEs ? "Número de Teléfono" : "Phone Number"} 
                         inputMode="none"
                         className={cn("h-10 pl-10 transition-all", activeInput === 'phone' && "ring-2 ring-primary/20 border-primary")} 
                       />
@@ -995,14 +1003,16 @@ const KioskCheckInSystem = () => {
                         value={parentPin} 
                         onFocus={() => setActiveInput('pin')}
                         onChange={e => setParentPin(e.target.value)} 
-                        placeholder="Direct PIN" 
+                        placeholder={isEs ? "PIN Directo" : "Direct PIN"} 
                         inputMode="none"
                         className={cn("h-10 pl-10 transition-all", activeInput === 'pin' && "ring-2 ring-primary/20 border-primary")} 
                         maxLength={8} 
                       />
                     </div>
                     {parentLoginError && <p className="text-destructive text-xs font-bold text-center">{parentLoginError}</p>}
-                    <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-10 font-bold uppercase tracking-wide">Identification Search</Button>
+                    <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-10 font-bold uppercase tracking-wide">
+                      {isEs ? "Buscar Identificación" : "Identification Search"}
+                    </Button>
                     
                     <NumericKeypad 
                       value={activeInput === 'phone' ? parentPhone.replace(/\D/g, '') : parentPin} 
@@ -1019,10 +1029,14 @@ const KioskCheckInSystem = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-end px-2">
                 <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Family Account</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase">
+                    {isEs ? "Cuenta Familiar" : "Family Account"}
+                  </p>
                   <h2 className="text-xl font-bold">{parentName}</h2>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleParentLogout} className="text-xs h-8"><LogOut className="w-3 h-3 mr-1.5" /> Sign Out</Button>
+                <Button variant="ghost" size="sm" onClick={handleParentLogout} className="text-xs h-8">
+                  <LogOut className="w-3 h-3 mr-1.5" /> {isEs ? "Cerrar Sesión" : "Sign Out"}
+                </Button>
               </div>
 
               {/* NFC Self-Link Option for Parents at Kiosk */}
@@ -1033,8 +1047,12 @@ const KioskCheckInSystem = () => {
                          <Smartphone className="h-5 w-5 text-emerald-700" />
                       </div>
                       <div>
-                         <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Quick Setup</p>
-                         <p className="font-bold text-sm text-foreground">Link NFC Tag</p>
+                         <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">
+                          {isEs ? "Configuración Rápida" : "Quick Setup"}
+                         </p>
+                         <p className="font-bold text-sm text-foreground">
+                          {isEs ? "Vincular Etiqueta NFC" : "Link NFC Tag"}
+                         </p>
                       </div>
                    </div>
                    <Button 
@@ -1046,11 +1064,16 @@ const KioskCheckInSystem = () => {
                         if (parentId) {
                           setIsRegisteringNFC(parentId);
                           startNfc();
-                          toast({ title: "Ready for NFC", description: "Please tap your physical tag or phone against the reader now." });
+                          toast({ 
+                            title: isEs ? "Listo para NFC" : "Ready for NFC", 
+                            description: isEs ? "Por favor acerque su tarjeta o teléfono al lector." : "Please tap your physical tag or phone against the reader now." 
+                          });
                         }
                       }}
                    >
-                      {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') ? "Waiting for Tap..." : "Link My Tag"}
+                      {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') 
+                        ? (isEs ? "Esperando toque..." : "Waiting for Tap...") 
+                        : (isEs ? "Vincular mi Etiqueta" : "Link My Tag")}
                    </Button>
                 </CardContent>
               </Card>
@@ -1068,7 +1091,9 @@ const KioskCheckInSystem = () => {
                                 <div className="flex-1">
                                     <p className="font-bold text-base">{child.first_name} {child.last_name}</p>
                                     <p className={cn("text-[10px] uppercase font-bold", checked ? "text-red-500 animate-pulse" : "text-muted-foreground")}>
-                                        {checked ? "Checked In • Tap to Check Out" : "Available for check-in"}
+                                        {checked 
+                                          ? (isEs ? "Registrado • Tocar para Salida" : "Checked In • Tap to Check Out") 
+                                          : (isEs ? "Disponible para entrada" : "Available for check-in")}
                                     </p>
                                 </div>
                                 {checked ? (
@@ -1092,8 +1117,12 @@ const KioskCheckInSystem = () => {
                         <div className="w-16 h-16 mx-auto bg-primary/10 rounded-3xl flex items-center justify-center">
                             <User className="w-8 h-8 text-primary" />
                         </div>
-                        <h2 className="text-2xl font-bold tracking-tight">Youth Self-Check</h2>
-                        <p className="text-sm text-muted-foreground">Enter security PIN to log entry/exit</p>
+                        <h2 className="text-2xl font-bold tracking-tight">
+                          {isEs ? "Autoregistro de Jóvenes" : "Youth Self-Check"}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {isEs ? "Ingrese su PIN de seguridad para registrar entrada/salida" : "Enter security PIN to log entry/exit"}
+                        </p>
                     </div>
                     <div className="space-y-4">
                         <div className="relative">
@@ -1102,7 +1131,7 @@ const KioskCheckInSystem = () => {
                                 type="password"
                                 inputMode="none"
                                 maxLength={6}
-                                placeholder="Security PIN"
+                                placeholder={isEs ? "PIN de Seguridad" : "Security PIN"}
                                 value={youthPinInput}
                                 onChange={(e) => setYouthPinInput(e.target.value)}
                                 className="pl-12 h-12 text-2xl tracking-[0.4em] font-bold"
@@ -1114,7 +1143,7 @@ const KioskCheckInSystem = () => {
                             disabled={isLoading || youthPinInput.length < 4}
                             className="w-full h-12 font-bold uppercase"
                         >
-                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify Identity"}
+                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEs ? "Verificar Identidad" : "Verify Identity")}
                         </Button>
                         
                         <NumericKeypad 
@@ -1133,8 +1162,12 @@ const KioskCheckInSystem = () => {
                   <Card className="shadow-sm rounded-3xl">
                     <CardContent className="p-10 space-y-6">
                         <div className="text-center space-y-2 mb-6">
-                            <h2 className="text-2xl font-bold">Staff Access</h2>
-                            <p className="text-sm text-muted-foreground">Identification PIN required</p>
+                            <h2 className="text-2xl font-bold">
+                              {isEs ? "Acceso de Personal" : "Staff Access"}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                              {isEs ? "Se requiere PIN de identificación" : "Identification PIN required"}
+                            </p>
                         </div>
                         
                         <div className="space-y-4">
@@ -1142,7 +1175,7 @@ const KioskCheckInSystem = () => {
                             type="password" 
                             value={staffPinInput} 
                             onChange={e => setStaffPinInput(e.target.value.toUpperCase())} 
-                            placeholder="STAFF PIN" 
+                            placeholder={isEs ? "PIN DE PERSONAL" : "STAFF PIN"} 
                             inputMode={showStaffKeyboard ? undefined : "none"}
                             className="h-16 text-center text-3xl tracking-[0.6em] font-bold rounded-2xl bg-muted border-none shadow-inner" 
                           />
@@ -1155,7 +1188,9 @@ const KioskCheckInSystem = () => {
                                 onClick={() => setShowStaffKeyboard(!showStaffKeyboard)}
                              >
                                 <PenTool className="h-3 w-3" />
-                                {showStaffKeyboard ? "Use Numeric Keypad" : "Use Full Keyboard"}
+                                {showStaffKeyboard 
+                                  ? (isEs ? "Usar Teclado Numérico" : "Use Numeric Keypad") 
+                                  : (isEs ? "Usar Teclado Completo" : "Use Full Keyboard")}
                              </Button>
                           </div>
 
@@ -1166,11 +1201,15 @@ const KioskCheckInSystem = () => {
                               maxLength={8}
                             />
                           ) : (
-                            <p className="text-[10px] text-center text-slate-400 font-medium">Please use your physical or on-screen keyboard to type your alphanumeric PIN.</p>
+                            <p className="text-[10px] text-center text-slate-400 font-medium">
+                              {isEs ? "Use su teclado para escribir su PIN alfanumérico." : "Please use your physical or on-screen keyboard to type your alphanumeric PIN."}
+                            </p>
                           )}
                         </div>
 
-                        <Button onClick={handleStaffAuth} className="w-full h-14 font-bold uppercase text-base tracking-wider rounded-2xl">Unlock Station</Button>
+                        <Button onClick={handleStaffAuth} className="w-full h-14 font-bold uppercase text-base tracking-wider rounded-2xl">
+                          {isEs ? "Desbloquear Estación" : "Unlock Station"}
+                        </Button>
                         {staffPinError && <p className="text-destructive text-center text-xs font-bold uppercase tracking-tight">{staffPinError}</p>}
                     </CardContent>
                   </Card>
@@ -1178,15 +1217,17 @@ const KioskCheckInSystem = () => {
                   <div className="space-y-6">
                       <div className="flex justify-between items-center bg-card p-5 border rounded-2xl shadow-sm">
                         <div>
-                          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-0.5">Authenticated Staff</p>
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-0.5">
+                            {isEs ? "Personal Autenticado" : "Authenticated Staff"}
+                          </p>
                           <p className="font-bold text-lg">{staffName}</p>
                         </div>
                       </div>
 
                       <Tabs defaultValue="search" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="search">Children</TabsTrigger>
-                          <TabsTrigger value="shifts">Shifts</TabsTrigger>
+                          <TabsTrigger value="search">{isEs ? "Niños" : "Children"}</TabsTrigger>
+                          <TabsTrigger value="shifts">{isEs ? "Turnos" : "Shifts"}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="search" className="space-y-4">
@@ -1195,7 +1236,7 @@ const KioskCheckInSystem = () => {
                           </Card>
                           <div className="relative">
                             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input value={staffSearchTerm} onChange={e => setStaffSearchTerm(e.target.value)} placeholder="Manual search..." className="pl-10" />
+                            <Input value={staffSearchTerm} onChange={e => setStaffSearchTerm(e.target.value)} placeholder={isEs ? "Búsqueda manual..." : "Manual search..."} className="pl-10" />
                           </div>
                           <div className="grid gap-2">
                             {staffSearchResults.map(child => (
@@ -1217,11 +1258,11 @@ const KioskCheckInSystem = () => {
                                         e.stopPropagation();
                                         setIsRegisteringNFC(child.parent_id);
                                         startNfc();
-                                        toast({ title: "Ready for NFC", description: "Please tap the parent's device or sticker now." });
+                                        toast({ title: isEs ? "Listo para NFC" : "Ready for NFC", description: isEs ? "Toque el teléfono o etiqueta del padre." : "Please tap the parent's device or sticker now." });
                                       }}
                                     >
                                       <KeyRound className="w-3 h-3" />
-                                      {isRegisteringNFC === child.parent_id ? "Waiting..." : "Link Tag"}
+                                      {isRegisteringNFC === child.parent_id ? (isEs ? "Esperando..." : "Waiting...") : (isEs ? "Vincular" : "Link Tag")}
                                     </Button>
                                 </CardContent>
                               </Card>
@@ -1249,18 +1290,22 @@ const KioskCheckInSystem = () => {
 
                                   {!shift.actual_start_time ? (
                                     <Button onClick={() => handleShiftAction(shift.shift_id, 'check_in')} className="w-full font-bold h-9">
-                                      Start Shift
+                                      {isEs ? "Iniciar Turno" : "Start Shift"}
                                     </Button>
                                   ) : !shift.actual_end_time ? (
                                     <div className="space-y-2">
-                                      <p className="text-[10px] text-emerald-600 font-bold text-center">Active: {new Date(shift.actual_start_time).toLocaleTimeString()}</p>
+                                      <p className="text-[10px] text-emerald-600 font-bold text-center">
+                                        {isEs ? "Activo desde: " : "Active: "}{new Date(shift.actual_start_time).toLocaleTimeString()}
+                                      </p>
                                       <Button variant="outline" onClick={() => handleShiftAction(shift.shift_id, 'check_out')} className="w-full text-amber-600 border-amber-200 hover:bg-amber-50 h-9 font-bold">
-                                        End Shift
+                                        {isEs ? "Finalizar Turno" : "End Shift"}
                                       </Button>
                                     </div>
                                   ) : (
                                     <div className="text-center p-2 bg-emerald-50 rounded-md">
-                                      <p className="text-[10px] text-emerald-600 font-bold">Completed at {new Date(shift.actual_end_time).toLocaleTimeString()}</p>
+                                      <p className="text-[10px] text-emerald-600 font-bold">
+                                        {isEs ? "Completado a las " : "Completed at "}{new Date(shift.actual_end_time).toLocaleTimeString()}
+                                      </p>
                                     </div>
                                   )}
                                 </CardContent>
@@ -1268,7 +1313,7 @@ const KioskCheckInSystem = () => {
                             ))
                           ) : (
                             <div className="text-center py-12 text-muted-foreground">
-                              <p className="text-sm">No shifts found for today.</p>
+                              <p className="text-sm">{isEs ? "No hay turnos programados para hoy." : "No shifts found for today."}</p>
                             </div>
                           )}
                         </TabsContent>
@@ -1283,14 +1328,18 @@ const KioskCheckInSystem = () => {
               {!(parentLoggedIn || staffAuthed) ? (
                 <Card className="p-12 text-center text-muted-foreground border-dashed">
                     <Shield className="w-10 h-10 mx-auto mb-4 opacity-20" />
-                    <p className="text-sm font-bold uppercase tracking-tight">Security ID Required</p>
-                    <p className="text-xs pt-1">Please identify as Parent or Staff first</p>
+                    <p className="text-sm font-bold uppercase tracking-tight">
+                      {isEs ? "Se Requiere ID de Seguridad" : "Security ID Required"}
+                    </p>
+                    <p className="text-xs pt-1">
+                      {isEs ? "Por favor identifíquese primero como Padre o Personal" : "Please identify as Parent or Staff first"}
+                    </p>
                 </Card>
               ) : (
                 <div className="space-y-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input value={checkoutSearch} onChange={e => setCheckoutSearch(e.target.value)} placeholder="Filter children..." className="pl-10" />
+                    <Input value={checkoutSearch} onChange={e => setCheckoutSearch(e.target.value)} placeholder={isEs ? "Filtrar niños..." : "Filter children..."} className="pl-10" />
                   </div>
                   <div className="grid gap-2">
                     {checkoutFilteredChildren.map(record => (
@@ -1305,13 +1354,17 @@ const KioskCheckInSystem = () => {
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase">{record.class?.name}</p>
                                 </div>
                             </div>
-                            <Button size="sm" onClick={() => initiateCheckOut(record)} className="font-bold uppercase text-[10px] h-8 px-4">Log Exit</Button>
+                            <Button size="sm" onClick={() => initiateCheckOut(record)} className="font-bold uppercase text-[10px] h-8 px-4">
+                              {isEs ? "Registrar Salida" : "Log Exit"}
+                            </Button>
                         </CardContent>
                       </Card>
                     ))}
                     {checkoutFilteredChildren.length === 0 && (
                         <div className="py-12 text-center text-muted-foreground">
-                            <p className="text-sm font-bold uppercase">No records found</p>
+                            <p className="text-sm font-bold uppercase">
+                              {isEs ? "No se encontraron registros" : "No records found"}
+                            </p>
                         </div>
                     )}
                   </div>
