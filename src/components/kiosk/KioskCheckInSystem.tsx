@@ -44,6 +44,7 @@ type KioskTab = 'parent' | 'youth' | 'staff' | 'checkout';
 const KioskCheckInSystem = () => {
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
+  const isEs = language === 'es';
   const [activeOrgId, setActiveOrgId] = useState<string>(() => window.localStorage.getItem('kiosk_active_org_id') || '00000000-0000-0000-0000-000000000001');
   const [organizations, setOrganizations] = useState<any[]>([
     { id: '00000000-0000-0000-0000-000000000001', name: 'English Congregation', slug: 'english', language_code: 'en' },

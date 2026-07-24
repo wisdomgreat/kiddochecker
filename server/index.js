@@ -1001,50 +1001,66 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
     }
 
     let result;
-    if (Array.isArray(finalParams)) {
-      const placeholders = finalParams.map((_, i) => `$${i + 1}`).join(', ');
-      result = await pool.query(`SELECT * FROM public.${finalFn}(${placeholders})`, finalParams);
-    } else {
-      const keys = Object.keys(finalParams);
-      const vals = Object.values(finalParams);
+    const runRpcQuery = async (params: any) => {
+      if (Array.isArray(params)) {
+        const placeholders = params.map((_, i) => `$${i + 1}`).join(', ');
+        return await pool.query(`SELECT * FROM public.${finalFn}(${placeholders})`, params);
+      }
       
-      // Build placeholders with explicit casting to solve the "function does not exist" type ambiguity
+      const keys = Object.keys(params || {});
+      if (keys.length === 0) {
+        return await pool.query(`SELECT * FROM public.${finalFn}()`);
+      }
+
+      const vals = Object.values(params);
       const placeholders = keys.map((k, i) => {
         const val = vals[i];
-        
-        // UUID Types (Fixed: Exempting device_id and kiosk_id which are TEXT)
         if ((k.endsWith('_id') || k.endsWith('_by') || k === 'p_attendance_id' || k === 'p_witness_id') && 
             k !== 'p_device_id' && k !== 'p_kiosk_id') {
           return `${k} => $${i + 1}::uuid`;
         }
-        
-        // JSONB Types
         if (k.endsWith('_metadata') || k.endsWith('_snapshot')) {
           if (val && typeof val === 'object') vals[i] = JSON.stringify(val);
           return `${k} => $${i + 1}::jsonb`;
         }
-        
-        // Boolean Types
         if (k.startsWith('p_health_')) {
           return `${k} => $${i + 1}::boolean`;
         }
-        
-        // Text Types (Explicitly cast to avoid "unknown" errors for nulls)
         if (k === 'p_qr_token' || k === 'p_method' || k === 'p_station' || 
             k === 'p_special_instructions' || k === 'p_device_id' || 
             k === 'p_search_val' || k === 'p_pin' || k === 'p_signature_data' || 
             k === 'p_override_reason') {
           return `${k} => $${i + 1}::text`;
         }
-        
         return `${k} => $${i + 1}`;
       }).join(', ');
-      
-      result = await pool.query(`SELECT * FROM public.${finalFn}(${placeholders})`, vals);
+
+      return await pool.query(`SELECT * FROM public.${finalFn}(${placeholders})`, vals);
+    };
+
+    try {
+      result = await runRpcQuery(finalParams);
+    } catch (rpcErr) {
+      // Fallback: If function signature doesn't match named parameters, try without parameters or positional
+      if (rpcErr.code === '42883' || rpcErr.message.includes('does not exist')) {
+        console.warn(`[Bridge] Named RPC failed for ${finalFn}, attempting zero-argument fallback...`);
+        try {
+          result = await pool.query(`SELECT * FROM public.${finalFn}()`);
+        } catch (fallbackErr) {
+          try {
+            const positionalVals = Object.values(finalParams || {});
+            const positionalPlaceholders = positionalVals.map((_, i) => `$${i + 1}`).join(', ');
+            result = await pool.query(`SELECT * FROM public.${finalFn}(${positionalPlaceholders})`, positionalVals);
+          } catch (finalErr) {
+            throw rpcErr;
+          }
+        }
+      } else {
+        throw rpcErr;
+      }
     }
 
     let data = result.rows;
-    // If it returns a single column named after the function, it's a single value result
     if (data.length === 1 && Object.keys(data[0])[0] === finalFn) {
       data = data[0][finalFn];
     }
