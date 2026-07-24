@@ -991,8 +991,9 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       }
     }
 
-    // Inject user ID if missing
-    if (!finalParams.p_user_id && req.user) {
+    // Inject user ID if missing ONLY when params were explicitly supplied by client
+    const hasParams = Object.keys(finalParams).length > 0;
+    if (hasParams && !finalParams.p_user_id && req.user) {
       const email = req.user.email || req.user.preferred_username;
       const userRes = await pool.query('SELECT id FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
       if (userRes.rows.length > 0) {
@@ -1237,6 +1238,50 @@ app.post('/api/query', verifyToken, async (req, res) => {
     console.log(`[Bridge] query success [${table}]: returned ${result.rows.length} rows`);
     res.json({ data: result.rows, error: null });
   } catch (err) { 
+    if (err.code === '42703' && err.message.includes('organization_id')) {
+      console.warn(`[Bridge] Column organization_id does not exist on table ${table}, retrying query without organization_id filter...`);
+      try {
+        const nonOrgFilters = (actualFilters || []).filter(f => f.column !== 'organization_id');
+        let fallbackSql = "";
+        if (needsAttendanceJoin) {
+          fallbackSql = `
+            SELECT t.*,
+              jsonb_build_object('id', c.id, 'first_name', c.first_name, 'last_name', c.last_name, 'parent_id', c.parent_id::text) as child,
+              jsonb_build_object('id', cl.id, 'name', cl.name) as class
+            FROM public.attendance t
+            LEFT JOIN public.children c ON t.child_id = c.id
+            LEFT JOIN public.classes cl ON t.class_id = cl.id
+          `;
+        } else if (needsChildrenJoin) {
+          fallbackSql = `
+            SELECT t.*,
+              jsonb_build_object('id', cl.id, 'name', cl.name, 'age_range', cl.age_range) as classes
+            FROM public.children t
+            LEFT JOIN public.classes cl ON t.class_id = cl.id
+          `;
+        } else {
+          fallbackSql = `SELECT * FROM public.${table} t`;
+        }
+        const fallbackValues = [];
+        if (nonOrgFilters.length > 0) {
+          const clauses = nonOrgFilters.map(f => {
+            const pIdx = fallbackValues.push(f.value);
+            return `t.${f.column}::text = $${pIdx}::text`;
+          });
+          fallbackSql += ` WHERE ${clauses.join(' AND ')}`;
+        }
+        if (order) {
+          const [col, dir] = order.split('.');
+          fallbackSql += ` ORDER BY t.${col} ${dir?.toLowerCase() === 'desc' ? 'DESC' : 'ASC'}`;
+        }
+        if (limit) fallbackSql += ` LIMIT ${parseInt(limit)}`;
+        
+        const fallbackResult = await pool.query(fallbackSql, fallbackValues);
+        return res.json({ data: fallbackResult.rows, error: null });
+      } catch (fallbackErr) {
+        return res.status(500).json({ error: fallbackErr.message });
+      }
+    }
     console.error(`[Bridge] query error [${table}]:`, err.message, '| SQL:', sql);
     res.status(500).json({ error: err.message }); 
   }

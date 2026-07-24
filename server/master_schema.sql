@@ -14493,3 +14493,50 @@ BEGIN
     RETURN result;
 END;
 $$;
+
+-- 7. Overloaded RPC Functions accepting optional p_user_id to ensure backward compatibility
+CREATE OR REPLACE FUNCTION public.get_staff_members(p_user_id UUID DEFAULT NULL)
+RETURNS TABLE(
+  user_id uuid, email text, first_name text, last_name text, phone text,
+  role text, is_super_admin boolean, is_volunteer boolean, is_active boolean,
+  staff_pin text, avatar_url text, photo_url text, department text,
+  specialties text[], max_hours_per_week integer, supervisor_id uuid
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY SELECT * FROM public.get_staff_members();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_users_with_roles(p_user_id UUID DEFAULT NULL)
+RETURNS TABLE(
+  user_id uuid, email text, role text, is_super_admin boolean, is_volunteer boolean,
+  first_name text, last_name text, phone text, created_at timestamptz
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY SELECT * FROM public.get_users_with_roles();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_attendance_summary_stats(
+  start_date DATE DEFAULT CURRENT_DATE,
+  end_date DATE DEFAULT CURRENT_DATE,
+  p_user_id UUID DEFAULT NULL
+)
+RETURNS TABLE(
+  total_checked_in bigint,
+  total_checked_out bigint,
+  currently_present bigint
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    COUNT(*)::bigint as total_checked_in,
+    COUNT(checked_out_at)::bigint as total_checked_out,
+    COUNT(CASE WHEN checked_out_at IS NULL THEN 1 END)::bigint as currently_present
+  FROM public.attendance
+  WHERE attendance_date BETWEEN start_date AND end_date;
+END;
+$$;
