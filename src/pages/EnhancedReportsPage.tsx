@@ -111,12 +111,11 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
     queryKey: ['medical-report'],
     queryFn: async () => {
       const { data, error } = await supabase.from('children').select(`
-        id, first_name, last_name, allergies, medical_info,
-        child_medical_profiles (allergies, medications, conditions, emergency_notes)
+        id, first_name, last_name, allergies, medical_info
       `);
       if (error) throw error;
       return (data || []).filter((c: any) =>
-        c.child_medical_profiles?.length > 0 || (c.allergies && c.allergies.trim()) || (c.medical_info && c.medical_info.trim())
+        (c.allergies && c.allergies.trim()) || (c.medical_info && c.medical_info.trim())
       );
     },
   });
@@ -202,158 +201,191 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
     else setDateRange({ from: subDays(today, 30), to: today });
   };
 
-  const SummaryCard = ({ title, value, sub, icon: Icon, color }: any) => (
-    <Card className="border shadow-sm bg-card overflow-hidden relative group">
-      <div className={cn("absolute top-0 left-0 w-1 h-full", color)} />
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-          <Icon className={cn("h-3 w-3", color.replace('bg-', 'text-'))} /> {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+  const totalVolumeCount = (attendanceReport || []).reduce((acc: number, curr: any) => acc + Number(curr.total_checked_in || 0), 0);
+
+  const SummaryCard = ({ title, value, sub, icon: Icon, gradient }: any) => (
+    <Card className="border border-border/40 shadow-sm bg-card/60 backdrop-blur-md rounded-2xl overflow-hidden relative group hover:shadow-md transition-all duration-300">
+      <div className={cn("absolute top-0 left-0 right-0 h-1 bg-gradient-to-r", gradient)} />
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{title}</span>
+          <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center bg-gradient-to-br text-white shadow-sm", gradient)}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-foreground tracking-tight">{value}</span>
-          <span className="text-[10px] font-medium text-muted-foreground">{sub}</span>
+          <span className="text-3xl font-extrabold text-foreground tracking-tight">{loadingAttendance ? '--' : value}</span>
+          <span className="text-xs font-semibold text-muted-foreground">{sub}</span>
         </div>
       </CardContent>
     </Card>
   );
 
   const content = (
-    <div className="space-y-8 pb-20">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <BarChart3 className="h-8 w-8 text-primary" /> Executive Analytics
-          </h1>
-          <p className="text-muted-foreground font-medium">Professional insights for childcare operations.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={handleExportDetailed} className="rounded-xl h-10 px-6 gap-2 shadow-sm">
-            <Download className="h-4 w-4" /> Global Export
+    <div className="space-y-8 pb-20 max-w-7xl mx-auto">
+      {/* Header & Control Bar */}
+      <div className="bg-card/70 backdrop-blur-xl border border-border/60 shadow-sm rounded-3xl p-6 md:p-8 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                Executive Analytics & Reporting
+              </h1>
+            </div>
+            <p className="text-sm text-muted-foreground">Real-time attendance metrics, audit trails, and multi-tenant insights.</p>
+          </div>
+          
+          <Button onClick={handleExportDetailed} className="rounded-2xl h-11 px-6 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md transition-all">
+            <Download className="h-4 w-4" /> Global Export (CSV)
           </Button>
+        </div>
+
+        {/* Filter Toolbar */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/40">
+          <Select value={selectedOrgFilter} onValueChange={setSelectedOrgFilter}>
+            <SelectTrigger className="w-[240px] rounded-xl h-10 bg-background font-bold text-xs border-primary/20 shadow-xs">
+              <SelectValue placeholder="Select Congregation" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all">🌍 All Congregations (Combined)</SelectItem>
+              <SelectItem value="00000000-0000-0000-0000-000000000001">🇬🇧 English Congregation</SelectItem>
+              <SelectItem value="00000000-0000-0000-0000-000000000002">🇪🇸 Spanish Congregation</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="h-6 w-[1px] bg-border/60 hidden sm:block" />
+
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/40">
+            <Button variant="ghost" size="sm" onClick={() => setRangeType('week')} className="rounded-lg text-[10px] font-extrabold uppercase tracking-wider px-3.5 h-8 hover:bg-background">This Week</Button>
+            <Button variant="ghost" size="sm" onClick={() => setRangeType('month')} className="rounded-lg text-[10px] font-extrabold uppercase tracking-wider px-3.5 h-8 hover:bg-background">This Month</Button>
+            <Button variant="ghost" size="sm" onClick={() => setRangeType('last30')} className="rounded-lg text-[10px] font-extrabold uppercase tracking-wider px-3.5 h-8 hover:bg-background">Last 30 Days</Button>
+          </div>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="rounded-xl h-10 bg-background shadow-xs text-xs font-semibold gap-2 px-3 border-border/60 ml-auto">
+                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                {format(dateRange.from, "MMM d")} — {format(dateRange.to, "MMM d, yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden border shadow-xl" align="end">
+              <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(r: any) => r?.from && r?.to && setDateRange({ from: r.from, to: r.to })} numberOfMonths={2} />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
-      {/* Dynamic Filters */}
-      <Card className="bg-muted/30 p-1.5 rounded-2xl flex flex-wrap items-center gap-2 border-none">
-        <Select value={selectedOrgFilter} onValueChange={setSelectedOrgFilter}>
-          <SelectTrigger className="w-[200px] rounded-xl h-9 bg-background font-bold text-xs border-indigo-200">
-            <SelectValue placeholder="Select Congregation" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl">
-            <SelectItem value="all">🌍 All Congregations (Combined)</SelectItem>
-            <SelectItem value="00000000-0000-0000-0000-000000000001">🇬🇧 English Congregation</SelectItem>
-            <SelectItem value="00000000-0000-0000-0000-000000000002">🇪🇸 Spanish Congregation</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="h-6 w-[1px] bg-border mx-1" />
-
-        <Button variant="ghost" size="sm" onClick={() => setRangeType('week')} className="rounded-xl text-[10px] font-bold uppercase tracking-wider px-4 hover:bg-background transition-all">This Week</Button>
-        <Button variant="ghost" size="sm" onClick={() => setRangeType('month')} className="rounded-xl text-[10px] font-bold uppercase tracking-wider px-4 hover:bg-background transition-all">This Month</Button>
-        <Button variant="ghost" size="sm" onClick={() => setRangeType('last30')} className="rounded-xl text-[10px] font-bold uppercase tracking-wider px-4 hover:bg-background transition-all">Last 30 Days</Button>
-        <div className="h-6 w-[1px] bg-border mx-2" />
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="rounded-xl h-9 bg-background shadow-sm text-xs font-semibold gap-2 pl-3">
-              <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-              {format(dateRange.from, "MMM d")} — {format(dateRange.to, "MMM d, yyyy")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 rounded-xl overflow-hidden border shadow-xl" align="start">
-            <Calendar mode="range" selected={{ from: dateRange.from, to: dateRange.to }}
-              onSelect={(r: any) => r?.from && r?.to && setDateRange({ from: r.from, to: r.to })} numberOfMonths={2} />
-          </PopoverContent>
-        </Popover>
-      </Card>
-
       {/* Global KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <SummaryCard title="Total Volume" value={loadingAttendance ? '--' : attendanceReport?.reduce((a: any, b: any) => a + Number(b.total_checked_in), 0)} sub="Check-ins" icon={Users} color="bg-indigo-600" />
-        <SummaryCard title="Staff Impact" value={staffPerformance?.length || 0} sub="Active Staff" icon={Briefcase} color="bg-emerald-500" />
-        <SummaryCard title="System Status" value={securityStats?.total_terminals || 0} sub="Active Units" icon={Activity} color="bg-amber-500" />
-        <SummaryCard title="Safety Alerts" value={securityStats?.alerts_last_24h || 0} sub="Incidents" icon={ShieldAlert} color="bg-rose-500" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <SummaryCard title="Total Check-Ins" value={totalVolumeCount} sub="Check-ins" icon={Users} gradient="from-blue-600 to-indigo-600" />
+        <SummaryCard title="Staff Impact" value={staffPerformance?.length || 0} sub="Active Staff" icon={Briefcase} gradient="from-emerald-500 to-teal-600" />
+        <SummaryCard title="Terminal Status" value={securityStats?.total_terminals || 1} sub="Active Units" icon={Activity} gradient="from-amber-500 to-orange-600" />
+        <SummaryCard title="Safety Alerts" value={securityStats?.alerts_last_24h || 0} sub="Incidents" icon={ShieldAlert} gradient="from-rose-500 to-red-600" />
       </div>
 
       {/* Main Intelligence Tabs */}
-      <Tabs defaultValue="overview" className="space-y-8">
-        <TabsList className="bg-muted/50 p-1 rounded-xl w-full md:w-auto h-auto gap-1">
-          <TabsTrigger value="overview" className="rounded-lg px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] font-bold uppercase tracking-wider transition-all">Management Center</TabsTrigger>
-          <TabsTrigger value="detailed" className="rounded-lg px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] font-bold uppercase tracking-wider transition-all">Daily Audit Trail</TabsTrigger>
-          <TabsTrigger value="child-report" className="rounded-lg px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] font-bold uppercase tracking-wider transition-all">Child History</TabsTrigger>
-          <TabsTrigger value="staff" className="rounded-lg px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] font-bold uppercase tracking-wider transition-all">Staff Management</TabsTrigger>
-          <TabsTrigger value="security" className="rounded-lg px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] font-bold uppercase tracking-wider transition-all">Forensics</TabsTrigger>
-          <TabsTrigger value="medical" className="rounded-lg px-6 py-2 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] font-bold uppercase tracking-wider transition-all">Health Desk</TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="bg-muted/40 p-1.5 rounded-2xl border border-border/40 w-full flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="overview" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs font-bold uppercase tracking-wider transition-all">Management Center</TabsTrigger>
+          <TabsTrigger value="detailed" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs font-bold uppercase tracking-wider transition-all">Daily Audit Trail</TabsTrigger>
+          <TabsTrigger value="child-report" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs font-bold uppercase tracking-wider transition-all">Child History</TabsTrigger>
+          <TabsTrigger value="medical" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm text-xs font-bold uppercase tracking-wider transition-all">Health Desk</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <Card className="lg:col-span-2 border shadow-sm rounded-3xl bg-card overflow-hidden">
-              <CardHeader className="p-8 border-b bg-muted/20">
-                <CardTitle className="text-xl font-bold text-foreground">Volume Intelligence</CardTitle>
-                <CardDescription className="text-muted-foreground font-semibold uppercase text-[9px] tracking-wider">Daily aggregation of child distribution</CardDescription>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 border border-border/50 shadow-sm rounded-3xl bg-card overflow-hidden">
+              <CardHeader className="p-6 md:p-8 border-b border-border/40 bg-muted/10 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg md:text-xl font-bold text-foreground">Volume Intelligence</CardTitle>
+                  <CardDescription className="text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">Daily aggregation of child distribution</CardDescription>
+                </div>
+                <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 bg-primary/5 text-primary border-primary/20">
+                  Live Feed
+                </Badge>
               </CardHeader>
-              <CardContent className="p-8">
+              <CardContent className="p-6 md:p-8">
                 <div className="h-[350px] w-full">
-                  {loadingAttendance ? <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-muted" /></div> : (
+                  {loadingAttendance ? (
+                    <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
+                  ) : attendanceReport && attendanceReport.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={attendanceReport}>
                         <defs>
                           <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
                             <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
                         <XAxis dataKey="attendance_date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))', fontWeight: 'bold' }} tickFormatter={(v) => format(new Date(v), 'MMM d')} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))', fontWeight: 'bold' }} />
-                        <Tooltip contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }} />
-                        <Area type="monotone" dataKey="total_checked_in" name="Total Flow" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorIn)" />
-                        <Bar dataKey="total_checked_out" name="Complete Cycles" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} barSize={30} />
+                        <Tooltip contentStyle={{ borderRadius: '16px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }} />
+                        <Area type="monotone" dataKey="total_checked_in" name="Total Check-Ins" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorIn)" />
+                        <Bar dataKey="total_checked_out" name="Checked Out" fill="hsl(var(--muted-foreground))" opacity={0.3} radius={[6, 6, 0, 0]} barSize={24} />
                       </ComposedChart>
                     </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 border border-dashed border-border/60 rounded-2xl">
+                      <BarChart3 className="h-10 w-10 text-muted-foreground/40 mb-2" />
+                      <p className="text-sm font-bold text-foreground">No Attendance Data Found</p>
+                      <p className="text-xs text-muted-foreground max-w-sm mt-1">Check-in records for the selected congregation and date range will appear here.</p>
+                    </div>
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none bg-primary text-primary-foreground rounded-3xl shadow-xl p-8 relative overflow-hidden flex flex-col justify-between">
-              <div className="absolute top-0 right-0 p-10 opacity-10"><Activity className="h-40 w-40" /></div>
-              <div className="relative">
-                <Badge className="bg-card/10 text-white border-white/20 text-[10px] font-bold uppercase mb-4">Management Insights</Badge>
-                <h3 className="text-2xl font-bold mb-2">Operational Insights</h3>
-                <div className="space-y-6 mt-8">
-                  <div className="flex gap-4">
-                    <div className="h-10 w-10 bg-card/10 rounded-xl flex items-center justify-center shrink-0"><TrendingUp className="h-5 w-5" /></div>
+            <Card className="border border-border/50 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl shadow-lg p-7 relative overflow-hidden flex flex-col justify-between">
+              <div className="absolute top-0 right-0 p-8 opacity-10"><Activity className="h-40 w-40 text-white" /></div>
+              <div className="relative space-y-6">
+                <div className="flex items-center justify-between">
+                  <Badge className="bg-white/10 text-white border-white/20 text-[10px] font-bold uppercase px-3 py-1">Management Insights</Badge>
+                  <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400">Live Status</span>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-extrabold mb-1">Operational Insights</h3>
+                  <p className="text-xs text-slate-300">Automated system health and capacity analysis.</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-3.5">
+                    <div className="h-9 w-9 bg-indigo-500/20 rounded-xl flex items-center justify-center shrink-0 border border-indigo-400/30">
+                      <TrendingUp className="h-4 w-4 text-indigo-300" />
+                    </div>
                     <div>
-                      <p className="text-sm font-bold">Growth Momentum</p>
-                      <p className="text-[11px] opacity-80 leading-relaxed">
+                      <p className="text-xs font-bold text-white">Growth Momentum</p>
+                      <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
                         {growthStats && growthStats.length > 0 ? (
-                          `Your organization welcomed ${growthStats[0].count} new registrations this week.`
+                          `Welcomed ${growthStats[0].count} new registrations this period.`
                         ) : (
-                          'Scanning historical enrollment patterns...'
+                          'Active attendance scanning in progress...'
                         )}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="h-10 w-10 bg-card/10 rounded-xl flex items-center justify-center shrink-0"><ShieldCheck className="h-5 w-5" /></div>
+
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex gap-3.5">
+                    <div className="h-9 w-9 bg-emerald-500/20 rounded-xl flex items-center justify-center shrink-0 border border-emerald-400/30">
+                      <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                    </div>
                     <div>
-                      <p className="text-sm font-bold">Safe Station Index</p>
-                      <p className="text-[11px] opacity-80 leading-relaxed">Integrity verified across all terminals.</p>
+                      <p className="text-xs font-bold text-white">Station Integrity</p>
+                      <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">Security verified across all Kiosk terminals.</p>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 bg-muted/30 rounded-2xl border flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 bg-background shadow-sm rounded-xl flex items-center justify-center border"><Info className="h-5 w-5 text-primary" /></div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">Peak Capacity Alert</p>
-                      <p className="text-xs text-muted-foreground">Highest volume detected between 9:00 AM and 10:30 AM.</p>
-                    </div>
-                  </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-indigo-950/60 border border-indigo-500/30 rounded-2xl flex items-center gap-3">
+                <Info className="h-5 w-5 text-indigo-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-indigo-200">Peak Service Capacity</p>
+                  <p className="text-[10px] text-indigo-300/80">Highest attendance standard detected between 9:00 AM – 10:30 AM.</p>
                 </div>
               </div>
             </Card>

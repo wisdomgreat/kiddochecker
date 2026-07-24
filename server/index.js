@@ -1125,7 +1125,12 @@ app.post('/api/query', verifyToken, async (req, res) => {
         LEFT JOIN public.classes cl ON t.class_id = cl.id
       `;
     } else {
-      const cleanSelect = select.replace(/[\w]+:[\w]+\([^)]+\)/g, '').replace(/,(\s*,)+/g, ',').replace(/^,|,$/g, '');
+      const cleanSelect = select
+        .replace(/[\w_]+\s*\([^)]*\)/g, '')
+        .replace(/[\w]+:[\w]+\([^)]+\)/g, '')
+        .replace(/,(\s*,)+/g, ',')
+        .replace(/^,|,$/g, '')
+        .trim();
       sql = `SELECT ${cleanSelect === '*' || cleanSelect === '' ? '*' : cleanSelect} FROM public.${table} t`;
     }
 
