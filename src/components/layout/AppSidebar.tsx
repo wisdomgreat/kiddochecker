@@ -265,33 +265,56 @@ export function AppSidebar() {
             );
           })}
 
-          {/* Super-admin dev panel */}
+          {/* Super-admin dev & tenant panel */}
           {isSuperAdmin && (
-            <div className="mx-3 mt-4 pt-4 border-t border-dashed border-border/40">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2 mb-2">Dev Mode</p>
-              <Select
-                value={userRole || ""}
-                onValueChange={(val: any) => {
-                  if (val === "reset") {
-                    localStorage.removeItem("qa_simulate_role");
-                  } else {
-                    localStorage.setItem("qa_simulate_role", val);
-                  }
-                  window.location.reload();
-                }}
-              >
-                <SelectTrigger className="h-8 text-[11px] bg-amber-50 dark:bg-amber-900/15 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
-                  <SelectValue placeholder="Simulate role…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reset">Default (Original)</SelectItem>
-                  <SelectItem value="parent">View as Parent</SelectItem>
-                  <SelectItem value="staff">View as Staff</SelectItem>
-                  <SelectItem value="teacher">View as Teacher</SelectItem>
-                  <SelectItem value="admin">View as Admin</SelectItem>
-                  <SelectItem value="volunteer">View as Volunteer</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="mx-3 mt-4 pt-4 border-t border-dashed border-border/40 space-y-2.5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary px-2 mb-1">Super Admin Tenant Access</p>
+                <Select
+                  value={window.localStorage.getItem('kiosk_active_org_id') || '00000000-0000-0000-0000-000000000001'}
+                  onValueChange={(val: string) => {
+                    window.localStorage.setItem('kiosk_active_org_id', val);
+                    window.localStorage.setItem('active_tenant_id', val);
+                    window.location.reload();
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-[11px] bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold">
+                    <SelectValue placeholder="Switch Tenant / Church…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="00000000-0000-0000-0000-000000000001">🇬🇧 English Congregation</SelectItem>
+                    <SelectItem value="00000000-0000-0000-0000-000000000002">🇪🇸 Spanish Congregation</SelectItem>
+                    <SelectItem value="all">🌍 All Tenants (Global View)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2 mb-1">Role Simulator</p>
+                <Select
+                  value={userRole || ""}
+                  onValueChange={(val: any) => {
+                    if (val === "reset") {
+                      localStorage.removeItem("qa_simulate_role");
+                    } else {
+                      localStorage.setItem("qa_simulate_role", val);
+                    }
+                    window.location.reload();
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-[11px] bg-amber-50 dark:bg-amber-900/15 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
+                    <SelectValue placeholder="Simulate role…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reset">Super Admin (Default)</SelectItem>
+                    <SelectItem value="admin">View as Organization Admin</SelectItem>
+                    <SelectItem value="staff">View as Staff</SelectItem>
+                    <SelectItem value="teacher">View as Teacher</SelectItem>
+                    <SelectItem value="parent">View as Parent</SelectItem>
+                    <SelectItem value="volunteer">View as Volunteer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
         </SidebarContent>
