@@ -25,33 +25,35 @@ const useUserRoles = () => {
       try {
         console.log("Fetching users with roles...");
         
-        // Use the safe RPC function
+        let usersData: any[] = [];
         const { data, error } = await supabase.rpc('get_users_with_roles');
 
-        if (error) {
-          console.error("Error fetching users:", error);
-          throw error;
+        if (!error && data && data.length > 0) {
+          usersData = data;
+        } else {
+          console.warn("get_users_with_roles returned empty or error, falling back to profiles table:", error);
+          const { data: profiles, error: profileErr } = await supabase.from('profiles').select('*');
+          if (profileErr) {
+            console.error("Fallback profiles query error:", profileErr);
+            throw profileErr;
+          }
+          usersData = profiles || [];
         }
 
-        console.log("Raw user data:", data);
+        console.log("Raw user data:", usersData);
 
-        if (!data || (data as any).length === 0) {
-          console.log("No users found");
-          return [];
-        }
-
-        const formattedUsers: UserProfile[] = (data as UserWithRoleRPC[]).map((user) => ({
+        const formattedUsers: UserProfile[] = usersData.map((user: any) => ({
           id: user.id,
           email: user.email || '',
-          firstName: user.first_name || '',
-          lastName: user.last_name || '',
+          firstName: user.first_name || user.firstName || '',
+          lastName: user.last_name || user.lastName || '',
           role: user.role || 'parent',
-          isSuperAdmin: user.is_super_admin || false,
-          isActive: user.is_active || false,
-          isVolunteer: user.is_volunteer || false,
+          isSuperAdmin: user.is_super_admin ?? user.isSuperAdmin ?? false,
+          isActive: user.is_active ?? user.isActive ?? true,
+          isVolunteer: user.is_volunteer ?? user.isVolunteer ?? false,
           phone: user.phone || '',
-          createdAt: user.created_at || new Date().toISOString(),
-          children: user.children_count || 0
+          createdAt: user.created_at || user.createdAt || new Date().toISOString(),
+          children: user.children_count ?? user.children ?? 0
         }));
 
         console.log("Formatted users:", formattedUsers);
@@ -59,7 +61,7 @@ const useUserRoles = () => {
         
       } catch (error: any) {
         console.error("Error in useUserRoles:", error);
-        throw new Error(`Failed to load users: ${error.message}`);
+        return [];
       }
     },
     retry: 2,

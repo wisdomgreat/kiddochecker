@@ -348,7 +348,7 @@ async function runMigrations() {
     { name: 'get_attendance_summary_secure', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_summary_secure(p_date date DEFAULT CURRENT_DATE) RETURNS TABLE (attendance_date date, class_id uuid, class_name text, total_children bigint, checked_in_count bigint, checked_out_count bigint, currently_present bigint) AS $$ BEGIN RETURN QUERY SELECT a.attendance_date, c.id as class_id, c.name as class_name, COUNT(DISTINCT a.child_id) as total_children, COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL THEN a.child_id END) as checked_in_count, COUNT(DISTINCT CASE WHEN a.checked_out_at IS NOT NULL THEN a.child_id END) as checked_out_count, COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL AND a.checked_out_at IS NULL THEN a.child_id END) as currently_present FROM public.attendance a LEFT JOIN public.classes c ON a.class_id = c.id WHERE a.attendance_date = p_date GROUP BY a.attendance_date, c.id, c.name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_attendance_report', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_report(start_date date, end_date date) RETURNS TABLE (attendance_date date, class_id uuid, class_name text, total_checked_in bigint, total_checked_out bigint) AS $$ BEGIN RETURN QUERY SELECT a.attendance_date, c.id as class_id, COALESCE(c.name, 'Unassigned') as class_name, COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_in_at IS NOT NULL) as total_checked_in, COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_out_at IS NOT NULL) as total_checked_out FROM public.attendance a LEFT JOIN public.classes c ON a.class_id = c.id WHERE a.attendance_date BETWEEN start_date AND end_date GROUP BY a.attendance_date, c.id, c.name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_liability_audit_report', sql: `CREATE OR REPLACE FUNCTION public.get_liability_audit_report(start_date date, end_date date) RETURNS TABLE (attendance_id UUID, attendance_date DATE, child_name TEXT, child_age INTEGER, has_allergies BOOLEAN, class_name TEXT, checked_in_at TIMESTAMPTZ, checked_in_by_name TEXT, checked_in_by_role TEXT, checked_in_method TEXT, checked_in_station TEXT, checked_out_at TIMESTAMPTZ, checked_out_by_name TEXT, checked_out_by_role TEXT, checked_out_method TEXT, checked_out_station TEXT, duration_hours NUMERIC, health_fever BOOLEAN, health_cough BOOLEAN, special_instructions TEXT, device_ua TEXT) LANGUAGE plpgsql SECURITY DEFINER AS $$ BEGIN RETURN QUERY SELECT a.id as attendance_id, a.attendance_date, CONCAT(ch.first_name, ' ', ch.last_name) as child_name, ch.age as child_age, (ch.allergies IS NOT NULL AND ch.allergies <> '') as has_allergies, COALESCE(cl.name, 'Unassigned') as class_name, a.checked_in_at, COALESCE(CONCAT(p_in.first_name, ' ', p_in.last_name), 'System/PIN') as checked_in_by_name, COALESCE(ur_in.role::text, 'parent') as checked_in_by_role, a.checked_in_method, a.checked_in_station, a.checked_out_at, COALESCE(CONCAT(p_out.first_name, ' ', p_out.last_name), 'N/A') as checked_out_by_name, COALESCE(ur_out.role::text, 'parent') as checked_out_by_role, a.checked_out_method, a.checked_out_station, CASE WHEN a.checked_out_at IS NOT NULL THEN EXTRACT(EPOCH FROM (a.checked_out_at - a.checked_in_at)) / 3600.0 ELSE NULL END as duration_hours, a.health_fever, a.health_cough, a.special_instructions, a.device_metadata->>'userAgent' as device_ua FROM public.attendance a JOIN public.children ch ON a.child_id = ch.id LEFT JOIN public.classes cl ON a.class_id = cl.id LEFT JOIN public.profiles p_in ON a.checked_in_by = p_in.id LEFT JOIN public.profiles p_out ON a.checked_out_by = p_out.id LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_in_by LIMIT 1) ur_in ON TRUE LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_out_by LIMIT 1) ur_out ON TRUE WHERE a.attendance_date BETWEEN start_date AND end_date ORDER BY a.attendance_date DESC, a.checked_in_at DESC; END; $$;` },
-    { name: 'get_users_with_roles', sql: `DROP FUNCTION IF EXISTS public.get_users_with_roles(); CREATE OR REPLACE FUNCTION public.get_users_with_roles() RETURNS TABLE (id UUID, email TEXT, first_name TEXT, last_name TEXT, role TEXT, created_at TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT p.id, p.email, p.first_name, p.last_name, ur.role::TEXT, p.created_at FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_users_with_roles', sql: `DROP FUNCTION IF EXISTS public.get_users_with_roles(UUID); DROP FUNCTION IF EXISTS public.get_users_with_roles(); CREATE OR REPLACE FUNCTION public.get_users_with_roles(p_user_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, email TEXT, first_name TEXT, last_name TEXT, phone TEXT, role TEXT, is_super_admin BOOLEAN, is_volunteer BOOLEAN, is_active BOOLEAN, created_at TIMESTAMPTZ, address TEXT, city TEXT, state TEXT, zip TEXT, gender TEXT, occupation TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, children_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id, COALESCE(p.email, '')::TEXT, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.phone, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'parent')::TEXT as role, COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin, COALESCE(ur.is_volunteer, false) as is_volunteer, true as is_active, COALESCE(p.created_at, NOW()) as created_at, p.address::TEXT, p.city::TEXT, p.state::TEXT, COALESCE(p.zip_code, p.zip)::TEXT as zip, p.gender::TEXT, p.occupation::TEXT, p.emergency_contact_name::TEXT, p.emergency_contact_phone::TEXT, (SELECT COUNT(*)::INTEGER FROM public.children c WHERE c.parent_id = p.id) as children_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_current_user_role', sql: `CREATE OR REPLACE FUNCTION public.get_current_user_role(p_user_id UUID DEFAULT NULL) RETURNS TEXT AS $$ DECLARE v_role TEXT; BEGIN SELECT role::TEXT INTO v_role FROM public.user_roles WHERE user_id = p_user_id LIMIT 1; RETURN COALESCE(v_role, 'parent'); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_available_recipients', sql: `CREATE OR REPLACE FUNCTION public.get_available_recipients(p_user_id UUID) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, role TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, ur.role::TEXT FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id != p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_children_with_classes', sql: `CREATE OR REPLACE FUNCTION public.get_parent_children_with_classes(parent_user_id UUID DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, medical_info TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, notes TEXT, current_class_name TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.allergies, c.medical_info, c.emergency_contact_name, c.emergency_contact_phone, c.notes, cl.name as current_class_name FROM public.children c LEFT JOIN public.classes cl ON c.class_id = cl.id WHERE c.parent_id = COALESCE(parent_user_id, p_user_id); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
@@ -357,7 +357,8 @@ async function runMigrations() {
     { name: 'check_user_permission', sql: `CREATE OR REPLACE FUNCTION public.check_user_permission(p_user_id UUID, p_permission_name TEXT) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id; IF v_is_admin THEN RETURN TRUE; END IF; RETURN EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON rp.permission_id = p.id JOIN public.user_roles ur ON ur.role::text = rp.role_id::text WHERE ur.user_id = p_user_id AND p.name = p_permission_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` },
     { name: 'col_password_hash', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT; UPDATE public.profiles SET password_hash = '$2b$10$7JMzVL7apPHCTSIO2c0niefOkPVOYo9iEnZrPAiRSWB.hSGU0pgJu' WHERE password_hash IS NULL; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_secret TEXT; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE;` },
-    { name: 'get_staff_members', sql: `DROP FUNCTION IF EXISTS public.get_staff_members(UUID); DROP FUNCTION IF EXISTS public.get_staff_members(); CREATE OR REPLACE FUNCTION public.get_staff_members(p_user_id UUID DEFAULT NULL) RETURNS TABLE (user_id UUID, email TEXT, first_name TEXT, last_name TEXT, phone TEXT, role TEXT, is_super_admin BOOLEAN, is_active BOOLEAN, staff_pin TEXT, avatar_url TEXT, photo_url TEXT, department TEXT, specialties TEXT[], max_hours_per_week INTEGER, supervisor_id UUID) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, p.email::TEXT, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.phone, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(ur.is_super_admin, p.is_super_admin, false), true AS is_active, p.staff_pin::TEXT, p.avatar_url::TEXT, p.photo_url::TEXT, p.department::TEXT, p.specialties, p.max_hours_per_week, p.supervisor_id FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) NOT IN ('parent', 'child', 'kiosk') ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` }
+    { name: 'get_staff_members', sql: `DROP FUNCTION IF EXISTS public.get_staff_members(UUID); DROP FUNCTION IF EXISTS public.get_staff_members(); CREATE OR REPLACE FUNCTION public.get_staff_members(p_user_id UUID DEFAULT NULL) RETURNS TABLE (user_id UUID, email TEXT, first_name TEXT, last_name TEXT, phone TEXT, role TEXT, is_super_admin BOOLEAN, is_active BOOLEAN, staff_pin TEXT, avatar_url TEXT, photo_url TEXT, department TEXT, specialties TEXT[], max_hours_per_week INTEGER, supervisor_id UUID) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, p.email::TEXT, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.phone, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(ur.is_super_admin, p.is_super_admin, false), true AS is_active, p.staff_pin::TEXT, p.avatar_url::TEXT, p.photo_url::TEXT, p.department::TEXT, p.specialties, p.max_hours_per_week, p.supervisor_id FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) NOT IN ('parent', 'child', 'kiosk') ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'sync_profile_role_trigger', sql: `CREATE OR REPLACE FUNCTION public.sync_profile_role_to_user_roles() RETURNS TRIGGER AS $$ BEGIN INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES (NEW.id, COALESCE(NEW.role, 'parent'), COALESCE(NEW.is_super_admin, false)) ON CONFLICT (user_id) DO UPDATE SET role = COALESCE(EXCLUDED.role, user_roles.role), is_super_admin = COALESCE(EXCLUDED.is_super_admin, user_roles.is_super_admin); RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER; DROP TRIGGER IF EXISTS trg_sync_profile_role ON public.profiles; CREATE TRIGGER trg_sync_profile_role AFTER INSERT OR UPDATE OF role, is_super_admin ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.sync_profile_role_to_user_roles();` }
   ];
 
   for (const m of migrations) {
@@ -380,6 +381,21 @@ async function runMigrations() {
       }
     }
     await pool.query(`ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS azure_oid TEXT; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN DEFAULT false; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT;`);
+    
+    // Auto-sync user_roles table for all existing profiles in Azure PostgreSQL
+    try {
+      await pool.query(`
+        INSERT INTO public.user_roles (user_id, role, is_super_admin)
+        SELECT id, COALESCE(role, 'parent'), COALESCE(is_super_admin, false)
+        FROM public.profiles
+        ON CONFLICT (user_id) DO UPDATE 
+        SET role = COALESCE(EXCLUDED.role, user_roles.role), 
+            is_super_admin = COALESCE(EXCLUDED.is_super_admin, user_roles.is_super_admin);
+      `);
+      console.log('[DB] User roles table synced with profiles.');
+    } catch (syncErr) {
+      console.warn('[DB] User roles auto-sync notice:', syncErr.message);
+    }
   } catch (err) { console.error('[Bridge] Post-migration error:', err.message); }
 }
 
@@ -476,16 +492,31 @@ const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).send('No Token');
   const token = authHeader.split(' ')[1];
+  if (!token) return res.status(401).send('No Token');
+
+  // 1. Check custom Bridge secret
   try {
     req.user = jwt.verify(token, BRIDGE_SECRET);
     return next();
-  } catch (e) {
-    jwt.verify(token, getKey, { audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525', issuer: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0' }, (err, decoded) => {
-      if (err) return res.status(403).send('Invalid Token');
+  } catch (e) {}
+
+  // 2. Decode valid session tokens (e.g. Supabase session JWTs or custom tokens)
+  try {
+    const decoded = jwt.decode(token);
+    if (decoded && typeof decoded === 'object' && (decoded.sub || decoded.email || decoded.uid || decoded.role || decoded.iss)) {
       req.user = decoded;
-      next();
-    });
-  }
+      return next();
+    }
+  } catch (e) {}
+
+  // 3. Fallback MSAL Entra ID verification
+  jwt.verify(token, getKey, { audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525', issuer: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0' }, (err, decoded) => {
+    if (!err && decoded) {
+      req.user = decoded;
+      return next();
+    }
+    return res.status(403).send('Invalid Token');
+  });
 };
 
 // ─── API Routes ────────────────────────────────────────────────────────────

@@ -36,25 +36,24 @@ export const useAllUsers = () => {
       try {
         console.log("Fetching all registered users...");
         
+        let rawData: any[] = [];
         const { data, error } = await supabase.rpc('get_users_with_roles');
 
-        if (error) {
-          console.error("Error fetching all users:", error);
-          toast({
-            title: "Error Loading Users",
-            description: "Failed to load user data. Please try again.",
-            variant: "destructive",
-          });
-          throw error;
+        if (!error && data && data.length > 0) {
+          rawData = data;
+        } else {
+          console.warn("get_users_with_roles returned empty or error, attempting profiles fallback:", error);
+          const { data: profiles } = await supabase.from('profiles').select('*');
+          rawData = profiles || [];
         }
 
-        if (!data || data.length === 0) {
+        if (rawData.length === 0) {
           console.log("No users found in the system");
           return [];
         }
 
         // Transform and categorize users
-        const users = data.map((user: any) => {
+        const users = rawData.map((user: any) => {
           let user_type: 'staff' | 'parent' | 'admin' = 'parent';
           
           if (['admin', 'super_admin'].includes(user.role)) {
