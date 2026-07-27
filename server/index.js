@@ -1073,8 +1073,38 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
     try {
       result = await runRpcQuery(finalParams);
     } catch (rpcErr) {
-      // Fallback: If function signature doesn't match named parameters, try without parameters or positional
-      if (rpcErr.code === '42883' || rpcErr.message.includes('does not exist')) {
+      if (finalFn === 'get_users_with_roles') {
+        console.warn(`[Bridge] RPC ${finalFn} error (${rpcErr.message}), executing direct profiles query fallback...`);
+        try {
+          result = await pool.query(`
+            SELECT 
+              p.id, 
+              COALESCE(p.email, '')::text as email, 
+              COALESCE(p.first_name, '')::text as first_name, 
+              COALESCE(p.last_name, '')::text as last_name, 
+              COALESCE(p.phone, '')::text as phone, 
+              COALESCE(ur.role::text, p.role::text, 'parent')::text as role, 
+              COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin, 
+              COALESCE(ur.is_volunteer, false) as is_volunteer, 
+              true as is_active, 
+              COALESCE(p.created_at, NOW()) as created_at,
+              p.address::text,
+              p.city::text,
+              p.state::text,
+              COALESCE(p.zip_code, p.zip)::text as zip,
+              p.gender::text,
+              p.occupation::text,
+              p.emergency_contact_name::text,
+              p.emergency_contact_phone::text,
+              (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) as children_count
+            FROM public.profiles p
+            LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+            ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST
+          `);
+        } catch (fbErr) {
+          throw rpcErr;
+        }
+      } else if (rpcErr.code === '42883' || rpcErr.message.includes('does not exist')) {
         console.warn(`[Bridge] Named RPC failed for ${finalFn}, attempting zero-argument fallback...`);
         try {
           result = await pool.query(`SELECT * FROM public.${finalFn}()`);
