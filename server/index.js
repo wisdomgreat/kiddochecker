@@ -1009,16 +1009,38 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid or missing RPC function name' });
     }
 
-    // IP lockdown verification for Kiosk PIN/Login RPCs
-    const kioskRpcs = ['get_parent_for_kiosk', 'verify_staff_pin_for_kiosk', 'youth_self_check_action'];
-    if (kioskRpcs.includes(finalFn)) {
-      const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || req.ip;
-      const ipCheck = await checkIpAuthorized(clientIp);
-      if (!ipCheck.authorized) {
-        console.warn(`[Security Alert] Blocked Kiosk RPC login call ${finalFn} from unauthorized IP: ${clientIp}. Allowed: ${ipCheck.allowedIps}`);
-        return res.status(403).json({
-          error: `ACCESS_DENIED: Access blocked from IP address ${clientIp}. This terminal is not registered inside the authorized physical facility network.`
-        });
+    // Direct bulletproof handler for get_users_with_roles
+    if (finalFn === 'get_users_with_roles') {
+      try {
+        const usersRes = await pool.query(`
+          SELECT 
+            p.id, 
+            COALESCE(p.email, '')::text as email, 
+            COALESCE(p.first_name, '')::text as first_name, 
+            COALESCE(p.last_name, '')::text as last_name, 
+            COALESCE(p.phone, '')::text as phone, 
+            COALESCE(ur.role::text, p.role::text, 'parent')::text as role, 
+            COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin, 
+            COALESCE(ur.is_volunteer, false) as is_volunteer, 
+            true as is_active, 
+            COALESCE(p.created_at, NOW()) as created_at,
+            p.address::text,
+            p.city::text,
+            p.state::text,
+            COALESCE(p.zip_code, p.zip)::text as zip,
+            p.gender::text,
+            p.occupation::text,
+            p.emergency_contact_name::text,
+            p.emergency_contact_phone::text,
+            (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) as children_count
+          FROM public.profiles p
+          LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+          ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST
+        `);
+        return res.json({ data: usersRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error fetching get_users_with_roles:', err.message);
+        return res.status(500).json({ error: err.message });
       }
     }
 
@@ -1033,7 +1055,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
     }
 
     let result;
-    const runRpcQuery = async (params: any) => {
+    const runRpcQuery = async (params) => {
       if (Array.isArray(params)) {
         const placeholders = params.map((_, i) => `$${i + 1}`).join(', ');
         return await pool.query(`SELECT * FROM public.${finalFn}(${placeholders})`, params);
