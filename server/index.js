@@ -1466,6 +1466,25 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       const filterItems = (filters || []).filter(f => f && f.column);
       const filterKeys = filterItems.map(f => f.column);
       const filterVals = filterItems.map(f => f.value);
+      
+      // Cascade delete for profiles table to prevent foreign key errors
+      if (table === 'profiles' && filterKeys.includes('id')) {
+        const targetId = filterVals[filterKeys.indexOf('id')];
+        if (targetId) {
+          console.log(`[Bridge] Executing cascade cleanup for deleting profile ${targetId}...`);
+          const cleanups = [
+            'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
+            'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
+            'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
+            'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
+            'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid'
+          ];
+          for (const sql of cleanups) {
+            try { await pool.query(sql, [targetId]); } catch (e) { console.warn(`[Bridge] Single cleanup notice (${sql}):`, e.message); }
+          }
+        }
+      }
+
       const filterClause = filterKeys.length > 0
         ? filterKeys.map((k, i) => `${k}::text = $${i + 1}::text`).join(' AND ')
         : 'FALSE';
@@ -1477,6 +1496,75 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   } catch (err) {
     console.error(`[Bridge] mutate error [${table}]:`, err.message);
     if (err.detail) console.error(`[Bridge] mutate detail:`, err.detail);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin Password Reset Endpoint
+app.post('/api/admin/users/reset-password', verifyToken, async (req, res) => {
+  const { user_id, new_password } = req.body;
+  if (!user_id || !new_password) {
+    return res.status(400).json({ error: 'user_id and new_password are required' });
+  }
+  if (new_password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+  try {
+    const saltRounds = 10;
+    const hash = await bcrypt.hash(new_password, saltRounds);
+    await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE id = $2::uuid', [hash, user_id]);
+    console.log(`[Admin] Password successfully reset for user ${user_id}`);
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('[Admin] Reset password error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin Bulk User Management Endpoint
+app.post('/api/admin/users/bulk-action', verifyToken, async (req, res) => {
+  const { action, user_ids, data } = req.body;
+  if (!Array.isArray(user_ids) || user_ids.length === 0) {
+    return res.status(400).json({ error: 'user_ids array is required' });
+  }
+
+  try {
+    if (action === 'change_role') {
+      const newRole = data?.role || 'parent';
+      const isSuperAdmin = newRole === 'super_admin';
+      await pool.query('UPDATE public.profiles SET role = $1, is_super_admin = $2 WHERE id = ANY($3::uuid[])', [newRole, isSuperAdmin, user_ids]);
+      await pool.query(`
+        INSERT INTO public.user_roles (user_id, role, is_super_admin)
+        SELECT id, $1::text, $2::boolean FROM public.profiles WHERE id = ANY($3::uuid[])
+        ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_super_admin = EXCLUDED.is_super_admin
+      `, [newRole, isSuperAdmin, user_ids]);
+      console.log(`[Admin] Bulk role update to ${newRole} for ${user_ids.length} users`);
+      return res.json({ success: true, count: user_ids.length });
+    } else if (action === 'toggle_active') {
+      const isActive = Boolean(data?.is_active);
+      await pool.query('UPDATE public.profiles SET is_active = $1 WHERE id = ANY($2::uuid[])', [isActive, user_ids]);
+      console.log(`[Admin] Bulk active state set to ${isActive} for ${user_ids.length} users`);
+      return res.json({ success: true, count: user_ids.length });
+    } else if (action === 'delete') {
+      for (const uid of user_ids) {
+        const cleanups = [
+          'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
+          'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
+          'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
+          'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
+          'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid',
+          'DELETE FROM public.profiles WHERE id = $1::uuid'
+        ];
+        for (const sql of cleanups) {
+          try { await pool.query(sql, [uid]); } catch (e) { console.warn(`[Bridge] Bulk cleanup notice (${sql}):`, e.message); }
+        }
+      }
+      console.log(`[Admin] Bulk deleted ${user_ids.length} users`);
+      return res.json({ success: true, count: user_ids.length });
+    }
+    return res.status(400).json({ error: 'Invalid bulk action specified' });
+  } catch (err) {
+    console.error('[Admin] Bulk action error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
