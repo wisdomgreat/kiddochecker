@@ -31,12 +31,19 @@ export class PrintService {
     const proxyUrl = getPrintProxyUrl();
     console.log(`[Printer] Attempting auto-print for ${childData.name} via ${proxyUrl}...`);
 
+    const targetPrinterIp = localStorage.getItem('kiddochecker_target_printer_ip') || '';
+    const targetPrinterName = localStorage.getItem('kiddochecker_target_printer_name') || '';
+
     try {
       // 1. Try Print Proxy (Silent)
       const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ labelData: childData }),
+        body: JSON.stringify({
+          labelData: childData,
+          printerIp: targetPrinterIp,
+          printerName: targetPrinterName
+        }),
       });
 
       if (response.ok) {

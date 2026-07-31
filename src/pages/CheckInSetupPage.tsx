@@ -17,8 +17,9 @@ const CheckInSetupPage = () => {
     enableQRScanning: true,
     autoCheckIn: false,
     securityMode: true,
-    printerName: 'Default Printer',
+    printerName: localStorage.getItem('kiddochecker_target_printer_name') || 'Default Printer',
     printServerUrl: localStorage.getItem('kiddochecker_print_server_url') || '',
+    targetPrinterIp: localStorage.getItem('kiddochecker_target_printer_ip') || '',
     kioskMode: false,
   });
 
@@ -26,9 +27,11 @@ const CheckInSetupPage = () => {
 
   const handleSave = () => {
     localStorage.setItem('kiddochecker_print_server_url', settings.printServerUrl);
+    localStorage.setItem('kiddochecker_target_printer_ip', settings.targetPrinterIp);
+    localStorage.setItem('kiddochecker_target_printer_name', settings.printerName);
     toast({
       title: "Settings Saved",
-      description: "Check-in setup and Print Server URL updated successfully",
+      description: "Check-in setup and Print Server configuration updated successfully",
     });
   };
 
@@ -188,7 +191,18 @@ const CheckInSetupPage = () => {
                       <Button type="button" variant="outline" onClick={testPrintServerConnection} disabled={testingConnection}>
                         {testingConnection ? 'Testing...' : 'Test IP'}
                       </Button>
-                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="targetPrinterIp">Target Wireless Printer IP (Optional for Multi-Printer)</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Assign this kiosk to Printer 1 (e.g. <code>192.168.1.101</code>) or Printer 2 (e.g. <code>192.168.1.102</code>)
+                    </p>
+                    <Input
+                      id="targetPrinterIp"
+                      value={settings.targetPrinterIp}
+                      onChange={(e) => handleSettingChange('targetPrinterIp', e.target.value)}
+                      placeholder="e.g. 192.168.1.101 (Leave blank to use default)"
+                    />
                   </div>
                 </div>
               )}
