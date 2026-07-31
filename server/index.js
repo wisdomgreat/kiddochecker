@@ -1044,6 +1044,39 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       }
     }
 
+    // Direct bulletproof handler for get_staff_members
+    if (finalFn === 'get_staff_members') {
+      try {
+        const staffRes = await pool.query(`
+          SELECT 
+            p.id as user_id, 
+            COALESCE(p.email, '')::text as email, 
+            COALESCE(p.first_name, '')::text as first_name, 
+            COALESCE(p.last_name, '')::text as last_name, 
+            COALESCE(p.phone, '')::text as phone, 
+            COALESCE(ur.role::text, p.role::text, 'staff')::text as role, 
+            COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin, 
+            COALESCE(ur.is_volunteer, false) as is_volunteer, 
+            COALESCE(p.is_active, true) as is_active,
+            p.staff_pin::text as staff_pin, 
+            p.avatar_url::text as avatar_url, 
+            p.photo_url::text as photo_url, 
+            p.department::text as department, 
+            p.specialties, 
+            p.max_hours_per_week, 
+            p.supervisor_id
+          FROM public.profiles p
+          LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+          WHERE COALESCE(ur.role::text, p.role::text) IN ('staff', 'teacher', 'teacher_assistant', 'admin', 'super_admin', 'volunteer')
+          ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST
+        `);
+        return res.json({ data: staffRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error fetching get_staff_members:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
     // Inject user ID if missing ONLY when params were explicitly supplied by client
     const hasParams = Object.keys(finalParams).length > 0;
     if (hasParams && !finalParams.p_user_id && req.user) {
