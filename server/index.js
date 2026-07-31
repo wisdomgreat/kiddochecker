@@ -1057,7 +1057,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             COALESCE(ur.role::text, p.role::text, 'staff')::text as role, 
             COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin, 
             COALESCE(ur.is_volunteer, false) as is_volunteer, 
-            COALESCE(p.is_active, true) as is_active,
+            true as is_active,
             p.staff_pin::text as staff_pin, 
             p.avatar_url::text as avatar_url, 
             p.photo_url::text as photo_url, 
