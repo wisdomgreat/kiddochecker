@@ -14,6 +14,7 @@ import DOMPurify from 'dompurify';
 import { useTranslation, Language } from '@/lib/i18n';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { getPrintProxyUrl } from '@/services/printService';
 
 interface NameTagPrintDialogProps {
   open: boolean;
@@ -70,7 +71,8 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
 
     console.log('[Printer] Attempting silent network printing via proxy...');
     try {
-      const response = await fetch('http://localhost:3003/print', {
+      const proxyUrl = getPrintProxyUrl();
+      const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

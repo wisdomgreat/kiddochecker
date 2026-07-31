@@ -18,15 +18,62 @@ const CheckInSetupPage = () => {
     autoCheckIn: false,
     securityMode: true,
     printerName: 'Default Printer',
+    printServerUrl: localStorage.getItem('kiddochecker_print_server_url') || '',
     kioskMode: false,
   });
 
+  const [testingConnection, setTestingConnection] = useState(false);
+
   const handleSave = () => {
-    // Save settings logic would go here
+    localStorage.setItem('kiddochecker_print_server_url', settings.printServerUrl);
     toast({
       title: "Settings Saved",
-      description: "Check-in setup has been updated successfully",
+      description: "Check-in setup and Print Server URL updated successfully",
     });
+  };
+
+  const testPrintServerConnection = async () => {
+    if (!settings.printServerUrl) {
+      toast({
+        title: "Default Localhost Active",
+        description: "No remote IP configured. Currently using http://localhost:3003/print",
+      });
+      return;
+    }
+    setTestingConnection(true);
+    let target = settings.printServerUrl.trim();
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      target = `http://${target}`;
+    }
+    if (!target.includes(':3003') && !target.endsWith('/health')) {
+      target = `${target}:3003/health`;
+    } else if (!target.endsWith('/health')) {
+      target = `${target}/health`;
+    }
+
+    try {
+      const res = await fetch(target, { method: 'GET' });
+      if (res.ok) {
+        toast({
+          title: "Print Server Online! ✅",
+          description: `Successfully connected to Print Server PC at ${target}`,
+        });
+      } else {
+        toast({
+          title: "Connection Alert",
+          description: `Received status ${res.status} from Print Server.`,
+          variant: "destructive"
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Connection Failed ❌",
+        description: `Could not reach Print Server at ${target}. Make sure print-proxy.js is running on the PC and PC firewall allows port 3003.`,
+        variant: "destructive"
+      });
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   const handleSettingChange = (key: string, value: boolean | string) => {
@@ -116,14 +163,33 @@ const CheckInSetupPage = () => {
               </div>
 
               {settings.enablePrinting && (
-                <div>
-                  <Label htmlFor="printerName">Printer Name</Label>
-                  <Input
-                    id="printerName"
-                    value={settings.printerName}
-                    onChange={(e) => handleSettingChange('printerName', e.target.value)}
-                    placeholder="Enter printer name"
-                  />
+                <div className="space-y-4 pt-2 border-t">
+                  <div>
+                    <Label htmlFor="printerName">Printer Name</Label>
+                    <Input
+                      id="printerName"
+                      value={settings.printerName}
+                      onChange={(e) => handleSettingChange('printerName', e.target.value)}
+                      placeholder="e.g. DYMO LabelWriter 450"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="printServerUrl">Print Server PC IP (for Android Tablet Kiosks)</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Enter the local IP address of the PC connected to the printer (e.g. <code>192.168.1.150</code>)
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        id="printServerUrl"
+                        value={settings.printServerUrl}
+                        onChange={(e) => handleSettingChange('printServerUrl', e.target.value)}
+                        placeholder="e.g. 192.168.1.150 or http://192.168.1.150:3003"
+                      />
+                      <Button type="button" variant="outline" onClick={testPrintServerConnection} disabled={testingConnection}>
+                        {testingConnection ? 'Testing...' : 'Test IP'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
