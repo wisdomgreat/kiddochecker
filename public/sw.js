@@ -1,7 +1,7 @@
 // KiddoChecker Kiosk Service Worker
 // Enables PWA install and offline capability for kiosk terminals
 
-const CACHE_NAME = 'kiddochecker-kiosk-v2';
+const CACHE_NAME = 'kiddochecker-kiosk-v3';
 const URLS_TO_CACHE = [
   '/',
   '/device-login',

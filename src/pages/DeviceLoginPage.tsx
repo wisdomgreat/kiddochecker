@@ -137,11 +137,9 @@ const DeviceLogin = () => {
                 } else {
                     data = resJson;
                 }
-            } catch (fetchErr) {
-                console.warn("[DeviceLogin] Direct Azure fetch failed, falling back to supabase.functions.invoke:", fetchErr);
-                const res = await supabase.functions.invoke('device-login', { body });
-                data = res.data;
-                error = res.error;
+            } catch (fetchErr: any) {
+                console.error("[DeviceLogin] Direct Azure fetch error:", fetchErr);
+                error = new Error(fetchErr?.message || "Unable to connect to Azure API server. Please check your network connection.");
             }
 
             if (error) {
