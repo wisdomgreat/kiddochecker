@@ -405,7 +405,9 @@ export const createBridgeProxy = (realClient: any) => {
   return new Proxy(client, {
     get: (target, prop) => {
       if (prop in target) return target[prop];
-      if (realClient && prop in realClient) return realClient[prop];
+      if (typeof prop === 'string' && (prop.startsWith('on') || prop === 'subscribe' || prop === 'unsubscribe')) {
+        return () => ({ unsubscribe: () => {} });
+      }
       return () => client;
     }
   });

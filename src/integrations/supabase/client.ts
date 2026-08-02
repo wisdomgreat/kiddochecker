@@ -21,9 +21,7 @@ const realClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
-export const supabase = USE_AZURE_BRIDGE 
-  ? createBridgeProxy(realClient) 
-  : realClient;
+export const supabase = createBridgeProxy(null);
 
 // Helper functions for session management
 export const getCurrentUser = async () => {
