@@ -843,9 +843,19 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
 
   try {
     // 1. Check if user already exists
-    const checkRes = await pool.query('SELECT id FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    const checkRes = await pool.query('SELECT id, is_active FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
     if (checkRes.rows.length > 0) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
+      const existingId = checkRes.rows[0].id;
+      const roleCheck = await pool.query('SELECT role FROM public.user_roles WHERE user_id = $1::uuid', [existingId]);
+      
+      // If user was deleted from user_roles or marked inactive/stale, clean up the profile so re-registration succeeds
+      if (roleCheck.rows.length === 0 || checkRes.rows[0].is_active === false) {
+        console.log(`[Auth Signup] Cleaning up deleted/stale profile ${existingId} for ${normalizedEmail}...`);
+        await pool.query('DELETE FROM public.user_roles WHERE user_id = $1::uuid', [existingId]);
+        await pool.query('DELETE FROM public.profiles WHERE id = $1::uuid OR LOWER(email) = $2', [existingId, normalizedEmail]);
+      } else {
+        return res.status(400).json({ error: 'An account with this email already exists' });
+      }
     }
 
     // 2. Generate hash
@@ -1642,16 +1652,28 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
         const targetId = filterVals[filterKeys.indexOf('id')];
         if (targetId) {
           console.log(`[Bridge] Executing cascade cleanup for deleting profile ${targetId}...`);
-          const cleanups = [
-            'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
-            'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
-            'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
-            'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
-            'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid'
-          ];
-          for (const sql of cleanups) {
-            try { await pool.query(sql, [targetId]); } catch (e) { console.warn(`[Bridge] Single cleanup notice (${sql}):`, e.message); }
-          }
+          try {
+            const targetProf = await pool.query('SELECT LOWER(email) as email FROM public.profiles WHERE id = $1::uuid', [targetId]);
+            const targetEmail = targetProf.rows[0]?.email;
+
+            const cleanups = [
+              'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
+              'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
+              'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
+              'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
+              'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid'
+            ];
+            for (const sql of cleanups) {
+              try { await pool.query(sql, [targetId]); } catch (e) { console.warn(`[Bridge] Single cleanup notice (${sql}):`, e.message); }
+            }
+
+            if (targetEmail) {
+              try {
+                await pool.query('DELETE FROM public.user_roles WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [targetEmail]);
+                await pool.query('DELETE FROM public.profiles WHERE LOWER(email) = $1', [targetEmail]);
+              } catch (e) {}
+            }
+          } catch (e) {}
         }
       }
 
