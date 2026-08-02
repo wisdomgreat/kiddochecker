@@ -177,6 +177,28 @@ async function setupDatabase() {
     console.error('[DB] Error correcting email typo:', err.message);
   }
 
+  // ─── Automated Self-Healing: Purge Stale / Orphaned Profiles ───────────
+  try {
+    const orphanCleanResult = await pool.query(`
+      DELETE FROM public.profiles p
+      WHERE p.email IS NOT NULL 
+        AND p.email != ''
+        AND NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p.id)
+        AND (p.is_active IS FALSE OR p.role = 'parent' OR p.role IS NULL)
+      RETURNING p.id, p.email;
+    `);
+    if (orphanCleanResult.rows.length > 0) {
+      console.log(`[DB Self-Healing] Automatically purged ${orphanCleanResult.rows.length} orphaned/deleted profile(s):`, 
+        orphanCleanResult.rows.map(r => r.email).join(', ')
+      );
+    } else {
+      console.log('[DB Self-Healing] No orphaned/stale profiles found. Database clean!');
+    }
+  } catch (cleanErr) {
+    console.warn('[DB Self-Healing] Orphan profile cleanup notice:', cleanErr.message);
+  }
+
   // Temp full table dump for verification
   try {
     const client = await pool.connect();
