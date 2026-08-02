@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { User, Baby, ShieldCheck, Mail, Phone, MapPin, AlertTriangle } from "lucide-react";
+import { User, Baby, ShieldCheck, Mail, Phone, MapPin, AlertTriangle, Stethoscope } from "lucide-react";
+import { ChildData } from "./ChildrenRegistrationStep";
 
 interface ReviewStepProps {
   parentData: {
@@ -11,14 +12,7 @@ interface ReviewStepProps {
     emergencyContact: string;
     emergencyPhone: string;
   };
-  children: Array<{
-    firstName: string;
-    lastName: string;
-    birthdate: string;
-    allergies: string;
-    medicalInfo: string;
-    notes: string;
-  }>;
+  children: ChildData[];
 }
 
 export const ReviewStep = ({ parentData, children }: ReviewStepProps) => {
@@ -92,18 +86,31 @@ export const ReviewStep = ({ parentData, children }: ReviewStepProps) => {
             <div key={index} className="p-4 border border-border/50 rounded-xl bg-muted/20 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-foreground">{child.firstName} {child.lastName}</span>
-                <Badge variant="secondary" className="font-bold text-[10px]">
-                  Age: {calculateAge(child.birthdate)}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  {child.bloodType && (
+                    <Badge variant="outline" className="font-bold text-[10px] bg-rose-500/10 text-rose-600 border-rose-200">
+                      Blood: {child.bloodType}
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="font-bold text-[10px]">
+                    Age: {calculateAge(child.birthdate)}
+                  </Badge>
+                </div>
               </div>
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>Date of Birth: <span className="text-foreground font-medium">{child.birthdate}</span></p>
                 {child.allergies && (
-                  <p className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
+                  <p className="flex items-center gap-1 text-rose-600 dark:text-rose-400 font-semibold">
                     <AlertTriangle className="h-3.5 w-3.5" /> Allergies: {child.allergies}
                   </p>
                 )}
+                {child.structuredConditions && child.structuredConditions.length > 0 && (
+                  <p className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold">
+                    <Stethoscope className="h-3.5 w-3.5" /> Health Conditions: {child.structuredConditions.join(', ')}
+                  </p>
+                )}
                 {child.medicalInfo && <p>Medical: <span className="text-foreground font-medium">{child.medicalInfo}</span></p>}
+                {child.doctorName && <p>Doctor: <span className="text-foreground font-medium">{child.doctorName} ({child.doctorPhone || 'No phone'})</span></p>}
                 {child.notes && <p>Notes: <span className="text-foreground font-medium">{child.notes}</span></p>}
               </div>
             </div>

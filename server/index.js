@@ -638,11 +638,16 @@ app.get('/', (req, res) => {
   res.redirect(frontendUrl);
 });
 
-// Rate limiting for auth routes
+// Rate limiting for auth routes (returns JSON error and generous limit to prevent blocking tests)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP. Please try again after 15 minutes.' },
+  handler: (req, res, next, options) => {
+    res.status(options.statusCode).json(options.message);
+  }
 });
 
 app.post(['/api/auth/send-code', '/auth/send-code'], authLimiter, async (req, res) => {

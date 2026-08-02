@@ -201,7 +201,8 @@ export const createBridgeProxy = (realClient: any) => {
       },
       signUp: async ({ email, password, options }: any) => {
         try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/signup`, {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const res = await fetch(`${baseUrl}/api/auth/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -214,8 +215,15 @@ export const createBridgeProxy = (realClient: any) => {
             })
           });
           if (!res.ok) {
-            const error = await res.json();
-            return { data: { session: null, user: null }, error: new Error(error.error || 'Signup failed') };
+            let errorMsg = 'Signup failed';
+            try {
+              const errorObj = await res.json();
+              errorMsg = errorObj.error || errorObj.message || errorMsg;
+            } catch (jsonErr) {
+              const text = await res.text().catch(() => '');
+              errorMsg = text || `Server error (${res.status})`;
+            }
+            return { data: { session: null, user: null }, error: new Error(errorMsg) };
           }
           const data = await res.json();
           const { token, profile } = data;

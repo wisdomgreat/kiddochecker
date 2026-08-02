@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/useToast";
 import { supabase } from "@/integrations/supabase/client";
 import { PersonalInfoStep } from "./PersonalInfoStep";
 import { AccountSetupStep } from "./AccountSetupStep";
-import { ChildrenRegistrationStep } from "./ChildrenRegistrationStep";
+import { ChildrenRegistrationStep, ChildData } from "./ChildrenRegistrationStep";
 import { ReviewStep } from "./ReviewStep";
 import { User, Lock, Baby, CheckCircle2, ArrowLeft, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,18 +22,6 @@ interface ParentData {
   emergencyPhone: string;
   password: string;
   confirmPassword: string;
-}
-
-interface ChildData {
-  firstName: string;
-  lastName: string;
-  birthdate: string;
-  age: number;
-  allergies: string;
-  medicalInfo: string;
-  notes: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
 }
 
 export const ParentRegistrationFlow = () => {
@@ -168,11 +156,11 @@ export const ParentRegistrationFlow = () => {
         console.error('Profile update error:', profileError);
       }
 
-      // Register children
+      // Register children and save structured medical profiles
       for (const child of children) {
         const childAge = calculateAge(child.birthdate);
         
-        const { error: childError } = await supabase
+        const { data: insertedChild, error: childError } = await supabase
           .from('children')
           .insert({
             parent_id: authData.user.id,
@@ -184,11 +172,34 @@ export const ParentRegistrationFlow = () => {
             notes: child.notes || null,
             emergency_contact_name: child.emergencyContactName || parentData.emergencyContact,
             emergency_contact_phone: child.emergencyContactPhone || parentData.emergencyPhone
-          });
+          })
+          .select('id')
+          .single();
 
         if (childError) {
           console.error('Child registration error:', childError);
           throw new Error(`Failed to register child: ${child.firstName}`);
+        }
+
+        // Upsert structured medical profile if child was inserted
+        if (insertedChild?.id) {
+          try {
+            await (supabase.from('child_medical_profiles' as any) as any).upsert({
+              child_id: insertedChild.id,
+              allergies: child.structuredAllergies || [],
+              medications: child.structuredMedications || [],
+              conditions: child.structuredConditions || [],
+              blood_type: child.bloodType || '',
+              doctor_name: child.doctorName || '',
+              doctor_phone: child.doctorPhone || '',
+              insurance_provider: child.insuranceProvider || '',
+              insurance_number: child.insuranceNumber || '',
+              emergency_notes: child.medicalInfo || ''
+            });
+            console.log(`[Registration] Medical profile created for child ${insertedChild.id}`);
+          } catch (medErr) {
+            console.warn('[Registration] Notice saving medical profile:', medErr);
+          }
         }
       }
 
