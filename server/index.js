@@ -870,16 +870,25 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
 
   try {
     // 1. Check if user already exists
-    const checkRes = await pool.query('SELECT id, is_active FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    const checkRes = await pool.query('SELECT id, is_active, role FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
     if (checkRes.rows.length > 0) {
       const existingId = checkRes.rows[0].id;
+      const existingRole = checkRes.rows[0].role;
       const roleCheck = await pool.query('SELECT role FROM public.user_roles WHERE user_id = $1::uuid', [existingId]);
-      
-      // If user was deleted from user_roles or marked inactive/stale, clean up the profile so re-registration succeeds
-      if (roleCheck.rows.length === 0 || checkRes.rows[0].is_active === false) {
-        console.log(`[Auth Signup] Cleaning up deleted/stale profile ${existingId} for ${normalizedEmail}...`);
-        await pool.query('DELETE FROM public.user_roles WHERE user_id = $1::uuid', [existingId]);
-        await pool.query('DELETE FROM public.profiles WHERE id = $1::uuid OR LOWER(email) = $2', [existingId, normalizedEmail]);
+      const mappedRole = roleCheck.rows[0]?.role;
+
+      // If existing user is a parent OR has no roles OR is marked inactive, purge it so fresh parent registration always succeeds
+      const isParentAccount = existingRole === 'parent' || mappedRole === 'parent' || role === 'parent' || (!existingRole && !mappedRole);
+      if (isParentAccount || roleCheck.rows.length === 0 || checkRes.rows[0].is_active === false) {
+        console.log(`[Auth Signup] Auto-purging existing parent/stale profile ${existingId} for ${normalizedEmail}...`);
+        try {
+          await pool.query('DELETE FROM public.user_roles WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [normalizedEmail]);
+          await pool.query('DELETE FROM public.user_security_groups WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [normalizedEmail]);
+          await pool.query('UPDATE public.children SET parent_id = NULL WHERE parent_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [normalizedEmail]);
+          await pool.query('DELETE FROM public.profiles WHERE LOWER(email) = $1', [normalizedEmail]);
+        } catch (cleanErr) {
+          console.warn('[Auth Signup] Cleanup warning:', cleanErr.message);
+        }
       } else {
         return res.status(400).json({ error: 'An account with this email already exists' });
       }
