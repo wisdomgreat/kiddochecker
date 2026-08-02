@@ -1414,7 +1414,9 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   }
 
   // Normalize fields between Supabase proxy and internal calls
-  const finalMethod = method || action || req.body.method || req.body.action;
+  let rawMethod = (method || action || req.body.method || req.body.action || '').toString().toLowerCase();
+  if (rawMethod === 'post' || rawMethod === 'create') rawMethod = 'insert';
+  const finalMethod = rawMethod;
   const finalValues = values || data || req.body.values || req.body.data || {};
 
   // Sanitize empty strings on UUID columns to null
@@ -1430,6 +1432,45 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Unsupported mutation method: undefined' });
     }
     
+    // Auto-ensure enrolled_devices schema if missing
+    if (table === 'enrolled_devices' || table === 'device_activity_log') {
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS public.enrolled_devices (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'kiosk',
+            location TEXT,
+            enrollment_code TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'active',
+            security_status TEXT DEFAULT 'secure',
+            enrolled_by UUID,
+            last_seen TIMESTAMPTZ,
+            last_ip TEXT,
+            os_info TEXT,
+            browser_info TEXT,
+            device_info JSONB,
+            enrolled_at TIMESTAMPTZ DEFAULT NOW(),
+            revoked_at TIMESTAMPTZ,
+            revoked_by UUID,
+            notes TEXT,
+            failure_count INT DEFAULT 0,
+            serial_number TEXT
+          );
+          CREATE TABLE IF NOT EXISTS public.device_activity_log (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            device_id UUID REFERENCES public.enrolled_devices(id) ON DELETE CASCADE,
+            action TEXT NOT NULL,
+            performed_by UUID,
+            metadata JSONB,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `);
+      } catch (tableErr) {
+        console.warn('[Bridge] Auto-schema table creation notice:', tableErr.message);
+      }
+    }
+
     // Security: Restrict kiosk_settings mutations to admins/super_admins
     if (table === 'kiosk_settings') {
       const role = req.user?.role || 'parent';
