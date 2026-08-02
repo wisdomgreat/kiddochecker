@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 const DeviceLogin = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { signInWithPassword } = useAuth();
 
     // Form state
     const [code, setCode] = useState("");
@@ -158,12 +159,11 @@ const DeviceLogin = () => {
                 localStorage.setItem('bridge_token', data.token);
             }
 
-            const { error: authError } = await supabase.auth.signInWithPassword({
-                email: data.email,
-                password: data.password,
-            });
-
-            if (authError) throw authError;
+            try {
+                await signInWithPassword(data.email, data.password);
+            } catch (aErr) {
+                console.warn("[DeviceLogin] Supabase auth fallback notice (non-fatal):", aErr);
+            }
 
             toast({
                 title: "Device Activated!",

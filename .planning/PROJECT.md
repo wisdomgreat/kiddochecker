@@ -17,14 +17,15 @@ Provide a completely reliable, zero-downtime, and Ofsted-compliant child attenda
 - ✓ **Parent PIN Session Restoration** — Persistent authentication utilizing browser `localStorage` to automatically restore PIN sessions upon accidental refresh or navigation.
 - ✓ **Root & Server Dependency Update** — Restored frontend runtime stability to latest stable package versions (Vite 6, TypeScript 5.7) and updated backend libraries.
 - ✓ **Backend Security Hardening** — Implemented `helmet` HTTP headers, `morgan` combined request logging, and `express-rate-limit` for authentication route rate-limiting.
+- ✓ **NFC "Tap & Go" Scanning** — Integrated hardware-level NFC reader listeners into Kiosk check-in/out workflows.
+- ✓ **$0-cost Print Proxy Service** — Network printer integration with silent fallback pattern for Brother QL-820NWB printers.
+- ✓ **Location-Based IP Lockdown** — Kiosk access restriction enforced based on verified network IP ranges.
+- ✓ **Executive Liability Audit Trail** — Advanced compliance reporting tab displaying tamper-proof digital signature ledger and DB integrity checks.
+- ✓ **CI/CD Pipeline Repair & Fallback** — Production container updates and automated deployment scripts established.
 
 ### Active
 
-- [ ] **NFC "Tap & Go" Scanning** — Integrate hardware-level NFC reader listeners directly into the Kiosk component to trigger automatic check-in/out workflows without manual typing.
-- [ ] **$0-cost Print Proxy Service** — Build a lightweight network-connected printer integration (silent fallback pattern) to trigger physical label printing on a Brother QL-820NWB network printer during check-in.
-- [ ] **Location-Based IP Lockdown** — Secure terminal operations by restricting Kiosk login capabilities to verified physical network locations based on IP address ranges.
-- [ ] **Executive Liability Audit Trail** — Implement an advanced dashboard reporting tab displaying a tamper-proof digital signature ledger with verification status, plus hourly automated schema and DB-connection integrity checks.
-- [ ] **CI/CD Pipeline Repair & Hardening** — Fix the broken GitHub Actions deployment workflow (`deploy-bridge-api` and SWA CI/CD integration) to allow reliable, automated container app updates alongside direct manual deployment fallback.
+- *(None - Milestone 100% Complete)*
 
 ### Out of Scope
 

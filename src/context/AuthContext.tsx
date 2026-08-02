@@ -73,9 +73,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ─── Email/Pass Sign In ─────────────────────────────────────────────────────
   const signInWithPassword = async (email: string, pass: string) => {
+    // 1. Try Azure Bridge API login first
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.token) {
+          localStorage.setItem('bridge_token', data.token);
+          setSession({ access_token: data.token });
+          const userObj = data.profile || { id: data.profile?.id, email };
+          setUser(userObj);
+          setUserRole(data.profile?.role || (data.profile?.is_super_admin ? 'super_admin' : 'parent'));
+          return { data, error: null };
+        }
+      }
+    } catch (bridgeErr) {
+      console.warn('[Auth] Azure Bridge login attempt failed, falling back to Supabase:', bridgeErr);
+    }
+
+    // 2. Fallback to Supabase Auth
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
-    if (data && !data.mfaRequired) {
+    if (data && !(data as any).mfaRequired) {
       setSession(data.session);
       setUser(data.user || data.session?.user);
     }
@@ -338,7 +361,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     verificationStatus,
     isVerifiedStaff,
     hasRole: (role: AppRole) => isSuperAdmin || userRole === role,
-    hasPermission: (perm: string) => isSuperAdmin || userPermissions.includes(perm),
+    hasPermission: (perm: string) => isSuperAdmin || isAdmin || userPermissions.includes('*') || userPermissions.includes(perm),
     userPermissions,
   };
 

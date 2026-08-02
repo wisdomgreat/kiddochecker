@@ -1884,10 +1884,40 @@ app.get('/api/health', async (req, res) => {
 
 app.get('/api/profile', verifyToken, async (req, res) => {
   try {
-    const email = req.user.email || req.user.preferred_username;
-    const result = await pool.query('SELECT * FROM public.profiles WHERE email = $1 LIMIT 1', [email]);
+    const email = (req.user.email || req.user.preferred_username || '').trim().toLowerCase();
+    const userId = req.user.id || req.user.sub || req.user.oid;
+
+    let result = await pool.query(
+      'SELECT * FROM public.profiles WHERE (email IS NOT NULL AND LOWER(email) = LOWER($1)) OR id::text = $2 LIMIT 1',
+      [email, userId || '']
+    );
+
+    if (result.rows.length === 0 && userId) {
+      result = await pool.query('SELECT * FROM public.profiles WHERE azure_oid = $1 LIMIT 1', [userId]);
+    }
+
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json({ ...result.rows[0], permissions: ['*'] });
+    
+    const profile = result.rows[0];
+
+    // Fetch user roles & is_super_admin from user_roles
+    let userRole = profile.role || 'parent';
+    let isSuperAdmin = profile.is_super_admin || false;
+
+    try {
+      const roleRes = await pool.query('SELECT role, is_super_admin FROM public.user_roles WHERE user_id = $1::uuid LIMIT 1', [profile.id]);
+      if (roleRes.rows.length > 0) {
+        userRole = roleRes.rows[0].role || userRole;
+        if (roleRes.rows[0].is_super_admin) isSuperAdmin = true;
+      }
+    } catch (e) {}
+
+    res.json({
+      ...profile,
+      role: userRole,
+      is_super_admin: isSuperAdmin,
+      permissions: ['*']
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

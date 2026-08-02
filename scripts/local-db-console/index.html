@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KiddoChecker - Local DB Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f1f5f9;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <span class="font-black text-sm text-white">KC</span>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold text-slate-100">Local DB Console</h1>
+        <p class="text-[11px] text-slate-400 mt-0.5">Azure Workstation Management Mode</p>
+      </div>
+    </div>
+    <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-semibold">
+      <span class="h-2.5 w-2.5 rounded-full bg-slate-600 animate-pulse"></span>
+      <span class="text-slate-400">Connecting...</span>
+    </div>
+  </header>
+
+  <!-- Main View -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- Sidebar: Tables -->
+    <aside class="w-64 border-r border-slate-800 bg-slate-950 p-4 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+      <h2 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Database Tables</h2>
+      <div id="tables-list" class="space-y-1">
+        <p class="text-xs text-slate-500 italic p-2">Loading tables...</p>
+      </div>
+    </aside>
+
+    <!-- Workspace Panel -->
+    <main class="flex-1 flex flex-col min-w-0 bg-slate-900">
+      
+      <!-- SQL Query Editor -->
+      <section class="p-5 border-b border-slate-800 flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Execute Query</label>
+          <div class="flex items-center gap-2">
+            <button onclick="loadTemplate('select')" class="px-2.5 py-1 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition-colors">SELECT template</button>
+            <button onclick="loadTemplate('users')" class="px-2.5 py-1 text-[11px] font-medium bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition-colors">List profiles</button>
+            <button onclick="runQuery()" class="px-4 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all text-white rounded-lg flex items-center gap-2 shadow-lg shadow-indigo-600/15">
+              <span>Run Query (Ctrl+Enter)</span>
+            </button>
+          </div>
+        </div>
+        <textarea id="sql-editor" rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-sm text-indigo-200 focus:outline-none focus:border-indigo-500/50 resize-none shadow-inner" placeholder="SELECT * FROM profiles LIMIT 10;"></textarea>
+      </section>
+
+      <!-- Query Results Area -->
+      <section class="flex-1 flex flex-col min-h-0">
+        <div class="px-5 py-3 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between shrink-0">
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Query Output</p>
+          <span id="row-count" class="text-xs text-slate-500 font-semibold">0 rows returned</span>
+        </div>
+        <div class="flex-1 overflow-auto custom-scrollbar p-5" id="results-table-container">
+          <div class="h-full flex flex-col items-center justify-center text-slate-500 gap-2">
+            <svg class="h-8 w-8 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+            </svg>
+            <p class="text-xs">No active results. Write a query and press Run.</p>
+          </div>
+        </div>
+      </section>
+      
+    </main>
+
+  </div>
+
+  <script>
+    const sqlEditor = document.getElementById('sql-editor');
+
+    // Ctrl+Enter to trigger execution
+    sqlEditor.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        runQuery();
+      }
+    });
+
+    // Check status & load tables on start
+    async function init() {
+      await checkStatus();
+      await loadTables();
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const badge = document.getElementById('status-badge');
+        
+        if (data.connected) {
+          badge.innerHTML = `
+            <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+            <span class="text-emerald-400 font-semibold uppercase tracking-wider text-[10px]">Connected: ${data.database}</span>
+          `;
+          badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/20 border border-emerald-800/40 text-xs";
+        } else {
+          badge.innerHTML = `
+            <span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span>
+            <span class="text-rose-400 font-semibold uppercase tracking-wider text-[10px]">Offline</span>
+          `;
+          badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-950/20 border border-rose-800/40 text-xs";
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadTables() {
+      try {
+        const res = await fetch('/api/tables');
+        const data = await res.json();
+        const container = document.getElementById('tables-list');
+        
+        if (data.tables && data.tables.length > 0) {
+          container.innerHTML = data.tables.map(table => `
+            <button onclick="queryTable('${table}')" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors truncate flex items-center gap-2">
+              <span class="opacity-30">#</span>
+              <span>${table}</span>
+            </button>
+          `).join('');
+        } else {
+          container.innerHTML = `<p class="text-xs text-slate-500 italic p-2">No public tables found</p>`;
+        }
+      } catch (e) {
+        document.getElementById('tables-list').innerHTML = `<p class="text-xs text-rose-400 italic p-2">Error loading tables</p>`;
+      }
+    }
+
+    function loadTemplate(type) {
+      if (type === 'select') {
+        sqlEditor.value = "SELECT * FROM profiles LIMIT 10;";
+      } else if (type === 'users') {
+        sqlEditor.value = "SELECT id, first_name, last_name, email, role, created_at FROM profiles ORDER BY created_at DESC LIMIT 50;";
+      }
+    }
+
+    function queryTable(name) {
+      sqlEditor.value = `SELECT * FROM ${name} LIMIT 100;`;
+      runQuery();
+    }
+
+    async function runQuery() {
+      const sql = sqlEditor.value.trim();
+      if (!sql) return;
+
+      const container = document.getElementById('results-table-container');
+      const rowCountLabel = document.getElementById('row-count');
+      
+      container.innerHTML = `
+        <div class="h-full flex items-center justify-center text-slate-400">
+          <div class="animate-spin rounded-full h-6 w-6 border-2 border-indigo-500 border-t-transparent mr-3"></div>
+          <p class="text-xs">Executing query...</p>
+        </div>
+      `;
+
+      try {
+        const res = await fetch('/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sql })
+        });
+        
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Execution failed');
+        }
+
+        const result = await res.json();
+        rowCountLabel.innerText = `${result.rows.length} rows returned`;
+
+        if (result.rows.length === 0) {
+          container.innerHTML = `
+            <div class="h-full flex flex-col items-center justify-center text-slate-500 gap-1.5">
+              <span class="text-emerald-500 font-bold text-sm">✓ Success</span>
+              <p class="text-xs">Query executed successfully, but returned 0 rows.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const headers = Object.keys(result.rows[0]);
+        container.innerHTML = `
+          <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-900 border-b border-slate-800 text-slate-300 font-semibold">
+                  ${headers.map(h => `<th class="p-3 border-r border-slate-800">${h}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/50 text-slate-400 font-mono">
+                ${result.rows.map(row => `
+                  <tr class="hover:bg-slate-900/30">
+                    ${headers.map(h => {
+                      const val = row[h];
+                      const displayVal = typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val ?? '');
+                      return `<td class="p-3 border-r border-slate-800/30 whitespace-nowrap max-w-xs truncate" title="${displayVal.replace(/"/g, '&quot;')}">${displayVal}</td>`;
+                    }).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+      } catch (err) {
+        container.innerHTML = `
+          <div class="rounded-xl border border-rose-950/50 bg-rose-950/10 p-5 text-rose-400 font-mono text-xs">
+            <p class="font-bold mb-1">Execution Error:</p>
+            <p>${err.message}</p>
+          </div>
+        `;
+        rowCountLabel.innerText = "0 rows returned";
+      }
+    }
+
+    // Run on startup
+    init();
+  </script>
+</body>
+</html>
