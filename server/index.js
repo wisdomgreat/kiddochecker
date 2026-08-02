@@ -918,9 +918,11 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
     const profile = profileRes.rows[0];
     const newUserId = profile.id;
 
-    // Insert user role
+    // Insert user role (with ON CONFLICT DO UPDATE to support DB trigger & prevent duplicate key errors)
     await pool.query(
-      `INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES ($1, $2, $3)`,
+      `INSERT INTO public.user_roles (user_id, role, is_super_admin) 
+       VALUES ($1, $2, $3) 
+       ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_super_admin = EXCLUDED.is_super_admin`,
       [newUserId, finalRole, finalRole === 'super_admin']
     );
 
