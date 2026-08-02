@@ -1921,4 +1921,47 @@ app.get('/api/profile', verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Cloud Print Queue Endpoints ──────────────────────────────
+const cloudPrintQueue = [];
+let lastAgentPollTime = 0;
+
+app.post('/api/print-jobs', (req, res) => {
+  const { labelData, printerIp, printerName } = req.body || {};
+  if (!labelData || !labelData.name) {
+    return res.status(400).json({ success: false, error: 'Invalid label data' });
+  }
+
+  const job = {
+    id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    labelData,
+    printerIp: printerIp || '',
+    printerName: printerName || '',
+    created_at: new Date().toISOString()
+  };
+
+  cloudPrintQueue.push(job);
+  console.log(`[Cloud Print Relay] New job queued: ${job.id} for ${labelData.name}`);
+  res.json({ success: true, jobId: job.id, message: 'Print job queued in Azure Cloud Relay' });
+});
+
+app.get('/api/print-jobs/poll', (req, res) => {
+  lastAgentPollTime = Date.now();
+  if (cloudPrintQueue.length === 0) {
+    return res.json({ jobs: [] });
+  }
+  const pendingJobs = [...cloudPrintQueue];
+  cloudPrintQueue.length = 0;
+  res.json({ jobs: pendingJobs });
+});
+
+app.get('/api/print-jobs/health', (req, res) => {
+  const isAgentActive = (Date.now() - lastAgentPollTime) < 15000;
+  res.json({
+    status: 'ok',
+    agentActive: isAgentActive,
+    lastSeenSecondsAgo: lastAgentPollTime ? Math.round((Date.now() - lastAgentPollTime) / 1000) : null,
+    queueSize: cloudPrintQueue.length
+  });
+});
+
 app.listen(port, () => console.log(`[Bridge] Server running on port ${port}`));

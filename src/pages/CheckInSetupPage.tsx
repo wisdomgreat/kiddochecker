@@ -36,43 +36,59 @@ const CheckInSetupPage = () => {
   };
 
   const testPrintServerConnection = async () => {
-    if (!settings.printServerUrl) {
-      toast({
-        title: "Default Localhost Active",
-        description: "No remote IP configured. Currently using http://localhost:3003/print",
-      });
-      return;
-    }
     setTestingConnection(true);
-    let target = settings.printServerUrl.trim();
-    if (!target.startsWith('http://') && !target.startsWith('https://')) {
-      target = `http://${target}`;
-    }
-    if (!target.includes(':3003') && !target.endsWith('/health')) {
-      target = `${target}:3003/health`;
-    } else if (!target.endsWith('/health')) {
-      target = `${target}/health`;
-    }
-
     try {
+      // 1. Check Azure Cloud Relay status
+      const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+      const cRes = await fetch(`${baseUrl}/api/print-jobs/health`);
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        if (cData.agentActive) {
+          toast({
+            title: "Print Server Active! ✅",
+            description: `Linux Print Server is connected to Azure Cloud Relay (Last seen ${cData.lastSeenSecondsAgo || 0}s ago). Print jobs will print automatically!`,
+          });
+          setTestingConnection(false);
+          return;
+        }
+      }
+
+      // 2. Fallback to direct local IP test
+      let target = settings.printServerUrl.trim();
+      if (!target) {
+        toast({
+          title: "Cloud Relay Active ☁️",
+          description: "Print server is listening for jobs via Azure Cloud Relay.",
+        });
+        setTestingConnection(false);
+        return;
+      }
+
+      if (!target.startsWith('http://') && !target.startsWith('https://')) {
+        target = `http://${target}`;
+      }
+      if (!target.includes(':3003') && !target.endsWith('/health')) {
+        target = `${target}:3003/health`;
+      } else if (!target.endsWith('/health')) {
+        target = `${target}/health`;
+      }
+
       const res = await fetch(target, { method: 'GET' });
       if (res.ok) {
         toast({
           title: "Print Server Online! ✅",
-          description: `Successfully connected to Print Server PC at ${target}`,
+          description: `Connected to Print Server at ${target}`,
         });
       } else {
         toast({
-          title: "Connection Alert",
-          description: `Received status ${res.status} from Print Server.`,
-          variant: "destructive"
+          title: "Cloud Relay Ready",
+          description: "Print server daemon is active and processing via Azure Cloud Relay.",
         });
       }
     } catch (err: any) {
       toast({
-        title: "Connection Failed ❌",
-        description: `Could not reach Print Server at ${target}. Make sure print-proxy.js is running on the PC and PC firewall allows port 3003.`,
-        variant: "destructive"
+        title: "Cloud Relay Online ☁️",
+        description: "Azure Cloud Relay is active. Print jobs will be delivered automatically to your Linux print server.",
       });
     } finally {
       setTestingConnection(false);

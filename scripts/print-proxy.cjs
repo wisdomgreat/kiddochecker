@@ -35,11 +35,30 @@ app.get('/health', (req, res) => {
 const DEFAULT_PRINTER_NAME = process.env.PRINTER_NAME || 'Default Printer';
 const DEFAULT_PRINTER_IP = process.env.PRINTER_IP || '';
 
-app.post('/print', (req, res) => {
-    const { labelData, printerIp, printerName } = req.body;
-    
+// ─── Azure Cloud Print Relay Polling ────────────────────────────
+const AZURE_API_URL = process.env.AZURE_API_URL || 'https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io';
+
+async function pollAzureCloudPrintQueue() {
+    try {
+        const response = await fetch(`${AZURE_API_URL}/api/print-jobs/poll`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.jobs && data.jobs.length > 0) {
+                for (const job of data.jobs) {
+                    console.log(`[Cloud Relay] Received job ${job.id} for ${job.labelData?.name}`);
+                    dispatchPrintCommand(job.labelData, job.printerIp, job.printerName);
+                }
+            }
+        }
+    } catch (err) {
+        // Silent catch for network hiccups
+    }
+}
+
+function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     if (!labelData || !labelData.name) {
-        return res.status(400).json({ success: false, error: 'Invalid label data' });
+        if (callback) callback(new Error('Invalid label data'));
+        return;
     }
     
     const childName = labelData.name;
@@ -47,25 +66,20 @@ app.post('/print', (req, res) => {
     const className = labelData.class || '';
     const allergies = labelData.allergies ? `ALLERGIES: ${labelData.allergies}` : '';
     
-    // Resolve target wireless printer IP / Name dynamically for multi-printer setups
     const targetPrinterIp = printerIp || labelData.printerIp || DEFAULT_PRINTER_IP;
     const targetPrinterName = printerName || labelData.printerName || DEFAULT_PRINTER_NAME;
 
-    console.log(`[Print Server] Received job from ${req.ip} for ${childName} -> Target Printer: ${targetPrinterIp || targetPrinterName}`);
+    console.log(`[Print Server] Dispatching job for ${childName} -> Target Printer: ${targetPrinterIp || targetPrinterName}`);
 
-    // Determine OS & build print command
     let command = '';
     const isWindows = process.platform === 'win32';
 
     if (targetPrinterIp) {
-        // Direct TCP Raw Socket (Port 9100 for Wireless Brother QL, Zebra, DYMO network printers)
         command = `echo "KIDDOCHECKER BADGE: ${childName} | Code: ${securityCode} | Class: ${className} ${allergies}" | nc -w 2 ${targetPrinterIp} 9100`;
     } else if (isWindows) {
-        // Windows OS printing via PowerShell Out-Printer
         const printText = `--- KIDDOCHECKER NAME TAG ---\nName: ${childName}\nCode: ${securityCode}\nClass: ${className}\n${allergies}\n-----------------------------`;
         command = `powershell -Command "Out-Printer -Name '${targetPrinterName}' -InputObject '${printText}'"`;
     } else {
-        // Linux / macOS POSIX lp printing (CUPS printer queue)
         const printText = `KIDDOCHECKER NAME TAG\nName: ${childName}\nCode: ${securityCode}\nClass: ${className}\n${allergies}`;
         command = `echo "${printText}" | lp -d "${targetPrinterName}"`;
     }
@@ -73,11 +87,22 @@ app.post('/print', (req, res) => {
     exec(command, (error, stdout, stderr) => {
         if (error) {
             console.warn(`[Print Server] System print warning: ${error.message}`);
-            // Return success true so kiosk check-in workflow completes cleanly
-            return res.json({ success: true, warning: error.message });
+            if (callback) callback(null, { success: true, warning: error.message });
+            return;
         }
         console.log(`[Print Server] Print job dispatched successfully to ${targetPrinterIp || targetPrinterName}`);
-        res.json({ success: true, printer: targetPrinterIp || targetPrinterName });
+        if (callback) callback(null, { success: true, printer: targetPrinterIp || targetPrinterName });
+    });
+}
+
+// Start polling Azure Cloud Print Queue every 2 seconds
+setInterval(pollAzureCloudPrintQueue, 2000);
+
+app.post('/print', (req, res) => {
+    const { labelData, printerIp, printerName } = req.body || {};
+    dispatchPrintCommand(labelData, printerIp, printerName, (err, result) => {
+        if (err) return res.status(400).json({ success: false, error: err.message });
+        res.json(result);
     });
 });
 
@@ -105,6 +130,7 @@ app.listen(PORT, HOST, () => {
     ===================================================================
     OS Platform : ${process.platform} (${os.release()})
     Status      : Listening on http://${HOST}:${PORT}
+    Cloud Relay : Polling Azure API (${AZURE_API_URL})
     
     📌 TECH DESK SERVER IP ADDRESS(ES) TO ENTER ON ANDROID TABLETS:
     ${localIps.map(ip => `   👉 http://${ip}:${PORT}`).join('\n')}
