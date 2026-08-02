@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle, Maximize, Loader2,
   MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone, ShieldAlert
+  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone, ShieldAlert, Printer
 } from 'lucide-react';
+import { PrintService } from '@/services/printService';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/useToast';
@@ -80,6 +81,54 @@ const KioskCheckInSystem = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showStaffKeyboard, setShowStaffKeyboard] = useState(false);
   const [securityBlockedIp, setSecurityBlockedIp] = useState<string | null>(null);
+
+  const [showPrinterDialog, setShowPrinterDialog] = useState(false);
+  const [printServerIp, setPrintServerIp] = useState(() => localStorage.getItem('kiddochecker_print_server_url') || '');
+  const [targetPrinterIp, setTargetPrinterIp] = useState(() => localStorage.getItem('kiddochecker_target_printer_ip') || '');
+  const [targetPrinterName, setTargetPrinterName] = useState(() => localStorage.getItem('kiddochecker_target_printer_name') || '');
+  const [isTestingPrinter, setIsTestingPrinter] = useState(false);
+
+  const testPrinterConnection = async () => {
+    if (!printServerIp.trim()) {
+      toast({ title: "IP Required", description: "Please enter your Print Server PC IP.", variant: "destructive" });
+      return;
+    }
+    setIsTestingPrinter(true);
+    let target = printServerIp.trim();
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      target = `http://${target}`;
+    }
+    if (!target.includes(':3003') && !target.endsWith('/health')) {
+      target = `${target}:3003/health`;
+    } else if (!target.endsWith('/health')) {
+      target = `${target}/health`;
+    }
+
+    try {
+      const res = await fetch(target, { method: 'GET' });
+      if (res.ok) {
+        toast({ title: "Print Server Online! ✅", description: `Connected to Print Server at ${target}` });
+      } else {
+        toast({ title: "Server Warning", description: `Received status ${res.status}`, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Connection Failed ❌",
+        description: `Could not reach ${target}. Ensure print server is running on port 3003.`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingPrinter(false);
+    }
+  };
+
+  const savePrinterSettings = () => {
+    localStorage.setItem('kiddochecker_print_server_url', printServerIp.trim());
+    localStorage.setItem('kiddochecker_target_printer_ip', targetPrinterIp.trim());
+    localStorage.setItem('kiddochecker_target_printer_name', targetPrinterName.trim());
+    setShowPrinterDialog(false);
+    toast({ title: "Printer Saved 🖨️", description: "Kiosk printer configuration updated." });
+  };
 
   const [parentPhone, setParentPhone] = useState('');
   const [parentPin, setParentPin] = useState('');
@@ -895,6 +944,16 @@ const KioskCheckInSystem = () => {
              <span className="text-foreground">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowPrinterDialog(true)} 
+            className="h-8 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10"
+            title="Printer & Print Server Setup"
+          >
+            <Printer className="h-4 w-4" />
+            <span className="hidden sm:inline">Printer Setup</span>
+          </Button>
           <Button variant="ghost" size="icon" onClick={toggleFs} className="h-8 w-8"><Maximize className="h-4 w-4" /></Button>
         </div>
       </header>
@@ -1511,6 +1570,82 @@ const KioskCheckInSystem = () => {
           </div>
         </div>
       )}
+      {/* Kiosk Printer & Print Server Setup Dialog */}
+      <Dialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5 text-primary" />
+              Kiosk Printer & Print Server Setup
+            </DialogTitle>
+            <DialogDescription>
+              Configure the Linux Print Server IP and Label Printer for this Kiosk terminal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                Print Server PC IP (Linux Server)
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={printServerIp}
+                  onChange={(e) => setPrintServerIp(e.target.value)}
+                  placeholder="e.g. 192.168.1.150"
+                  className="font-mono"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={testPrinterConnection} 
+                  disabled={isTestingPrinter}
+                >
+                  {isTestingPrinter ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test IP'}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Local IP address of the Linux PC running print server on port 3003.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                Target Wireless Printer IP (Optional)
+              </label>
+              <Input
+                value={targetPrinterIp}
+                onChange={(e) => setTargetPrinterIp(e.target.value)}
+                placeholder="e.g. 192.168.1.101 (Leave blank for default)"
+                className="font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Assign Printer 1 (e.g. .101) or Printer 2 (e.g. .102) to this kiosk.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                Printer Model / Name
+              </label>
+              <Input
+                value={targetPrinterName}
+                onChange={(e) => setTargetPrinterName(e.target.value)}
+                placeholder="e.g. DYMO LabelWriter 450"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowPrinterDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={savePrinterSettings} className="gap-1.5 font-bold">
+              <CheckCircle className="h-4 w-4" /> Save Printer Config
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
