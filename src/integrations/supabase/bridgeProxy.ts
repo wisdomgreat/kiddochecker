@@ -385,7 +385,21 @@ export const createBridgeProxy = (realClient: any) => {
         list: async () => ({ data: [], error: null }),
       })
     },
-    functions: realClient?.functions,
+    functions: {
+      invoke: async (name: string, options: any = {}) => {
+        console.log(`[BridgeProxy] Invoking function '${name}':`, options);
+        try {
+          const res = await apiFetch(`/api/functions/${name}`, {
+            method: 'POST',
+            body: JSON.stringify(options.body || {})
+          });
+          return { data: res, error: null };
+        } catch (err: any) {
+          console.error(`[BridgeProxy] Error in function '${name}':`, err);
+          return { data: null, error: err };
+        }
+      }
+    },
   };
 
   return new Proxy(client, {

@@ -154,6 +154,10 @@ const DeviceLogin = () => {
                 throw new Error("Invalid response from authorization server");
             }
 
+            if (data.token) {
+                localStorage.setItem('bridge_token', data.token);
+            }
+
             const { error: authError } = await supabase.auth.signInWithPassword({
                 email: data.email,
                 password: data.password,

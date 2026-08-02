@@ -1644,6 +1644,102 @@ app.post('/api/admin/users/bulk-action', verifyToken, async (req, res) => {
   }
 });
 
+// Edge Function Bridge Endpoint: device-login
+app.post('/api/functions/device-login', async (req, res) => {
+  try {
+    const { code, pin, forensics } = req.body || {};
+    const { hardwareId, os, browser, fingerprint, ip } = forensics || {};
+    const clientIp = ip || req.headers['x-forwarded-for'] || req.ip || 'unknown';
+
+    if (!code && !hardwareId) {
+      return res.json({ error: 'Device code or Hardware ID is required' });
+    }
+
+    let device = null;
+    if (code) {
+      console.log(`[Device Login] Activation attempt with code: ${code}`);
+      const devRes = await pool.query('SELECT * FROM public.enrolled_devices WHERE enrollment_code = $1 AND status = $2 LIMIT 1', [code.trim(), 'active']);
+      device = devRes.rows[0];
+    } else if (hardwareId) {
+      console.log(`[Device Login] Re-auth attempt for hardware: ${hardwareId}`);
+      const devRes = await pool.query('SELECT * FROM public.enrolled_devices WHERE hardware_id = $1 AND status = $2 LIMIT 1', [hardwareId, 'active']);
+      device = devRes.rows[0];
+    }
+
+    if (!device) {
+      return res.json({ error: code ? 'Invalid or inactive device code' : 'Terminal unauthorized. Please re-enroll.' });
+    }
+
+    if (device.security_status === 'locked' || (device.locked_until && new Date(device.locked_until) > new Date())) {
+      return res.json({ error: 'This terminal has been temporarily locked for security reasons.' });
+    }
+
+    // Hardware ID verification if device was previously activated
+    if (device.hardware_id && hardwareId && device.hardware_id !== hardwareId) {
+      return res.json({ error: 'Security Alert: Unauthorized hardware detected.' });
+    }
+
+    // Initial activation phase
+    if (!device.hardware_id && hardwareId) {
+      console.log(`[Device Login] Initial activation for ${device.name}. Burning code: ${code}`);
+      await pool.query(`
+        UPDATE public.enrolled_devices 
+        SET hardware_id = $1, enrollment_code = NULL, os_info = $2, browser_info = $3, last_ip = $4, last_seen = NOW(), security_status = 'secure'
+        WHERE id = $5::uuid
+      `, [hardwareId, os || '', browser || '', clientIp, device.id]);
+    } else {
+      await pool.query(`
+        UPDATE public.enrolled_devices 
+        SET last_ip = $1, last_seen = NOW()
+        WHERE id = $2::uuid
+      `, [clientIp, device.id]);
+    }
+
+    // Generate Kiosk credentials
+    const deviceEmail = `device_${device.id}@kiosk.kiddochecker.com`;
+    const devicePassword = `Kiosk-${device.id.slice(0, 8)}-Pass!`;
+
+    // Ensure kiosk profile exists
+    const saltRounds = 10;
+    const passHash = await bcrypt.hash(devicePassword, saltRounds);
+    
+    await pool.query(`
+      INSERT INTO public.profiles (id, email, first_name, last_name, role, is_super_admin, is_active, password_hash)
+      VALUES ($1::uuid, $2, $3, '(Kiosk)', 'kiosk', false, true, $4)
+      ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'kiosk'
+    `, [device.id, deviceEmail, device.name, passHash]);
+
+    await pool.query(`
+      INSERT INTO public.user_roles (user_id, role, is_super_admin, verification_status)
+      VALUES ($1::uuid, 'kiosk', false, 'verified')
+      ON CONFLICT (user_id) DO UPDATE SET role = 'kiosk', verification_status = 'verified'
+    `, [device.id]);
+
+    const token = jwt.sign(
+      { email: deviceEmail, role: 'kiosk', id: device.id, device_id: device.id },
+      JWT_SECRET,
+      { expiresIn: '365d' }
+    );
+
+    console.log(`[Device Login] Access Granted for ${device.name} (${device.id})`);
+
+    return res.json({
+      success: true,
+      email: deviceEmail,
+      password: devicePassword,
+      token,
+      device: {
+        id: device.id,
+        name: device.name,
+        type: device.type
+      }
+    });
+  } catch (err) {
+    console.error('[Device Login API Error]:', err.message);
+    return res.json({ error: err.message || 'An unexpected error occurred during device activation.' });
+  }
+});
+
 app.post('/api/admin/run-sql', verifyToken, async (req, res) => {
   // Secondary security check for admin operations
   const adminKey = req.headers['x-bridge-admin-key'];
