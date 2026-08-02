@@ -191,6 +191,7 @@ const CheckInSetupPage = () => {
                       <Button type="button" variant="outline" onClick={testPrintServerConnection} disabled={testingConnection}>
                         {testingConnection ? 'Testing...' : 'Test IP'}
                       </Button>
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="targetPrinterIp">Target Wireless Printer IP (Optional for Multi-Printer)</Label>

@@ -27,6 +27,7 @@ const DeviceLoginPage = lazy(() => import("./pages/DeviceLoginPage"));
 const AdminDocumentVerification = lazy(() => import("./pages/AdminDocumentVerification"));
 const StaffDocumentUpload = lazy(() => import("./pages/StaffDocumentUpload"));
 const CheckInPage = lazy(() => import("./pages/CheckInPage"));
+const CheckInSetupPage = lazy(() => import("./pages/CheckInSetupPage"));
 const CheckOutPage = lazy(() => import("./pages/CheckOutPage"));
 const AttendancePage = lazy(() => import("./pages/AttendancePage"));
 const DeviceEnrollmentPage = lazy(() => import("./pages/DeviceEnrollmentPage"));
@@ -128,6 +129,11 @@ function App() {
                       <Route path="/check-out" element={
                         <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk']}>
                           <CheckOutPage />
+                        </RoleBasedRoute>
+                      } />
+                      <Route path="/check-in-setup" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk', 'staff', 'teacher', 'volunteer']}>
+                          <CheckInSetupPage />
                         </RoleBasedRoute>
                       } />
 
