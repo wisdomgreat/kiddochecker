@@ -1417,7 +1417,8 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   let rawMethod = (method || action || req.body.method || req.body.action || '').toString().toLowerCase();
   if (rawMethod === 'post' || rawMethod === 'create') rawMethod = 'insert';
   const finalMethod = rawMethod;
-  const finalValues = values || data || req.body.values || req.body.data || {};
+  let rawValues = values || data || req.body.values || req.body.data || {};
+  let finalValues = Array.isArray(rawValues) ? (rawValues[0] || {}) : rawValues;
 
   // Sanitize empty strings on UUID columns to null
   Object.keys(finalValues).forEach(k => {
