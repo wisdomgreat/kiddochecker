@@ -1700,8 +1700,7 @@ app.post('/api/functions/device-login', async (req, res) => {
     const devicePassword = `Kiosk-${device.id.slice(0, 8)}-Pass!`;
 
     // Ensure kiosk profile exists
-    const saltRounds = 10;
-    const passHash = await bcrypt.hash(devicePassword, saltRounds);
+    const passHash = crypto.createHash('sha256').update(devicePassword).digest('hex');
     
     await pool.query(`
       INSERT INTO public.profiles (id, email, first_name, last_name, role, is_super_admin, is_active, password_hash)
