@@ -199,6 +199,63 @@ async function setupDatabase() {
     console.warn('[DB Self-Healing] Orphan profile cleanup notice:', cleanErr.message);
   }
 
+  // ─── Fix Kiosk Lookup Function: Filter out deleted/stale profiles ─────────
+  // Accounts deleted from admin portal lose their user_roles entry. 
+  // The get_parent_for_kiosk function must INNER JOIN user_roles so deleted
+  // accounts never surface in kiosk phone lookups, even with the same phone number.
+  try {
+    await pool.query(`
+      DROP FUNCTION IF EXISTS public.get_parent_for_kiosk(text, text);
+
+      CREATE OR REPLACE FUNCTION public.get_parent_for_kiosk(
+        p_search_val text,
+        p_pin text,
+        p_org_id text DEFAULT NULL
+      )
+      RETURNS TABLE (
+        id uuid,
+        first_name text,
+        last_name text,
+        phone text
+      )
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path = public
+      AS $fn$
+      DECLARE
+        v_clean_search text;
+      BEGIN
+        v_clean_search := regexp_replace(p_search_val, '\\D', '', 'g');
+        IF v_clean_search = '' THEN
+          v_clean_search := p_search_val;
+        END IF;
+
+        RETURN QUERY
+        SELECT p.id, p.first_name, p.last_name, p.phone
+        FROM public.profiles p
+        -- CRITICAL: Only match profiles that have an active parent role in user_roles.
+        -- If an admin deletes the account, the user_roles row is cascade-deleted,
+        -- so this INNER JOIN guarantees ghost/stale profiles are never returned.
+        INNER JOIN public.user_roles ur ON ur.user_id = p.id AND ur.role = 'parent'
+        WHERE (
+            regexp_replace(p.phone, '\\D', '', 'g') ILIKE '%' || v_clean_search || '%'
+            OR p.first_name ILIKE '%' || p_search_val || '%' 
+            OR p.last_name ILIKE '%' || p_search_val || '%'
+            OR p.phone ILIKE '%' || p_search_val || '%'
+          )
+          AND p.security_pin = p_pin
+          AND (p.is_active IS NULL OR p.is_active = TRUE)
+        LIMIT 5;
+      END;
+      $fn$;
+
+      GRANT EXECUTE ON FUNCTION public.get_parent_for_kiosk(text, text, text) TO anon, authenticated, service_role;
+    `);
+    console.log('[DB] get_parent_for_kiosk function updated: deleted accounts now excluded from kiosk lookups.');
+  } catch (fnErr) {
+    console.error('[DB] Failed to update get_parent_for_kiosk function:', fnErr.message);
+  }
+
   // Temp full table dump for verification
   try {
     const client = await pool.connect();
@@ -1186,6 +1243,41 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         return res.status(500).json({ error: err.message });
       }
     }
+
+    // ─── Direct safe handler for get_parent_for_kiosk ─────────────────────
+    // This bypasses the DB function entirely. We INNER JOIN user_roles so 
+    // only accounts with an active parent role are returned. Accounts deleted 
+    // from the admin portal lose their user_roles entry, so they are NEVER
+    // returned here — regardless of shared phone number.
+    if (finalFn === 'get_parent_for_kiosk') {
+      try {
+        const searchVal = finalParams.p_search_val || '';
+        const pin = finalParams.p_pin || '';
+        const cleanSearch = searchVal.replace(/\D/g, '') || searchVal;
+
+        const parentRes = await pool.query(`
+          SELECT p.id, p.first_name, p.last_name, p.phone
+          FROM public.profiles p
+          INNER JOIN public.user_roles ur ON ur.user_id = p.id AND ur.role = 'parent'
+          WHERE (
+            regexp_replace(COALESCE(p.phone, ''), '\\D', '', 'g') ILIKE $1
+            OR p.first_name ILIKE $2
+            OR p.last_name ILIKE $2
+            OR COALESCE(p.phone, '') ILIKE $2
+          )
+          AND p.security_pin = $3
+          AND (p.is_active IS NULL OR p.is_active = TRUE)
+          LIMIT 5
+        `, [`%${cleanSearch}%`, `%${searchVal}%`, pin]);
+
+        console.log(`[Kiosk Lookup] get_parent_for_kiosk: search="${searchVal}" → ${parentRes.rows.length} result(s)`);
+        return res.json({ data: parentRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in get_parent_for_kiosk:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
 
     // Direct bulletproof handler for get_staff_members
     if (finalFn === 'get_staff_members') {

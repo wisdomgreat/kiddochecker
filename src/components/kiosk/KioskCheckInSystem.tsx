@@ -10,6 +10,7 @@ import {
 import { PrintService } from '@/services/printService';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/apiClient';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
@@ -210,7 +211,32 @@ const KioskCheckInSystem = () => {
       console.log('[Kiosk] Attempting session restoration for:', savedName);
       setIsLoading(true);
       try {
-        // Fetch children without PIN if we have a valid session
+        // CRITICAL (Azure): Validate via Azure API that the cached parent ID still
+        // has an active user_roles entry. Deleted accounts have no user_roles row.
+        // We use apiFetch (Azure Container App) — NOT Supabase directly.
+        const validateRes = await apiFetch('/api/query', {
+          method: 'POST',
+          body: JSON.stringify({
+            table: 'user_roles',
+            select: 'role',
+            filters: [
+              { column: 'user_id', value: savedId, operator: '=' },
+              { column: 'role', value: 'parent', operator: '=' },
+              { operator: 'maybeSingle' }
+            ]
+          })
+        });
+
+        const roleCheck = validateRes?.data;
+        if (!roleCheck) {
+          console.log('[Kiosk] Session invalidated: parent account no longer active. Clearing cache.');
+          window.localStorage.removeItem('kiosk_active_parent_id');
+          window.localStorage.removeItem('kiosk_active_parent_name');
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch children via Azure API
         const { data: kids, error } = await supabase
           .from('children')
           .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
@@ -223,9 +249,15 @@ const KioskCheckInSystem = () => {
           setParentChildren(kids as any);
           setParentLoggedIn(true);
           console.log('[Kiosk] Session restored successfully.');
+        } else {
+          // No children found — clear stale session
+          window.localStorage.removeItem('kiosk_active_parent_id');
+          window.localStorage.removeItem('kiosk_active_parent_name');
         }
       } catch (err) {
         console.error('[Kiosk] Session restoration failed:', err);
+        window.localStorage.removeItem('kiosk_active_parent_id');
+        window.localStorage.removeItem('kiosk_active_parent_name');
       } finally {
         setIsLoading(false);
       }
