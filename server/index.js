@@ -568,6 +568,7 @@ function verifyTOTP(secret, userCode) {
 
 // ─── JWT & Auth ──────────────────────────────────────────────────────────
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-2026';
+const JWT_SECRET = BRIDGE_SECRET;
 
 function getKey(header, callback) {
   const jwksClient = require('jwks-rsa');
