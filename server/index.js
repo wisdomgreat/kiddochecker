@@ -1713,17 +1713,33 @@ app.post('/api/functions/device-login', async (req, res) => {
     // Ensure kiosk profile exists
     const passHash = crypto.createHash('sha256').update(devicePassword).digest('hex');
     
-    await pool.query(`
-      INSERT INTO public.profiles (id, email, first_name, last_name, role, is_super_admin, is_active, password_hash)
-      VALUES ($1::uuid, $2, $3, '(Kiosk)', 'kiosk', false, true, $4)
-      ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'kiosk', is_active = true
-    `, [device.id, deviceEmail, device.name, passHash]);
+    const existingProfile = await pool.query('SELECT id FROM public.profiles WHERE id = $1::uuid', [device.id]);
+    if (existingProfile.rows.length > 0) {
+      await pool.query(`
+        UPDATE public.profiles 
+        SET email = $1, first_name = $2, role = 'kiosk', password_hash = $3, is_active = true
+        WHERE id = $4::uuid
+      `, [deviceEmail, device.name, passHash, device.id]);
+    } else {
+      await pool.query(`
+        INSERT INTO public.profiles (id, email, first_name, last_name, role, is_super_admin, is_active, password_hash)
+        VALUES ($1::uuid, $2, $3, '(Kiosk)', 'kiosk', false, true, $4)
+      `, [device.id, deviceEmail, device.name, passHash]);
+    }
 
-    await pool.query(`
-      INSERT INTO public.user_roles (user_id, role, is_super_admin, verification_status)
-      VALUES ($1::uuid, 'kiosk', false, 'verified')
-      ON CONFLICT (user_id) DO UPDATE SET role = 'kiosk', verification_status = 'verified'
-    `, [device.id]);
+    const existingRole = await pool.query('SELECT user_id FROM public.user_roles WHERE user_id = $1::uuid', [device.id]);
+    if (existingRole.rows.length > 0) {
+      await pool.query(`
+        UPDATE public.user_roles 
+        SET role = 'kiosk', verification_status = 'verified'
+        WHERE user_id = $1::uuid
+      `, [device.id]);
+    } else {
+      await pool.query(`
+        INSERT INTO public.user_roles (user_id, role, is_super_admin, verification_status)
+        VALUES ($1::uuid, 'kiosk', false, 'verified')
+      `, [device.id]);
+    }
 
     const token = jwt.sign(
       { email: deviceEmail, role: 'kiosk', id: device.id, device_id: device.id },
