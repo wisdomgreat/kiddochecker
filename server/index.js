@@ -1663,7 +1663,7 @@ app.post('/api/admin/users/bulk-action', verifyToken, async (req, res) => {
 });
 
 // Edge Function Bridge Endpoint: device-login
-app.post('/api/functions/device-login', async (req, res) => {
+app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functions/device-login'], async (req, res) => {
   try {
     const { code, pin, forensics } = req.body || {};
     const { hardwareId, os, browser, fingerprint, ip } = forensics || {};
