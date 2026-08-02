@@ -866,7 +866,14 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
       });
     }
 
-    const isMatch = bcrypt.compareSync(password, profile.password_hash);
+    let isMatch = false;
+    if (profile.password_hash && profile.password_hash.length === 64) {
+      const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');
+      isMatch = (sha256Hash === profile.password_hash);
+    } else {
+      isMatch = bcrypt.compareSync(password, profile.password_hash);
+    }
+
     if (!isMatch) {
       console.warn(`[Auth] Failed login for ${normalizedEmail} — password mismatch`);
       return res.status(401).json({ error: 'Invalid email or password' });
