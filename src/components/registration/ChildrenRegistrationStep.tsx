@@ -98,6 +98,13 @@ export const ChildrenRegistrationStep: React.FC<ChildrenRegistrationStepProps> =
     onChange(updatedChildren);
   };
 
+  const updateChildFields = (index: number, fields: Partial<ChildData>) => {
+    const updatedChildren = children.map((child, i) =>
+      i === index ? { ...child, ...fields } : child
+    );
+    onChange(updatedChildren);
+  };
+
   // ─── Allergy Management ───────────────────────────────────────────────────
   const addAllergy = (index: number, typeName: string, severity: 'mild' | 'moderate' | 'severe' = 'moderate') => {
     if (!typeName.trim()) return;
@@ -105,16 +112,15 @@ export const ChildrenRegistrationStep: React.FC<ChildrenRegistrationStepProps> =
     if (current.some((a) => a.type.toLowerCase() === typeName.toLowerCase())) return;
 
     const updated = [...current, { type: typeName.trim(), severity }];
-    updateChild(index, 'structuredAllergies', updated);
-    // Also sync summary text field for backward compatibility
-    updateChild(index, 'allergies', updated.map((a) => `${a.type} (${a.severity})`).join(', '));
+    const summaryText = updated.map((a) => `${a.type} (${a.severity})`).join(', ');
+    updateChildFields(index, { structuredAllergies: updated, allergies: summaryText });
   };
 
   const removeAllergy = (index: number, typeName: string) => {
     const current = children[index].structuredAllergies || [];
-    const updated = current.filter((a) => a.type !== typeName);
-    updateChild(index, 'structuredAllergies', updated);
-    updateChild(index, 'allergies', updated.map((a) => `${a.type} (${a.severity})`).join(', '));
+    const updated = current.filter((a) => a.type.toLowerCase() !== typeName.toLowerCase());
+    const summaryText = updated.map((a) => `${a.type} (${a.severity})`).join(', ');
+    updateChildFields(index, { structuredAllergies: updated, allergies: summaryText });
   };
 
   // ─── Condition Management ─────────────────────────────────────────────────
