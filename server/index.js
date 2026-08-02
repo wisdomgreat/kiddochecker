@@ -75,6 +75,17 @@ async function setupDatabase() {
     console.error('[DB] password_reset_tokens setup error (Non-Fatal):', err.message);
   }
 
+  // Ensure profiles table has required columns is_active and password_hash
+  try {
+    await pool.query(`
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
+    `);
+    console.log('[DB] Profiles table schema columns (is_active, password_hash) verified.');
+  } catch (err) {
+    console.error('[DB] Profiles column migration notice:', err.message);
+  }
+
   // Correct email typo in profiles table
   try {
     const res = await pool.query(`
@@ -1703,9 +1714,9 @@ app.post('/api/functions/device-login', async (req, res) => {
     const passHash = crypto.createHash('sha256').update(devicePassword).digest('hex');
     
     await pool.query(`
-      INSERT INTO public.profiles (id, email, first_name, last_name, role, is_super_admin, password_hash)
-      VALUES ($1::uuid, $2, $3, '(Kiosk)', 'kiosk', false, $4)
-      ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'kiosk'
+      INSERT INTO public.profiles (id, email, first_name, last_name, role, is_super_admin, is_active, password_hash)
+      VALUES ($1::uuid, $2, $3, '(Kiosk)', 'kiosk', false, true, $4)
+      ON CONFLICT (id) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'kiosk', is_active = true
     `, [device.id, deviceEmail, device.name, passHash]);
 
     await pool.query(`
