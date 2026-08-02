@@ -100,16 +100,30 @@ async function setupDatabase() {
         profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Deduplicate user_roles before creating unique constraint
+      DELETE FROM public.user_roles a USING public.user_roles b WHERE a.ctid < b.ctid AND a.user_id = b.user_id;
+
       DO $$ 
       BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint WHERE conname = 'staff_group_members_pkey'
-        ) THEN
-          BEGIN
-            ALTER TABLE public.staff_group_members ADD CONSTRAINT staff_group_members_pkey PRIMARY KEY (group_id, profile_id);
-          EXCEPTION WHEN OTHERS THEN
-            NULL;
-          END;
+        -- 1. Ensure profiles primary key on id
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_pkey') THEN
+          BEGIN ALTER TABLE public.profiles ADD CONSTRAINT profiles_pkey PRIMARY KEY (id); EXCEPTION WHEN OTHERS THEN NULL; END;
+        END IF;
+
+        -- 2. Ensure user_roles unique constraint on user_id
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_roles_user_id_key') THEN
+          BEGIN ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_key UNIQUE (user_id); EXCEPTION WHEN OTHERS THEN NULL; END;
+        END IF;
+
+        -- 3. Ensure user_roles unique constraint on (user_id, role)
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_roles_user_id_role_key') THEN
+          BEGIN ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id, role); EXCEPTION WHEN OTHERS THEN NULL; END;
+        END IF;
+
+        -- 4. Ensure staff_group_members primary key on (group_id, profile_id)
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'staff_group_members_pkey') THEN
+          BEGIN ALTER TABLE public.staff_group_members ADD CONSTRAINT staff_group_members_pkey PRIMARY KEY (group_id, profile_id); EXCEPTION WHEN OTHERS THEN NULL; END;
         END IF;
       END $$;
 
@@ -143,9 +157,9 @@ async function setupDatabase() {
       END;
       $$ LANGUAGE plpgsql SECURITY DEFINER;
     `);
-    console.log('[DB] staff_group_members schema and apply_group_rules trigger function updated.');
+    console.log('[DB] staff_group_members schema, user_roles unique constraints, and apply_group_rules trigger function updated successfully.');
   } catch (err) {
-    console.error('[DB] staff_group_members setup notice:', err.message);
+    console.error('[DB] staff_group_members & constraint setup notice:', err.message);
   }
 
   // Correct email typo in profiles table
