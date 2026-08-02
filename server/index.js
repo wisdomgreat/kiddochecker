@@ -86,6 +86,68 @@ async function setupDatabase() {
     console.error('[DB] Profiles column migration notice:', err.message);
   }
 
+  // Ensure staff_group_members primary key constraint and fix apply_group_rules trigger function
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public.staff_groups (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT UNIQUE NOT NULL,
+        description TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS public.staff_group_members (
+        group_id UUID REFERENCES public.staff_groups(id) ON DELETE CASCADE,
+        profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'staff_group_members_pkey'
+        ) THEN
+          BEGIN
+            ALTER TABLE public.staff_group_members ADD CONSTRAINT staff_group_members_pkey PRIMARY KEY (group_id, profile_id);
+          EXCEPTION WHEN OTHERS THEN
+            NULL;
+          END;
+        END IF;
+      END $$;
+
+      CREATE OR REPLACE FUNCTION public.apply_group_rules()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'staff_group_rules') THEN
+            INSERT INTO public.staff_group_members (group_id, profile_id)
+            SELECT sgr.group_id, NEW.id
+            FROM public.staff_group_rules sgr
+            JOIN public.user_roles ur ON ur.user_id = NEW.id
+            WHERE sgr.attribute_type = 'role' AND sgr.attribute_value = ur.role::text
+            AND NOT EXISTS (
+              SELECT 1 FROM public.staff_group_members sgm 
+              WHERE sgm.group_id = sgr.group_id AND sgm.profile_id = NEW.id
+            );
+
+            IF NEW.department IS NOT NULL THEN
+                INSERT INTO public.staff_group_members (group_id, profile_id)
+                SELECT group_id, NEW.id
+                FROM public.staff_group_rules
+                WHERE attribute_type = 'department' AND attribute_value = NEW.department
+                AND NOT EXISTS (
+                  SELECT 1 FROM public.staff_group_members sgm 
+                  WHERE sgm.group_id = staff_group_rules.group_id AND sgm.profile_id = NEW.id
+                );
+            END IF;
+          END IF;
+
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql SECURITY DEFINER;
+    `);
+    console.log('[DB] staff_group_members schema and apply_group_rules trigger function updated.');
+  } catch (err) {
+    console.error('[DB] staff_group_members setup notice:', err.message);
+  }
+
   // Correct email typo in profiles table
   try {
     const res = await pool.query(`
