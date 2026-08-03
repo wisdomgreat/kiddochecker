@@ -2,12 +2,14 @@ const express = require('express');
 const { exec } = require('child_process');
 const bodyParser = require('body-parser');
 const os = require('os');
+const net = require('net');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
-const HOST = '0.0.0.0'; // Listen on all interfaces for Android tablet requests
+const HOST = '0.0.0.0'; // Listen on all interfaces
 
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Enable CORS for browser fetch calls from Android tablet kiosks
 app.use((req, res, next) => {
@@ -20,67 +22,99 @@ app.use((req, res, next) => {
     next();
 });
 
-// Health check endpoint for tablet connectivity testing
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        server: 'KiddoChecker Remote Multi-Printer Server',
-        os: process.platform,
+// ─── Real-Time In-Memory Log Store ──────────────────────────────
+const logsBuffer = [];
+const MAX_LOGS = 300;
+
+function addLog(type, message, details = {}) {
+    const entry = {
+        id: Date.now() + Math.random().toString(36).substring(2, 5),
         timestamp: new Date().toISOString(),
-        host: req.headers.host
-    });
-});
+        time: new Date().toLocaleTimeString(),
+        type: type, // 'info' | 'success' | 'warn' | 'error' | 'cloud'
+        message: message,
+        details: details
+    };
+    logsBuffer.unshift(entry);
+    if (logsBuffer.length > MAX_LOGS) {
+        logsBuffer.pop();
+    }
+    const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warn' ? '⚠️' : type === 'cloud' ? '☁️' : 'ℹ️';
+    console.log(`[Print Server ${icon}] ${message} ${details.targetIp ? `(IP: ${details.targetIp})` : ''}`);
+}
+
+addLog('info', 'KiddoChecker Remote Print Server Initializing...');
 
 // Default Printer Configurations (Environment Fallbacks)
 const DEFAULT_PRINTER_NAME = process.env.PRINTER_NAME || 'Default Printer';
 const DEFAULT_PRINTER_IP = process.env.PRINTER_IP || '';
-
-// ─── Azure Cloud Print Relay Polling ────────────────────────────
 const AZURE_API_URL = process.env.AZURE_API_URL || 'https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io';
 
+let cloudRelayStatus = { active: false, lastPoll: null, jobsProcessed: 0, lastError: null };
+
+// ─── Azure Cloud Print Relay Polling ────────────────────────────
 async function pollAzureCloudPrintQueue() {
     try {
         const response = await fetch(`${AZURE_API_URL}/api/print-jobs/poll`);
+        cloudRelayStatus.lastPoll = new Date().toISOString();
+        cloudRelayStatus.active = true;
+        cloudRelayStatus.lastError = null;
+
         if (response.ok) {
             const data = await response.json();
             if (data.jobs && data.jobs.length > 0) {
                 for (const job of data.jobs) {
-                    console.log(`[Cloud Relay] Received job ${job.id} for ${job.labelData?.name}`);
+                    cloudRelayStatus.jobsProcessed++;
+                    addLog('cloud', `Received Azure Cloud Job: ${job.id} for ${job.labelData?.name || 'Child'}`, {
+                        jobId: job.id,
+                        printerIp: job.printerIp,
+                        printerName: job.printerName
+                    });
                     dispatchPrintCommand(job.labelData, job.printerIp, job.printerName);
                 }
             }
         }
     } catch (err) {
-        // Silent catch for network hiccups
+        cloudRelayStatus.active = false;
+        cloudRelayStatus.lastError = err.message;
     }
 }
 
-const net = require('net');
+// Start polling Azure Cloud Print Queue every 2 seconds
+setInterval(pollAzureCloudPrintQueue, 2000);
 
+// ─── Core Dispatch Printer Function (Pure Node TCP Socket) ──────
 function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     if (!labelData || !labelData.name) {
-        if (callback) callback(new Error('Invalid label data'));
+        const err = new Error('Invalid or missing label data');
+        addLog('error', 'Print job rejected: Invalid label data');
+        if (callback) callback(err);
         return;
     }
     
     const childName = labelData.name;
-    const securityCode = labelData.securityCode || '';
-    const className = labelData.class || '';
+    const securityCode = labelData.securityCode || 'TEST';
+    const className = labelData.class || 'General';
     const allergies = labelData.allergies ? `ALLERGIES: ${labelData.allergies}` : '';
     
-    const targetPrinterIp = printerIp || labelData.printerIp || DEFAULT_PRINTER_IP;
-    const targetPrinterName = printerName || labelData.printerName || DEFAULT_PRINTER_NAME;
+    const targetPrinterIp = (printerIp || labelData.printerIp || DEFAULT_PRINTER_IP || '').trim();
+    const targetPrinterName = (printerName || labelData.printerName || DEFAULT_PRINTER_NAME || '').trim();
 
-    console.log(`[Print Server] Dispatching job for ${childName} -> Target Printer: ${targetPrinterIp || targetPrinterName || 'System Default'}`);
+    addLog('info', `Dispatching print job for ${childName}`, {
+        childName,
+        targetPrinterIp: targetPrinterIp || 'None',
+        targetPrinterName: targetPrinterName || 'None'
+    });
 
-    // 1. Dynamic Network/Wireless Printer (Pure Node TCP Socket to Port 9100)
+    // 1. Dynamic Network/Wireless Printer (Direct TCP Socket on Port 9100)
     if (targetPrinterIp) {
-        console.log(`[Print Server] Opening direct TCP socket to printer ${targetPrinterIp}:9100...`);
+        addLog('info', `Opening TCP Socket connection to ${targetPrinterIp}:9100...`, { targetIp: targetPrinterIp });
+        
         const socket = new net.Socket();
-        socket.setTimeout(4000);
+        socket.setTimeout(5000);
 
         const printPayload = 
-            `\x1b@` +
+            `\x1b@` + // ESC/POS Initialize
             `=====================================\n` +
             `       KIDDOCHECKER NAME TAG         \n` +
             `=====================================\n` +
@@ -89,31 +123,44 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
             `CLASS : ${className}\n` +
             (allergies ? `${allergies}\n` : '') +
             `DATE  : ${new Date().toLocaleString()}\n` +
-            `=====================================\n\n\n\x1dV1`;
+            `=====================================\n\n\n\x1dV1`; // Cut paper
 
         socket.connect(9100, targetPrinterIp, () => {
-            console.log(`[Print Server] ✅ TCP Connected to ${targetPrinterIp}:9100! Transmitting print data...`);
+            addLog('info', `TCP Socket Connected to ${targetPrinterIp}:9100! Transmitting data...`, { targetIp: targetPrinterIp });
             socket.write(printPayload, 'utf-8', () => {
                 socket.end();
-                console.log(`[Print Server] ✅ Print job delivered successfully to ${targetPrinterIp}`);
-                if (callback) callback(null, { success: true, printer: targetPrinterIp });
+                addLog('success', `✅ Name tag successfully printed on ${targetPrinterIp}!`, {
+                    childName,
+                    targetIp: targetPrinterIp
+                });
+                if (callback) callback(null, { success: true, printer: targetPrinterIp, mode: 'tcp_socket' });
             });
         });
 
         socket.on('error', (err) => {
-            console.warn(`[Print Server] ❌ TCP connection error to ${targetPrinterIp}:9100: ${err.message}`);
-            if (callback) callback(null, { success: false, error: err.message });
+            addLog('error', `❌ Socket error connecting to ${targetPrinterIp}:9100 - ${err.message}`, {
+                targetIp: targetPrinterIp,
+                error: err.message
+            });
+            if (callback) callback(null, { success: false, error: err.message, targetIp: targetPrinterIp });
         });
 
         socket.on('timeout', () => {
-            console.warn(`[Print Server] ⚠️ Socket timeout connecting to ${targetPrinterIp}:9100`);
+            addLog('warn', `⚠️ Socket connection timed out for ${targetPrinterIp}:9100 (Unreachable or IP incorrect)`, {
+                targetIp: targetPrinterIp
+            });
             socket.destroy();
-            if (callback) callback(null, { success: false, error: 'Connection timeout' });
+            if (callback) callback(null, { success: false, error: `Connection timeout to ${targetPrinterIp}` });
         });
         return;
     }
 
-    // 2. Local OS Printer Spooler Fallback
+    // 2. Fallback: Warning if no IP specified
+    addLog('warn', `No Target Printer IP specified for ${childName}. (Received empty printerIp in payload)`, {
+        childName,
+        receivedPayload: labelData
+    });
+
     let command = '';
     const isWindows = process.platform === 'win32';
 
@@ -127,21 +174,63 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
 
     exec(command, (error, stdout, stderr) => {
         if (error) {
-            console.warn(`[Print Server] System print warning: ${error.message}`);
+            addLog('warn', `System print fallback message: ${error.message}`);
             if (callback) callback(null, { success: true, warning: error.message });
             return;
         }
-        console.log(`[Print Server] Print job dispatched successfully to ${targetPrinterName}`);
-        if (callback) callback(null, { success: true, printer: targetPrinterName });
+        addLog('success', `Printed via OS spooler fallback (${targetPrinterName})`);
+        if (callback) callback(null, { success: true, printer: targetPrinterName, mode: 'os_spooler' });
     });
 }
 
-// Start polling Azure Cloud Print Queue every 2 seconds
-setInterval(pollAzureCloudPrintQueue, 2000);
+// ─── API Endpoints ──────────────────────────────────────────────
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        server: 'KiddoChecker Remote Multi-Printer Server',
+        os: process.platform,
+        uptimeSeconds: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+        cloudRelay: cloudRelayStatus,
+        localIps: getLocalIpAddresses()
+    });
+});
+
+// JSON Logs API Endpoint
+app.get('/api/logs', (req, res) => {
+    res.json({
+        server: 'KiddoChecker Print Server',
+        uptimeSeconds: Math.floor(process.uptime()),
+        totalLogsCount: logsBuffer.length,
+        cloudRelay: cloudRelayStatus,
+        logs: logsBuffer
+    });
+});
+
+// Print API Endpoint
 app.post('/print', (req, res) => {
     const { labelData, printerIp, printerName } = req.body || {};
     dispatchPrintCommand(labelData, printerIp, printerName, (err, result) => {
+        if (err) return res.status(400).json({ success: false, error: err.message });
+        res.json(result);
+    });
+});
+
+// Manual Test Print Endpoint
+app.post('/api/test-print', (req, res) => {
+    const { printerIp, childName } = req.body || {};
+    if (!printerIp) {
+        return res.status(400).json({ success: false, error: 'Printer IP is required' });
+    }
+    const testData = {
+        name: childName || 'TEST BADGE',
+        securityCode: 'T999',
+        class: 'Test Room',
+        allergies: 'None'
+    };
+    dispatchPrintCommand(testData, printerIp, '', (err, result) => {
         if (err) return res.status(400).json({ success: false, error: err.message });
         res.json(result);
     });
@@ -163,22 +252,168 @@ function getLocalIpAddresses() {
     return ips;
 }
 
+// ─── Interactive Web Dashboard & Live Log Console (`GET /` & `GET /logs`) ───
+app.get(['/', '/logs'], (req, res) => {
+    const localIps = getLocalIpAddresses();
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🖨️ KiddoChecker Print Server Console</title>
+        <style>
+            :root {
+                --bg: #0f172a;
+                --card: #1e293b;
+                --border: #334155;
+                --text: #f8fafc;
+                --muted: #94a3b8;
+                --primary: #6366f1;
+                --success: #10b981;
+                --danger: #ef4444;
+                --warning: #f59e0b;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+            body { background: var(--bg); color: var(--text); padding: 24px; max-width: 1200px; margin: 0 auto; }
+            header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 24px; }
+            h1 { font-size: 24px; display: flex; items-center; gap: 10px; }
+            .badge { background: var(--success); color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+            .grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+            @media(max-width: 850px) { .grid { grid-template-columns: 1fr; } }
+            .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+            .card h2 { font-size: 16px; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+            .log-box { background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; height: 500px; overflow-y: auto; display: flex; flex-col; gap: 8px; }
+            .log-entry { padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); background: #131b2e; word-break: break-all; }
+            .log-entry.success { border-color: var(--success); }
+            .log-entry.error { border-color: var(--danger); }
+            .log-entry.warn { border-color: var(--warning); }
+            .log-entry.cloud { border-color: var(--primary); }
+            .time { color: var(--muted); font-size: 11px; margin-right: 8px; }
+            input, button { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #090d16; color: #fff; margin-bottom: 10px; font-size: 14px; }
+            button { background: var(--primary); font-weight: bold; cursor: pointer; border: none; }
+            button:hover { opacity: 0.9; }
+            .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+            .ip-tag { background: #334155; padding: 3px 8px; border-radius: 4px; font-family: monospace; }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>🖨️ KiddoChecker Print Server <span class="badge">ONLINE</span></h1>
+            <div>
+                <button onclick="fetchLogs()" style="width: auto; padding: 8px 16px;">🔄 Refresh Logs</button>
+            </div>
+        </header>
+
+        <div class="grid">
+            <div>
+                <div class="card">
+                    <h2>Live Activity & Print Logs</h2>
+                    <div id="log-box" class="log-box">Loading server logs...</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <h2>Direct Printer Tester</h2>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Test network printer connectivity directly from server to target IP.</p>
+                    <input type="text" id="testIp" placeholder="Printer IP (e.g. 192.168.2.13)" value="192.168.2.13" />
+                    <input type="text" id="testName" placeholder="Test Child Name" value="Test Child Badge" />
+                    <button onclick="sendTestPrint()">🚀 Send Test Print to IP</button>
+                    <div id="testResult" style="font-size: 12px; font-weight: bold; margin-top: 8px;"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Server Info</h2>
+                    <div class="stat-row"><span>Platform:</span> <strong>${process.platform}</strong></div>
+                    <div class="stat-row"><span>Uptime:</span> <strong id="uptime">Loading...</strong></div>
+                    <div class="stat-row"><span>Port:</span> <strong>${PORT}</strong></div>
+                    <div class="stat-row"><span>Azure Cloud Relay:</span> <strong style="color: var(--success);">Polling Active</strong></div>
+                    <div style="margin-top: 14px;">
+                        <p style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">Server LAN IP Addresses:</p>
+                        ${localIps.map(ip => `<div style="margin-bottom:4px;"><span class="ip-tag">http://${ip}:${PORT}</span></div>`).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            async function fetchLogs() {
+                try {
+                    const res = await fetch('/api/logs');
+                    const data = await res.json();
+                    
+                    document.getElementById('uptime').innerText = Math.floor(data.uptimeSeconds / 60) + ' mins ' + (data.uptimeSeconds % 60) + ' secs';
+                    
+                    const box = document.getElementById('log-box');
+                    if (data.logs.length === 0) {
+                        box.innerHTML = '<div style="color:#94a3b8; padding:12px;">No logs recorded yet.</div>';
+                        return;
+                    }
+                    
+                    box.innerHTML = data.logs.map(log => \`
+                        <div class="log-entry \${log.type}">
+                            <span class="time">\${log.time}</span>
+                            <strong>\${log.message}</strong>
+                            \${log.details && log.details.targetIp ? '<div style="font-size:11px; color:#94a3b8; margin-top:2px;">Target IP: ' + log.details.targetIp + '</div>' : ''}
+                        </div>
+                    \`).join('');
+                } catch(e) { }
+            }
+
+            async function sendTestPrint() {
+                const ip = document.getElementById('testIp').value;
+                const name = document.getElementById('testName').value;
+                const resDiv = document.getElementById('testResult');
+                resDiv.innerText = 'Sending print request to ' + ip + '...';
+                resDiv.style.color = '#f59e0b';
+
+                try {
+                    const res = await fetch('/api/test-print', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ printerIp: ip, childName: name })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        resDiv.innerText = '✅ Test Print Dispatched to ' + ip;
+                        resDiv.style.color = '#10b981';
+                    } else {
+                        resDiv.innerText = '❌ Failed: ' + (data.error || 'Unknown error');
+                        resDiv.style.color = '#ef4444';
+                    }
+                } catch(e) {
+                    resDiv.innerText = '❌ Error: ' + e.message;
+                    resDiv.style.color = '#ef4444';
+                }
+                setTimeout(fetchLogs, 1000);
+            }
+
+            fetchLogs();
+            setInterval(fetchLogs, 3000);
+        </script>
+    </body>
+    </html>
+    `;
+    res.send(html);
+});
+
 app.listen(PORT, HOST, () => {
     const localIps = getLocalIpAddresses();
+    addLog('info', `Server listening on http://${HOST}:${PORT}`);
     console.log(`
     ===================================================================
-    🖨️  KiddoChecker Remote Multi-Printer Server (Active)
+    🖨️  KiddoChecker Remote Multi-Printer Server & Web Dashboard
     ===================================================================
     OS Platform : ${process.platform} (${os.release()})
     Status      : Listening on http://${HOST}:${PORT}
     Cloud Relay : Polling Azure API (${AZURE_API_URL})
     
-    📌 TECH DESK SERVER IP ADDRESS(ES) TO ENTER ON ANDROID TABLETS:
+    🌐 OPEN PRINT SERVER WEB CONSOLE & LOGS IN YOUR BROWSER:
     ${localIps.map(ip => `   👉 http://${ip}:${PORT}`).join('\n')}
 
-    Multi-Printer Support:
-    - Wireless Printer 1 IP : Send printerIp: "192.168.1.101"
-    - Wireless Printer 2 IP : Send printerIp: "192.168.1.102"
+    Multi-Printer Dynamic TCP Socket Support:
+    - Send target printer IP (e.g. "192.168.2.13") in "printerIp" field.
     ===================================================================
     `);
 });
