@@ -976,16 +976,18 @@ const KioskCheckInSystem = () => {
              <span className="text-foreground">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setShowPrinterDialog(true)} 
-            className="h-8 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10"
-            title="Printer & Print Server Setup"
-          >
-            <Printer className="h-4 w-4" />
-            <span className="hidden sm:inline">Printer Setup</span>
-          </Button>
+          {staffAuthed && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowPrinterDialog(true)} 
+              className="h-8 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10 animate-in fade-in"
+              title="Printer & Print Server Setup"
+            >
+              <Printer className="h-4 w-4" />
+              <span className="hidden sm:inline">Printer Setup</span>
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={toggleFs} className="h-8 w-8"><Maximize className="h-4 w-4" /></Button>
         </div>
       </header>
@@ -1314,6 +1316,17 @@ const KioskCheckInSystem = () => {
                             {isEs ? "Personal Autenticado" : "Authenticated Staff"}
                           </p>
                           <p className="font-bold text-lg">{staffName}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setShowPrinterDialog(true)} 
+                            className="h-9 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10"
+                          >
+                            <Printer className="h-4 w-4" />
+                            <span>{isEs ? "Configurar Impresora" : "Printer Setup"}</span>
+                          </Button>
                         </div>
                       </div>
 
