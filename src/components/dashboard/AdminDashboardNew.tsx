@@ -73,19 +73,31 @@ const AdminDashboardNew = () => {
     const { data: weeklyAttendance = [] } = useQuery({
         queryKey: ["dashboard-weekly-attendance"],
         queryFn: async () => {
-            const days: any[] = [];
+            const startDate = format(subDays(new Date(), 6), "yyyy-MM-dd");
+            const { data } = await supabase
+                .from("attendance")
+                .select("id, attendance_date, checked_in_at, created_at")
+                .gte("created_at", `${startDate}T00:00:00.000Z`);
+
+            const daysMap: Record<string, number> = {};
             for (let i = 6; i >= 0; i--) {
                 const d = subDays(new Date(), i);
-                const dateStr = format(d, "yyyy-MM-dd");
-                const startStr = format(startOfDay(d), "yyyy-MM-dd'T'00:00:00");
-                const endStr = format(endOfDay(d), "yyyy-MM-dd'T'23:59:59");
-                const { data } = await supabase
-                    .from("attendance")
-                    .select("id, attendance_date, checked_in_at")
-                    .or(`attendance_date.eq.${dateStr},and(checked_in_at.gte.${startStr},checked_in_at.lte.${endStr})`);
-                days.push({ day: format(d, "EEE"), checkins: data ? data.length : 0 });
+                daysMap[format(d, "EEE")] = 0;
             }
-            return days;
+
+            if (data && data.length > 0) {
+                data.forEach((rec: any) => {
+                    const rawDate = rec.checked_in_at || rec.created_at || rec.attendance_date;
+                    if (rawDate) {
+                        const dayName = format(new Date(rawDate), "EEE");
+                        if (daysMap[dayName] !== undefined) {
+                            daysMap[dayName] += 1;
+                        }
+                    }
+                });
+            }
+
+            return Object.keys(daysMap).map(day => ({ day, checkins: daysMap[day] }));
         },
     });
 
