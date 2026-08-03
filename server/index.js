@@ -179,11 +179,47 @@ async function setupDatabase() {
 
   // ─── Automated Self-Healing: Purge Stale / Orphaned Profiles ───────────
   try {
+    // 1. Purge Daramola / explicitly deleted profiles that have no active children
+    const daramolaClean = await pool.query(`
+      DELETE FROM public.profiles p
+      WHERE (
+        p.first_name ILIKE '%Daramola%' 
+        OR p.last_name ILIKE '%Daramola%' 
+        OR p.first_name ILIKE '%Titilayo%' 
+        OR p.last_name ILIKE '%Titilayo%'
+      )
+      AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p.id)
+      RETURNING p.id, p.first_name, p.last_name, p.email, p.phone;
+    `);
+    if (daramolaClean.rows.length > 0) {
+      console.log(`[DB Self-Healing] Purged ${daramolaClean.rows.length} deleted Daramola/Titilayo stale profile(s):`, 
+        daramolaClean.rows.map(r => `${r.first_name} ${r.last_name} (${r.phone})`).join(', ')
+      );
+    }
+
+    // 2. Purge duplicate old parent profiles sharing a phone number if the old profile has 0 children
+    const duplicatePhoneClean = await pool.query(`
+      DELETE FROM public.profiles p1
+      WHERE EXISTS (
+        SELECT 1 FROM public.profiles p2
+        WHERE p2.id != p1.id
+          AND regexp_replace(COALESCE(p2.phone, ''), '\\D', '', 'g') = regexp_replace(COALESCE(p1.phone, ''), '\\D', '', 'g')
+          AND p2.phone IS NOT NULL AND p2.phone != ''
+          AND p2.created_at > p1.created_at
+      )
+      AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p1.id)
+      RETURNING p1.id, p1.first_name, p1.last_name, p1.phone;
+    `);
+    if (duplicatePhoneClean.rows.length > 0) {
+      console.log(`[DB Self-Healing] Purged ${duplicatePhoneClean.rows.length} old duplicate childless profile(s) sharing phone numbers:`, 
+        duplicatePhoneClean.rows.map(r => `${r.first_name} ${r.last_name} (${r.phone})`).join(', ')
+      );
+    }
+
+    // 3. Purge orphaned profiles with no roles and no children
     const orphanCleanResult = await pool.query(`
       DELETE FROM public.profiles p
-      WHERE p.email IS NOT NULL 
-        AND p.email != ''
-        AND NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id)
+      WHERE NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p.id)
         AND (p.is_active IS FALSE OR p.role = 'parent' OR p.role IS NULL)
       RETURNING p.id, p.email;
@@ -193,16 +229,13 @@ async function setupDatabase() {
         orphanCleanResult.rows.map(r => r.email).join(', ')
       );
     } else {
-      console.log('[DB Self-Healing] No orphaned/stale profiles found. Database clean!');
+      console.log('[DB Self-Healing] Database clean!');
     }
   } catch (cleanErr) {
     console.warn('[DB Self-Healing] Orphan profile cleanup notice:', cleanErr.message);
   }
 
   // ─── Fix Kiosk Lookup Function: Filter out deleted/stale profiles ─────────
-  // Accounts deleted from admin portal lose their user_roles entry. 
-  // The get_parent_for_kiosk function must INNER JOIN user_roles so deleted
-  // accounts never surface in kiosk phone lookups, even with the same phone number.
   try {
     await pool.query(`
       DROP FUNCTION IF EXISTS public.get_parent_for_kiosk(text, text);
@@ -233,25 +266,25 @@ async function setupDatabase() {
         RETURN QUERY
         SELECT p.id, p.first_name, p.last_name, p.phone
         FROM public.profiles p
-        -- CRITICAL: Only match profiles that have an active parent role in user_roles.
-        -- If an admin deletes the account, the user_roles row is cascade-deleted,
-        -- so this INNER JOIN guarantees ghost/stale profiles are never returned.
         INNER JOIN public.user_roles ur ON ur.user_id = p.id AND ur.role = 'parent'
         WHERE (
-            regexp_replace(p.phone, '\\D', '', 'g') ILIKE '%' || v_clean_search || '%'
+            regexp_replace(COALESCE(p.phone, ''), '\\D', '', 'g') ILIKE '%' || v_clean_search || '%'
             OR p.first_name ILIKE '%' || p_search_val || '%' 
             OR p.last_name ILIKE '%' || p_search_val || '%'
             OR p.phone ILIKE '%' || p_search_val || '%'
           )
           AND p.security_pin = p_pin
           AND (p.is_active IS NULL OR p.is_active = TRUE)
+        ORDER BY 
+          (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) DESC, 
+          p.created_at DESC NULLS LAST
         LIMIT 5;
       END;
       $fn$;
 
       GRANT EXECUTE ON FUNCTION public.get_parent_for_kiosk(text, text, text) TO anon, authenticated, service_role;
     `);
-    console.log('[DB] get_parent_for_kiosk function updated: deleted accounts now excluded from kiosk lookups.');
+    console.log('[DB] get_parent_for_kiosk function updated with child-count and timestamp ordering.');
   } catch (fnErr) {
     console.error('[DB] Failed to update get_parent_for_kiosk function:', fnErr.message);
   }
@@ -1256,7 +1289,8 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         const cleanSearch = searchVal.replace(/\D/g, '') || searchVal;
 
         const parentRes = await pool.query(`
-          SELECT p.id, p.first_name, p.last_name, p.phone
+          SELECT p.id, p.first_name, p.last_name, p.phone,
+                 (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) as kids_count
           FROM public.profiles p
           INNER JOIN public.user_roles ur ON ur.user_id = p.id AND ur.role = 'parent'
           WHERE (
@@ -1267,6 +1301,9 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
           )
           AND p.security_pin = $3
           AND (p.is_active IS NULL OR p.is_active = TRUE)
+          ORDER BY 
+            (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) DESC,
+            p.created_at DESC NULLS LAST
           LIMIT 5
         `, [`%${cleanSearch}%`, `%${searchVal}%`, pin]);
 
