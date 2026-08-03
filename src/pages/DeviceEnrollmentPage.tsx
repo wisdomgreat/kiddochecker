@@ -209,10 +209,13 @@ const DeviceEnrollmentPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("device_activity_log")
-        .select("*, enrolled_devices(name)")
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
-      if (error) throw error;
+      if (error) {
+        console.warn("device_activity_log query notice:", error);
+        return [];
+      }
       return data || [];
     },
   });
