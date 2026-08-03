@@ -24,11 +24,11 @@ param frontendUrl string = 'https://happy-glacier-0746a2210.7.azurestaticapps.ne
 
 @description('Resend API key for email delivery.')
 @secure()
-param resendApiKey string = ''
+param resendApiKey string = 're_placeholder_key_configured_in_azure'
 
 @description('Secret key for signing JWT tokens in the bridge API.')
 @secure()
-param bridgeSecret string = ''
+param bridgeSecret string = 'kiddochecker-jwt-secret-key-2026'
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
