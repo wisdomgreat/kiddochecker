@@ -3,6 +3,8 @@ const { exec } = require('child_process');
 const bodyParser = require('body-parser');
 const os = require('os');
 const net = require('net');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -45,11 +47,43 @@ function addLog(type, message, details = {}) {
 
 addLog('info', 'KiddoChecker Remote Print Server Initializing...');
 
-// Default Printer Configurations (Environment Fallbacks)
-const DEFAULT_PRINTER_NAME = process.env.PRINTER_NAME || 'Default Printer';
-const DEFAULT_PRINTER_IP = process.env.PRINTER_IP || '';
-const AZURE_API_URL = process.env.AZURE_API_URL || 'https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io';
+// ─── Persistent Server Printer Configuration ────────────────────
+const CONFIG_FILE = path.join(__dirname, 'printer-config.json');
 
+let serverConfig = {
+    defaultPrinterIp: process.env.PRINTER_IP || '',
+    defaultPrinterName: process.env.PRINTER_NAME || 'Default Printer'
+};
+
+function loadServerConfig() {
+    try {
+        if (fs.existsSync(CONFIG_FILE)) {
+            const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
+            const parsed = JSON.parse(raw);
+            if (parsed.defaultPrinterIp !== undefined) serverConfig.defaultPrinterIp = parsed.defaultPrinterIp;
+            if (parsed.defaultPrinterName !== undefined) serverConfig.defaultPrinterName = parsed.defaultPrinterName;
+            addLog('info', `Loaded configuration from file. Server Default Printer IP: "${serverConfig.defaultPrinterIp || 'None'}"`);
+        }
+    } catch (err) {
+        addLog('warn', `Could not load printer-config.json: ${err.message}`);
+    }
+}
+
+function saveServerConfig(newConfig) {
+    try {
+        serverConfig = { ...serverConfig, ...newConfig };
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfig, null, 2), 'utf-8');
+        addLog('success', `Saved new server default printer config. Default IP: ${serverConfig.defaultPrinterIp}`);
+        return true;
+    } catch (err) {
+        addLog('error', `Failed to save printer-config.json: ${err.message}`);
+        return false;
+    }
+}
+
+loadServerConfig();
+
+const AZURE_API_URL = process.env.AZURE_API_URL || 'https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io';
 let cloudRelayStatus = { active: false, lastPoll: null, jobsProcessed: 0, lastError: null };
 
 // ─── Azure Cloud Print Relay Polling ────────────────────────────
@@ -80,7 +114,6 @@ async function pollAzureCloudPrintQueue() {
     }
 }
 
-// Start polling Azure Cloud Print Queue every 2 seconds
 setInterval(pollAzureCloudPrintQueue, 2000);
 
 // ─── Core Dispatch Printer Function (Pure Node TCP Socket) ──────
@@ -97,13 +130,14 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     const className = labelData.class || 'General';
     const allergies = labelData.allergies ? `ALLERGIES: ${labelData.allergies}` : '';
     
-    const targetPrinterIp = (printerIp || labelData.printerIp || DEFAULT_PRINTER_IP || '').trim();
-    const targetPrinterName = (printerName || labelData.printerName || DEFAULT_PRINTER_NAME || '').trim();
+    // Priority: Kiosk Payload IP -> Server Default Fallback IP -> Env IP
+    const targetPrinterIp = (printerIp || labelData.printerIp || serverConfig.defaultPrinterIp || '').trim();
+    const targetPrinterName = (printerName || labelData.printerName || serverConfig.defaultPrinterName || '').trim();
 
     addLog('info', `Dispatching print job for ${childName}`, {
         childName,
         targetPrinterIp: targetPrinterIp || 'None',
-        targetPrinterName: targetPrinterName || 'None'
+        usedFallback: !printerIp && !labelData.printerIp && Boolean(serverConfig.defaultPrinterIp)
     });
 
     // 1. Dynamic Network/Wireless Printer (Direct TCP Socket on Port 9100)
@@ -155,8 +189,8 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
         return;
     }
 
-    // 2. Fallback: Warning if no IP specified
-    addLog('warn', `No Target Printer IP specified for ${childName}. (Received empty printerIp in payload)`, {
+    // 2. Fallback Warning if no IP specified anywhere
+    addLog('warn', `No Target Printer IP specified for ${childName}. (Kiosk payload was empty and no Server Default IP is set)`, {
         childName,
         receivedPayload: labelData
     });
@@ -185,7 +219,6 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
 
 // ─── API Endpoints ──────────────────────────────────────────────
 
-// Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
@@ -194,22 +227,36 @@ app.get('/health', (req, res) => {
         uptimeSeconds: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
         cloudRelay: cloudRelayStatus,
+        serverConfig: serverConfig,
         localIps: getLocalIpAddresses()
     });
 });
 
-// JSON Logs API Endpoint
 app.get('/api/logs', (req, res) => {
     res.json({
         server: 'KiddoChecker Print Server',
         uptimeSeconds: Math.floor(process.uptime()),
         totalLogsCount: logsBuffer.length,
         cloudRelay: cloudRelayStatus,
+        serverConfig: serverConfig,
         logs: logsBuffer
     });
 });
 
-// Print API Endpoint
+app.get('/api/config', (req, res) => {
+    res.json(serverConfig);
+});
+
+app.post('/api/config', (req, res) => {
+    const { defaultPrinterIp, defaultPrinterName } = req.body || {};
+    const updated = saveServerConfig({ defaultPrinterIp, defaultPrinterName });
+    if (updated) {
+        res.json({ success: true, serverConfig });
+    } else {
+        res.status(500).json({ success: false, error: 'Failed to write configuration file' });
+    }
+});
+
 app.post('/print', (req, res) => {
     const { labelData, printerIp, printerName } = req.body || {};
     dispatchPrintCommand(labelData, printerIp, printerName, (err, result) => {
@@ -218,10 +265,10 @@ app.post('/print', (req, res) => {
     });
 });
 
-// Manual Test Print Endpoint
 app.post('/api/test-print', (req, res) => {
     const { printerIp, childName } = req.body || {};
-    if (!printerIp) {
+    const targetIp = (printerIp || serverConfig.defaultPrinterIp || '').trim();
+    if (!targetIp) {
         return res.status(400).json({ success: false, error: 'Printer IP is required' });
     }
     const testData = {
@@ -230,13 +277,12 @@ app.post('/api/test-print', (req, res) => {
         class: 'Test Room',
         allergies: 'None'
     };
-    dispatchPrintCommand(testData, printerIp, '', (err, result) => {
+    dispatchPrintCommand(testData, targetIp, '', (err, result) => {
         if (err) return res.status(400).json({ success: false, error: err.message });
         res.json(result);
     });
 });
 
-// Helper to resolve Local LAN IP Addresses for display
 function getLocalIpAddresses() {
     const interfaces = os.networkInterfaces();
     const ips = [];
@@ -279,12 +325,12 @@ app.get(['/', '/logs'], (req, res) => {
             header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 24px; }
             h1 { font-size: 24px; display: flex; items-center; gap: 10px; }
             .badge { background: var(--success); color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-            .grid { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+            .grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
             @media(max-width: 850px) { .grid { grid-template-columns: 1fr; } }
             .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-            .card h2 { font-size: 16px; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-            .log-box { background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; height: 500px; overflow-y: auto; display: flex; flex-col; gap: 8px; }
-            .log-entry { padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); background: #131b2e; word-break: break-all; }
+            .card h2 { font-size: 15px; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+            .log-box { background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; height: 520px; overflow-y: auto; display: flex; flex-col; gap: 8px; }
+            .log-entry { padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); background: #131b2e; word-break: break-all; margin-bottom: 6px; }
             .log-entry.success { border-color: var(--success); }
             .log-entry.error { border-color: var(--danger); }
             .log-entry.warn { border-color: var(--warning); }
@@ -314,15 +360,27 @@ app.get(['/', '/logs'], (req, res) => {
             </div>
 
             <div>
+                <!-- Server Default Fallback Printer IP Config Card -->
+                <div class="card" style="border-color: var(--primary);">
+                    <h2 style="color: var(--primary);">⚙️ Server Default Fallback Printer</h2>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">If a kiosk does not specify an IP, all print jobs automatically fall back to this Default Printer IP.</p>
+                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">DEFAULT FALLBACK WIRELESS PRINTER IP:</label>
+                    <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.2.13" value="${serverConfig.defaultPrinterIp}" />
+                    <button onclick="saveDefaultConfig()" style="background: var(--success);">💾 Save Default Server Printer IP</button>
+                    <div id="configResult" style="font-size: 12px; font-weight: bold; margin-top: 4px;"></div>
+                </div>
+
+                <!-- Direct Printer Tester Card -->
                 <div class="card">
                     <h2>Direct Printer Tester</h2>
                     <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Test network printer connectivity directly from server to target IP.</p>
-                    <input type="text" id="testIp" placeholder="Printer IP (e.g. 192.168.2.13)" value="192.168.2.13" />
+                    <input type="text" id="testIp" placeholder="Printer IP (e.g. 192.168.2.13)" value="${serverConfig.defaultPrinterIp || '192.168.2.13'}" />
                     <input type="text" id="testName" placeholder="Test Child Name" value="Test Child Badge" />
                     <button onclick="sendTestPrint()">🚀 Send Test Print to IP</button>
                     <div id="testResult" style="font-size: 12px; font-weight: bold; margin-top: 8px;"></div>
                 </div>
 
+                <!-- Server Info Card -->
                 <div class="card">
                     <h2>Server Info</h2>
                     <div class="stat-row"><span>Platform:</span> <strong>${process.platform}</strong></div>
@@ -344,7 +402,13 @@ app.get(['/', '/logs'], (req, res) => {
                     const data = await res.json();
                     
                     document.getElementById('uptime').innerText = Math.floor(data.uptimeSeconds / 60) + ' mins ' + (data.uptimeSeconds % 60) + ' secs';
-                    
+                    if (data.serverConfig && data.serverConfig.defaultPrinterIp) {
+                        const currentInput = document.getElementById('defaultIpInput');
+                        if (document.activeElement !== currentInput) {
+                            currentInput.value = data.serverConfig.defaultPrinterIp;
+                        }
+                    }
+
                     const box = document.getElementById('log-box');
                     if (data.logs.length === 0) {
                         box.innerHTML = '<div style="color:#94a3b8; padding:12px;">No logs recorded yet.</div>';
@@ -359,6 +423,34 @@ app.get(['/', '/logs'], (req, res) => {
                         </div>
                     \`).join('');
                 } catch(e) { }
+            }
+
+            async function saveDefaultConfig() {
+                const ip = document.getElementById('defaultIpInput').value.trim();
+                const resDiv = document.getElementById('configResult');
+                resDiv.innerText = 'Saving...';
+                resDiv.style.color = '#f59e0b';
+
+                try {
+                    const res = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ defaultPrinterIp: ip })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        resDiv.innerText = '✅ Saved Default Printer IP: ' + ip;
+                        resDiv.style.color = '#10b981';
+                        document.getElementById('testIp').value = ip;
+                    } else {
+                        resDiv.innerText = '❌ Failed to save config';
+                        resDiv.style.color = '#ef4444';
+                    }
+                } catch(e) {
+                    resDiv.innerText = '❌ Error saving: ' + e.message;
+                    resDiv.style.color = '#ef4444';
+                }
+                setTimeout(fetchLogs, 1000);
             }
 
             async function sendTestPrint() {
@@ -408,12 +500,13 @@ app.listen(PORT, HOST, () => {
     OS Platform : ${process.platform} (${os.release()})
     Status      : Listening on http://${HOST}:${PORT}
     Cloud Relay : Polling Azure API (${AZURE_API_URL})
+    Default IP  : ${serverConfig.defaultPrinterIp || 'None (Set via Web Console)'}
     
     🌐 OPEN PRINT SERVER WEB CONSOLE & LOGS IN YOUR BROWSER:
     ${localIps.map(ip => `   👉 http://${ip}:${PORT}`).join('\n')}
 
     Multi-Printer Dynamic TCP Socket Support:
-    - Send target printer IP (e.g. "192.168.2.13") in "printerIp" field.
+    - Send target printer IP in "printerIp" field or rely on Server Default.
     ===================================================================
     `);
 });
