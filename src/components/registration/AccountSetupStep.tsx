@@ -7,6 +7,7 @@ interface AccountSetupStepProps {
   data: {
     password: string;
     confirmPassword: string;
+    securityPin?: string;
   };
   onChange: (data: any) => void;
 }
@@ -25,8 +26,8 @@ export const AccountSetupStep = ({ data, onChange }: AccountSetupStepProps) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-bold text-foreground">Create Security Password</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Set a secure password for accessing your parent dashboard.</p>
+        <h3 className="text-lg font-bold text-foreground">Create Security Password & PIN</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">Set a secure password for your dashboard and a PIN for kiosk check-in.</p>
       </div>
 
       <div className="space-y-4 max-w-md">
@@ -98,6 +99,21 @@ export const AccountSetupStep = ({ data, onChange }: AccountSetupStepProps) => {
               )}
             </div>
           )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="securityPin" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Kiosk Security PIN (4-6 Digits) *</Label>
+          <Input
+            id="securityPin"
+            type="password"
+            maxLength={6}
+            value={data.securityPin || ''}
+            onChange={(e) => handleChange('securityPin', e.target.value.replace(/\D/g, ''))}
+            placeholder="e.g. 1234"
+            required
+            className="h-10 rounded-xl tracking-widest text-base"
+          />
+          <p className="text-[11px] text-muted-foreground">You will use this PIN along with your phone number to log into the Kiosk for check-in.</p>
         </div>
       </div>
     </div>

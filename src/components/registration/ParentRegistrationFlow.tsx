@@ -22,6 +22,7 @@ interface ParentData {
   emergencyPhone: string;
   password: string;
   confirmPassword: string;
+  securityPin: string;
 }
 
 export const ParentRegistrationFlow = () => {
@@ -41,7 +42,8 @@ export const ParentRegistrationFlow = () => {
     emergencyContact: "",
     emergencyPhone: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    securityPin: ""
   });
 
   const [children, setChildren] = useState<ChildData[]>([{
@@ -68,7 +70,7 @@ export const ParentRegistrationFlow = () => {
       case 1:
         return !!(parentData.firstName && parentData.lastName && parentData.email && parentData.phone);
       case 2:
-        return !!(parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 6);
+        return !!(parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 6 && parentData.securityPin && parentData.securityPin.length >= 4);
       case 3:
         return children.every(child => child.firstName && child.lastName && child.birthdate);
       case 4:
@@ -148,6 +150,7 @@ export const ParentRegistrationFlow = () => {
           first_name: parentData.firstName,
           last_name: parentData.lastName,
           phone: parentData.phone,
+          security_pin: parentData.securityPin,
           role: 'parent'
         })
         .eq('id', authData.user.id);
