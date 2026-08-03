@@ -52,7 +52,8 @@ const CONFIG_FILE = path.join(__dirname, 'printer-config.json');
 
 let serverConfig = {
     defaultPrinterIp: process.env.PRINTER_IP || '',
-    defaultPrinterName: process.env.PRINTER_NAME || 'Default Printer'
+    defaultPrinterName: process.env.PRINTER_NAME || 'Default Printer',
+    defaultPrinterType: process.env.PRINTER_TYPE || 'thermal'  // 'thermal' (ESC/POS) | 'hp' (PCL5)
 };
 
 function loadServerConfig() {
@@ -62,7 +63,8 @@ function loadServerConfig() {
             const parsed = JSON.parse(raw);
             if (parsed.defaultPrinterIp !== undefined) serverConfig.defaultPrinterIp = parsed.defaultPrinterIp;
             if (parsed.defaultPrinterName !== undefined) serverConfig.defaultPrinterName = parsed.defaultPrinterName;
-            addLog('info', `Loaded configuration from file. Server Default Printer IP: "${serverConfig.defaultPrinterIp || 'None'}"`);
+            if (parsed.defaultPrinterType !== undefined) serverConfig.defaultPrinterType = parsed.defaultPrinterType;
+            addLog('info', `Loaded config: IP="${serverConfig.defaultPrinterIp || 'None'}" Type="${serverConfig.defaultPrinterType}"`);
         }
     } catch (err) {
         addLog('warn', `Could not load printer-config.json: ${err.message}`);
@@ -143,61 +145,136 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     // 1. Dynamic Network/Wireless Printer (Direct TCP Socket on Port 9100)
     if (targetPrinterIp) {
         addLog('info', `Opening TCP Socket connection to ${targetPrinterIp}:9100...`, { targetIp: targetPrinterIp });
-        
+
         const socket = new net.Socket();
-        socket.setTimeout(5000);
+        socket.setTimeout(8000);
 
-        const escInit = '\x1b@';
-        const escCenter = '\x1ba\x01';
-        const escLeft = '\x1ba\x00';
-        const escBoldOn = '\x1bE\x01';
-        const escBoldOff = '\x1bE\x00';
-        const escDoubleSize = '\x1d!\x11'; // Double Width & Height for Child Name
-        const escTripleSize = '\x1d!\x22'; // Triple Size for Pickup Code
-        const escNormalSize = '\x1d!\x00';
-        const escCut = '\x1dV1';
+        const printerType = (labelData.printerType || serverConfig.defaultPrinterType || 'thermal').toLowerCase();
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-        const printPayload = 
-            escInit +
-            escCenter +
-            `******************************************\n` +
-            escBoldOn + `   KIDDOCHECKER CHILD BADGE   \n` + escBoldOff +
-            `******************************************\n\n` +
-            
-            // Large Bold Child Name
-            escBoldOn + escDoubleSize + `${childName.toUpperCase()}\n` + escNormalSize + escBoldOff +
-            `\n` +
-            
-            // Large Security Pickup Code
-            `------------------------------------------\n` +
-            `PICKUP CODE: ` + escBoldOn + escTripleSize + `[ ${securityCode} ]\n` + escNormalSize + escBoldOff +
-            `------------------------------------------\n\n` +
-            
-            // Class Info & Details
-            escLeft +
-            `CLASSROOM : ${className}\n` +
-            `CHECK-IN  : ${new Date().toLocaleTimeString()}\n` +
-            `DATE      : ${new Date().toLocaleDateString()}\n` +
-            
-            // Allergies Warning Box if present
-            (allergies ? `\n******************************************\n⚠️ ${allergies.toUpperCase()}\n******************************************\n` : '') +
-            
-            `\n\n` +
-            escCenter + `Please present code at pickup to claim child.\n` +
-            `------------------------------------------\n\n\n` +
-            escCut;
+        let printPayload;
+
+        if (printerType === 'hp' || printerType === 'pcl') {
+            // ─── PCL5 Payload — HP LaserJet / Inkjet Printers ─────────────
+            // PCL5 is the standard protocol for HP printers over port 9100.
+            const div   = `${'─'.repeat(46)}\r\n`;
+            const dDiv  = `${'═'.repeat(46)}\r\n`;
+            printPayload = Buffer.from(
+                '\x1bE' +               // Reset
+                '\x1b&l2A' +            // US Letter paper
+                '\x1b&l0O' +            // Portrait
+                '\x1b&l6D' +            // 6 LPI
+                '\x1b&a10L' +           // Left margin 10
+                '\x1b&l5E' +            // Top margin 5
+                '\x1b(s3B\x1b(s10V' + `KIDDOCHECKER CHILD CHECK-IN\r\n` + '\x1b(s0B' +
+                div +
+                '\x1b(s3B\x1b(s24V' + `${childName.toUpperCase()}\r\n` + '\x1b(s0B\x1b(s10V' +
+                `Class: ${className}     Code: ` + '\x1b(s3B' + `[${securityCode}]` + '\x1b(s0B' + `\r\n` +
+                `Date: ${dateStr}   Check-in: ${timeStr}\r\n` +
+                div +
+                '\x1b(s9V' + `Must present matching code at pick-up to claim child.\r\n` +
+                (allergies ? `\r\n` + '\x1b(s3B\x1b(s10V' + `ALLERGY ALERT: ${allergies.toUpperCase()}\r\n` + '\x1b(s0B\x1b(s9V' : '') +
+                `\r\n\r\n` +
+                dDiv +
+                '\x1b(s3B\x1b(s10V' + `           PRIMARY GUARDIAN CLAIM TICKET\r\n` + '\x1b(s0B' +
+                dDiv +
+                '\x1b(s9V' + `         Security Match Code\r\n\r\n` +
+                '\x1b(s0T\x1b(s3B\x1b(s36V' + `        ${securityCode}\r\n` +
+                '\x1b(s4148T\x1b(s0B\x1b(s10V' +
+                '\x1b(s3B' + `         ${childName}\r\n` + '\x1b(s0B' +
+                '\x1b(s9V' + `         ${dateStr}\r\n\r\n` +
+                div +
+                `Present this ticket at pick-up to claim your child.\r\n\r\n` +
+                '\x0C',  // Form feed — eject
+            'utf-8');
+        } else {
+            // ─── ESC/POS Payload — Thermal Label / Receipt Printers ───────
+            // ESC/POS is the standard for Epson, Star, Brother, Zebra ZPL-compatible,
+            // and other thermal printers over port 9100.
+            const E_INIT    = '\x1b@';       // Initialize / reset
+            const E_CENTER  = '\x1ba\x01';   // Center align
+            const E_LEFT    = '\x1ba\x00';   // Left align
+            const E_BOLD    = '\x1bE\x01';   // Bold ON
+            const E_UNBOLD  = '\x1bE\x00';   // Bold OFF
+            const E_NORMAL  = '\x1d!\x00';   // 1x1 normal size
+            const E_DBL_H   = '\x1d!\x01';   // 1x wide, 2x tall
+            const E_DBL_W   = '\x1d!\x10';   // 2x wide, 1x tall
+            const E_DBL     = '\x1d!\x11';   // 2x wide, 2x tall (child name)
+            const E_BIG     = '\x1d!\x22';   // 3x wide, 3x tall (security code)
+            const E_UNDER   = '\x1b-\x01';   // Underline ON
+            const E_UNUNDER = '\x1b-\x00';   // Underline OFF
+            const E_CUT     = '\x1dV\x41\x00'; // Full cut with feed
+            const LINE      = '─'.repeat(32) + '\n';
+            const DBL_LINE  = '═'.repeat(32) + '\n';
+
+            printPayload = Buffer.from(
+                E_INIT +
+
+                // ── SECTION 1: CHILD NAME TAG ─────────────────────────────
+                E_CENTER +
+                E_BOLD + E_NORMAL + `KIDDOCHECKER CHECK-IN\n` + E_UNBOLD +
+                LINE +
+
+                // Large child name (double width + height)
+                E_BOLD + E_DBL + `${childName.toUpperCase()}\n` + E_NORMAL + E_UNBOLD +
+                '\n' +
+
+                // Security code in a prominent block (3x size)
+                E_NORMAL + `Security Code:\n` +
+                E_BOLD + E_BIG + ` ${securityCode} \n` + E_NORMAL + E_UNBOLD +
+                '\n' +
+
+                // Class + Date details
+                E_LEFT +
+                E_NORMAL + `Class    : ${className}\n` +
+                `Check-in : ${timeStr}  ${dateStr}\n` +
+
+                // Allergies warning
+                (allergies
+                    ? E_CENTER + '\n' + LINE +
+                      E_BOLD + `!! ALLERGY ALERT !!\n${allergies.toUpperCase()}\n` + E_UNBOLD +
+                      LINE
+                    : '') +
+
+                E_CENTER + '\n' +
+                E_NORMAL + `Must show code at pick-up to claim child.\n` +
+                '\n\n' +
+
+                // ── SECTION 2: GUARDIAN CLAIM TICKET ─────────────────────
+                DBL_LINE +
+                E_BOLD + `PRIMARY GUARDIAN CLAIM TICKET\n` + E_UNBOLD +
+                DBL_LINE +
+                '\n' +
+
+                E_NORMAL + `Security Match Code\n\n` +
+
+                // Giant security code for guardian (3x size, bold)
+                E_BOLD + E_BIG + ` ${securityCode} \n` + E_NORMAL + E_UNBOLD +
+
+                '\n' +
+                E_BOLD + E_DBL_H + `${childName}\n` + E_NORMAL + E_UNBOLD +
+                `${dateStr}\n\n` +
+                LINE +
+                `Present at pick-up to claim your child.\n\n\n` +
+
+                E_CUT  // Single clean cut at the very end
+            , 'utf-8');
+        }
 
         socket.connect(9100, targetPrinterIp, () => {
-            addLog('info', `TCP Socket Connected to ${targetPrinterIp}:9100! Transmitting data...`, { targetIp: targetPrinterIp });
-            socket.write(printPayload, 'utf-8', () => {
+            addLog('info', `TCP Socket Connected to ${targetPrinterIp}:9100! Transmitting ${printerType.toUpperCase()} payload...`, { targetIp: targetPrinterIp });
+            socket.write(printPayload, () => {
                 socket.end();
-                addLog('success', `✅ Name tag successfully printed on ${targetPrinterIp}!`, {
+                addLog('success', `✅ Name tag printed on ${targetPrinterIp} [${printerType}]!`, {
                     childName,
                     targetIp: targetPrinterIp
                 });
-                if (callback) callback(null, { success: true, printer: targetPrinterIp, mode: 'tcp_socket' });
+                if (callback) callback(null, { success: true, printer: targetPrinterIp, mode: printerType });
             });
         });
+
 
         socket.on('error', (err) => {
             addLog('error', `❌ Socket error connecting to ${targetPrinterIp}:9100 - ${err.message}`, {
@@ -276,8 +353,8 @@ app.get('/api/config', (req, res) => {
 });
 
 app.post('/api/config', (req, res) => {
-    const { defaultPrinterIp, defaultPrinterName } = req.body || {};
-    const updated = saveServerConfig({ defaultPrinterIp, defaultPrinterName });
+    const { defaultPrinterIp, defaultPrinterName, defaultPrinterType } = req.body || {};
+    const updated = saveServerConfig({ defaultPrinterIp, defaultPrinterName, defaultPrinterType });
     if (updated) {
         res.json({ success: true, serverConfig });
     } else {
@@ -423,9 +500,19 @@ app.get(['/', '/logs'], (req, res) => {
                     <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">If a kiosk does not specify an IP, all print jobs automatically fall back to this Default Printer IP.</p>
                     <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">DEFAULT FALLBACK WIRELESS PRINTER IP:</label>
                     <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.2.13" value="${serverConfig.defaultPrinterIp}" />
+                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin: 10px 0 6px;">PRINTER TYPE:</label>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; padding:8px 14px; border-radius:8px; border:1px solid #334155; flex:1; justify-content:center; ${serverConfig.defaultPrinterType !== 'hp' ? 'border-color:#6366f1; background:#1e1b4b;' : ''}">
+                            <input type="radio" name="printerType" value="thermal" ${serverConfig.defaultPrinterType !== 'hp' ? 'checked' : ''} onchange="updateTypeStyle(this)"> 🖨️ Thermal (ESC/POS)
+                        </label>
+                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; padding:8px 14px; border-radius:8px; border:1px solid #334155; flex:1; justify-content:center; ${serverConfig.defaultPrinterType === 'hp' ? 'border-color:#6366f1; background:#1e1b4b;' : ''}">
+                            <input type="radio" name="printerType" value="hp" ${serverConfig.defaultPrinterType === 'hp' ? 'checked' : ''} onchange="updateTypeStyle(this)"> 🖨️ HP Laser/Inkjet (PCL5)
+                        </label>
+                    </div>
                     <button onclick="saveDefaultConfig()" style="background: var(--success);">💾 Save Default Server Printer IP</button>
                     <div id="configResult" style="font-size: 12px; font-weight: bold; margin-top: 4px;"></div>
                 </div>
+
 
                 <!-- Direct Printer Tester Card -->
                 <div class="card">
@@ -483,8 +570,17 @@ app.get(['/', '/logs'], (req, res) => {
                 } catch(e) { }
             }
 
+            function updateTypeStyle(radio) {
+                document.querySelectorAll('input[name="printerType"]').forEach(r => {
+                    const lbl = r.parentElement;
+                    lbl.style.borderColor = r.checked ? '#6366f1' : '#334155';
+                    lbl.style.background = r.checked ? '#1e1b4b' : 'transparent';
+                });
+            }
+
             async function saveDefaultConfig() {
                 const ip = document.getElementById('defaultIpInput').value.trim();
+                const printerType = document.querySelector('input[name="printerType"]:checked')?.value || 'thermal';
                 const resDiv = document.getElementById('configResult');
                 resDiv.innerText = 'Saving...';
                 resDiv.style.color = '#f59e0b';
@@ -493,11 +589,11 @@ app.get(['/', '/logs'], (req, res) => {
                     const res = await fetch('/api/config', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ defaultPrinterIp: ip })
+                        body: JSON.stringify({ defaultPrinterIp: ip, defaultPrinterType: printerType })
                     });
                     const data = await res.json();
                     if (data.success) {
-                        resDiv.innerText = '✅ Saved Default Printer IP: ' + ip;
+                        resDiv.innerText = `✅ Saved! IP: ${ip} | Type: ${printerType.toUpperCase()}`;
                         resDiv.style.color = '#10b981';
                         document.getElementById('testIp').value = ip;
                     } else {
