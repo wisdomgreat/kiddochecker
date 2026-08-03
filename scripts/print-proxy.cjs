@@ -183,7 +183,6 @@ function generateEscPosPayload(labelData) {
         (hasAllergy ? '\x1ba\x01\n' + LINE + '\x1bE\x01' + '!! ALLERGY ALERT !!\n' + allergies.toUpperCase() + '\n' + '\x1bE\x00' + LINE : '') +
         '\x1ba\x01\n' + 'Must show code at pick-up to claim child.\n' + '\n\n' +
         DBL_LINE + '\x1bE\x01' + 'PRIMARY GUARDIAN CLAIM TICKET\n' + '\x1bE\x00' + DBL_LINE + '\n' +
-        'Security Match Code\n\n' +
         '\x1bE\x01\x1d!\x22' + ' ' + securityCode + ' \n' + '\x1d!\x00\x1bE\x00' + '\n' +
         '\x1bE\x01\x1d!\x01' + childName + '\n' + '\x1d!\x00\x1bE\x00' +
         dateStr + '\n\n' + LINE + 'Present at pick-up to claim your child.\n\n\n' +
@@ -193,59 +192,70 @@ function generateEscPosPayload(labelData) {
 
 // ─── HP Printer: Vector SVG / PDF Badge Generator ─────────────────
 function generateHpBadgeSvg(labelData) {
-    const childName = labelData.name || '';
+
+    const nameParts = (labelData.name || '').trim().split(' ');
+    const firstName = (nameParts[0] || '').toUpperCase();
+    const lastName = (nameParts.slice(1).join(' ') || '').toUpperCase();
+    const fullNameTitle = (labelData.name || '');
     const securityCode = labelData.securityCode || 'TEST';
     const className = labelData.class || 'General';
     const allergies = labelData.allergies || '';
     const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
 
-    const width = 800;
-    const height = hasAllergy ? 640 : 580;
+    const width = 700;
+    const tag1H = hasAllergy ? 420 : 360;
+    const tag2Y = tag1H + 40;
+    const height = tag2Y + 350;
 
-    const allergyBlock = hasAllergy
-        ? `<rect x="40" y="500" width="${width - 80}" height="56" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
-           <text x="${width/2}" y="536" text-anchor="middle" font-size="24" font-weight="bold" fill="#dc2626">ALLERGY ALERT: ${(allergies || '').toUpperCase()}</text>`
+    const allergySvg = hasAllergy
+        ? `<rect x="50" y="${lastName ? 225 : 185}" width="600" height="46" rx="8" fill="#dc2626"/>
+           <text x="350" y="${lastName ? 255 : 215}" text-anchor="middle" font-size="20" font-weight="bold" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
         : '';
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
-  <!-- Card Outline -->
-  <rect x="10" y="10" width="${width - 20}" height="${height - 20}" rx="16" fill="white" stroke="#334155" stroke-width="3"/>
+  <rect width="${width}" height="${height}" fill="white"/>
 
-  <!-- Top Header Bar -->
-  <rect x="10" y="10" width="${width - 20}" height="64" rx="14" fill="#0F172A"/>
-  <text x="${width/2}" y="50" text-anchor="middle" font-size="22" font-weight="bold" fill="white" letter-spacing="2">KIDDOCHECKER CHILD CHECK-IN</text>
+  <!-- ==================== TAG 1: CHILD BADGE ==================== -->
+  <rect x="30" y="30" width="640" height="${tag1H}" rx="12" fill="white" stroke="#94A3B8" stroke-width="3" stroke-dasharray="10,6"/>
 
-  <!-- Child Name -->
-  <text x="${width/2}" y="130" text-anchor="middle" font-size="46" font-weight="bold" fill="#0F172A">${childName.toUpperCase()}</text>
+  <!-- First Name & Last Name (Top Left) | Black Code Badge (Top Right) -->
+  <text x="60" y="85" font-size="40" font-weight="900" fill="#0F172A">${firstName}</text>
+  ${lastName ? `<text x="60" y="130" font-size="40" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
 
-  <!-- Security Code Box (Child) -->
-  <rect x="${width/2 - 130}" y="155" width="260" height="84" rx="14" fill="#0F172A"/>
-  <text x="${width/2}" y="214" text-anchor="middle" font-size="52" font-weight="bold" fill="white" letter-spacing="10">${securityCode}</text>
+  <!-- Security Code Badge (Top Right) -->
+  <rect x="490" y="55" width="150" height="60" rx="10" fill="#000000"/>
+  <text x="565" y="98" text-anchor="middle" font-size="34" font-weight="bold" fill="white" font-family="monospace">${securityCode}</text>
 
-  <!-- Details -->
-  <text x="50" y="280" font-size="22" font-weight="bold" fill="#334155">Class: <tspan font-weight="normal">${className}</tspan></text>
-  <text x="50" y="312" font-size="22" font-weight="bold" fill="#334155">Check-in: <tspan font-weight="normal">${timeStr}  |  ${dateStr}</tspan></text>
+  <!-- Horizontal Divider -->
+  <line x1="50" y1="${lastName ? 150 : 110}" x2="650" y2="${lastName ? 150 : 110}" stroke="#000000" stroke-width="4"/>
 
-  <text x="${width/2}" y="348" text-anchor="middle" font-size="16" fill="#64748B">Must present matching code at pick-up to claim child.</text>
+  <!-- Class & Date -->
+  <text x="60" y="${lastName ? 195 : 155}" font-size="22" font-weight="bold" fill="#0F172A">Class: <tspan font-weight="bold">${className}</tspan></text>
+  <text x="640" y="${lastName ? 195 : 155}" text-anchor="end" font-size="22" font-weight="bold" fill="#0F172A">${dateStr}</text>
 
-  <!-- Perforated Cut Line -->
-  <line x1="30" y1="368" x2="${width - 30}" y2="368" stroke="#475569" stroke-width="3" stroke-dasharray="10,6"/>
+  ${allergySvg}
 
-  <!-- Guardian Claim Ticket Header -->
-  <text x="${width/2}" y="400" text-anchor="middle" font-size="18" font-weight="bold" fill="#334155">-- PRIMARY GUARDIAN CLAIM TICKET --</text>
-  <text x="${width/2}" y="425" text-anchor="middle" font-size="16" fill="#64748B">Security Match Code</text>
+  <!-- Pick-Up Notice -->
+  <text x="350" y="${hasAllergy ? (lastName ? 335 : 295) : (lastName ? 265 : 225)}" text-anchor="middle" font-size="18" font-weight="bold" fill="#334155">Must present matching tag for pick-up.</text>
 
-  <!-- Security Code Box (Guardian) -->
-  <rect x="${width/2 - 140}" y="435" width="280" height="76" rx="14" fill="#0F172A"/>
-  <text x="${width/2}" y="490" text-anchor="middle" font-size="54" font-weight="bold" fill="white" letter-spacing="12">${securityCode}</text>
+  <!-- ==================== TAG 2: GUARDIAN CLAIM TICKET ==================== -->
+  <rect x="30" y="${tag2Y}" width="640" height="320" rx="12" fill="white" stroke="#94A3B8" stroke-width="3" stroke-dasharray="10,6"/>
 
-  ${allergyBlock}
+  <!-- Title -->
+  <text x="350" y="${tag2Y + 45}" text-anchor="middle" font-size="22" font-weight="bold" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="50" y1="${tag2Y + 60}" x2="650" y2="${tag2Y + 60}" stroke="#000000" stroke-width="3"/>
 
-  <!-- Footer -->
-  <text x="${width/2}" y="${hasAllergy ? 590 : 542}" text-anchor="middle" font-size="15" fill="#94A3B8">Present this ticket at pick-up | ${childName} | ${dateStr}</text>
+  <!-- Subtitle -->
+  <text x="350" y="${tag2Y + 115}" text-anchor="middle" font-size="20" font-weight="bold" fill="#475569">Security Match Code</text>
+
+  <!-- Large Black Code Box -->
+  <rect x="180" y="${tag2Y + 135}" width="340" height="95" rx="16" fill="#000000"/>
+  <text x="350" y="${tag2Y + 202}" text-anchor="middle" font-size="56" font-weight="bold" fill="white" font-family="monospace" letter-spacing="12">${securityCode}</text>
+
+  <!-- Child Full Name -->
+  <text x="350" y="${tag2Y + 275}" text-anchor="middle" font-size="26" font-weight="bold" fill="#0F172A">${fullNameTitle}</text>
 </svg>`;
 }
 
@@ -371,41 +381,73 @@ function sendRawPcl5(payload, printerIp, callback) {
 
 // ─── Brother QL: SVG Label Generator ─────────────────────────────
 function generateBrotherQlSvg(labelData, labelSizeValue) {
-    const childName = labelData.name || '';
+    const nameParts = (labelData.name || '').trim().split(' ');
+    const firstName = (nameParts[0] || '').toUpperCase();
+    const lastName = (nameParts.slice(1).join(' ') || '').toUpperCase();
+    const fullNameTitle = (labelData.name || '');
     const securityCode = labelData.securityCode || 'TEST';
     const className = labelData.class || 'General';
     const allergies = labelData.allergies || '';
     const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
+
     // 62mm roll = 696px printable at 300dpi; 29mm = 341px
     const width = labelSizeValue === '29' ? 341 : 696;
-    const allergyBlock = hasAllergy
-        ? `<rect x="20" y="460" width="${width - 40}" height="52" rx="8" fill="#fee2e2"/>` +
-          `<text x="${width/2}" y="492" text-anchor="middle" font-size="22" font-weight="bold" fill="#dc2626">ALLERGY: ${(allergies || '').toUpperCase()}</text>`
+    const tag1H = hasAllergy ? 380 : 320;
+    const tag2Y = tag1H + 30;
+    const svgH = tag2Y + 310;
+
+    const allergySvg = hasAllergy
+        ? `<rect x="25" y="${lastName ? 195 : 155}" width="${width - 50}" height="38" rx="6" fill="#dc2626"/>
+           <text x="${width/2}" y="${lastName ? 220 : 180}" text-anchor="middle" font-size="16" font-weight="bold" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
         : '';
-    const svgH = hasAllergy ? 560 : 520;
+
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${svgH}" font-family="Arial,Helvetica,sans-serif">
-<rect width="${width}" height="${svgH}" fill="white"/>
-<rect width="${width}" height="50" fill="#1e293b"/>
-<text x="${width/2}" y="33" text-anchor="middle" font-size="18" font-weight="bold" fill="white">KIDDOCHECKER CHECK-IN</text>
-<line x1="20" y1="60" x2="${width-20}" y2="60" stroke="#334155" stroke-width="2"/>
-<text x="${width/2}" y="115" text-anchor="middle" font-size="42" font-weight="bold" fill="#0f172a">${childName.toUpperCase()}</text>
-<rect x="${width/2-110}" y="130" width="220" height="80" rx="10" fill="#0f172a"/>
-<text x="${width/2}" y="185" text-anchor="middle" font-size="48" font-weight="bold" fill="white" letter-spacing="8">${securityCode}</text>
-<text x="30" y="252" font-size="20" fill="#374151">Class: ${className}</text>
-<text x="30" y="278" font-size="20" fill="#374151">Check-in: ${timeStr}  |  ${dateStr}</text>
-<text x="${width/2}" y="315" text-anchor="middle" font-size="15" fill="#6b7280">Must present code at pick-up to claim child.</text>
-<line x1="20" y1="330" x2="${width-20}" y2="330" stroke="#334155" stroke-width="3" stroke-dasharray="8,4"/>
-<text x="${width/2}" y="360" text-anchor="middle" font-size="16" font-weight="bold" fill="#374151">-- PRIMARY GUARDIAN CLAIM TICKET --</text>
-<text x="${width/2}" y="390" text-anchor="middle" font-size="16" fill="#6b7280">Security Match Code</text>
-<rect x="${width/2-120}" y="400" width="240" height="72" rx="10" fill="#0f172a"/>
-<text x="${width/2}" y="454" text-anchor="middle" font-size="52" font-weight="bold" fill="white" letter-spacing="10">${securityCode}</text>
-${allergyBlock}
-<text x="${width/2}" y="${hasAllergy ? 535 : 498}" text-anchor="middle" font-size="14" fill="#9ca3af">Present at pick-up - ${childName}</text>
+  <rect width="${width}" height="${svgH}" fill="white"/>
+
+  <!-- ==================== TAG 1: CHILD BADGE ==================== -->
+  <rect x="15" y="15" width="${width - 30}" height="${tag1H}" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
+
+  <!-- First Name & Last Name (Top Left) | Code Badge (Top Right) -->
+  <text x="35" y="65" font-size="34" font-weight="900" fill="#0F172A">${firstName}</text>
+  ${lastName ? `<text x="35" y="105" font-size="34" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
+
+  <!-- Security Code Badge (Top Right) -->
+  <rect x="${width - 165}" y="40" width="130" height="52" rx="8" fill="#000000"/>
+  <text x="${width - 100}" y="77" text-anchor="middle" font-size="28" font-weight="bold" fill="white" font-family="monospace">${securityCode}</text>
+
+  <!-- Divider Line -->
+  <line x1="30" y1="${lastName ? 120 : 85}" x2="${width - 30}" y2="${lastName ? 120 : 85}" stroke="#000000" stroke-width="4"/>
+
+  <!-- Class & Date -->
+  <text x="35" y="${lastName ? 160 : 125}" font-size="19" font-weight="bold" fill="#0F172A">Class: ${className}</text>
+  <text x="${width - 35}" y="${lastName ? 160 : 125}" text-anchor="end" font-size="19" font-weight="bold" fill="#0F172A">${dateStr}</text>
+
+  ${allergySvg}
+
+  <!-- Pick-Up Notice -->
+  <text x="${width/2}" y="${hasAllergy ? (lastName ? 295 : 255) : (lastName ? 230 : 195)}" text-anchor="middle" font-size="15" font-weight="bold" fill="#334155">Must present matching tag for pick-up.</text>
+
+  <!-- ==================== TAG 2: GUARDIAN CLAIM TICKET ==================== -->
+  <rect x="15" y="${tag2Y}" width="${width - 30}" height="280" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
+
+  <!-- Title -->
+  <text x="${width/2}" y="${tag2Y + 38}" text-anchor="middle" font-size="19" font-weight="bold" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="30" y1="${tag2Y + 50}" x2="${width - 30}" y2="${tag2Y + 50}" stroke="#000000" stroke-width="3"/>
+
+  <!-- Subtitle -->
+  <text x="${width/2}" y="${tag2Y + 92}" text-anchor="middle" font-size="17" font-weight="bold" fill="#475569">Security Match Code</text>
+
+  <!-- Large Black Code Box -->
+  <rect x="${width/2 - 130}" y="${tag2Y + 110}" width="260" height="80" rx="12" fill="#000000"/>
+  <text x="${width/2}" y="${tag2Y + 166}" text-anchor="middle" font-size="46" font-weight="bold" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
+
+  <!-- Child Full Name -->
+  <text x="${width/2}" y="${tag2Y + 238}" text-anchor="middle" font-size="22" font-weight="bold" fill="#0F172A">${fullNameTitle}</text>
 </svg>`;
 }
+
 
 // ─── Brother QL: Print via Python CLI ────────────────────────────
 function printViaBrotherQl(labelData, printerIp, callback) {
