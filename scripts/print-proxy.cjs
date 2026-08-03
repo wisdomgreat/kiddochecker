@@ -191,7 +191,65 @@ function generateEscPosPayload(labelData) {
     , 'utf-8');
 }
 
-// ─── PCL5 Payload Generator (HP Laser/Inkjet Printers) ───────────
+// ─── HP Printer: Vector SVG / PDF Badge Generator ─────────────────
+function generateHpBadgeSvg(labelData) {
+    const childName = labelData.name || '';
+    const securityCode = labelData.securityCode || 'TEST';
+    const className = labelData.class || 'General';
+    const allergies = labelData.allergies || '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
+
+    const width = 800;
+    const height = hasAllergy ? 640 : 580;
+
+    const allergyBlock = hasAllergy
+        ? `<rect x="40" y="500" width="${width - 80}" height="56" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+           <text x="${width/2}" y="536" text-anchor="middle" font-size="24" font-weight="bold" fill="#dc2626">ALLERGY ALERT: ${(allergies || '').toUpperCase()}</text>`
+        : '';
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
+  <!-- Card Outline -->
+  <rect x="10" y="10" width="${width - 20}" height="${height - 20}" rx="16" fill="white" stroke="#334155" stroke-width="3"/>
+
+  <!-- Top Header Bar -->
+  <rect x="10" y="10" width="${width - 20}" height="64" rx="14" fill="#0F172A"/>
+  <text x="${width/2}" y="50" text-anchor="middle" font-size="22" font-weight="bold" fill="white" letter-spacing="2">KIDDOCHECKER CHILD CHECK-IN</text>
+
+  <!-- Child Name -->
+  <text x="${width/2}" y="130" text-anchor="middle" font-size="46" font-weight="bold" fill="#0F172A">${childName.toUpperCase()}</text>
+
+  <!-- Security Code Box (Child) -->
+  <rect x="${width/2 - 130}" y="155" width="260" height="84" rx="14" fill="#0F172A"/>
+  <text x="${width/2}" y="214" text-anchor="middle" font-size="52" font-weight="bold" fill="white" letter-spacing="10">${securityCode}</text>
+
+  <!-- Details -->
+  <text x="50" y="280" font-size="22" font-weight="bold" fill="#334155">Class: <tspan font-weight="normal">${className}</tspan></text>
+  <text x="50" y="312" font-size="22" font-weight="bold" fill="#334155">Check-in: <tspan font-weight="normal">${timeStr}  |  ${dateStr}</tspan></text>
+
+  <text x="${width/2}" y="348" text-anchor="middle" font-size="16" fill="#64748B">Must present matching code at pick-up to claim child.</text>
+
+  <!-- Perforated Cut Line -->
+  <line x1="30" y1="368" x2="${width - 30}" y2="368" stroke="#475569" stroke-width="3" stroke-dasharray="10,6"/>
+
+  <!-- Guardian Claim Ticket Header -->
+  <text x="${width/2}" y="400" text-anchor="middle" font-size="18" font-weight="bold" fill="#334155">-- PRIMARY GUARDIAN CLAIM TICKET --</text>
+  <text x="${width/2}" y="425" text-anchor="middle" font-size="16" fill="#64748B">Security Match Code</text>
+
+  <!-- Security Code Box (Guardian) -->
+  <rect x="${width/2 - 140}" y="435" width="280" height="76" rx="14" fill="#0F172A"/>
+  <text x="${width/2}" y="490" text-anchor="middle" font-size="54" font-weight="bold" fill="white" letter-spacing="12">${securityCode}</text>
+
+  ${allergyBlock}
+
+  <!-- Footer -->
+  <text x="${width/2}" y="${hasAllergy ? 590 : 542}" text-anchor="middle" font-size="15" fill="#94A3B8">Present this ticket at pick-up | ${childName} | ${dateStr}</text>
+</svg>`;
+}
+
+// Strict 7-bit ASCII PCL5 fallback (prevents UTF-8 page-break corruption)
 function generatePcl5Payload(labelData) {
     const childName = labelData.name || '';
     const securityCode = labelData.securityCode || 'TEST';
@@ -200,26 +258,116 @@ function generatePcl5Payload(labelData) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const div = '─'.repeat(46) + '\r\n';
-    const dDiv = '═'.repeat(46) + '\r\n';
+    const div = '-'.repeat(46) + '\r\n';
+    const dDiv = '='.repeat(46) + '\r\n';
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
     return Buffer.from(
-        '\x1bE\x1b&l2A\x1b&l0O\x1b&l6D\x1b&a10L\x1b&l5E' +
-        '\x1b(s3B\x1b(s10V' + 'KIDDOCHECKER CHILD CHECK-IN\r\n' + '\x1b(s0B' + div +
-        '\x1b(s3B\x1b(s24V' + childName.toUpperCase() + '\r\n' + '\x1b(s0B\x1b(s10V' +
-        'Class: ' + className + '     Code: ' + '\x1b(s3B' + '[' + securityCode + ']' + '\x1b(s0B\r\n' +
-        'Date: ' + dateStr + '   Check-in: ' + timeStr + '\r\n' + div +
-        '\x1b(s9V' + 'Must present matching code at pick-up to claim child.\r\n' +
-        (hasAllergy ? '\r\n\x1b(s3B\x1b(s10V' + 'ALLERGY ALERT: ' + allergies.toUpperCase() + '\r\n' + '\x1b(s0B\x1b(s9V' : '') +
-        '\r\n\r\n' + dDiv +
-        '\x1b(s3B\x1b(s10V' + '           PRIMARY GUARDIAN CLAIM TICKET\r\n' + '\x1b(s0B' + dDiv +
-        '\x1b(s9V' + '         Security Match Code\r\n\r\n' +
-        '\x1b(s0T\x1b(s3B\x1b(s36V' + '        ' + securityCode + '\r\n' +
-        '\x1b(s4148T\x1b(s0B\x1b(s10V' + '\x1b(s3B' + '         ' + childName + '\r\n' + '\x1b(s0B' +
-        '\x1b(s9V' + '         ' + dateStr + '\r\n\r\n' + div +
-        'Present this ticket at pick-up to claim your child.\r\n\r\n' + '\x0C'
-    , 'utf-8');
+        '\x1bE' +               // Reset printer
+        '\x1b&l2A' +            // Letter size
+        '\x1b&l0O' +            // Portrait
+        '\x1b&l6D' +            // 6 lines per inch
+        '\x1b&l0E' +            // Top margin 0
+        '\x1b&a5L' +            // Left margin 5
+        `KIDDOCHECKER CHILD CHECK-IN\r\n` + div +
+        `NAME  : ${childName.toUpperCase()}\r\n` +
+        `CODE  : [ ${securityCode} ]\r\n` +
+        `CLASS : ${className}\r\n` +
+        `TIME  : ${timeStr}  ${dateStr}\r\n` +
+        (hasAllergy ? `\r\n!! ALLERGY ALERT: ${allergies.toUpperCase()} !!\r\n` : '') +
+        div +
+        `Must present matching code at pick-up to claim child.\r\n\r\n` +
+        dDiv +
+        `        PRIMARY GUARDIAN CLAIM TICKET\r\n` +
+        dDiv +
+        `Security Code : [ ${securityCode} ]\r\n` +
+        `Child Name    : ${childName}\r\n` +
+        `Date          : ${dateStr}\r\n` +
+        div +
+        `Present this ticket at pick-up to claim child.\r\n\r\n` +
+        '\x0C'                  // Eject single page
+    , 'ascii');
 }
+
+function printViaHpPrinter(labelData, printerIp, callback) {
+    const svgContent = generateHpBadgeSvg(labelData);
+    const tmpBase = path.join(os.tmpdir(), 'kiddo_hp_' + Date.now());
+    const tmpSvg = tmpBase + '.svg';
+    const tmpPdf = tmpBase + '.pdf';
+
+    fs.writeFileSync(tmpSvg, svgContent, 'utf-8');
+
+    function cleanup() {
+        try { fs.unlinkSync(tmpSvg); } catch(e) {}
+        try { fs.unlinkSync(tmpPdf); } catch(e) {}
+    }
+
+    const convertCmds = [
+        'rsvg-convert -f pdf -o "' + tmpPdf + '" "' + tmpSvg + '"',
+        'python3 -c "import cairosvg; cairosvg.svg2pdf(url=\'' + tmpSvg + '\', write_to=\'' + tmpPdf + '\')"',
+        'convert "' + tmpSvg + '" "' + tmpPdf + '"'
+    ];
+
+    function tryConvert(idx) {
+        if (idx >= convertCmds.length) {
+            cleanup();
+            addLog('warn', 'HP PDF converter unavailable. Using 1-page 7-bit ASCII PCL5 mode...');
+            sendRawPcl5(generatePcl5Payload(labelData), printerIp, callback);
+            return;
+        }
+
+        exec(convertCmds[idx], (err) => {
+            if (err || !fs.existsSync(tmpPdf)) return tryConvert(idx + 1);
+
+            addLog('info', `HP Printer: Streaming 1-page PDF vector badge to tcp://${printerIp}:9100...`, { targetIp: printerIp });
+            const pdfBuffer = fs.readFileSync(tmpPdf);
+            cleanup();
+
+            const socket = new net.Socket();
+            socket.setTimeout(8000);
+            socket.connect(9100, printerIp, () => {
+                socket.write(pdfBuffer, () => {
+                    socket.end();
+                    addLog('success', `✅ HP 1-page PDF badge printed on tcp://${printerIp}:9100!`, { targetIp: printerIp });
+                    callback && callback(null, { success: true, printer: printerIp, mode: 'hp_pdf' });
+                });
+            });
+            socket.on('error', (sErr) => {
+                addLog('error', `❌ HP Socket error ${printerIp}:9100 — ${sErr.message}`, { targetIp: printerIp, error: sErr.message });
+                callback && callback(null, { success: false, error: sErr.message, targetIp: printerIp });
+            });
+            socket.on('timeout', () => {
+                addLog('warn', `⚠️ HP Socket timeout ${printerIp}:9100`, { targetIp: printerIp });
+                socket.destroy();
+                callback && callback(null, { success: false, error: `Connection timeout to ${printerIp}` });
+            });
+        });
+    }
+
+    tryConvert(0);
+}
+
+function sendRawPcl5(payload, printerIp, callback) {
+    addLog('info', `TCP Socket → ${printerIp}:9100 [PCL5 STRICT ASCII]...`, { targetIp: printerIp });
+    const socket = new net.Socket();
+    socket.setTimeout(8000);
+    socket.connect(9100, printerIp, () => {
+        socket.write(payload, () => {
+            socket.end();
+            addLog('success', `✅ PCL5 1-page ASCII label printed on ${printerIp}!`, { targetIp: printerIp });
+            callback && callback(null, { success: true, printer: printerIp, mode: 'pcl5_ascii' });
+        });
+    });
+    socket.on('error', (err) => {
+        addLog('error', `❌ Socket error ${printerIp}:9100 — ${err.message}`, { targetIp: printerIp, error: err.message });
+        callback && callback(null, { success: false, error: err.message, targetIp: printerIp });
+    });
+    socket.on('timeout', () => {
+        addLog('warn', `⚠️ Socket timeout ${printerIp}:9100`, { targetIp: printerIp });
+        socket.destroy();
+        callback && callback(null, { success: false, error: `Connection timeout to ${printerIp}` });
+    });
+}
+
 
 // ─── Brother QL: SVG Label Generator ─────────────────────────────
 function generateBrotherQlSvg(labelData, labelSizeValue) {
@@ -333,9 +481,13 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
         return;
     }
 
-    const payload = printerMeta.protocol === 'pcl5'
-        ? generatePcl5Payload(labelData)
-        : generateEscPosPayload(labelData);
+    if (printerMeta.protocol === 'pcl5') {
+        printViaHpPrinter(labelData, targetIp, callback);
+        return;
+    }
+
+    const payload = generateEscPosPayload(labelData);
+
 
     addLog('info', `TCP Socket → ${targetIp}:9100 [${printerMeta.protocol.toUpperCase()}]...`, { targetIp });
     const socket = new net.Socket();
