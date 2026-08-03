@@ -58,15 +58,16 @@ const AdminDashboardNew = () => {
     const { data: attendance = [] } = useQuery({
         queryKey: ["dashboard-attendance-today"],
         queryFn: async () => {
+            const todayStr = format(new Date(), "yyyy-MM-dd");
+            const startStr = format(startOfDay(new Date()), "yyyy-MM-dd'T'00:00:00");
             const { data } = await supabase
                 .from("attendance")
-                .select("*, children(first_name, last_name, age, photo_url)")
-                .gte("attendance_date", format(startOfDay(new Date()), "yyyy-MM-dd"))
-                .lte("attendance_date", format(endOfDay(new Date()), "yyyy-MM-dd"))
+                .select("*, children(*), child:children(*)")
+                .or(`attendance_date.eq.${todayStr},checked_in_at.gte.${startStr}`)
                 .order("checked_in_at", { ascending: false });
             return data || [];
         },
-        refetchInterval: 30000,
+        refetchInterval: 15000,
     });
 
     const { data: weeklyAttendance = [] } = useQuery({
@@ -76,11 +77,13 @@ const AdminDashboardNew = () => {
             for (let i = 6; i >= 0; i--) {
                 const d = subDays(new Date(), i);
                 const dateStr = format(d, "yyyy-MM-dd");
-                const { count } = await supabase
+                const startStr = format(startOfDay(d), "yyyy-MM-dd'T'00:00:00");
+                const endStr = format(endOfDay(d), "yyyy-MM-dd'T'23:59:59");
+                const { data } = await supabase
                     .from("attendance")
-                    .select("*", { count: "exact", head: true })
-                    .eq("attendance_date", dateStr);
-                days.push({ day: format(d, "EEE"), checkins: count || 0 });
+                    .select("id, attendance_date, checked_in_at")
+                    .or(`attendance_date.eq.${dateStr},and(checked_in_at.gte.${startStr},checked_in_at.lte.${endStr})`);
+                days.push({ day: format(d, "EEE"), checkins: data ? data.length : 0 });
             }
             return days;
         },
@@ -293,21 +296,25 @@ const AdminDashboardNew = () => {
                             <p className="text-[12px] mt-0.5">Check-ins will appear here in real time</p>
                         </div>
                     ) : (
-                        attendance.slice(0, 6).map((record: any) => {
-                            const initials = `${record.children?.first_name?.[0] ?? ""}${record.children?.last_name?.[0] ?? ""}`.toUpperCase();
+                        attendance.slice(0, 8).map((record: any) => {
+                            const childObj = Array.isArray(record.children) ? record.children[0] : (record.children || record.child || {});
+                            const firstName = childObj.first_name || record.child_first_name || record.child_name || "Child";
+                            const lastName = childObj.last_name || record.child_last_name || "";
+                            const fullName = `${firstName} ${lastName}`.trim();
+                            const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
                             const isPresent = record.checked_in_at && !record.checked_out_at;
                             return (
                                 <div key={record.id} className="feed-row">
                                     <div className="feed-avatar">
-                                        {record.children?.photo_url ? (
-                                            <img src={record.children.photo_url} className="h-full w-full object-cover" alt="" />
+                                        {childObj.photo_url ? (
+                                            <img src={childObj.photo_url} className="h-full w-full object-cover" alt="" />
                                         ) : (
                                             initials || <Baby className="h-4 w-4 opacity-40" />
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-[13px] font-semibold leading-none mb-0.5">
-                                            {record.children?.first_name} {record.children?.last_name}
+                                            {fullName}
                                         </p>
                                         <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                                             <Clock className="h-3 w-3" />
