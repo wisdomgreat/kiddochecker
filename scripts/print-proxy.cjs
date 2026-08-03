@@ -447,6 +447,20 @@ function getLocalIpAddresses() {
 // ─── Interactive Web Dashboard & Live Log Console (`GET /` & `GET /logs`) ───
 app.get(['/', '/logs'], (req, res) => {
     const localIps = getLocalIpAddresses();
+    const currentModel = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel) || PRINTER_REGISTRY[0];
+    const isBrother = currentModel.protocol === 'brother_ql';
+
+    const brands = [...new Set(PRINTER_REGISTRY.map(p => p.brand))];
+    const printerOptionsHtml = brands.map(brand => {
+        const models = PRINTER_REGISTRY.filter(p => p.brand === brand);
+        const opts = models.map(m => `<option value="${m.id}" ${serverConfig.defaultPrinterModel === m.id ? 'selected' : ''}>${m.name}</option>`).join('');
+        return `<optgroup label="${brand}">${opts}</optgroup>`;
+    }).join('');
+
+    const labelSizeOptionsHtml = currentModel.labelSizes
+        ? currentModel.labelSizes.map(s => `<option value="${s.value}" ${serverConfig.defaultLabelSize === s.value ? 'selected' : ''}>${s.label}</option>`).join('')
+        : '';
+
     const html = `
     <!DOCTYPE html>
     <html lang="en">
@@ -482,11 +496,13 @@ app.get(['/', '/logs'], (req, res) => {
             .log-entry.warn { border-color: var(--warning); }
             .log-entry.cloud { border-color: var(--primary); }
             .time { color: var(--muted); font-size: 11px; margin-right: 8px; }
-            input, button { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #090d16; color: #fff; margin-bottom: 10px; font-size: 14px; }
+            input, select, button { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #090d16; color: #fff; margin-bottom: 10px; font-size: 14px; }
             button { background: var(--primary); font-weight: bold; cursor: pointer; border: none; }
             button:hover { opacity: 0.9; }
             .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
             .ip-tag { background: #334155; padding: 3px 8px; border-radius: 4px; font-family: monospace; }
+            .note-box { background: #1e3a5f; border: 1px solid #2563eb; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #93c5fd; margin-bottom: 10px; line-height: 1.6; }
+            .hidden { display: none !important; }
         </style>
     </head>
     <body>
@@ -506,25 +522,36 @@ app.get(['/', '/logs'], (req, res) => {
             </div>
 
             <div>
-                <!-- Server Default Fallback Printer IP Config Card -->
+                <!-- Printer Configuration Card -->
                 <div class="card" style="border-color: var(--primary);">
-                    <h2 style="color: var(--primary);">⚙️ Server Default Fallback Printer</h2>
-                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">If a kiosk does not specify an IP, all print jobs automatically fall back to this Default Printer IP.</p>
-                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">DEFAULT FALLBACK WIRELESS PRINTER IP:</label>
-                    <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.2.13" value="${serverConfig.defaultPrinterIp}" />
-                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin: 10px 0 6px;">PRINTER TYPE:</label>
-                    <div style="display:flex; gap:10px; margin-bottom:10px;">
-                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; padding:8px 14px; border-radius:8px; border:1px solid #334155; flex:1; justify-content:center; ${serverConfig.defaultPrinterType !== 'hp' ? 'border-color:#6366f1; background:#1e1b4b;' : ''}">
-                            <input type="radio" name="printerType" value="thermal" ${serverConfig.defaultPrinterType !== 'hp' ? 'checked' : ''} onchange="updateTypeStyle(this)"> 🖨️ Thermal (ESC/POS)
-                        </label>
-                        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px; padding:8px 14px; border-radius:8px; border:1px solid #334155; flex:1; justify-content:center; ${serverConfig.defaultPrinterType === 'hp' ? 'border-color:#6366f1; background:#1e1b4b;' : ''}">
-                            <input type="radio" name="printerType" value="hp" ${serverConfig.defaultPrinterType === 'hp' ? 'checked' : ''} onchange="updateTypeStyle(this)"> 🖨️ HP Laser/Inkjet (PCL5)
-                        </label>
+                    <h2 style="color: var(--primary);">⚙️ Printer Configuration</h2>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Select your printer model. The server auto-generates the correct payload format.</p>
+
+                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">PRINTER MODEL:</label>
+                    <select id="printerModelSelect" onchange="onModelChange(this.value)">
+                        ${printerOptionsHtml}
+                    </select>
+
+                    <div id="labelSizeRow" class="${isBrother ? '' : 'hidden'}">
+                        <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">BROTHER DK LABEL ROLL SIZE:</label>
+                        <select id="labelSizeSelect">
+                            ${labelSizeOptionsHtml}
+                        </select>
                     </div>
-                    <button onclick="saveDefaultConfig()" style="background: var(--success);">💾 Save Default Server Printer IP</button>
+
+                    <div id="brotherQlNote" class="note-box ${isBrother ? '' : 'hidden'}">
+                        ⚠️ <strong>Brother QL Requirement:</strong><br>
+                        Run once on your print server:<br>
+                        <code>apt install librsvg2-bin -y</code><br>
+                        <code>pip3 install brother_ql</code>
+                    </div>
+
+                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">DEFAULT PRINTER IP ADDRESS:</label>
+                    <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.2.13" value="${serverConfig.defaultPrinterIp}" />
+
+                    <button onclick="saveDefaultConfig()" style="background: var(--success);">💾 Save Printer Configuration</button>
                     <div id="configResult" style="font-size: 12px; font-weight: bold; margin-top: 4px;"></div>
                 </div>
-
 
                 <!-- Direct Printer Tester Card -->
                 <div class="card">
@@ -543,6 +570,7 @@ app.get(['/', '/logs'], (req, res) => {
                     <div class="stat-row"><span>Platform:</span> <strong>${process.platform}</strong></div>
                     <div class="stat-row"><span>Uptime:</span> <strong id="uptime">Loading...</strong></div>
                     <div class="stat-row"><span>Port:</span> <strong>${PORT}</strong></div>
+                    <div class="stat-row"><span>Active Model:</span> <strong id="activeModel">${currentModel.name}</strong></div>
                     <div class="stat-row"><span>Azure Cloud Relay:</span> <strong style="color: var(--success);">Polling Active</strong></div>
                     <div style="margin-top: 14px;">
                         <p style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">Server LAN IP Addresses:</p>
@@ -551,6 +579,7 @@ app.get(['/', '/logs'], (req, res) => {
                 </div>
             </div>
         </div>
+
 
         <script>
             async function fetchLogs() {
