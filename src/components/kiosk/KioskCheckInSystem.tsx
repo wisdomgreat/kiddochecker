@@ -162,11 +162,14 @@ const KioskCheckInSystem = () => {
   const [staffSearchResults, setStaffSearchResults] = useState<Child[]>([]);
   const [staffAuthed, setStaffAuthed] = useState(false);
   const [staffName, setStaffName] = useState('');
+  const [staffRole, setStaffRole] = useState('');
   const [staffPinInput, setStaffPinInput] = useState('');
   const [staffPinError, setStaffPinError] = useState('');
   const [staffShifts, setStaffShifts] = useState<any[]>([]);
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
   const [isRegisteringNFC, setIsRegisteringNFC] = useState<string | null>(null);
+
+  const isAdminAuthed = staffAuthed && (staffRole === 'admin' || staffRole === 'super_admin');
 
   const [youthPinInput, setYouthPinInput] = useState('');
   const [youthLoginError, setYouthLoginError] = useState('');
@@ -607,7 +610,8 @@ const KioskCheckInSystem = () => {
       } else {
         setStaffAuthed(true);
         setStaffName(`${staffMember.first_name} ${staffMember.last_name}`);
-        await logActivity('staff_login', { staff_id: staffMember.id, staff_name: staffName });
+        setStaffRole(staffMember.role || 'staff');
+        await logActivity('staff_login', { staff_id: staffMember.id, staff_name: `${staffMember.first_name} ${staffMember.last_name}` });
         fetchStaffShifts();
         startAutoLogoutTimer(2700);
       }
@@ -650,10 +654,11 @@ const KioskCheckInSystem = () => {
   const handleStaffLogout = () => {
     setStaffAuthed(false);
     setStaffName('');
-    setStaffPinInput('');
+    setStaffRole('');
     setStaffSearchTerm('');
     setStaffSearchResults([]);
-    setStaffShifts([]);
+    setStaffPinInput('');
+    setStaffPinError('');
   };
 
   const handleYouthLogin = async () => {
@@ -976,7 +981,7 @@ const KioskCheckInSystem = () => {
              <span className="text-foreground">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
-          {staffAuthed && (
+          {isAdminAuthed && (
             <Button 
               variant="outline" 
               size="sm" 
@@ -1318,15 +1323,17 @@ const KioskCheckInSystem = () => {
                           <p className="font-bold text-lg">{staffName}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setShowPrinterDialog(true)} 
-                            className="h-9 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10"
-                          >
-                            <Printer className="h-4 w-4" />
-                            <span>{isEs ? "Configurar Impresora" : "Printer Setup"}</span>
-                          </Button>
+                          {isAdminAuthed && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setShowPrinterDialog(true)} 
+                              className="h-9 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10"
+                            >
+                              <Printer className="h-4 w-4" />
+                              <span>{isEs ? "Configurar Impresora" : "Printer Setup"}</span>
+                            </Button>
+                          )}
                         </div>
                       </div>
 
