@@ -265,6 +265,35 @@ app.post('/print', (req, res) => {
     });
 });
 
+app.get('/api/scan-printers', async (req, res) => {
+    addLog('info', 'Scanning local network subnet for active printers on Port 9100...');
+    const localIps = getLocalIpAddresses();
+    if (localIps.length === 0) return res.json({ printers: [] });
+    
+    const subnet = localIps[0].substring(0, localIps[0].lastIndexOf('.'));
+    const foundPrinters = [];
+    
+    const scanPromises = [];
+    for (let i = 1; i <= 254; i++) {
+        const testIp = `${subnet}.${i}`;
+        scanPromises.push(new Promise((resolve) => {
+            const socket = new net.Socket();
+            socket.setTimeout(400);
+            socket.connect(9100, testIp, () => {
+                foundPrinters.push(testIp);
+                socket.destroy();
+                resolve(true);
+            });
+            socket.on('error', () => { socket.destroy(); resolve(false); });
+            socket.on('timeout', () => { socket.destroy(); resolve(false); });
+        }));
+    }
+    
+    await Promise.all(scanPromises);
+    addLog('success', `Network scan finished! Found ${foundPrinters.length} printer(s) on ${subnet}.x: ${foundPrinters.join(', ') || 'None'}`);
+    res.json({ subnet, printers: foundPrinters });
+});
+
 app.post('/api/test-print', (req, res) => {
     const { printerIp, childName } = req.body || {};
     const targetIp = (printerIp || serverConfig.defaultPrinterIp || '').trim();
@@ -329,7 +358,7 @@ app.get(['/', '/logs'], (req, res) => {
             @media(max-width: 850px) { .grid { grid-template-columns: 1fr; } }
             .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
             .card h2 { font-size: 15px; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-            .log-box { background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; height: 520px; overflow-y: auto; display: flex; flex-col; gap: 8px; }
+            .log-box { background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
             .log-entry { padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); background: #131b2e; word-break: break-all; margin-bottom: 6px; }
             .log-entry.success { border-color: var(--success); }
             .log-entry.error { border-color: var(--danger); }
@@ -377,6 +406,7 @@ app.get(['/', '/logs'], (req, res) => {
                     <input type="text" id="testIp" placeholder="Printer IP (e.g. 192.168.2.13)" value="${serverConfig.defaultPrinterIp || '192.168.2.13'}" />
                     <input type="text" id="testName" placeholder="Test Child Name" value="Test Child Badge" />
                     <button onclick="sendTestPrint()">🚀 Send Test Print to IP</button>
+                    <button onclick="scanNetworkPrinters()" style="background:#475569; margin-top:4px;">🔍 Auto-Scan Subnet for Printers</button>
                     <div id="testResult" style="font-size: 12px; font-weight: bold; margin-top: 8px;"></div>
                 </div>
 
@@ -476,6 +506,28 @@ app.get(['/', '/logs'], (req, res) => {
                     }
                 } catch(e) {
                     resDiv.innerText = '❌ Error: ' + e.message;
+                    resDiv.style.color = '#ef4444';
+                }
+                setTimeout(fetchLogs, 1000);
+            }
+
+            async function scanNetworkPrinters() {
+                const resDiv = document.getElementById('testResult');
+                resDiv.innerText = '🔍 Scanning local subnet for wireless printers on port 9100...';
+                resDiv.style.color = '#f59e0b';
+                try {
+                    const res = await fetch('/api/scan-printers');
+                    const data = await res.json();
+                    if (data.printers && data.printers.length > 0) {
+                        resDiv.innerText = '✅ Found ' + data.printers.length + ' printer(s): ' + data.printers.join(', ');
+                        resDiv.style.color = '#10b981';
+                        document.getElementById('testIp').value = data.printers[0];
+                    } else {
+                        resDiv.innerText = '⚠️ No printers found listening on Port 9100 in ' + data.subnet + '.x subnet.';
+                        resDiv.style.color = '#f59e0b';
+                    }
+                } catch(e) {
+                    resDiv.innerText = '❌ Scan error: ' + e.message;
                     resDiv.style.color = '#ef4444';
                 }
                 setTimeout(fetchLogs, 1000);
