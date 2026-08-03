@@ -9,13 +9,14 @@ import {
 import {
     CheckCircle2, XCircle, ClipboardCheck, AlertTriangle,
     Clock, BookOpen, MessageSquare, QrCode, ChevronRight,
-    Activity, Baby
+    Activity, Baby, Printer
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import DashboardShell from "./DashboardShell";
+import NameTagPrintDialog from "@/components/kiosk/NameTagPrintDialog";
 
 const CustomBarTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
@@ -30,6 +31,8 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
 const StaffTeacherDashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [reprintChild, setReprintChild] = React.useState<any>(null);
+    const [reprintCode, setReprintCode] = React.useState<string>("");
 
     const { data: myClasses = [] } = useQuery({
         queryKey: ["staff-my-classes", user?.id],
@@ -253,20 +256,44 @@ const StaffTeacherDashboard = () => {
                                             )}
                                         </div>
                                     </div>
-                                    <span className={cn(
-                                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold border",
-                                        isPresent
-                                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                            : "bg-muted text-muted-foreground border-border"
-                                    )}>
-                                        {isPresent ? "Present" : "Left"}
-                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className={cn(
+                                            "px-2.5 py-0.5 rounded-full text-[10px] font-bold border",
+                                            isPresent
+                                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                                : "bg-muted text-muted-foreground border-border"
+                                        )}>
+                                            {isPresent ? "Present" : "Left"}
+                                        </span>
+                                        <Button
+                                            size="icon"
+                                            variant="outline"
+                                            className="h-7 w-7 text-muted-foreground hover:text-primary border-border"
+                                            title="Reprint Name Tag"
+                                            onClick={() => {
+                                                setReprintChild(record.children);
+                                                setReprintCode(record.security_code || record.id.slice(0, 4).toUpperCase());
+                                            }}
+                                        >
+                                            <Printer className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
                                 </div>
                             );
                         })
                     )}
                 </div>
             </div>
+
+            {reprintChild && (
+                <NameTagPrintDialog
+                    open={!!reprintChild}
+                    onClose={() => setReprintChild(null)}
+                    child={reprintChild}
+                    securityCode={reprintCode}
+                    className={reprintChild.assigned_class || "General"}
+                />
+            )}
         </DashboardShell>
     );
 };

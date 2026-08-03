@@ -510,7 +510,26 @@ function printViaBrotherQl(labelData, printerIp, callback) {
     convertAndPrint();
 }
 
-// ─── Core Dispatcher ─────────────────────────────────────────────
+// ─── Print Job History & Reprint Queue ────────────────────────────
+const printJobsHistory = [];
+
+function recordPrintJob(labelData, targetIp) {
+    const job = {
+        id: 'job_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        time: new Date().toLocaleTimeString('en-US'),
+        childName: labelData ? (labelData.name || 'Unknown') : 'Unknown',
+        securityCode: labelData ? (labelData.securityCode || '') : '',
+        className: labelData ? (labelData.class || '') : '',
+        targetIp: targetIp,
+        status: 'pending',
+        labelData: labelData
+    };
+    printJobsHistory.unshift(job);
+    if (printJobsHistory.length > 50) printJobsHistory.pop();
+    return job;
+}
+
+// ─── Core Dispatcher ─────────────────────────────
 function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     if (!labelData || !labelData.name) {
         addLog('error', 'Print job rejected: Invalid or missing label data');
@@ -520,48 +539,63 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     const modelId = labelData.printerModel || serverConfig.defaultPrinterModel || 'generic_thermal_80';
     const printerMeta = PRINTER_REGISTRY.find(p => p.id === modelId) || PRINTER_REGISTRY.find(p => p.id === 'generic_thermal_80');
     const targetIp = (printerIp || labelData.printerIp || serverConfig.defaultPrinterIp || '').trim();
+    const jobRecord = recordPrintJob(labelData, targetIp);
 
     addLog('info', `Dispatching print job for "${labelData.name}"`, {
+        jobId: jobRecord.id,
         model: printerMeta.name,
         protocol: printerMeta.protocol,
         targetIp: targetIp || 'None'
     });
 
     if (!targetIp) {
+        jobRecord.status = 'failed';
+        jobRecord.error = 'No printer IP configured';
         addLog('warn', `No Printer IP set for "${labelData.name}". Set one in the web console.`);
         return callback && callback(null, { success: false, error: 'No printer IP configured. Set one in the web console.' });
     }
 
     // Route to correct handler based on protocol
     if (printerMeta.protocol === 'brother_ql') {
-        printViaBrotherQl(labelData, targetIp, callback);
+        printViaBrotherQl(labelData, targetIp, (err, res) => {
+            if (res && res.success) { jobRecord.status = 'success'; } else { jobRecord.status = 'failed'; jobRecord.error = (res && res.error) || 'Brother QL error'; }
+            callback && callback(err, res);
+        });
         return;
     }
 
     if (printerMeta.protocol === 'pcl5') {
-        printViaHpPrinter(labelData, targetIp, callback);
+        printViaHpPrinter(labelData, targetIp, (err, res) => {
+            if (res && res.success) { jobRecord.status = 'success'; } else { jobRecord.status = 'failed'; jobRecord.error = (res && res.error) || 'HP print error'; }
+            callback && callback(err, res);
+        });
         return;
     }
 
     const payload = generateEscPosPayload(labelData);
 
 
-    addLog('info', `TCP Socket → ${targetIp}:9100 [${printerMeta.protocol.toUpperCase()}]...`, { targetIp });
+    addLog('info', `TCP Socket → ${targetIp}:9100 [${printerMeta.protocol.toUpperCase()}]...`, { jobId: jobRecord.id, targetIp });
     const socket = new net.Socket();
     socket.setTimeout(8000);
     socket.connect(9100, targetIp, () => {
         socket.write(payload, () => {
             socket.end();
-            addLog('success', `✅ Label printed on ${targetIp} [${printerMeta.name}]!`, { targetIp });
+            jobRecord.status = 'success';
+            addLog('success', `✅ Label printed on ${targetIp} [${printerMeta.name}]!`, { jobId: jobRecord.id, targetIp });
             callback && callback(null, { success: true, printer: targetIp, mode: printerMeta.protocol });
         });
     });
     socket.on('error', (err) => {
-        addLog('error', `❌ Socket error ${targetIp}:9100 — ${err.message}`, { targetIp, error: err.message });
+        jobRecord.status = 'failed';
+        jobRecord.error = err.message;
+        addLog('error', `❌ Socket error ${targetIp}:9100 — ${err.message}`, { jobId: jobRecord.id, targetIp, error: err.message });
         callback && callback(null, { success: false, error: err.message, targetIp });
     });
     socket.on('timeout', () => {
-        addLog('warn', `⚠️ Socket timeout ${targetIp}:9100 (Unreachable or wrong IP)`, { targetIp });
+        jobRecord.status = 'failed';
+        jobRecord.error = `Connection timeout to ${targetIp}`;
+        addLog('warn', `⚠️ Socket timeout ${targetIp}:9100 (Unreachable or wrong IP)`, { jobId: jobRecord.id, targetIp });
         socket.destroy();
         callback && callback(null, { success: false, error: `Connection timeout to ${targetIp}` });
     });
@@ -589,7 +623,23 @@ app.get('/api/logs', (req, res) => {
         totalLogsCount: logsBuffer.length,
         cloudRelay: cloudRelayStatus,
         serverConfig: serverConfig,
-        logs: logsBuffer
+        logs: logsBuffer,
+        printJobsHistory: printJobsHistory
+    });
+});
+
+app.get('/api/history', (req, res) => res.json({ history: printJobsHistory }));
+
+app.post('/api/reprint', (req, res) => {
+    const { jobId, customIp } = req.body || {};
+    const job = printJobsHistory.find(j => j.id === jobId);
+    if (!job) return res.status(404).json({ success: false, error: 'Job not found in history' });
+
+    const targetIp = (customIp || job.targetIp || serverConfig.defaultPrinterIp || '').trim();
+    addLog('info', `🔁 REPRINTING badge for "${job.childName}" to ${targetIp}...`, { jobId: job.id, targetIp });
+    dispatchPrintCommand(job.labelData, targetIp, '', (err, result) => {
+        if (err) return res.status(400).json({ success: false, error: err.message });
+        res.json({ success: true, message: `Reprinted badge for ${job.childName}`, result });
     });
 });
 
@@ -748,6 +798,15 @@ app.get(['/', '/logs'], (req, res) => {
                     <h2>Live Activity & Print Logs</h2>
                     <div id="log-box" class="log-box">Loading server logs...</div>
                 </div>
+
+                <!-- Recent Print Jobs & Quick Reprint Card -->
+                <div class="card" style="border-color: #3b82f6;">
+                    <h2 style="color: #60a5fa;">📋 Recent Print Jobs (One-Click Reprint)</h2>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">If a print job fails due to paper out or network disconnect, click <strong>Reprint</strong> below to retry immediately.</p>
+                    <div id="jobs-box" style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:10px; max-height:280px; overflow-y:auto;">
+                        <div style="color:#94a3b8; font-size:12px; padding:8px;">No print jobs in memory buffer yet.</div>
+                    </div>
+                </div>
             </div>
 
             <div>
@@ -827,18 +886,59 @@ app.get(['/', '/logs'], (req, res) => {
                     const box = document.getElementById('log-box');
                     if (data.logs.length === 0) {
                         box.innerHTML = '<div style="color:#94a3b8; padding:12px;">No logs recorded yet.</div>';
-                        return;
+                    } else {
+                        box.innerHTML = data.logs.map(log => {
+                            const jobId = log.details && log.details.jobId ? log.details.jobId : '';
+                            const isFail = log.type === 'error' || log.type === 'warn';
+                            const retryBtn = (jobId && isFail) ? '<button onclick="reprintJob(\'' + jobId + '\')" style="background:#ef4444; width:auto; padding:3px 8px; font-size:11px; margin-left:8px; display:inline-block;">🔁 Retry Print</button>' : '';
+                            return '<div class="log-entry ' + log.type + '">' +
+                                '<span class="time">' + log.time + '</span>' +
+                                '<strong>' + log.message + '</strong>' + retryBtn +
+                                (log.details && log.details.targetIp ? '<div style="font-size:11px; color:#94a3b8; margin-top:2px;">Target IP: ' + log.details.targetIp + '</div>' : '') +
+                                (log.details && log.details.model ? '<div style="font-size:11px; color:#6366f1;">Model: ' + log.details.model + '</div>' : '') +
+                            '</div>';
+                        }).join('');
                     }
-                    
-                    box.innerHTML = data.logs.map(log => \`
-                        <div class="log-entry \${log.type}">
-                            <span class="time">\${log.time}</span>
-                            <strong>\${log.message}</strong>
-                            \${log.details && log.details.targetIp ? '<div style="font-size:11px; color:#94a3b8; margin-top:2px;">Target IP: ' + log.details.targetIp + '</div>' : ''}
-                            \${log.details && log.details.model ? '<div style="font-size:11px; color:#6366f1;">Model: ' + log.details.model + '</div>' : ''}
-                        </div>
-                    \`).join('');
+
+                    const jobsBox = document.getElementById('jobs-box');
+                    if (data.printJobsHistory && data.printJobsHistory.length > 0) {
+                        jobsBox.innerHTML = data.printJobsHistory.map(job => {
+                            const statusColor = job.status === 'success' ? '#10b981' : (job.status === 'failed' ? '#ef4444' : '#f59e0b');
+                            const statusBadge = '<span style="color:' + statusColor + '; font-weight:bold;">' + job.status.toUpperCase() + '</span>';
+                            return '<div style="display:flex; justify-content:space-between; align-items:center; background:#131b2e; border:1px solid var(--border); padding:8px 12px; border-radius:6px; margin-bottom:6px; font-size:12px;">' +
+                                '<div>' +
+                                    '<strong style="font-size:14px; color:#fff;">' + job.childName + '</strong> ' +
+                                    '<span style="color:#94a3b8; font-size:11px;">[' + job.securityCode + ']</span>' +
+                                    '<div style="color:#64748b; font-size:11px;">' + job.time + ' | ' + (job.className || 'General') + ' | IP: ' + job.targetIp + ' | ' + statusBadge + '</div>' +
+                                '</div>' +
+                                '<div>' +
+                                    '<button onclick="reprintJob(\'' + job.id + '\')" style="background:#2563eb; width:auto; padding:6px 12px; font-size:12px; margin:0;">🔁 Reprint Badge</button>' +
+                                '</div>' +
+                            '</div>';
+                        }).join('');
+                    }
                 } catch(e) { }
+            }
+
+            async function reprintJob(jobId) {
+                const customIp = prompt('Enter Printer IP to reprint badge (or leave default):', document.getElementById('defaultIpInput').value);
+                if (customIp === null) return; // User cancelled
+                try {
+                    const res = await fetch('/api/reprint', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ jobId, customIp })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                    } else {
+                        alert('❌ Reprint failed: ' + (data.error || 'Unknown error'));
+                    }
+                } catch(e) {
+                    alert('❌ Error requesting reprint: ' + e.message);
+                }
+                setTimeout(fetchLogs, 1000);
             }
 
             function onModelChange(modelId) {
