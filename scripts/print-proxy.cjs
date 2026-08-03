@@ -111,35 +111,55 @@ loadServerConfig();
 const AZURE_API_URL = process.env.AZURE_API_URL || 'https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io';
 let cloudRelayStatus = { active: false, lastPoll: null, jobsProcessed: 0, lastError: null };
 
-// ─── Azure Cloud Print Relay Polling ────────────────────────────
-async function pollAzureCloudPrintQueue() {
+// ─── Azure Cloud Print Relay Polling (Universal Node https) ───────
+function pollAzureCloudPrintQueue() {
     try {
-        const response = await fetch(`${AZURE_API_URL}/api/print-jobs/poll`);
-        cloudRelayStatus.lastPoll = new Date().toISOString();
-        cloudRelayStatus.active = true;
-        cloudRelayStatus.lastError = null;
+        const https = require('https');
+        const pollUrl = `${AZURE_API_URL}/api/print-jobs/poll`;
 
-        if (response.ok) {
-            const data = await response.json();
-            if (data.jobs && data.jobs.length > 0) {
-                for (const job of data.jobs) {
-                    cloudRelayStatus.jobsProcessed++;
-                    addLog('cloud', `Received Azure Cloud Job: ${job.id} for ${job.labelData?.name || 'Child'}`, {
-                        jobId: job.id,
-                        printerIp: job.printerIp,
-                        printerName: job.printerName
-                    });
-                    dispatchPrintCommand(job.labelData, job.printerIp, job.printerName);
+        https.get(pollUrl, (res) => {
+            let rawData = '';
+            res.on('data', chunk => rawData += chunk);
+            res.on('end', () => {
+                try {
+                    cloudRelayStatus.lastPoll = new Date().toISOString();
+                    cloudRelayStatus.active = true;
+                    cloudRelayStatus.lastError = null;
+
+                    if (res.statusCode === 200) {
+                        const data = JSON.parse(rawData);
+                        if (data.jobs && data.jobs.length > 0) {
+                            for (const job of data.jobs) {
+                                cloudRelayStatus.jobsProcessed++;
+                                const childName = job.labelData?.name || 'Child Badge';
+                                const targetIp = (job.printerIp || serverConfig.defaultPrinterIp || '').trim();
+                                addLog('cloud', `☁️ Cloud job received for "${childName}"`, {
+                                    jobId: job.id,
+                                    targetIp: targetIp || 'None',
+                                    model: serverConfig.defaultPrinterModel
+                                });
+                                dispatchPrintCommand(job.labelData, job.printerIp, job.printerName);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    cloudRelayStatus.lastError = e.message;
                 }
-            }
-        }
+            });
+        }).on('error', (err) => {
+            cloudRelayStatus.active = false;
+            cloudRelayStatus.lastError = err.message;
+        });
     } catch (err) {
         cloudRelayStatus.active = false;
         cloudRelayStatus.lastError = err.message;
     }
 }
 
-setInterval(pollAzureCloudPrintQueue, 2000);
+// Start polling Azure Cloud Queue every 1.5 seconds
+setInterval(pollAzureCloudPrintQueue, 1500);
+addLog('info', `Azure Cloud Relay polling initialized (${AZURE_API_URL})`);
+
 
 // ─── ESC/POS Payload Generator (Epson, Star, Generic Thermal) ────
 function generateEscPosPayload(labelData) {
