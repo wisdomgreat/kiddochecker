@@ -158,18 +158,21 @@ const KioskCheckInSystem = () => {
   };
   const [checkedInChildIds, setCheckedInChildIds] = useState<Set<string>>(new Set());
 
-  const [staffSearchTerm, setStaffSearchTerm] = useState('');
-  const [staffSearchResults, setStaffSearchResults] = useState<Child[]>([]);
   const [staffAuthed, setStaffAuthed] = useState(false);
   const [staffName, setStaffName] = useState('');
   const [staffRole, setStaffRole] = useState('');
+  const [canManageKiosk, setCanManageKiosk] = useState(false);
   const [staffPinInput, setStaffPinInput] = useState('');
   const [staffPinError, setStaffPinError] = useState('');
   const [staffShifts, setStaffShifts] = useState<any[]>([]);
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
   const [isRegisteringNFC, setIsRegisteringNFC] = useState<string | null>(null);
 
-  const isAdminAuthed = staffAuthed && (staffRole === 'admin' || staffRole === 'super_admin');
+  const canAccessKioskSettings = staffAuthed && (
+    staffRole === 'admin' || 
+    staffRole === 'super_admin' || 
+    canManageKiosk === true
+  );
 
   const [youthPinInput, setYouthPinInput] = useState('');
   const [youthLoginError, setYouthLoginError] = useState('');
@@ -611,6 +614,7 @@ const KioskCheckInSystem = () => {
         setStaffAuthed(true);
         setStaffName(`${staffMember.first_name} ${staffMember.last_name}`);
         setStaffRole(staffMember.role || 'staff');
+        setCanManageKiosk(Boolean(staffMember.can_manage_kiosk || staffMember.role === 'admin' || staffMember.role === 'super_admin'));
         await logActivity('staff_login', { staff_id: staffMember.id, staff_name: `${staffMember.first_name} ${staffMember.last_name}` });
         fetchStaffShifts();
         startAutoLogoutTimer(2700);
@@ -655,6 +659,7 @@ const KioskCheckInSystem = () => {
     setStaffAuthed(false);
     setStaffName('');
     setStaffRole('');
+    setCanManageKiosk(false);
     setStaffSearchTerm('');
     setStaffSearchResults([]);
     setStaffPinInput('');
@@ -981,7 +986,7 @@ const KioskCheckInSystem = () => {
              <span className="text-foreground">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
-          {isAdminAuthed && (
+          {canAccessKioskSettings && (
             <Button 
               variant="outline" 
               size="sm" 
@@ -1323,7 +1328,7 @@ const KioskCheckInSystem = () => {
                           <p className="font-bold text-lg">{staffName}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {isAdminAuthed && (
+                          {canAccessKioskSettings && (
                             <Button 
                               variant="outline" 
                               size="sm" 

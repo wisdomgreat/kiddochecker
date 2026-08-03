@@ -538,7 +538,7 @@ async function runMigrations() {
     { name: 'youth_self_check_action', sql: `CREATE OR REPLACE FUNCTION public.youth_self_check_action(p_pin_code TEXT, p_kiosk_id TEXT) RETURNS JSONB AS $$ DECLARE v_child_id UUID; v_child_name TEXT; BEGIN SELECT id, first_name || ' ' || last_name INTO v_child_id, v_child_name FROM public.children WHERE youth_pin = p_pin_code LIMIT 1; IF v_child_id IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Invalid PIN'); END IF; RETURN jsonb_build_object('success', true, 'child_id', v_child_id, 'child_name', v_child_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_parent_for_kiosk(p_search_val TEXT, p_pin TEXT, p_user_id UUID DEFAULT NULL, p_org_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, phone TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, p.phone FROM public.profiles p WHERE (regexp_replace(p.phone, '\\D', '', 'g') ILIKE '%' || regexp_replace(p_search_val, '\\D', '', 'g') || '%' OR p.first_name ILIKE '%' || p_search_val || '%' OR p.last_name ILIKE '%' || p_search_val || '%') AND p.security_pin = p_pin AND (p_org_id IS NULL OR p.organization_id = p_org_id OR p.organization_id IS NULL) LIMIT 5; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_children_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_children_for_kiosk(p_parent_id UUID, p_pin TEXT, p_user_id UUID DEFAULT NULL, p_org_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, age INTEGER, class_id UUID, parent_id UUID) AS $$ BEGIN RETURN QUERY SELECT c.id, c.first_name, c.last_name, c.age, c.class_id, c.parent_id FROM public.children c JOIN public.profiles p ON c.parent_id = p.id WHERE p.id = p_parent_id AND p.security_pin = p_pin AND (p_org_id IS NULL OR c.organization_id = p_org_id OR c.organization_id IS NULL); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'verify_staff_pin_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.verify_staff_pin_for_kiosk(p_pin TEXT, p_user_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, role TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, ur.role::TEXT FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE (p.staff_pin = p_pin OR p.security_pin = p_pin) AND ur.role IN ('admin', 'super_admin', 'staff', 'teacher') LIMIT 1; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'verify_staff_pin_for_kiosk', sql: `DROP FUNCTION IF EXISTS public.verify_staff_pin_for_kiosk(text, uuid); DROP FUNCTION IF EXISTS public.verify_staff_pin_for_kiosk(text); CREATE OR REPLACE FUNCTION public.verify_staff_pin_for_kiosk(p_pin TEXT, p_user_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, role TEXT, can_manage_kiosk BOOLEAN) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, ur.role::TEXT, COALESCE((ur.role IN ('admin', 'super_admin') OR ur.is_super_admin = true OR EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions perm ON rp.permission_id = perm.id WHERE rp.role_id::text = ur.role::text AND perm.name IN ('manage_kiosk', 'manage_printers', 'kiosk_hardware_access'))), false) as can_manage_kiosk FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE (p.staff_pin = p_pin OR p.security_pin = p_pin) AND ur.role IN ('admin', 'super_admin', 'staff', 'teacher') LIMIT 1; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_terminal_security_stats', sql: `CREATE OR REPLACE FUNCTION public.get_terminal_security_stats() RETURNS TABLE (active_kiosks bigint, authorized_devices bigint, active_staff_sessions bigint, security_alerts_24h bigint) AS $$ BEGIN RETURN QUERY SELECT (SELECT COUNT(*) FROM public.devices WHERE type = 'kiosk' AND is_active = true) as active_kiosks, (SELECT COUNT(*) FROM public.devices WHERE is_authorized = true) as authorized_devices, (SELECT COUNT(*) FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE ur.role IN ('staff', 'admin', 'super_admin')) as active_staff_sessions, 0::bigint as security_alerts_24h; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_attendance_stats', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_stats() RETURNS TABLE (total_checkins bigint, total_on_site bigint, total_departed bigint, total_late_pickups bigint) AS $$ BEGIN RETURN QUERY SELECT (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE) as total_checkins, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at IS NULL) as total_on_site, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at IS NOT NULL) as total_departed, (SELECT COUNT(*) FROM public.attendance WHERE attendance_date = CURRENT_DATE AND checked_out_at > (attendance_date + time '18:00')) as total_late_pickups; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_attendance_summary_secure', sql: `CREATE OR REPLACE FUNCTION public.get_attendance_summary_secure(p_date date DEFAULT CURRENT_DATE) RETURNS TABLE (attendance_date date, class_id uuid, class_name text, total_children bigint, checked_in_count bigint, checked_out_count bigint, currently_present bigint) AS $$ BEGIN RETURN QUERY SELECT a.attendance_date, c.id as class_id, c.name as class_name, COUNT(DISTINCT a.child_id) as total_children, COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL THEN a.child_id END) as checked_in_count, COUNT(DISTINCT CASE WHEN a.checked_out_at IS NOT NULL THEN a.child_id END) as checked_out_count, COUNT(DISTINCT CASE WHEN a.checked_in_at IS NOT NULL AND a.checked_out_at IS NULL THEN a.child_id END) as currently_present FROM public.attendance a LEFT JOIN public.classes c ON a.class_id = c.id WHERE a.attendance_date = p_date GROUP BY a.attendance_date, c.id, c.name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
@@ -1308,6 +1308,35 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         return res.json({ data: parentRes.rows, error: null });
       } catch (err) {
         console.error('[Bridge] Error in get_parent_for_kiosk:', err.message);
+        return res.status(500).json({ error: err.message });
+    // Direct safe handler for verify_staff_pin_for_kiosk
+    if (finalFn === 'verify_staff_pin_for_kiosk') {
+      try {
+        const pin = finalParams.p_pin || '';
+        const staffRes = await pool.query(`
+          SELECT p.id, p.first_name, p.last_name, ur.role::text as role,
+            COALESCE(
+              (
+                ur.role IN ('admin', 'super_admin') 
+                OR ur.is_super_admin = true
+                OR EXISTS (
+                  SELECT 1 FROM public.role_permissions rp 
+                  JOIN public.permissions perm ON rp.permission_id = perm.id 
+                  WHERE rp.role_id::text = ur.role::text 
+                    AND perm.name IN ('manage_kiosk', 'manage_printers', 'kiosk_hardware_access')
+                )
+              ), 
+              false
+            ) as can_manage_kiosk
+          FROM public.profiles p
+          JOIN public.user_roles ur ON p.id = ur.user_id
+          WHERE (p.staff_pin = $1 OR p.security_pin = $1)
+            AND ur.role IN ('admin', 'super_admin', 'staff', 'teacher')
+          LIMIT 1
+        `, [pin]);
+        return res.json({ data: staffRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in verify_staff_pin_for_kiosk:', err.message);
         return res.status(500).json({ error: err.message });
       }
     }
