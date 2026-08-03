@@ -187,6 +187,38 @@ const AdminDashboardNew = () => {
         { title: "Settings", icon: Settings, path: "/settings" },
     ];
 
+    const todayDayName = format(new Date(), "EEE");
+    const chartData = React.useMemo(() => {
+        const daysMap: Record<string, number> = {};
+        const daysOrder: string[] = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = subDays(new Date(), i);
+            const dayName = format(d, "EEE");
+            daysMap[dayName] = 0;
+            daysOrder.push(dayName);
+        }
+
+        if (weeklyAttendance && weeklyAttendance.length > 0) {
+            weeklyAttendance.forEach((item: any) => {
+                if (daysMap[item.day] !== undefined) {
+                    daysMap[item.day] = item.checkins;
+                }
+            });
+        }
+
+        if (attendance.length > (daysMap[todayDayName] || 0)) {
+            daysMap[todayDayName] = attendance.length;
+        }
+
+        const maxVal = Math.max(1, ...Object.values(daysMap));
+
+        return daysOrder.map(day => ({
+            day,
+            checkins: daysMap[day],
+            heightPct: Math.round((daysMap[day] / maxVal) * 100)
+        }));
+    }, [weeklyAttendance, attendance, todayDayName]);
+
     return (
         <DashboardShell
             title="Admin Dashboard"
@@ -216,33 +248,52 @@ const AdminDashboardNew = () => {
 
             {/* Charts row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-enter animate-enter-3">
-                {/* Area chart */}
-                <div className="surface-card lg:col-span-2">
-                    <div className="px-5 pt-5 pb-3 border-b border-border/50">
-                        <p className="font-semibold text-[14px]">Attendance Trend</p>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">Check-ins over the last 7 days</p>
+                {/* Attendance Trend card */}
+                <div className="surface-card lg:col-span-2 flex flex-col justify-between">
+                    <div className="px-5 pt-5 pb-3 border-b border-border/50 flex items-center justify-between">
+                        <div>
+                            <p className="font-semibold text-[14px]">Attendance Trend</p>
+                            <p className="text-[12px] text-muted-foreground mt-0.5">Check-ins over the last 7 days</p>
+                        </div>
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20 font-bold">
+                            {chartData.find(d => d.day === todayDayName)?.checkins || 0} recorded today
+                        </Badge>
                     </div>
-                    <div className="p-5 h-[240px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={weeklyAttendance} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="adminGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(230,75%,55%)" stopOpacity={0.15} />
-                                        <stop offset="95%" stopColor="hsl(230,75%,55%)" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(220,9%,46%)" }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(220,9%,46%)" }} allowDecimals={false} />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Area
-                                    type="monotone"
-                                    dataKey="checkins"
-                                    stroke="hsl(230,75%,55%)"
-                                    fill="url(#adminGrad)"
-                                    strokeWidth={2}
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <div className="p-5 flex-1 flex flex-col justify-between min-h-[220px]">
+                        <div className="grid grid-cols-7 gap-2 items-end h-[160px] pt-4">
+                            {chartData.map((d) => {
+                                const isToday = d.day === todayDayName;
+                                return (
+                                    <div key={d.day} className="flex flex-col items-center gap-2 h-full justify-end group">
+                                        <span className={cn(
+                                            "text-[11px] font-bold px-1.5 py-0.5 rounded transition-all",
+                                            d.checkins > 0
+                                                ? (isToday ? "bg-primary text-primary-foreground shadow-sm" : "bg-card border text-foreground")
+                                                : "text-muted-foreground/40"
+                                        )}>
+                                            {d.checkins}
+                                        </span>
+                                        <div className="w-full max-w-[38px] bg-muted/40 rounded-t-lg h-full max-h-[110px] flex items-end p-0.5 overflow-hidden">
+                                            <div
+                                                style={{ height: `${Math.max(d.checkins > 0 ? 15 : 6, d.heightPct)}%` }}
+                                                className={cn(
+                                                    "w-full rounded-t-md transition-all duration-500",
+                                                    isToday
+                                                        ? "bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-md"
+                                                        : (d.checkins > 0 ? "bg-gradient-to-t from-slate-600 to-slate-400" : "bg-muted-foreground/20")
+                                                )}
+                                            />
+                                        </div>
+                                        <span className={cn(
+                                            "text-[11px] font-semibold tracking-tight",
+                                            isToday ? "text-primary font-bold" : "text-muted-foreground"
+                                        )}>
+                                            {d.day}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
