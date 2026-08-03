@@ -177,59 +177,56 @@ async function setupDatabase() {
     console.error('[DB] Error correcting email typo:', err.message);
   }
 
-  // ─── Automated Self-Healing: Purge Stale / Orphaned Profiles ───────────
+  // ─── Helper: Deep Cascade Delete for Profiles ───────────────────────────
+  async function forceDeleteProfile(profileId) {
+    if (!profileId) return;
+    console.log(`[Bridge] Executing deep cascade deletion for profile ${profileId}...`);
+    const cleanups = [
+      'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
+      'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
+      'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
+      'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
+      'DELETE FROM public.staff_group_members WHERE profile_id = $1::uuid',
+      'DELETE FROM public.message_read_receipts WHERE user_id = $1::uuid',
+      'DELETE FROM public.parent_rewards WHERE parent_id = $1::uuid',
+      'DELETE FROM public.emergency_contacts WHERE parent_id = $1::uuid',
+      'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid',
+      'UPDATE public.attendance SET checked_in_by = NULL WHERE checked_in_by = $1::uuid',
+      'UPDATE public.attendance SET checked_out_by = NULL WHERE checked_out_by = $1::uuid',
+      'UPDATE public.device_activity_log SET performed_by = NULL WHERE performed_by = $1::uuid',
+      'UPDATE public.profiles SET supervisor_id = NULL WHERE supervisor_id = $1::uuid',
+      'DELETE FROM public.profiles WHERE id = $1::uuid'
+    ];
+    for (const sql of cleanups) {
+      try { await pool.query(sql, [profileId]); } catch (e) { console.warn(`[Cascade Notice] ${sql}:`, e.message); }
+    }
+  }
+
+  // ─── Automated Self-Healing: Comprehensive Purge of Stale / Deleted Profiles ───
   try {
-    // 1. Purge Daramola / explicitly deleted profiles that have no active children
-    const daramolaClean = await pool.query(`
-      DELETE FROM public.profiles p
-      WHERE (
-        p.first_name ILIKE '%Daramola%' 
-        OR p.last_name ILIKE '%Daramola%' 
-        OR p.first_name ILIKE '%Titilayo%' 
-        OR p.last_name ILIKE '%Titilayo%'
-      )
-      AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p.id)
-      RETURNING p.id, p.first_name, p.last_name, p.email, p.phone;
+    // 1. Find all stale parent profiles with no children OR explicitly inactive profiles
+    const staleProfilesRes = await pool.query(`
+      SELECT p.id, p.first_name, p.last_name, p.email, p.phone
+      FROM public.profiles p
+      WHERE p.is_active IS FALSE
+         OR (
+           (p.role = 'parent' OR p.role IS NULL)
+           AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p.id)
+           AND NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id AND ur.role != 'parent')
+         )
+         OR NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id);
     `);
-    if (daramolaClean.rows.length > 0) {
-      console.log(`[DB Self-Healing] Purged ${daramolaClean.rows.length} deleted Daramola/Titilayo stale profile(s):`, 
-        daramolaClean.rows.map(r => `${r.first_name} ${r.last_name} (${r.phone})`).join(', ')
-      );
-    }
 
-    // 2. Purge duplicate old parent profiles sharing a phone number if the old profile has 0 children
-    const duplicatePhoneClean = await pool.query(`
-      DELETE FROM public.profiles p1
-      WHERE EXISTS (
-        SELECT 1 FROM public.profiles p2
-        WHERE p2.id != p1.id
-          AND regexp_replace(COALESCE(p2.phone, ''), '\\D', '', 'g') = regexp_replace(COALESCE(p1.phone, ''), '\\D', '', 'g')
-          AND p2.phone IS NOT NULL AND p2.phone != ''
-          AND p2.created_at > p1.created_at
-      )
-      AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p1.id)
-      RETURNING p1.id, p1.first_name, p1.last_name, p1.phone;
-    `);
-    if (duplicatePhoneClean.rows.length > 0) {
-      console.log(`[DB Self-Healing] Purged ${duplicatePhoneClean.rows.length} old duplicate childless profile(s) sharing phone numbers:`, 
-        duplicatePhoneClean.rows.map(r => `${r.first_name} ${r.last_name} (${r.phone})`).join(', ')
+    if (staleProfilesRes.rows.length > 0) {
+      console.log(`[DB Self-Healing] Found ${staleProfilesRes.rows.length} stale/deleted profile(s) to purge:`,
+        staleProfilesRes.rows.map(r => `${r.first_name || ''} ${r.last_name || ''} (${r.email || r.phone || r.id})`).join(', ')
       );
-    }
-
-    // 3. Purge orphaned profiles with no roles and no children
-    const orphanCleanResult = await pool.query(`
-      DELETE FROM public.profiles p
-      WHERE NOT EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = p.id)
-        AND NOT EXISTS (SELECT 1 FROM public.children c WHERE c.parent_id = p.id)
-        AND (p.is_active IS FALSE OR p.role = 'parent' OR p.role IS NULL)
-      RETURNING p.id, p.email;
-    `);
-    if (orphanCleanResult.rows.length > 0) {
-      console.log(`[DB Self-Healing] Automatically purged ${orphanCleanResult.rows.length} orphaned/deleted profile(s):`, 
-        orphanCleanResult.rows.map(r => r.email).join(', ')
-      );
+      for (const row of staleProfilesRes.rows) {
+        await forceDeleteProfile(row.id);
+      }
+      console.log(`[DB Self-Healing] Successfully purged ${staleProfilesRes.rows.length} stale/deleted profile(s).`);
     } else {
-      console.log('[DB Self-Healing] Database clean!');
+      console.log('[DB Self-Healing] Database clean! No stale profiles found.');
     }
   } catch (cleanErr) {
     console.warn('[DB Self-Healing] Orphan profile cleanup notice:', cleanErr.message);
@@ -1818,29 +1815,8 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       if (table === 'profiles' && filterKeys.includes('id')) {
         const targetId = filterVals[filterKeys.indexOf('id')];
         if (targetId) {
-          console.log(`[Bridge] Executing cascade cleanup for deleting profile ${targetId}...`);
-          try {
-            const targetProf = await pool.query('SELECT LOWER(email) as email FROM public.profiles WHERE id = $1::uuid', [targetId]);
-            const targetEmail = targetProf.rows[0]?.email;
-
-            const cleanups = [
-              'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
-              'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
-              'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
-              'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
-              'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid'
-            ];
-            for (const sql of cleanups) {
-              try { await pool.query(sql, [targetId]); } catch (e) { console.warn(`[Bridge] Single cleanup notice (${sql}):`, e.message); }
-            }
-
-            if (targetEmail) {
-              try {
-                await pool.query('DELETE FROM public.user_roles WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [targetEmail]);
-                await pool.query('DELETE FROM public.profiles WHERE LOWER(email) = $1', [targetEmail]);
-              } catch (e) {}
-            }
-          } catch (e) {}
+          await forceDeleteProfile(targetId);
+          return res.json({ data: [{ id: targetId }], error: null });
         }
       }
 
@@ -1906,19 +1882,9 @@ app.post('/api/admin/users/bulk-action', verifyToken, async (req, res) => {
       return res.json({ success: true, count: user_ids.length });
     } else if (action === 'delete') {
       for (const uid of user_ids) {
-        const cleanups = [
-          'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
-          'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
-          'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
-          'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
-          'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid',
-          'DELETE FROM public.profiles WHERE id = $1::uuid'
-        ];
-        for (const sql of cleanups) {
-          try { await pool.query(sql, [uid]); } catch (e) { console.warn(`[Bridge] Bulk cleanup notice (${sql}):`, e.message); }
-        }
+        await forceDeleteProfile(uid);
       }
-      console.log(`[Admin] Bulk deleted ${user_ids.length} users`);
+      console.log(`[Admin] Bulk deleted ${user_ids.length} users with deep cascade cleanup`);
       return res.json({ success: true, count: user_ids.length });
     }
     return res.status(400).json({ error: 'Invalid bulk action specified' });
