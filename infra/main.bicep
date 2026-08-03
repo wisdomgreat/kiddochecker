@@ -22,6 +22,14 @@ param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:la
 @description('The frontend SWA URL for password reset links.')
 param frontendUrl string = 'https://happy-glacier-0746a2210.7.azurestaticapps.net'
 
+@description('Resend API key for email delivery.')
+@secure()
+param resendApiKey string = ''
+
+@description('Secret key for signing JWT tokens in the bridge API.')
+@secure()
+param bridgeSecret string = ''
+
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
 
@@ -262,11 +270,11 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
         {
           name: 'resend-api-key'
-          value: 're_fzzhs1Gi_3EGMrF9BG8HfsAB5ANgykb2V'
+          value: resendApiKey
         }
         {
           name: 'bridge-secret'
-          value: 'kiddochecker-super-secret-2026'
+          value: bridgeSecret
         }
       ]
     }
