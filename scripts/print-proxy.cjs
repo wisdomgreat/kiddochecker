@@ -182,7 +182,6 @@ function generateEscPosPayload(labelData) {
         '\x1ba\x00' + 'Class    : ' + className + '\n' + 'Check-in : ' + timeStr + '  ' + dateStr + '\n' +
         (hasAllergy ? '\x1ba\x01\n' + LINE + '\x1bE\x01' + '!! ALLERGY ALERT !!\n' + allergies.toUpperCase() + '\n' + '\x1bE\x00' + LINE : '') +
         '\x1ba\x01\n' + 'Must show code at pick-up to claim child.\n' + '\n\n' +
-        DBL_LINE + '\x1bE\x01' + 'PRIMARY GUARDIAN CLAIM TICKET\n' + '\x1bE\x00' + DBL_LINE + '\n' +
         '\x1bE\x01\x1d!\x22' + ' ' + securityCode + ' \n' + '\x1d!\x00\x1bE\x00' + '\n' +
         '\x1bE\x01\x1d!\x01' + childName + '\n' + '\x1d!\x00\x1bE\x00' +
         dateStr + '\n\n' + LINE + 'Present at pick-up to claim your child.\n\n\n' +
@@ -190,13 +189,12 @@ function generateEscPosPayload(labelData) {
     , 'utf-8');
 }
 
-// ─── HP Printer: Vector SVG / PDF Badge Generator ─────────────────
-function generateHpBadgeSvg(labelData) {
+// ─── HP Printer: Vector SVG / PDF Badge Generators ─────────────────
+function generateHpChildBadgeSvg(labelData) {
 
     const nameParts = (labelData.name || '').trim().split(' ');
     const firstName = (nameParts[0] || '').toUpperCase();
     const lastName = (nameParts.slice(1).join(' ') || '').toUpperCase();
-    const fullNameTitle = (labelData.name || '');
     const securityCode = labelData.securityCode || 'TEST';
     const className = labelData.class || 'General';
     const allergies = labelData.allergies || '';
@@ -205,9 +203,7 @@ function generateHpBadgeSvg(labelData) {
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
 
     const width = 700;
-    const tag1H = hasAllergy ? 420 : 360;
-    const tag2Y = tag1H + 40;
-    const height = tag2Y + 350;
+    const height = hasAllergy ? (lastName ? 460 : 410) : (lastName ? 380 : 330);
 
     const allergySvg = hasAllergy
         ? `<rect x="50" y="${lastName ? 225 : 185}" width="600" height="46" rx="8" fill="#dc2626"/>
@@ -216,50 +212,48 @@ function generateHpBadgeSvg(labelData) {
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
+  <rect x="30" y="30" width="640" height="${height - 60}" rx="12" fill="white" stroke="#94A3B8" stroke-width="3" stroke-dasharray="10,6"/>
 
-  <!-- ==================== TAG 1: CHILD BADGE ==================== -->
-  <rect x="30" y="30" width="640" height="${tag1H}" rx="12" fill="white" stroke="#94A3B8" stroke-width="3" stroke-dasharray="10,6"/>
-
-  <!-- First Name & Last Name (Top Left) | Black Code Badge (Top Right) -->
   <text x="60" y="85" font-size="40" font-weight="900" fill="#0F172A">${firstName}</text>
   ${lastName ? `<text x="60" y="130" font-size="40" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
 
-  <!-- Security Code Badge (Top Right) -->
   <rect x="490" y="55" width="150" height="60" rx="10" fill="#000000"/>
   <text x="565" y="98" text-anchor="middle" font-size="34" font-weight="bold" fill="white" font-family="monospace">${securityCode}</text>
 
-  <!-- Horizontal Divider -->
   <line x1="50" y1="${lastName ? 150 : 110}" x2="650" y2="${lastName ? 150 : 110}" stroke="#000000" stroke-width="4"/>
 
-  <!-- Class & Date -->
   <text x="60" y="${lastName ? 195 : 155}" font-size="22" font-weight="bold" fill="#0F172A">Class: <tspan font-weight="bold">${className}</tspan></text>
   <text x="640" y="${lastName ? 195 : 155}" text-anchor="end" font-size="22" font-weight="bold" fill="#0F172A">${dateStr}</text>
 
   ${allergySvg}
 
-  <!-- Pick-Up Notice -->
   <text x="350" y="${hasAllergy ? (lastName ? 335 : 295) : (lastName ? 265 : 225)}" text-anchor="middle" font-size="18" font-weight="bold" fill="#334155">Must present matching tag for pick-up.</text>
-
-  <!-- ==================== TAG 2: GUARDIAN CLAIM TICKET ==================== -->
-  <rect x="30" y="${tag2Y}" width="640" height="320" rx="12" fill="white" stroke="#94A3B8" stroke-width="3" stroke-dasharray="10,6"/>
-
-  <!-- Title -->
-  <text x="350" y="${tag2Y + 45}" text-anchor="middle" font-size="22" font-weight="bold" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
-  <line x1="50" y1="${tag2Y + 60}" x2="650" y2="${tag2Y + 60}" stroke="#000000" stroke-width="3"/>
-
-  <!-- Subtitle -->
-  <text x="350" y="${tag2Y + 115}" text-anchor="middle" font-size="20" font-weight="bold" fill="#475569">Security Match Code</text>
-
-  <!-- Large Black Code Box -->
-  <rect x="180" y="${tag2Y + 135}" width="340" height="95" rx="16" fill="#000000"/>
-  <text x="350" y="${tag2Y + 202}" text-anchor="middle" font-size="56" font-weight="bold" fill="white" font-family="monospace" letter-spacing="12">${securityCode}</text>
-
-  <!-- Child Full Name -->
-  <text x="350" y="${tag2Y + 275}" text-anchor="middle" font-size="26" font-weight="bold" fill="#0F172A">${fullNameTitle}</text>
 </svg>`;
 }
 
-// Strict 7-bit ASCII PCL5 fallback (prevents UTF-8 page-break corruption)
+function generateHpGuardianTicketSvg(labelData) {
+    const fullNameTitle = (labelData.name || '');
+    const securityCode = labelData.securityCode || 'TEST';
+    const width = 700;
+    const height = 360;
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
+  <rect width="${width}" height="${height}" fill="white"/>
+  <rect x="30" y="30" width="640" height="300" rx="12" fill="white" stroke="#94A3B8" stroke-width="3" stroke-dasharray="10,6"/>
+
+  <text x="350" y="75" text-anchor="middle" font-size="22" font-weight="bold" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="50" y1="90" x2="650" y2="90" stroke="#000000" stroke-width="3"/>
+
+  <text x="350" y="140" text-anchor="middle" font-size="20" font-weight="bold" fill="#475569">Security Match Code</text>
+
+  <rect x="180" y="160" width="340" height="95" rx="16" fill="#000000"/>
+  <text x="350" y="227" text-anchor="middle" font-size="56" font-weight="bold" fill="white" font-family="monospace" letter-spacing="12">${securityCode}</text>
+
+  <text x="350" y="300" text-anchor="middle" font-size="26" font-weight="bold" fill="#0F172A">${fullNameTitle}</text>
+</svg>`;
+}
+
+// Strict 7-bit ASCII PCL5 2-page fallback (Page 1 = Child Badge, Page 2 = Guardian Ticket)
 function generatePcl5Payload(labelData) {
     const childName = labelData.name || '';
     const securityCode = labelData.securityCode || 'TEST';
@@ -272,6 +266,7 @@ function generatePcl5Payload(labelData) {
     const dDiv = '='.repeat(46) + '\r\n';
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
     return Buffer.from(
+        // PAGE 1: CHILD BADGE
         '\x1bE' +               // Reset printer
         '\x1b&l2A' +            // Letter size
         '\x1b&l0O' +            // Portrait
@@ -286,6 +281,9 @@ function generatePcl5Payload(labelData) {
         (hasAllergy ? `\r\n!! ALLERGY ALERT: ${allergies.toUpperCase()} !!\r\n` : '') +
         div +
         `Must present matching code at pick-up to claim child.\r\n\r\n` +
+        '\x0C' +                  // Eject Page 1
+
+        // PAGE 2: PRIMARY GUARDIAN CLAIM TICKET
         dDiv +
         `        PRIMARY GUARDIAN CLAIM TICKET\r\n` +
         dDiv +
@@ -294,33 +292,37 @@ function generatePcl5Payload(labelData) {
         `Date          : ${dateStr}\r\n` +
         div +
         `Present this ticket at pick-up to claim child.\r\n\r\n` +
-        '\x0C'                  // Eject single page
+        '\x0C'                  // Eject Page 2
     , 'ascii');
 }
 
 function printViaHpPrinter(labelData, printerIp, callback) {
-    const svgContent = generateHpBadgeSvg(labelData);
+    const svg1 = generateHpChildBadgeSvg(labelData);
+    const svg2 = generateHpGuardianTicketSvg(labelData);
     const tmpBase = path.join(os.tmpdir(), 'kiddo_hp_' + Date.now());
-    const tmpSvg = tmpBase + '.svg';
+    const tmpSvg1 = tmpBase + '_1.svg';
+    const tmpSvg2 = tmpBase + '_2.svg';
     const tmpPdf = tmpBase + '.pdf';
 
-    fs.writeFileSync(tmpSvg, svgContent, 'utf-8');
+    fs.writeFileSync(tmpSvg1, svg1, 'utf-8');
+    fs.writeFileSync(tmpSvg2, svg2, 'utf-8');
 
     function cleanup() {
-        try { fs.unlinkSync(tmpSvg); } catch(e) {}
+        try { fs.unlinkSync(tmpSvg1); } catch(e) {}
+        try { fs.unlinkSync(tmpSvg2); } catch(e) {}
         try { fs.unlinkSync(tmpPdf); } catch(e) {}
     }
 
     const convertCmds = [
-        'rsvg-convert -f pdf -o "' + tmpPdf + '" "' + tmpSvg + '"',
-        'python3 -c "import cairosvg; cairosvg.svg2pdf(url=\'' + tmpSvg + '\', write_to=\'' + tmpPdf + '\')"',
-        'convert "' + tmpSvg + '" "' + tmpPdf + '"'
+        'rsvg-convert -f pdf -o "' + tmpPdf + '" "' + tmpSvg1 + '" "' + tmpSvg2 + '"',
+        'python3 -c "import cairosvg; cairosvg.svg2pdf(url=\'' + tmpSvg1 + '\', write_to=\'' + tmpPdf + '\')"',
+        'convert "' + tmpSvg1 + '" "' + tmpSvg2 + '" "' + tmpPdf + '"'
     ];
 
     function tryConvert(idx) {
         if (idx >= convertCmds.length) {
             cleanup();
-            addLog('warn', 'HP PDF converter unavailable. Using 1-page 7-bit ASCII PCL5 mode...');
+            addLog('warn', 'HP PDF converter unavailable. Using 2-page 7-bit ASCII PCL5 mode...');
             sendRawPcl5(generatePcl5Payload(labelData), printerIp, callback);
             return;
         }
@@ -328,7 +330,7 @@ function printViaHpPrinter(labelData, printerIp, callback) {
         exec(convertCmds[idx], (err) => {
             if (err || !fs.existsSync(tmpPdf)) return tryConvert(idx + 1);
 
-            addLog('info', `HP Printer: Streaming 1-page PDF vector badge to tcp://${printerIp}:9100...`, { targetIp: printerIp });
+            addLog('info', `HP Printer: Streaming 2-page PDF vector badges (Page 1: Child Badge, Page 2: Guardian Ticket) to tcp://${printerIp}:9100...`, { targetIp: printerIp });
             const pdfBuffer = fs.readFileSync(tmpPdf);
             cleanup();
 
@@ -337,8 +339,8 @@ function printViaHpPrinter(labelData, printerIp, callback) {
             socket.connect(9100, printerIp, () => {
                 socket.write(pdfBuffer, () => {
                     socket.end();
-                    addLog('success', `✅ HP 1-page PDF badge printed on tcp://${printerIp}:9100!`, { targetIp: printerIp });
-                    callback && callback(null, { success: true, printer: printerIp, mode: 'hp_pdf' });
+                    addLog('success', `✅ HP 2-page PDF badge printed on tcp://${printerIp}:9100!`, { targetIp: printerIp });
+                    callback && callback(null, { success: true, printer: printerIp, mode: 'hp_pdf_2page' });
                 });
             });
             socket.on('error', (sErr) => {
@@ -363,8 +365,8 @@ function sendRawPcl5(payload, printerIp, callback) {
     socket.connect(9100, printerIp, () => {
         socket.write(payload, () => {
             socket.end();
-            addLog('success', `✅ PCL5 1-page ASCII label printed on ${printerIp}!`, { targetIp: printerIp });
-            callback && callback(null, { success: true, printer: printerIp, mode: 'pcl5_ascii' });
+            addLog('success', `✅ PCL5 2-page ASCII label printed on ${printerIp}!`, { targetIp: printerIp });
+            callback && callback(null, { success: true, printer: printerIp, mode: 'pcl5_ascii_2page' });
         });
     });
     socket.on('error', (err) => {
@@ -379,12 +381,11 @@ function sendRawPcl5(payload, printerIp, callback) {
 }
 
 
-// ─── Brother QL: SVG Label Generator ─────────────────────────────
-function generateBrotherQlSvg(labelData, labelSizeValue) {
+// ─── Brother QL: SVG Label Generators ─────────────────────────────
+function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const nameParts = (labelData.name || '').trim().split(' ');
     const firstName = (nameParts[0] || '').toUpperCase();
     const lastName = (nameParts.slice(1).join(' ') || '').toUpperCase();
-    const fullNameTitle = (labelData.name || '');
     const securityCode = labelData.securityCode || 'TEST';
     const className = labelData.class || 'General';
     const allergies = labelData.allergies || '';
@@ -392,107 +393,121 @@ function generateBrotherQlSvg(labelData, labelSizeValue) {
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
 
-    // 62mm roll = 696px printable at 300dpi; 29mm = 341px
     const width = labelSizeValue === '29' ? 341 : 696;
-    const tag1H = hasAllergy ? 380 : 320;
-    const tag2Y = tag1H + 30;
-    const svgH = tag2Y + 310;
+    const height = hasAllergy ? (lastName ? 400 : 350) : (lastName ? 330 : 280);
 
     const allergySvg = hasAllergy
         ? `<rect x="25" y="${lastName ? 195 : 155}" width="${width - 50}" height="38" rx="6" fill="#dc2626"/>
            <text x="${width/2}" y="${lastName ? 220 : 180}" text-anchor="middle" font-size="16" font-weight="bold" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
         : '';
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${svgH}" font-family="Arial,Helvetica,sans-serif">
-  <rect width="${width}" height="${svgH}" fill="white"/>
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
+  <rect width="${width}" height="${height}" fill="white"/>
+  <rect x="15" y="15" width="${width - 30}" height="${height - 30}" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
 
-  <!-- ==================== TAG 1: CHILD BADGE ==================== -->
-  <rect x="15" y="15" width="${width - 30}" height="${tag1H}" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
-
-  <!-- First Name & Last Name (Top Left) | Code Badge (Top Right) -->
   <text x="35" y="65" font-size="34" font-weight="900" fill="#0F172A">${firstName}</text>
   ${lastName ? `<text x="35" y="105" font-size="34" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
 
-  <!-- Security Code Badge (Top Right) -->
   <rect x="${width - 165}" y="40" width="130" height="52" rx="8" fill="#000000"/>
   <text x="${width - 100}" y="77" text-anchor="middle" font-size="28" font-weight="bold" fill="white" font-family="monospace">${securityCode}</text>
 
-  <!-- Divider Line -->
   <line x1="30" y1="${lastName ? 120 : 85}" x2="${width - 30}" y2="${lastName ? 120 : 85}" stroke="#000000" stroke-width="4"/>
 
-  <!-- Class & Date -->
   <text x="35" y="${lastName ? 160 : 125}" font-size="19" font-weight="bold" fill="#0F172A">Class: ${className}</text>
   <text x="${width - 35}" y="${lastName ? 160 : 125}" text-anchor="end" font-size="19" font-weight="bold" fill="#0F172A">${dateStr}</text>
 
   ${allergySvg}
 
-  <!-- Pick-Up Notice -->
   <text x="${width/2}" y="${hasAllergy ? (lastName ? 295 : 255) : (lastName ? 230 : 195)}" text-anchor="middle" font-size="15" font-weight="bold" fill="#334155">Must present matching tag for pick-up.</text>
-
-  <!-- ==================== TAG 2: GUARDIAN CLAIM TICKET ==================== -->
-  <rect x="15" y="${tag2Y}" width="${width - 30}" height="280" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
-
-  <!-- Title -->
-  <text x="${width/2}" y="${tag2Y + 38}" text-anchor="middle" font-size="19" font-weight="bold" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
-  <line x1="30" y1="${tag2Y + 50}" x2="${width - 30}" y2="${tag2Y + 50}" stroke="#000000" stroke-width="3"/>
-
-  <!-- Subtitle -->
-  <text x="${width/2}" y="${tag2Y + 92}" text-anchor="middle" font-size="17" font-weight="bold" fill="#475569">Security Match Code</text>
-
-  <!-- Large Black Code Box -->
-  <rect x="${width/2 - 130}" y="${tag2Y + 110}" width="260" height="80" rx="12" fill="#000000"/>
-  <text x="${width/2}" y="${tag2Y + 166}" text-anchor="middle" font-size="46" font-weight="bold" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
-
-  <!-- Child Full Name -->
-  <text x="${width/2}" y="${tag2Y + 238}" text-anchor="middle" font-size="22" font-weight="bold" fill="#0F172A">${fullNameTitle}</text>
 </svg>`;
 }
 
+function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
+    const fullNameTitle = (labelData.name || '');
+    const securityCode = labelData.securityCode || 'TEST';
+    const width = labelSizeValue === '29' ? 341 : 696;
+    const height = 290;
 
-// ─── Brother QL: Print via Python CLI ────────────────────────────
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
+  <rect width="${width}" height="${height}" fill="white"/>
+  <rect x="15" y="15" width="${width - 30}" height="260" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
+
+  <text x="${width/2}" y="52" text-anchor="middle" font-size="19" font-weight="bold" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="30" y1="64" x2="${width - 30}" y2="64" stroke="#000000" stroke-width="3"/>
+
+  <text x="${width/2}" y="106" text-anchor="middle" font-size="17" font-weight="bold" fill="#475569">Security Match Code</text>
+
+  <rect x="${width/2 - 130}" y="124" width="260" height="80" rx="12" fill="#000000"/>
+  <text x="${width/2}" y="180" text-anchor="middle" font-size="46" font-weight="bold" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
+
+  <text x="${width/2}" y="250" text-anchor="middle" font-size="22" font-weight="bold" fill="#0F172A">${fullNameTitle}</text>
+</svg>`;
+}
+
+// ─── Brother QL: Print via Python CLI (Prints 2 Labels & Cuts Each) ──────
 function printViaBrotherQl(labelData, printerIp, callback) {
     const labelSize = labelData.labelSize || serverConfig.defaultLabelSize || '62';
-    const svgContent = generateBrotherQlSvg(labelData, labelSize);
+    const svg1 = generateBrotherQlChildBadgeSvg(labelData, labelSize);
+    const svg2 = generateBrotherQlGuardianTicketSvg(labelData, labelSize);
     const tmpBase = path.join(os.tmpdir(), 'kiddo_label_' + Date.now());
-    const tmpSvg = tmpBase + '.svg';
-    const tmpPng = tmpBase + '.png';
+    const tmpSvg1 = tmpBase + '_1.svg';
+    const tmpPng1 = tmpBase + '_1.png';
+    const tmpSvg2 = tmpBase + '_2.svg';
+    const tmpPng2 = tmpBase + '_2.png';
 
-    fs.writeFileSync(tmpSvg, svgContent, 'utf-8');
+    fs.writeFileSync(tmpSvg1, svg1, 'utf-8');
+    fs.writeFileSync(tmpSvg2, svg2, 'utf-8');
 
     function cleanup() {
-        try { fs.unlinkSync(tmpSvg); } catch(e) {}
-        try { fs.unlinkSync(tmpPng); } catch(e) {}
+        try { fs.unlinkSync(tmpSvg1); } catch(e) {}
+        try { fs.unlinkSync(tmpPng1); } catch(e) {}
+        try { fs.unlinkSync(tmpSvg2); } catch(e) {}
+        try { fs.unlinkSync(tmpPng2); } catch(e) {}
     }
 
-    // Try multiple SVG→PNG converters in order of preference
-    const convertCmds = [
-        'rsvg-convert -o "' + tmpPng + '" "' + tmpSvg + '"',
-        'python3 -c "import cairosvg; cairosvg.svg2png(url=\'' + tmpSvg + '\', write_to=\'' + tmpPng + '\')"',
-        'convert "' + tmpSvg + '" "' + tmpPng + '"',
+    const convertCmds1 = [
+        'rsvg-convert -o "' + tmpPng1 + '" "' + tmpSvg1 + '"',
+        'python3 -c "import cairosvg; cairosvg.svg2png(url=\'' + tmpSvg1 + '\', write_to=\'' + tmpPng1 + '\')"',
+        'convert "' + tmpSvg1 + '" "' + tmpPng1 + '"'
+    ];
+    const convertCmds2 = [
+        'rsvg-convert -o "' + tmpPng2 + '" "' + tmpSvg2 + '"',
+        'python3 -c "import cairosvg; cairosvg.svg2png(url=\'' + tmpSvg2 + '\', write_to=\'' + tmpPng2 + '\')"',
+        'convert "' + tmpSvg2 + '" "' + tmpPng2 + '"'
     ];
 
-    function tryConvert(idx) {
-        if (idx >= convertCmds.length) {
-            cleanup();
-            addLog('error', 'Brother QL: SVG→PNG failed. Run: apt install librsvg2-bin  OR  pip3 install cairosvg');
-            return callback(null, { success: false, error: 'SVG to PNG conversion failed. Install librsvg2-bin or cairosvg.' });
-        }
-        exec(convertCmds[idx], (err) => {
-            if (err || !fs.existsSync(tmpPng)) return tryConvert(idx + 1);
-            const qlCmd = `brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${tmpPng}"`;
-            addLog('info', `Brother QL: Sending label to tcp://${printerIp}:9100 (${labelSize}mm)`, { targetIp: printerIp });
-            exec(qlCmd, (qlErr) => {
-                cleanup();
-                if (qlErr) {
-                    addLog('error', `Brother QL failed: ${qlErr.message}. Run: pip3 install brother_ql`);
-                    return callback(null, { success: false, error: qlErr.message });
+    function convertAndPrint() {
+        exec(convertCmds1[0], (err1) => {
+            exec(convertCmds2[0], (err2) => {
+                if (err1 || err2 || !fs.existsSync(tmpPng1) || !fs.existsSync(tmpPng2)) {
+                    cleanup();
+                    addLog('error', 'Brother QL: SVG→PNG failed. Install librsvg2-bin or cairosvg.');
+                    return callback && callback(null, { success: false, error: 'SVG to PNG conversion failed.' });
                 }
-                addLog('success', `✅ Brother QL label printed on ${printerIp} [${labelSize}mm]!`, { targetIp: printerIp });
-                callback(null, { success: true, printer: printerIp, mode: 'brother_ql', labelSize });
+
+                // Command to print Label 1 (Child Badge) and Label 2 (Guardian Ticket)
+                const qlCmd1 = `brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${tmpPng1}"`;
+                const qlCmd2 = `brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${tmpPng2}"`;
+
+                addLog('info', `Brother QL: Printing Label 1 (Child Badge) on tcp://${printerIp}:9100...`);
+                exec(qlCmd1, (pErr1) => {
+                    addLog('info', `Brother QL: Printing Label 2 (Guardian Ticket) on tcp://${printerIp}:9100...`);
+                    exec(qlCmd2, (pErr2) => {
+                        cleanup();
+                        if (pErr1 || pErr2) {
+                            const msg = (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '');
+                            addLog('error', `Brother QL print error: ${msg}`);
+                            return callback && callback(null, { success: false, error: msg });
+                        }
+                        addLog('success', `✅ Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${printerIp}!`);
+                        callback && callback(null, { success: true, printer: printerIp, mode: 'brother_ql_2label' });
+                    });
+                });
             });
         });
     }
-    tryConvert(0);
+
+    convertAndPrint();
 }
 
 // ─── Core Dispatcher ─────────────────────────────────────────────
