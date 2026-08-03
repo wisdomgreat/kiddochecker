@@ -1,5 +1,5 @@
 const express = require('express');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const bodyParser = require('body-parser');
 const os = require('os');
 const net = require('net');
@@ -47,24 +47,46 @@ function addLog(type, message, details = {}) {
 
 addLog('info', 'KiddoChecker Remote Print Server Initializing...');
 
-// ─── Persistent Server Printer Configuration ────────────────────
+// ─── Printer Model Registry ──────────────────────────────────────
+// All supported printer models. Select once from the web console;
+// the server auto-generates the correct protocol payload.
+const PRINTER_REGISTRY = [
+    { id: 'brother_ql_820', name: 'Brother QL-820NWBc / QL-820NWB', brand: 'Brother', protocol: 'brother_ql', labelSizes: [
+        { value: '62', label: 'DK-2205 - 62mm Continuous Roll (Recommended for Name Badges)' },
+        { value: '29', label: 'DK-1201 - 29mm x 90mm Address Labels' },
+        { value: '38', label: 'DK-1221 - 38mm x 38mm Square Labels' },
+        { value: '54', label: 'DK-N55224 - 54mm x 29mm Labels' },
+        { value: '102', label: 'DK-1247 - 102mm x 51mm Shipping Labels' },
+    ]},
+    { id: 'brother_ql_810', name: 'Brother QL-810W / QL-800', brand: 'Brother', protocol: 'brother_ql', labelSizes: [
+        { value: '62', label: 'DK-2205 - 62mm Continuous Roll (Recommended)' },
+        { value: '29', label: 'DK-1201 - 29mm x 90mm Address Labels' },
+        { value: '38', label: 'DK-1221 - 38mm x 38mm Square Labels' },
+    ]},
+    { id: 'epson_tm_t20',       name: 'Epson TM-T20 / TM-T88 Series',      brand: 'Epson',   protocol: 'escpos', paperWidth: 80 },
+    { id: 'star_tsp100',        name: 'Star TSP100 / TSP650 Series',        brand: 'Star',    protocol: 'escpos', paperWidth: 80 },
+    { id: 'generic_thermal_80', name: 'Generic Thermal Printer (80mm)',     brand: 'Generic', protocol: 'escpos', paperWidth: 80 },
+    { id: 'generic_thermal_58', name: 'Generic Thermal Printer (58mm)',     brand: 'Generic', protocol: 'escpos', paperWidth: 58 },
+    { id: 'hp_laserjet',        name: 'HP LaserJet / OfficeJet / DeskJet', brand: 'HP',      protocol: 'pcl5' },
+];
+
+// ─── Persistent Server Configuration ─────────────────────────────
 const CONFIG_FILE = path.join(__dirname, 'printer-config.json');
 
 let serverConfig = {
-    defaultPrinterIp: process.env.PRINTER_IP || '',
-    defaultPrinterName: process.env.PRINTER_NAME || 'Default Printer',
-    defaultPrinterType: process.env.PRINTER_TYPE || 'thermal'  // 'thermal' (ESC/POS) | 'hp' (PCL5)
+    defaultPrinterIp:    process.env.PRINTER_IP    || '',
+    defaultPrinterName:  process.env.PRINTER_NAME  || 'Default Printer',
+    defaultPrinterModel: process.env.PRINTER_MODEL || 'brother_ql_820',
+    defaultLabelSize:    process.env.LABEL_SIZE    || '62',
 };
 
 function loadServerConfig() {
     try {
         if (fs.existsSync(CONFIG_FILE)) {
-            const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
-            const parsed = JSON.parse(raw);
-            if (parsed.defaultPrinterIp !== undefined) serverConfig.defaultPrinterIp = parsed.defaultPrinterIp;
-            if (parsed.defaultPrinterName !== undefined) serverConfig.defaultPrinterName = parsed.defaultPrinterName;
-            if (parsed.defaultPrinterType !== undefined) serverConfig.defaultPrinterType = parsed.defaultPrinterType;
-            addLog('info', `Loaded config: IP="${serverConfig.defaultPrinterIp || 'None'}" Type="${serverConfig.defaultPrinterType}"`);
+            const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+            Object.keys(serverConfig).forEach(k => { if (parsed[k] !== undefined) serverConfig[k] = parsed[k]; });
+            const model = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel);
+            addLog('info', `Config loaded: IP="${serverConfig.defaultPrinterIp || 'None'}" Model="${model ? model.name : serverConfig.defaultPrinterModel}"`);
         }
     } catch (err) {
         addLog('warn', `Could not load printer-config.json: ${err.message}`);
@@ -75,10 +97,11 @@ function saveServerConfig(newConfig) {
     try {
         serverConfig = { ...serverConfig, ...newConfig };
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfig, null, 2), 'utf-8');
-        addLog('success', `Saved new server default printer config. Default IP: ${serverConfig.defaultPrinterIp}`);
+        const model = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel);
+        addLog('success', `Config saved: IP=${serverConfig.defaultPrinterIp} | Model=${model ? model.name : serverConfig.defaultPrinterModel}`);
         return true;
     } catch (err) {
-        addLog('error', `Failed to save printer-config.json: ${err.message}`);
+        addLog('error', `Failed to save config: ${err.message}`);
         return false;
     }
 }
@@ -118,211 +141,204 @@ async function pollAzureCloudPrintQueue() {
 
 setInterval(pollAzureCloudPrintQueue, 2000);
 
-// ─── Core Dispatch Printer Function (Pure Node TCP Socket) ──────
-function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
-    if (!labelData || !labelData.name) {
-        const err = new Error('Invalid or missing label data');
-        addLog('error', 'Print job rejected: Invalid label data');
-        if (callback) callback(err);
-        return;
-    }
-    
-    const childName = labelData.name;
+// ─── ESC/POS Payload Generator (Epson, Star, Generic Thermal) ────
+function generateEscPosPayload(labelData) {
+    const childName = labelData.name || '';
     const securityCode = labelData.securityCode || 'TEST';
     const className = labelData.class || 'General';
-    const allergies = labelData.allergies ? `ALLERGIES: ${labelData.allergies}` : '';
-    
-    // Priority: Kiosk Payload IP -> Server Default Fallback IP -> Env IP
-    const targetPrinterIp = (printerIp || labelData.printerIp || serverConfig.defaultPrinterIp || '').trim();
-    const targetPrinterName = (printerName || labelData.printerName || serverConfig.defaultPrinterName || '').trim();
+    const allergies = labelData.allergies || '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const LINE = '─'.repeat(32) + '\n';
+    const DBL_LINE = '═'.repeat(32) + '\n';
+    const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
+    return Buffer.from(
+        '\x1b@' + '\x1ba\x01' +
+        '\x1bE\x01\x1d!\x00' + 'KIDDOCHECKER CHECK-IN\n' + '\x1bE\x00' + LINE +
+        '\x1bE\x01\x1d!\x11' + childName.toUpperCase() + '\n' + '\x1d!\x00\x1bE\x00' + '\n' +
+        'Security Code:\n' +
+        '\x1bE\x01\x1d!\x22' + ' ' + securityCode + ' \n' + '\x1d!\x00\x1bE\x00' + '\n' +
+        '\x1ba\x00' + 'Class    : ' + className + '\n' + 'Check-in : ' + timeStr + '  ' + dateStr + '\n' +
+        (hasAllergy ? '\x1ba\x01\n' + LINE + '\x1bE\x01' + '!! ALLERGY ALERT !!\n' + allergies.toUpperCase() + '\n' + '\x1bE\x00' + LINE : '') +
+        '\x1ba\x01\n' + 'Must show code at pick-up to claim child.\n' + '\n\n' +
+        DBL_LINE + '\x1bE\x01' + 'PRIMARY GUARDIAN CLAIM TICKET\n' + '\x1bE\x00' + DBL_LINE + '\n' +
+        'Security Match Code\n\n' +
+        '\x1bE\x01\x1d!\x22' + ' ' + securityCode + ' \n' + '\x1d!\x00\x1bE\x00' + '\n' +
+        '\x1bE\x01\x1d!\x01' + childName + '\n' + '\x1d!\x00\x1bE\x00' +
+        dateStr + '\n\n' + LINE + 'Present at pick-up to claim your child.\n\n\n' +
+        '\x1dV\x41\x00'
+    , 'utf-8');
+}
 
-    addLog('info', `Dispatching print job for ${childName}`, {
-        childName,
-        targetPrinterIp: targetPrinterIp || 'None',
-        usedFallback: !printerIp && !labelData.printerIp && Boolean(serverConfig.defaultPrinterIp)
+// ─── PCL5 Payload Generator (HP Laser/Inkjet Printers) ───────────
+function generatePcl5Payload(labelData) {
+    const childName = labelData.name || '';
+    const securityCode = labelData.securityCode || 'TEST';
+    const className = labelData.class || 'General';
+    const allergies = labelData.allergies || '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const div = '─'.repeat(46) + '\r\n';
+    const dDiv = '═'.repeat(46) + '\r\n';
+    const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
+    return Buffer.from(
+        '\x1bE\x1b&l2A\x1b&l0O\x1b&l6D\x1b&a10L\x1b&l5E' +
+        '\x1b(s3B\x1b(s10V' + 'KIDDOCHECKER CHILD CHECK-IN\r\n' + '\x1b(s0B' + div +
+        '\x1b(s3B\x1b(s24V' + childName.toUpperCase() + '\r\n' + '\x1b(s0B\x1b(s10V' +
+        'Class: ' + className + '     Code: ' + '\x1b(s3B' + '[' + securityCode + ']' + '\x1b(s0B\r\n' +
+        'Date: ' + dateStr + '   Check-in: ' + timeStr + '\r\n' + div +
+        '\x1b(s9V' + 'Must present matching code at pick-up to claim child.\r\n' +
+        (hasAllergy ? '\r\n\x1b(s3B\x1b(s10V' + 'ALLERGY ALERT: ' + allergies.toUpperCase() + '\r\n' + '\x1b(s0B\x1b(s9V' : '') +
+        '\r\n\r\n' + dDiv +
+        '\x1b(s3B\x1b(s10V' + '           PRIMARY GUARDIAN CLAIM TICKET\r\n' + '\x1b(s0B' + dDiv +
+        '\x1b(s9V' + '         Security Match Code\r\n\r\n' +
+        '\x1b(s0T\x1b(s3B\x1b(s36V' + '        ' + securityCode + '\r\n' +
+        '\x1b(s4148T\x1b(s0B\x1b(s10V' + '\x1b(s3B' + '         ' + childName + '\r\n' + '\x1b(s0B' +
+        '\x1b(s9V' + '         ' + dateStr + '\r\n\r\n' + div +
+        'Present this ticket at pick-up to claim your child.\r\n\r\n' + '\x0C'
+    , 'utf-8');
+}
+
+// ─── Brother QL: SVG Label Generator ─────────────────────────────
+function generateBrotherQlSvg(labelData, labelSizeValue) {
+    const childName = labelData.name || '';
+    const securityCode = labelData.securityCode || 'TEST';
+    const className = labelData.class || 'General';
+    const allergies = labelData.allergies || '';
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
+    // 62mm roll = 696px printable at 300dpi; 29mm = 341px
+    const width = labelSizeValue === '29' ? 341 : 696;
+    const allergyBlock = hasAllergy
+        ? `<rect x="20" y="460" width="${width - 40}" height="52" rx="8" fill="#fee2e2"/>` +
+          `<text x="${width/2}" y="492" text-anchor="middle" font-size="22" font-weight="bold" fill="#dc2626">ALLERGY: ${(allergies || '').toUpperCase()}</text>`
+        : '';
+    const svgH = hasAllergy ? 560 : 520;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${svgH}" font-family="Arial,Helvetica,sans-serif">
+<rect width="${width}" height="${svgH}" fill="white"/>
+<rect width="${width}" height="50" fill="#1e293b"/>
+<text x="${width/2}" y="33" text-anchor="middle" font-size="18" font-weight="bold" fill="white">KIDDOCHECKER CHECK-IN</text>
+<line x1="20" y1="60" x2="${width-20}" y2="60" stroke="#334155" stroke-width="2"/>
+<text x="${width/2}" y="115" text-anchor="middle" font-size="42" font-weight="bold" fill="#0f172a">${childName.toUpperCase()}</text>
+<rect x="${width/2-110}" y="130" width="220" height="80" rx="10" fill="#0f172a"/>
+<text x="${width/2}" y="185" text-anchor="middle" font-size="48" font-weight="bold" fill="white" letter-spacing="8">${securityCode}</text>
+<text x="30" y="252" font-size="20" fill="#374151">Class: ${className}</text>
+<text x="30" y="278" font-size="20" fill="#374151">Check-in: ${timeStr}  |  ${dateStr}</text>
+<text x="${width/2}" y="315" text-anchor="middle" font-size="15" fill="#6b7280">Must present code at pick-up to claim child.</text>
+<line x1="20" y1="330" x2="${width-20}" y2="330" stroke="#334155" stroke-width="3" stroke-dasharray="8,4"/>
+<text x="${width/2}" y="360" text-anchor="middle" font-size="16" font-weight="bold" fill="#374151">-- PRIMARY GUARDIAN CLAIM TICKET --</text>
+<text x="${width/2}" y="390" text-anchor="middle" font-size="16" fill="#6b7280">Security Match Code</text>
+<rect x="${width/2-120}" y="400" width="240" height="72" rx="10" fill="#0f172a"/>
+<text x="${width/2}" y="454" text-anchor="middle" font-size="52" font-weight="bold" fill="white" letter-spacing="10">${securityCode}</text>
+${allergyBlock}
+<text x="${width/2}" y="${hasAllergy ? 535 : 498}" text-anchor="middle" font-size="14" fill="#9ca3af">Present at pick-up - ${childName}</text>
+</svg>`;
+}
+
+// ─── Brother QL: Print via Python CLI ────────────────────────────
+function printViaBrotherQl(labelData, printerIp, callback) {
+    const labelSize = labelData.labelSize || serverConfig.defaultLabelSize || '62';
+    const svgContent = generateBrotherQlSvg(labelData, labelSize);
+    const tmpBase = path.join(os.tmpdir(), 'kiddo_label_' + Date.now());
+    const tmpSvg = tmpBase + '.svg';
+    const tmpPng = tmpBase + '.png';
+
+    fs.writeFileSync(tmpSvg, svgContent, 'utf-8');
+
+    function cleanup() {
+        try { fs.unlinkSync(tmpSvg); } catch(e) {}
+        try { fs.unlinkSync(tmpPng); } catch(e) {}
+    }
+
+    // Try multiple SVG→PNG converters in order of preference
+    const convertCmds = [
+        'rsvg-convert -o "' + tmpPng + '" "' + tmpSvg + '"',
+        'python3 -c "import cairosvg; cairosvg.svg2png(url=\'' + tmpSvg + '\', write_to=\'' + tmpPng + '\')"',
+        'convert "' + tmpSvg + '" "' + tmpPng + '"',
+    ];
+
+    function tryConvert(idx) {
+        if (idx >= convertCmds.length) {
+            cleanup();
+            addLog('error', 'Brother QL: SVG→PNG failed. Run: apt install librsvg2-bin  OR  pip3 install cairosvg');
+            return callback(null, { success: false, error: 'SVG to PNG conversion failed. Install librsvg2-bin or cairosvg.' });
+        }
+        exec(convertCmds[idx], (err) => {
+            if (err || !fs.existsSync(tmpPng)) return tryConvert(idx + 1);
+            const qlCmd = `brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${tmpPng}"`;
+            addLog('info', `Brother QL: Sending label to tcp://${printerIp}:9100 (${labelSize}mm)`, { targetIp: printerIp });
+            exec(qlCmd, (qlErr) => {
+                cleanup();
+                if (qlErr) {
+                    addLog('error', `Brother QL failed: ${qlErr.message}. Run: pip3 install brother_ql`);
+                    return callback(null, { success: false, error: qlErr.message });
+                }
+                addLog('success', `✅ Brother QL label printed on ${printerIp} [${labelSize}mm]!`, { targetIp: printerIp });
+                callback(null, { success: true, printer: printerIp, mode: 'brother_ql', labelSize });
+            });
+        });
+    }
+    tryConvert(0);
+}
+
+// ─── Core Dispatcher ─────────────────────────────────────────────
+function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
+    if (!labelData || !labelData.name) {
+        addLog('error', 'Print job rejected: Invalid or missing label data');
+        return callback && callback(new Error('Invalid label data'));
+    }
+
+    const modelId = labelData.printerModel || serverConfig.defaultPrinterModel || 'generic_thermal_80';
+    const printerMeta = PRINTER_REGISTRY.find(p => p.id === modelId) || PRINTER_REGISTRY.find(p => p.id === 'generic_thermal_80');
+    const targetIp = (printerIp || labelData.printerIp || serverConfig.defaultPrinterIp || '').trim();
+
+    addLog('info', `Dispatching print job for "${labelData.name}"`, {
+        model: printerMeta.name,
+        protocol: printerMeta.protocol,
+        targetIp: targetIp || 'None'
     });
 
-    // 1. Dynamic Network/Wireless Printer (Direct TCP Socket on Port 9100)
-    if (targetPrinterIp) {
-        addLog('info', `Opening TCP Socket connection to ${targetPrinterIp}:9100...`, { targetIp: targetPrinterIp });
+    if (!targetIp) {
+        addLog('warn', `No Printer IP set for "${labelData.name}". Set one in the web console.`);
+        return callback && callback(null, { success: false, error: 'No printer IP configured. Set one in the web console.' });
+    }
 
-        const socket = new net.Socket();
-        socket.setTimeout(8000);
-
-        const printerType = (labelData.printerType || serverConfig.defaultPrinterType || 'thermal').toLowerCase();
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-        let printPayload;
-
-        if (printerType === 'hp' || printerType === 'pcl') {
-            // ─── PCL5 Payload — HP LaserJet / Inkjet Printers ─────────────
-            // PCL5 is the standard protocol for HP printers over port 9100.
-            const div   = `${'─'.repeat(46)}\r\n`;
-            const dDiv  = `${'═'.repeat(46)}\r\n`;
-            printPayload = Buffer.from(
-                '\x1bE' +               // Reset
-                '\x1b&l2A' +            // US Letter paper
-                '\x1b&l0O' +            // Portrait
-                '\x1b&l6D' +            // 6 LPI
-                '\x1b&a10L' +           // Left margin 10
-                '\x1b&l5E' +            // Top margin 5
-                '\x1b(s3B\x1b(s10V' + `KIDDOCHECKER CHILD CHECK-IN\r\n` + '\x1b(s0B' +
-                div +
-                '\x1b(s3B\x1b(s24V' + `${childName.toUpperCase()}\r\n` + '\x1b(s0B\x1b(s10V' +
-                `Class: ${className}     Code: ` + '\x1b(s3B' + `[${securityCode}]` + '\x1b(s0B' + `\r\n` +
-                `Date: ${dateStr}   Check-in: ${timeStr}\r\n` +
-                div +
-                '\x1b(s9V' + `Must present matching code at pick-up to claim child.\r\n` +
-                (allergies ? `\r\n` + '\x1b(s3B\x1b(s10V' + `ALLERGY ALERT: ${allergies.toUpperCase()}\r\n` + '\x1b(s0B\x1b(s9V' : '') +
-                `\r\n\r\n` +
-                dDiv +
-                '\x1b(s3B\x1b(s10V' + `           PRIMARY GUARDIAN CLAIM TICKET\r\n` + '\x1b(s0B' +
-                dDiv +
-                '\x1b(s9V' + `         Security Match Code\r\n\r\n` +
-                '\x1b(s0T\x1b(s3B\x1b(s36V' + `        ${securityCode}\r\n` +
-                '\x1b(s4148T\x1b(s0B\x1b(s10V' +
-                '\x1b(s3B' + `         ${childName}\r\n` + '\x1b(s0B' +
-                '\x1b(s9V' + `         ${dateStr}\r\n\r\n` +
-                div +
-                `Present this ticket at pick-up to claim your child.\r\n\r\n` +
-                '\x0C',  // Form feed — eject
-            'utf-8');
-        } else {
-            // ─── ESC/POS Payload — Thermal Label / Receipt Printers ───────
-            // ESC/POS is the standard for Epson, Star, Brother, Zebra ZPL-compatible,
-            // and other thermal printers over port 9100.
-            const E_INIT    = '\x1b@';       // Initialize / reset
-            const E_CENTER  = '\x1ba\x01';   // Center align
-            const E_LEFT    = '\x1ba\x00';   // Left align
-            const E_BOLD    = '\x1bE\x01';   // Bold ON
-            const E_UNBOLD  = '\x1bE\x00';   // Bold OFF
-            const E_NORMAL  = '\x1d!\x00';   // 1x1 normal size
-            const E_DBL_H   = '\x1d!\x01';   // 1x wide, 2x tall
-            const E_DBL_W   = '\x1d!\x10';   // 2x wide, 1x tall
-            const E_DBL     = '\x1d!\x11';   // 2x wide, 2x tall (child name)
-            const E_BIG     = '\x1d!\x22';   // 3x wide, 3x tall (security code)
-            const E_UNDER   = '\x1b-\x01';   // Underline ON
-            const E_UNUNDER = '\x1b-\x00';   // Underline OFF
-            const E_CUT     = '\x1dV\x41\x00'; // Full cut with feed
-            const LINE      = '─'.repeat(32) + '\n';
-            const DBL_LINE  = '═'.repeat(32) + '\n';
-
-            printPayload = Buffer.from(
-                E_INIT +
-
-                // ── SECTION 1: CHILD NAME TAG ─────────────────────────────
-                E_CENTER +
-                E_BOLD + E_NORMAL + `KIDDOCHECKER CHECK-IN\n` + E_UNBOLD +
-                LINE +
-
-                // Large child name (double width + height)
-                E_BOLD + E_DBL + `${childName.toUpperCase()}\n` + E_NORMAL + E_UNBOLD +
-                '\n' +
-
-                // Security code in a prominent block (3x size)
-                E_NORMAL + `Security Code:\n` +
-                E_BOLD + E_BIG + ` ${securityCode} \n` + E_NORMAL + E_UNBOLD +
-                '\n' +
-
-                // Class + Date details
-                E_LEFT +
-                E_NORMAL + `Class    : ${className}\n` +
-                `Check-in : ${timeStr}  ${dateStr}\n` +
-
-                // Allergies warning
-                (allergies
-                    ? E_CENTER + '\n' + LINE +
-                      E_BOLD + `!! ALLERGY ALERT !!\n${allergies.toUpperCase()}\n` + E_UNBOLD +
-                      LINE
-                    : '') +
-
-                E_CENTER + '\n' +
-                E_NORMAL + `Must show code at pick-up to claim child.\n` +
-                '\n\n' +
-
-                // ── SECTION 2: GUARDIAN CLAIM TICKET ─────────────────────
-                DBL_LINE +
-                E_BOLD + `PRIMARY GUARDIAN CLAIM TICKET\n` + E_UNBOLD +
-                DBL_LINE +
-                '\n' +
-
-                E_NORMAL + `Security Match Code\n\n` +
-
-                // Giant security code for guardian (3x size, bold)
-                E_BOLD + E_BIG + ` ${securityCode} \n` + E_NORMAL + E_UNBOLD +
-
-                '\n' +
-                E_BOLD + E_DBL_H + `${childName}\n` + E_NORMAL + E_UNBOLD +
-                `${dateStr}\n\n` +
-                LINE +
-                `Present at pick-up to claim your child.\n\n\n` +
-
-                E_CUT  // Single clean cut at the very end
-            , 'utf-8');
-        }
-
-        socket.connect(9100, targetPrinterIp, () => {
-            addLog('info', `TCP Socket Connected to ${targetPrinterIp}:9100! Transmitting ${printerType.toUpperCase()} payload...`, { targetIp: targetPrinterIp });
-            socket.write(printPayload, () => {
-                socket.end();
-                addLog('success', `✅ Name tag printed on ${targetPrinterIp} [${printerType}]!`, {
-                    childName,
-                    targetIp: targetPrinterIp
-                });
-                if (callback) callback(null, { success: true, printer: targetPrinterIp, mode: printerType });
-            });
-        });
-
-
-        socket.on('error', (err) => {
-            addLog('error', `❌ Socket error connecting to ${targetPrinterIp}:9100 - ${err.message}`, {
-                targetIp: targetPrinterIp,
-                error: err.message
-            });
-            if (callback) callback(null, { success: false, error: err.message, targetIp: targetPrinterIp });
-        });
-
-        socket.on('timeout', () => {
-            addLog('warn', `⚠️ Socket connection timed out for ${targetPrinterIp}:9100 (Unreachable or IP incorrect)`, {
-                targetIp: targetPrinterIp
-            });
-            socket.destroy();
-            if (callback) callback(null, { success: false, error: `Connection timeout to ${targetPrinterIp}` });
-        });
+    // Route to correct handler based on protocol
+    if (printerMeta.protocol === 'brother_ql') {
+        printViaBrotherQl(labelData, targetIp, callback);
         return;
     }
 
-    // 2. Fallback Warning if no IP specified anywhere
-    addLog('warn', `No Target Printer IP specified for ${childName}. (Kiosk payload was empty and no Server Default IP is set)`, {
-        childName,
-        receivedPayload: labelData
+    const payload = printerMeta.protocol === 'pcl5'
+        ? generatePcl5Payload(labelData)
+        : generateEscPosPayload(labelData);
+
+    addLog('info', `TCP Socket → ${targetIp}:9100 [${printerMeta.protocol.toUpperCase()}]...`, { targetIp });
+    const socket = new net.Socket();
+    socket.setTimeout(8000);
+    socket.connect(9100, targetIp, () => {
+        socket.write(payload, () => {
+            socket.end();
+            addLog('success', `✅ Label printed on ${targetIp} [${printerMeta.name}]!`, { targetIp });
+            callback && callback(null, { success: true, printer: targetIp, mode: printerMeta.protocol });
+        });
     });
-
-    let command = '';
-    const isWindows = process.platform === 'win32';
-
-    if (isWindows) {
-        const printText = `--- KIDDOCHECKER NAME TAG ---\nName: ${childName}\nCode: ${securityCode}\nClass: ${className}\n${allergies}\n-----------------------------`;
-        command = `powershell -Command "Out-Printer -Name '${targetPrinterName}' -InputObject '${printText}'"`;
-    } else {
-        const printText = `KIDDOCHECKER NAME TAG\nName: ${childName}\nCode: ${securityCode}\nClass: ${className}\n${allergies}`;
-        command = `echo "${printText}" | lp -d "${targetPrinterName}" 2>/dev/null || echo "${printText}"`;
-    }
-
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            addLog('warn', `System print fallback message: ${error.message}`);
-            if (callback) callback(null, { success: true, warning: error.message });
-            return;
-        }
-        addLog('success', `Printed via OS spooler fallback (${targetPrinterName})`);
-        if (callback) callback(null, { success: true, printer: targetPrinterName, mode: 'os_spooler' });
+    socket.on('error', (err) => {
+        addLog('error', `❌ Socket error ${targetIp}:9100 — ${err.message}`, { targetIp, error: err.message });
+        callback && callback(null, { success: false, error: err.message, targetIp });
+    });
+    socket.on('timeout', () => {
+        addLog('warn', `⚠️ Socket timeout ${targetIp}:9100 (Unreachable or wrong IP)`, { targetIp });
+        socket.destroy();
+        callback && callback(null, { success: false, error: `Connection timeout to ${targetIp}` });
     });
 }
 
-// ─── API Endpoints ──────────────────────────────────────────────
+// ─── API Endpoints ───────────────────────────────────────────────
 
 app.get('/health', (req, res) => {
     res.json({
@@ -348,18 +364,14 @@ app.get('/api/logs', (req, res) => {
     });
 });
 
-app.get('/api/config', (req, res) => {
-    res.json(serverConfig);
-});
+app.get('/api/printers', (req, res) => res.json({ printers: PRINTER_REGISTRY, current: serverConfig.defaultPrinterModel }));
+
+app.get('/api/config', (req, res) => res.json(serverConfig));
 
 app.post('/api/config', (req, res) => {
-    const { defaultPrinterIp, defaultPrinterName, defaultPrinterType } = req.body || {};
-    const updated = saveServerConfig({ defaultPrinterIp, defaultPrinterName, defaultPrinterType });
-    if (updated) {
-        res.json({ success: true, serverConfig });
-    } else {
-        res.status(500).json({ success: false, error: 'Failed to write configuration file' });
-    }
+    const { defaultPrinterIp, defaultPrinterName, defaultPrinterModel, defaultLabelSize } = req.body || {};
+    const updated = saveServerConfig({ defaultPrinterIp, defaultPrinterName, defaultPrinterModel, defaultLabelSize });
+    updated ? res.json({ success: true, serverConfig }) : res.status(500).json({ success: false, error: 'Failed to write config file' });
 });
 
 app.post('/print', (req, res) => {
@@ -565,22 +577,32 @@ app.get(['/', '/logs'], (req, res) => {
                             <span class="time">\${log.time}</span>
                             <strong>\${log.message}</strong>
                             \${log.details && log.details.targetIp ? '<div style="font-size:11px; color:#94a3b8; margin-top:2px;">Target IP: ' + log.details.targetIp + '</div>' : ''}
+                            \${log.details && log.details.model ? '<div style="font-size:11px; color:#6366f1;">Model: ' + log.details.model + '</div>' : ''}
                         </div>
                     \`).join('');
                 } catch(e) { }
             }
 
-            function updateTypeStyle(radio) {
-                document.querySelectorAll('input[name="printerType"]').forEach(r => {
-                    const lbl = r.parentElement;
-                    lbl.style.borderColor = r.checked ? '#6366f1' : '#334155';
-                    lbl.style.background = r.checked ? '#1e1b4b' : 'transparent';
-                });
+            function onModelChange(modelId) {
+                const REGISTRY = ${JSON.stringify(PRINTER_REGISTRY)};
+                const model = REGISTRY.find(p => p.id === modelId);
+                const isBrother = model && model.protocol === 'brother_ql';
+                const lsRow = document.getElementById('labelSizeRow');
+                const qlNote = document.getElementById('brotherQlNote');
+                if (lsRow) lsRow.style.display = isBrother ? 'block' : 'none';
+                if (qlNote) qlNote.style.display = isBrother ? 'block' : 'none';
+                if (isBrother && model.labelSizes) {
+                    const sel = document.getElementById('labelSizeSelect');
+                    if (sel) sel.innerHTML = model.labelSizes.map(s => '<option value="' + s.value + '">' + s.label + '</option>').join('');
+                }
             }
 
             async function saveDefaultConfig() {
                 const ip = document.getElementById('defaultIpInput').value.trim();
-                const printerType = document.querySelector('input[name="printerType"]:checked')?.value || 'thermal';
+                const modelSel = document.getElementById('printerModelSelect');
+                const model = modelSel ? modelSel.value : 'generic_thermal_80';
+                const labelSizeSel = document.getElementById('labelSizeSelect');
+                const labelSize = labelSizeSel ? labelSizeSel.value : '62';
                 const resDiv = document.getElementById('configResult');
                 resDiv.innerText = 'Saving...';
                 resDiv.style.color = '#f59e0b';
@@ -589,19 +611,19 @@ app.get(['/', '/logs'], (req, res) => {
                     const res = await fetch('/api/config', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ defaultPrinterIp: ip, defaultPrinterType: printerType })
+                        body: JSON.stringify({ defaultPrinterIp: ip, defaultPrinterModel: model, defaultLabelSize: labelSize })
                     });
                     const data = await res.json();
                     if (data.success) {
-                        resDiv.innerText = `✅ Saved! IP: ${ip} | Type: ${printerType.toUpperCase()}`;
+                        resDiv.innerText = 'Saved! IP: ' + ip + ' | Model: ' + model;
                         resDiv.style.color = '#10b981';
                         document.getElementById('testIp').value = ip;
                     } else {
-                        resDiv.innerText = '❌ Failed to save config';
+                        resDiv.innerText = 'Failed to save config';
                         resDiv.style.color = '#ef4444';
                     }
                 } catch(e) {
-                    resDiv.innerText = '❌ Error saving: ' + e.message;
+                    resDiv.innerText = 'Error saving: ' + e.message;
                     resDiv.style.color = '#ef4444';
                 }
                 setTimeout(fetchLogs, 1000);
@@ -622,14 +644,14 @@ app.get(['/', '/logs'], (req, res) => {
                     });
                     const data = await res.json();
                     if (data.success) {
-                        resDiv.innerText = '✅ Test Print Dispatched to ' + ip;
+                        resDiv.innerText = 'Test Print Dispatched to ' + ip;
                         resDiv.style.color = '#10b981';
                     } else {
-                        resDiv.innerText = '❌ Failed: ' + (data.error || 'Unknown error');
+                        resDiv.innerText = 'Failed: ' + (data.error || 'Unknown error');
                         resDiv.style.color = '#ef4444';
                     }
                 } catch(e) {
-                    resDiv.innerText = '❌ Error: ' + e.message;
+                    resDiv.innerText = 'Error: ' + e.message;
                     resDiv.style.color = '#ef4444';
                 }
                 setTimeout(fetchLogs, 1000);
@@ -637,21 +659,21 @@ app.get(['/', '/logs'], (req, res) => {
 
             async function scanNetworkPrinters() {
                 const resDiv = document.getElementById('testResult');
-                resDiv.innerText = '🔍 Scanning local subnet for wireless printers on port 9100...';
+                resDiv.innerText = 'Scanning local subnet for printers on port 9100...';
                 resDiv.style.color = '#f59e0b';
                 try {
                     const res = await fetch('/api/scan-printers');
                     const data = await res.json();
                     if (data.printers && data.printers.length > 0) {
-                        resDiv.innerText = '✅ Found ' + data.printers.length + ' printer(s): ' + data.printers.join(', ');
+                        resDiv.innerText = 'Found ' + data.printers.length + ' printer(s): ' + data.printers.join(', ');
                         resDiv.style.color = '#10b981';
                         document.getElementById('testIp').value = data.printers[0];
                     } else {
-                        resDiv.innerText = '⚠️ No printers found listening on Port 9100 in ' + data.subnet + '.x subnet.';
+                        resDiv.innerText = 'No printers found on Port 9100 in ' + data.subnet + '.x subnet.';
                         resDiv.style.color = '#f59e0b';
                     }
                 } catch(e) {
-                    resDiv.innerText = '❌ Scan error: ' + e.message;
+                    resDiv.innerText = 'Scan error: ' + e.message;
                     resDiv.style.color = '#ef4444';
                 }
                 setTimeout(fetchLogs, 1000);
@@ -668,21 +690,22 @@ app.get(['/', '/logs'], (req, res) => {
 
 app.listen(PORT, HOST, () => {
     const localIps = getLocalIpAddresses();
+    const model = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel);
     addLog('info', `Server listening on http://${HOST}:${PORT}`);
     console.log(`
     ===================================================================
-    🖨️  KiddoChecker Remote Multi-Printer Server & Web Dashboard
+    KiddoChecker Multi-Printer Server & Web Dashboard
     ===================================================================
-    OS Platform : ${process.platform} (${os.release()})
-    Status      : Listening on http://${HOST}:${PORT}
-    Cloud Relay : Polling Azure API (${AZURE_API_URL})
-    Default IP  : ${serverConfig.defaultPrinterIp || 'None (Set via Web Console)'}
+    OS Platform  : ${process.platform} (${os.release()})
+    Status       : Listening on http://${HOST}:${PORT}
+    Cloud Relay  : Polling Azure API (${AZURE_API_URL})
+    Active Model : ${model ? model.name : serverConfig.defaultPrinterModel} [${model ? model.protocol : '?'}]
+    Default IP   : ${serverConfig.defaultPrinterIp || 'None (Set via Web Console)'}
     
-    🌐 OPEN PRINT SERVER WEB CONSOLE & LOGS IN YOUR BROWSER:
-    ${localIps.map(ip => `   👉 http://${ip}:${PORT}`).join('\n')}
+    Open Web Console in browser:
+    ${localIps.map(ip => `   http://${ip}:${PORT}`).join('\n')}
 
-    Multi-Printer Dynamic TCP Socket Support:
-    - Send target printer IP in "printerIp" field or rely on Server Default.
+    Supported: ${PRINTER_REGISTRY.length} models across ${[...new Set(PRINTER_REGISTRY.map(p => p.brand))].length} brands
     ===================================================================
     `);
 });
