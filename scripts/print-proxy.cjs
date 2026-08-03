@@ -147,17 +147,45 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
         const socket = new net.Socket();
         socket.setTimeout(5000);
 
+        const escInit = '\x1b@';
+        const escCenter = '\x1ba\x01';
+        const escLeft = '\x1ba\x00';
+        const escBoldOn = '\x1bE\x01';
+        const escBoldOff = '\x1bE\x00';
+        const escDoubleSize = '\x1d!\x11'; // Double Width & Height for Child Name
+        const escTripleSize = '\x1d!\x22'; // Triple Size for Pickup Code
+        const escNormalSize = '\x1d!\x00';
+        const escCut = '\x1dV1';
+
         const printPayload = 
-            `\x1b@` + // ESC/POS Initialize
-            `=====================================\n` +
-            `       KIDDOCHECKER NAME TAG         \n` +
-            `=====================================\n` +
-            `CHILD : ${childName}\n` +
-            `CODE  : ${securityCode}\n` +
-            `CLASS : ${className}\n` +
-            (allergies ? `${allergies}\n` : '') +
-            `DATE  : ${new Date().toLocaleString()}\n` +
-            `=====================================\n\n\n\x1dV1`; // Cut paper
+            escInit +
+            escCenter +
+            `******************************************\n` +
+            escBoldOn + `   KIDDOCHECKER CHILD BADGE   \n` + escBoldOff +
+            `******************************************\n\n` +
+            
+            // Large Bold Child Name
+            escBoldOn + escDoubleSize + `${childName.toUpperCase()}\n` + escNormalSize + escBoldOff +
+            `\n` +
+            
+            // Large Security Pickup Code
+            `------------------------------------------\n` +
+            `PICKUP CODE: ` + escBoldOn + escTripleSize + `[ ${securityCode} ]\n` + escNormalSize + escBoldOff +
+            `------------------------------------------\n\n` +
+            
+            // Class Info & Details
+            escLeft +
+            `CLASSROOM : ${className}\n` +
+            `CHECK-IN  : ${new Date().toLocaleTimeString()}\n` +
+            `DATE      : ${new Date().toLocaleDateString()}\n` +
+            
+            // Allergies Warning Box if present
+            (allergies ? `\n******************************************\n⚠️ ${allergies.toUpperCase()}\n******************************************\n` : '') +
+            
+            `\n\n` +
+            escCenter + `Please present code at pickup to claim child.\n` +
+            `------------------------------------------\n\n\n` +
+            escCut;
 
         socket.connect(9100, targetPrinterIp, () => {
             addLog('info', `TCP Socket Connected to ${targetPrinterIp}:9100! Transmitting data...`, { targetIp: targetPrinterIp });
