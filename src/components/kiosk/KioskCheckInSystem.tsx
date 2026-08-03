@@ -164,6 +164,8 @@ const KioskCheckInSystem = () => {
   const [canManageKiosk, setCanManageKiosk] = useState(false);
   const [staffPinInput, setStaffPinInput] = useState('');
   const [staffPinError, setStaffPinError] = useState('');
+  const [staffSearchTerm, setStaffSearchTerm] = useState('');
+  const [staffSearchResults, setStaffSearchResults] = useState<Child[]>([]);
   const [staffShifts, setStaffShifts] = useState<any[]>([]);
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
   const [isRegisteringNFC, setIsRegisteringNFC] = useState<string | null>(null);
