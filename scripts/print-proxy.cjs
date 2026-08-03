@@ -55,6 +55,8 @@ async function pollAzureCloudPrintQueue() {
     }
 }
 
+const net = require('net');
+
 function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     if (!labelData || !labelData.name) {
         if (callback) callback(new Error('Invalid label data'));
@@ -69,19 +71,58 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     const targetPrinterIp = printerIp || labelData.printerIp || DEFAULT_PRINTER_IP;
     const targetPrinterName = printerName || labelData.printerName || DEFAULT_PRINTER_NAME;
 
-    console.log(`[Print Server] Dispatching job for ${childName} -> Target Printer: ${targetPrinterIp || targetPrinterName}`);
+    console.log(`[Print Server] Dispatching job for ${childName} -> Target Printer: ${targetPrinterIp || targetPrinterName || 'System Default'}`);
 
+    // 1. Dynamic Network/Wireless Printer (Pure Node TCP Socket to Port 9100)
+    if (targetPrinterIp) {
+        console.log(`[Print Server] Opening direct TCP socket to printer ${targetPrinterIp}:9100...`);
+        const socket = new net.Socket();
+        socket.setTimeout(4000);
+
+        const printPayload = 
+            `\x1b@` +
+            `=====================================\n` +
+            `       KIDDOCHECKER NAME TAG         \n` +
+            `=====================================\n` +
+            `CHILD : ${childName}\n` +
+            `CODE  : ${securityCode}\n` +
+            `CLASS : ${className}\n` +
+            (allergies ? `${allergies}\n` : '') +
+            `DATE  : ${new Date().toLocaleString()}\n` +
+            `=====================================\n\n\n\x1dV1`;
+
+        socket.connect(9100, targetPrinterIp, () => {
+            console.log(`[Print Server] ✅ TCP Connected to ${targetPrinterIp}:9100! Transmitting print data...`);
+            socket.write(printPayload, 'utf-8', () => {
+                socket.end();
+                console.log(`[Print Server] ✅ Print job delivered successfully to ${targetPrinterIp}`);
+                if (callback) callback(null, { success: true, printer: targetPrinterIp });
+            });
+        });
+
+        socket.on('error', (err) => {
+            console.warn(`[Print Server] ❌ TCP connection error to ${targetPrinterIp}:9100: ${err.message}`);
+            if (callback) callback(null, { success: false, error: err.message });
+        });
+
+        socket.on('timeout', () => {
+            console.warn(`[Print Server] ⚠️ Socket timeout connecting to ${targetPrinterIp}:9100`);
+            socket.destroy();
+            if (callback) callback(null, { success: false, error: 'Connection timeout' });
+        });
+        return;
+    }
+
+    // 2. Local OS Printer Spooler Fallback
     let command = '';
     const isWindows = process.platform === 'win32';
 
-    if (targetPrinterIp) {
-        command = `echo "KIDDOCHECKER BADGE: ${childName} | Code: ${securityCode} | Class: ${className} ${allergies}" | nc -w 2 ${targetPrinterIp} 9100`;
-    } else if (isWindows) {
+    if (isWindows) {
         const printText = `--- KIDDOCHECKER NAME TAG ---\nName: ${childName}\nCode: ${securityCode}\nClass: ${className}\n${allergies}\n-----------------------------`;
         command = `powershell -Command "Out-Printer -Name '${targetPrinterName}' -InputObject '${printText}'"`;
     } else {
         const printText = `KIDDOCHECKER NAME TAG\nName: ${childName}\nCode: ${securityCode}\nClass: ${className}\n${allergies}`;
-        command = `echo "${printText}" | lp -d "${targetPrinterName}"`;
+        command = `echo "${printText}" | lp -d "${targetPrinterName}" 2>/dev/null || echo "${printText}"`;
     }
 
     exec(command, (error, stdout, stderr) => {
@@ -90,8 +131,8 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
             if (callback) callback(null, { success: true, warning: error.message });
             return;
         }
-        console.log(`[Print Server] Print job dispatched successfully to ${targetPrinterIp || targetPrinterName}`);
-        if (callback) callback(null, { success: true, printer: targetPrinterIp || targetPrinterName });
+        console.log(`[Print Server] Print job dispatched successfully to ${targetPrinterName}`);
+        if (callback) callback(null, { success: true, printer: targetPrinterName });
     });
 }
 

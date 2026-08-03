@@ -69,6 +69,39 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     const safeClassName = className ? DOMPurify.sanitize(className) : '';
     const safeInstructions = specialInstructions ? DOMPurify.sanitize(specialInstructions) : '';
 
+    const targetPrinterIp = localStorage.getItem('kiddochecker_target_printer_ip') || '';
+    const targetPrinterName = localStorage.getItem('kiddochecker_target_printer_name') || '';
+
+    // 1. Primary: Enqueue to Azure Cloud Relay (Immune to browser CORS / Mixed Content)
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+      const cloudRes = await fetch(`${baseUrl}/api/print-jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          labelData: {
+            name: `${safeFirstName} ${safeLastName}`,
+            allergies: safeAllergies,
+            class: safeClassName,
+            instructions: safeInstructions,
+            securityCode: displayCode,
+            qrData: qrData
+          },
+          printerIp: targetPrinterIp,
+          printerName: targetPrinterName
+        }),
+      });
+
+      if (cloudRes.ok) {
+        console.log('[Printer] Silent print job enqueued via Azure Cloud Relay.');
+        setTimeout(onClose, 1500);
+        return;
+      }
+    } catch (cErr) {
+      console.warn('[Printer] Azure Cloud Relay unreachable, trying direct local print proxy:', cErr);
+    }
+
+    // 2. Secondary: Direct Local Print Proxy
     console.log('[Printer] Attempting silent network printing via proxy...');
     try {
       const proxyUrl = getPrintProxyUrl();
@@ -83,12 +116,14 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             instructions: safeInstructions,
             securityCode: displayCode,
             qrData: qrData
-          }
+          },
+          printerIp: targetPrinterIp,
+          printerName: targetPrinterName
         }),
       });
 
       if (response.ok) {
-        console.log('[Printer] Silent print successful via proxy.');
+        console.log('[Printer] Silent print successful via local proxy.');
         setTimeout(onClose, 1500);
         return;
       }
