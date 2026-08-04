@@ -486,8 +486,13 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                 }
 
                 // Command to print Label 1 (Child Badge) and Label 2 (Guardian Ticket)
-                const qlCmd1 = `brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${tmpPng1}"`;
-                const qlCmd2 = `brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${tmpPng2}"`;
+                // Supports PATH binary, /usr/local/bin, ~/.local/bin, and python3 -m brother_ql module fallbacks
+                const getQlCmd = (pngFile) => {
+                    return `(brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql.cli --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
+                };
+
+                const qlCmd1 = getQlCmd(tmpPng1);
+                const qlCmd2 = getQlCmd(tmpPng2);
 
                 addLog('info', `Brother QL: Printing Label 1 (Child Badge) on tcp://${printerIp}:9100...`);
                 exec(qlCmd1, (pErr1) => {
