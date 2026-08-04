@@ -506,7 +506,8 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                 const qlModel = (modelId === 'brother_ql_810' ? 'QL-810W' : 'QL-820NWB');
 
                 const getQlCmd = (pngFile) => {
-                    return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql.cli --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
+                    const pyPatch = `import PIL.Image; PIL.Image.ANTIALIAS = getattr(PIL.Image, 'LANCZOS', getattr(getattr(PIL.Image, 'Resampling', {}), 'LANCZOS', None)); from brother_ql.cli import main; import sys; sys.argv=['brother_ql', '--model', '${qlModel}', '--backend', 'network', '--printer', 'tcp://${printerIp}:9100', 'print', '--label', '${labelSize}', '--rotate', 'auto', '${pngFile}']; main()`;
+                    return `(python3 -c "${pyPatch}" || brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
                 };
 
                 const qlCmd1 = getQlCmd(tmpPng1);
