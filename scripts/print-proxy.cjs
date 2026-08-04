@@ -116,8 +116,14 @@ function pollAzureCloudPrintQueue() {
     try {
         const https = require('https');
         const pollUrl = `${AZURE_API_URL}/api/print-jobs/poll`;
+        const urlObj = new URL(pollUrl);
 
-        https.get(pollUrl, (res) => {
+        const req = https.get({
+            hostname: urlObj.hostname,
+            path: urlObj.pathname + urlObj.search,
+            port: 443,
+            timeout: 4000,  // 4-second hard timeout — prevents blocking the event loop
+        }, (res) => {
             let rawData = '';
             res.on('data', chunk => rawData += chunk);
             res.on('end', () => {
@@ -146,18 +152,27 @@ function pollAzureCloudPrintQueue() {
                     cloudRelayStatus.lastError = e.message;
                 }
             });
-        }).on('error', (err) => {
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            cloudRelayStatus.active = false;
+            cloudRelayStatus.lastError = 'Poll timeout (4s)';
+        });
+
+        req.on('error', (err) => {
             cloudRelayStatus.active = false;
             cloudRelayStatus.lastError = err.message;
         });
+
     } catch (err) {
         cloudRelayStatus.active = false;
         cloudRelayStatus.lastError = err.message;
     }
 }
 
-// Start polling Azure Cloud Queue every 1.5 seconds
-setInterval(pollAzureCloudPrintQueue, 1500);
+// Poll every 5 seconds (was 1.5s — reduced to prevent network saturation)
+setInterval(pollAzureCloudPrintQueue, 5000);
 addLog('info', `Azure Cloud Relay polling initialized (${AZURE_API_URL})`);
 
 
