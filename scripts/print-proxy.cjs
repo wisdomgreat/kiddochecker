@@ -917,7 +917,7 @@ app.get(['/', '/logs'], (req, res) => {
                         box.innerHTML = data.logs.map(log => {
                             const jobId = log.details && log.details.jobId ? log.details.jobId : '';
                             const isFail = log.type === 'error' || log.type === 'warn';
-                            const retryBtn = (jobId && isFail) ? '<button onclick="reprintJob(\'' + jobId + '\')" style="background:#ef4444; width:auto; padding:3px 8px; font-size:11px; margin-left:8px; display:inline-block;">🔁 Retry Print</button>' : '';
+                            const retryBtn = (jobId && isFail) ? '<button onclick="reprintJob(&quot;' + jobId + '&quot;)" style="background:#ef4444; width:auto; padding:3px 8px; font-size:11px; margin-left:8px; display:inline-block;">🔁 Retry Print</button>' : '';
                             return '<div class="log-entry ' + log.type + '">' +
                                 '<span class="time">' + log.time + '</span>' +
                                 '<strong>' + log.message + '</strong>' + retryBtn +
@@ -939,7 +939,7 @@ app.get(['/', '/logs'], (req, res) => {
                                     '<div style="color:#64748b; font-size:11px;">' + job.time + ' | ' + (job.className || 'General') + ' | IP: ' + job.targetIp + ' | ' + statusBadge + '</div>' +
                                 '</div>' +
                                 '<div>' +
-                                    '<button onclick="reprintJob(\'' + job.id + '\')" style="background:#2563eb; width:auto; padding:6px 12px; font-size:12px; margin:0;">🔁 Reprint Badge</button>' +
+                                    '<button onclick="reprintJob(&quot;' + job.id + '&quot;)" style="background:#2563eb; width:auto; padding:6px 12px; font-size:12px; margin:0;">🔁 Reprint Badge</button>' +
                                 '</div>' +
                             '</div>';
                         }).join('');
