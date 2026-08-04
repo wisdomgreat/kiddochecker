@@ -836,7 +836,7 @@ app.get(['/', '/logs'], (req, res) => {
                         ⚠️ <strong>Brother QL Requirement:</strong><br>
                         Run once on your print server:<br>
                         <code>apt install librsvg2-bin -y</code><br>
-                        <code>pip3 install brother_ql</code>
+                        <code>pip3 install brother_ql cairosvg --break-system-packages</code>
                     </div>
 
                     <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">DEFAULT PRINTER IP ADDRESS:</label>
