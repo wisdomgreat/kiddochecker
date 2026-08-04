@@ -486,9 +486,12 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                 }
 
                 // Command to print Label 1 (Child Badge) and Label 2 (Guardian Ticket)
-                // Supports PATH binary, /usr/local/bin, ~/.local/bin, and python3 -m brother_ql module fallbacks
+                // Maps server printer model selection to exact brother_ql --model CLI flag
+                const modelId = serverConfig.defaultPrinterModel || 'brother_ql_820';
+                const qlModel = (modelId === 'brother_ql_810' ? 'QL-810W' : 'QL-820NWB');
+
                 const getQlCmd = (pngFile) => {
-                    return `(brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql.cli --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
+                    return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql.cli --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
                 };
 
                 const qlCmd1 = getQlCmd(tmpPng1);
