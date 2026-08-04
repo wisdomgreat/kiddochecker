@@ -876,11 +876,15 @@ app.get(['/', '/logs'], (req, res) => {
             </div>
         </div>
 
-
         <script>
             async function fetchLogs() {
                 try {
-                    const res = await fetch('/api/logs');
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 5000);
+                    const res = await fetch('/api/logs', { signal: controller.signal });
+                    clearTimeout(timeout);
+
+                    if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
                     const data = await res.json();
                     
                     document.getElementById('uptime').innerText = Math.floor(data.uptimeSeconds / 60) + ' mins ' + (data.uptimeSeconds % 60) + ' secs';
@@ -892,8 +896,8 @@ app.get(['/', '/logs'], (req, res) => {
                     }
 
                     const box = document.getElementById('log-box');
-                    if (data.logs.length === 0) {
-                        box.innerHTML = '<div style="color:#94a3b8; padding:12px;">No logs recorded yet.</div>';
+                    if (!data.logs || data.logs.length === 0) {
+                        box.innerHTML = '<div style="color:#94a3b8; padding:12px;">✅ Server connected. No print jobs yet — waiting for activity...</div>';
                     } else {
                         box.innerHTML = data.logs.map(log => {
                             const jobId = log.details && log.details.jobId ? log.details.jobId : '';
@@ -925,7 +929,15 @@ app.get(['/', '/logs'], (req, res) => {
                             '</div>';
                         }).join('');
                     }
-                } catch(e) { }
+                } catch(e) {
+                    const box = document.getElementById('log-box');
+                    if (box) {
+                        box.innerHTML = '<div style="color:#ef4444; padding:12px; font-size:12px; border:1px solid #ef4444; border-radius:6px;">' +
+                            '<strong>⚠️ Failed to load server logs:</strong> ' + e.message +
+                            '<br><br><span style="color:#64748b;">Retrying automatically every 3 seconds...</span>' +
+                        '</div>';
+                    }
+                }
             }
 
             async function reprintJob(jobId) {
