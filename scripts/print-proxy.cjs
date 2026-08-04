@@ -1054,7 +1054,7 @@ app.get(['/', '/logs'], (req, res) => {
     res.send(html);
 });
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
     const localIps = getLocalIpAddresses();
     const model = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel);
     addLog('info', `Server listening on http://${HOST}:${PORT}`);
@@ -1074,4 +1074,12 @@ app.listen(PORT, HOST, () => {
     Supported: ${PRINTER_REGISTRY.length} models across ${[...new Set(PRINTER_REGISTRY.map(p => p.brand))].length} brands
     ===================================================================
     `);
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`❌ [Fatal Error] Port ${PORT} is already in use by another process. Run: fuser -k ${PORT}/tcp or killall node`);
+    } else {
+        console.error(`❌ [Fatal Error] Server error:`, err);
+    }
 });
