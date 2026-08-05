@@ -63,15 +63,22 @@ autoPatchBrotherQl();
 // the server auto-generates the correct protocol payload.
 const PRINTER_REGISTRY = [
     { id: 'brother_ql_820', name: 'Brother QL-820NWBc / QL-820NWB', brand: 'Brother', protocol: 'brother_ql', labelSizes: [
-        { value: '62', label: 'DK-2205 - 62mm Continuous Roll (Recommended for Name Badges)' },
-        { value: '29', label: 'DK-1201 - 29mm x 90mm Address Labels' },
+        { value: '62', label: 'DK-2205 - 62mm Continuous Black/White Roll' },
+        { value: '62red', label: 'DK-2251 / DK-22251 - 62mm Continuous Black/Red Roll (Starter Roll)' },
+        { value: '29', label: 'DK-1201 - 29mm x 90mm Standard Address Labels' },
+        { value: '62x100', label: 'DK-1202 - 62mm x 100mm Large Address Labels' },
+        { value: '62x29', label: 'DK-1204 - 62mm x 29mm Multi-Purpose Labels' },
+        { value: '29x62', label: 'DK-1209 - 29mm x 62mm Small Address Labels' },
         { value: '38', label: 'DK-1221 - 38mm x 38mm Square Labels' },
-        { value: '54', label: 'DK-N55224 - 54mm x 29mm Labels' },
+        { value: '54', label: 'DK-N55224 - 54mm Continuous Roll' },
         { value: '102', label: 'DK-1247 - 102mm x 51mm Shipping Labels' },
     ]},
     { id: 'brother_ql_810', name: 'Brother QL-810W / QL-800', brand: 'Brother', protocol: 'brother_ql', labelSizes: [
-        { value: '62', label: 'DK-2205 - 62mm Continuous Roll (Recommended)' },
-        { value: '29', label: 'DK-1201 - 29mm x 90mm Address Labels' },
+        { value: '62', label: 'DK-2205 - 62mm Continuous Black/White Roll' },
+        { value: '62red', label: 'DK-2251 / DK-22251 - 62mm Continuous Black/Red Roll (Starter Roll)' },
+        { value: '29', label: 'DK-1201 - 29mm x 90mm Standard Address Labels' },
+        { value: '62x100', label: 'DK-1202 - 62mm x 100mm Large Address Labels' },
+        { value: '62x29', label: 'DK-1204 - 62mm x 29mm Multi-Purpose Labels' },
         { value: '38', label: 'DK-1221 - 38mm x 38mm Square Labels' },
     ]},
     { id: 'epson_tm_t20',       name: 'Epson TM-T20 / TM-T88 Series',      brand: 'Epson',   protocol: 'escpos', paperWidth: 80 },
