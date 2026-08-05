@@ -491,57 +491,58 @@ function printViaBrotherQl(labelData, printerIp, callback) {
         try { fs.unlinkSync(tmpPng2); } catch(e) {}
     }
 
-    const convertCmds1 = [
-        'rsvg-convert -o "' + tmpPng1 + '" "' + tmpSvg1 + '"',
-        'python3 -c "import cairosvg; cairosvg.svg2png(url=\'' + tmpSvg1 + '\', write_to=\'' + tmpPng1 + '\')"',
-        'convert "' + tmpSvg1 + '" "' + tmpPng1 + '"'
-    ];
-    const convertCmds2 = [
-        'rsvg-convert -o "' + tmpPng2 + '" "' + tmpSvg2 + '"',
-        'python3 -c "import cairosvg; cairosvg.svg2png(url=\'' + tmpSvg2 + '\', write_to=\'' + tmpPng2 + '\')"',
-        'convert "' + tmpSvg2 + '" "' + tmpPng2 + '"'
-    ];
+    function convertSvgToPng(svgPath, pngPath, cb) {
+        const cmds = [
+            `rsvg-convert -o "${pngPath}" "${svgPath}"`,
+            `cairosvg "${svgPath}" -o "${pngPath}"`,
+            `python3 -c "import cairosvg; cairosvg.svg2png(url='${svgPath}', write_to='${pngPath}')"`,
+            `convert "${svgPath}" "${pngPath}"`
+        ];
 
-    function convertAndPrint() {
-        exec(convertCmds1[0], (err1) => {
-            exec(convertCmds2[0], (err2) => {
-                if (err1 || err2 || !fs.existsSync(tmpPng1) || !fs.existsSync(tmpPng2)) {
+        function tryCmd(idx) {
+            if (idx >= cmds.length) return cb(new Error('SVG to PNG conversion unavailable'));
+            exec(cmds[idx], (err) => {
+                if (!err && fs.existsSync(pngPath) && fs.statSync(pngPath).size > 0) return cb(null);
+                tryCmd(idx + 1);
+            });
+        }
+        tryCmd(0);
+    }
+
+    convertSvgToPng(tmpSvg1, tmpPng1, (err1) => {
+        convertSvgToPng(tmpSvg2, tmpPng2, (err2) => {
+            if (err1 || err2) {
+                cleanup();
+                addLog('warn', 'Brother QL: SVG→PNG tools unavailable. Falling back to direct TCP socket payload...');
+                return sendRawEscPosPayload(generateEscPosPayload(labelData), printerIp, callback);
+            }
+
+            const modelId = serverConfig.defaultPrinterModel || 'brother_ql_820';
+            const qlModel = (modelId === 'brother_ql_810' ? 'QL-810W' : 'QL-820NWB');
+
+            const getQlCmd = (pngFile) => {
+                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
+            };
+
+            const qlCmd1 = getQlCmd(tmpPng1);
+            const qlCmd2 = getQlCmd(tmpPng2);
+
+            addLog('info', `Brother QL: Printing Label 1 (Child Badge) on tcp://${printerIp}:9100...`);
+            exec(qlCmd1, (pErr1) => {
+                addLog('info', `Brother QL: Printing Label 2 (Guardian Ticket) on tcp://${printerIp}:9100...`);
+                exec(qlCmd2, (pErr2) => {
                     cleanup();
-                    addLog('error', 'Brother QL: SVG→PNG failed. Install librsvg2-bin or cairosvg.');
-                    return callback && callback(null, { success: false, error: 'SVG to PNG conversion failed.' });
-                }
-
-                // Command to print Label 1 (Child Badge) and Label 2 (Guardian Ticket)
-                // Maps server printer model selection to exact brother_ql --model CLI flag
-                const modelId = serverConfig.defaultPrinterModel || 'brother_ql_820';
-                const qlModel = (modelId === 'brother_ql_810' ? 'QL-810W' : 'QL-820NWB');
-
-                const getQlCmd = (pngFile) => {
-                    return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
-                };
-
-                const qlCmd1 = getQlCmd(tmpPng1);
-                const qlCmd2 = getQlCmd(tmpPng2);
-
-                addLog('info', `Brother QL: Printing Label 1 (Child Badge) on tcp://${printerIp}:9100...`);
-                exec(qlCmd1, (pErr1) => {
-                    addLog('info', `Brother QL: Printing Label 2 (Guardian Ticket) on tcp://${printerIp}:9100...`);
-                    exec(qlCmd2, (pErr2) => {
-                        cleanup();
-                        if (pErr1 || pErr2) {
-                            const msg = (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '');
-                            addLog('error', `Brother QL print error: ${msg}`);
-                            return callback && callback(null, { success: false, error: msg });
-                        }
-                        addLog('success', `✅ Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${printerIp}!`);
-                        callback && callback(null, { success: true, printer: printerIp, mode: 'brother_ql_2label' });
-                    });
+                    if (pErr1 || pErr2) {
+                        const msg = (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '');
+                        addLog('warn', `Brother QL CLI warning (${msg.substring(0, 100)}...). Streaming direct TCP socket fallback to ${printerIp}:9100...`);
+                        return sendRawEscPosPayload(generateEscPosPayload(labelData), printerIp, callback);
+                    }
+                    addLog('success', `✅ Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${printerIp}!`);
+                    callback && callback(null, { success: true, printer: printerIp, mode: 'brother_ql_2label' });
                 });
             });
         });
-    }
-
-    convertAndPrint();
+    });
 }
 
 // ─── Print Job History & Reprint Queue ────────────────────────────
