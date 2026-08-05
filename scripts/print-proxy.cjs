@@ -735,7 +735,8 @@ app.post('/api/test-print', (req, res) => {
         name: childName || 'TEST BADGE',
         securityCode: 'T999',
         class: 'Test Room',
-        allergies: 'None'
+        allergies: 'None',
+        labelSize: serverConfig.defaultLabelSize || '62'
     };
     dispatchPrintCommand(testData, targetIp, '', (err, result) => {
         if (err) return res.status(400).json({ success: false, error: err.message });
