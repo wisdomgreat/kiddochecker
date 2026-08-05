@@ -526,9 +526,11 @@ function printViaBrotherQl(labelData, printerIp, callback) {
 
             const modelId = serverConfig.defaultPrinterModel || 'brother_ql_820';
             const qlModel = (modelId === 'brother_ql_810' ? 'QL-810W' : 'QL-820NWB');
+            const isRed = (labelSize === '62red' || labelSize.includes('red'));
+            const redFlag = isRed ? ' --red' : '';
 
             const getQlCmd = (pngFile) => {
-                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
+                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}")`;
             };
 
             const qlCmd1 = getQlCmd(tmpPng1);
