@@ -563,6 +563,71 @@ const KioskCheckInSystem = () => {
     } finally { setIsLoading(false); }
   };
 
+  const handleQRScan = async (scannedData: string) => {
+    console.log('[Kiosk] Scanned QR Code Data:', scannedData);
+    if (!scannedData || !scannedData.trim()) return;
+
+    setIsLoading(true);
+    setParentLoginError('');
+
+    try {
+      let targetId = '';
+      let targetPhone = '';
+
+      const trimmed = scannedData.trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          targetId = parsed.parentId || parsed.id || parsed.user_id || '';
+          targetPhone = parsed.phone || '';
+        } catch (e) { }
+      } else if (/^[0-9a-fA-F-]{36}$/.test(trimmed)) {
+        targetId = trimmed;
+      } else {
+        targetPhone = trimmed;
+      }
+
+      let profileData: any = null;
+      if (targetId) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', targetId).maybeSingle();
+        profileData = data;
+      } else if (targetPhone) {
+        const cleanPhone = targetPhone.replace(/\D/g, '');
+        const { data } = await supabase.from('profiles').select('*').eq('phone', cleanPhone).maybeSingle();
+        profileData = data;
+      }
+
+      if (!profileData) {
+        toast({ title: "QR Scan Unrecognized", description: "No registered account matched this QR code.", variant: "destructive" });
+        return;
+      }
+
+      // Fetch children for this parent
+      let { data: kids } = await supabase
+        .from('children')
+        .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+        .eq('parent_id', profileData.id)
+        .eq('organization_id', activeOrgId);
+
+      setParentName(`${profileData.first_name || ''} ${profileData.last_name || ''}`);
+      setParentProfileId(profileData.id);
+      setParentChildren(kids || []);
+      setParentLoggedIn(true);
+
+      window.localStorage.setItem('kiosk_active_parent_id', profileData.id);
+      window.localStorage.setItem('kiosk_active_parent_name', `${profileData.first_name} ${profileData.last_name}`);
+
+      await logActivity('parent_qr_login', { parent_id: profileData.id, parent_name: `${profileData.first_name} ${profileData.last_name}` });
+      startAutoLogoutTimer(120);
+      showSuccess(`Welcome back, ${profileData.first_name}!`);
+    } catch (err: any) {
+      console.error('[Kiosk] QR login exception:', err);
+      toast({ title: "QR Login Failed", description: err.message || "Failed to process QR code", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleParentLogout = () => {
     setParentLoggedIn(false);
     setParentName('');
