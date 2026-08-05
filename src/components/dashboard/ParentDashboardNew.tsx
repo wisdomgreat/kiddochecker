@@ -5,17 +5,27 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useMessages } from "@/hooks/useMessages";
 import { useTranslation } from "@/lib/i18n";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import {
-    Baby, Clock, Calendar, MessageSquare,
-    QrCode, ChevronRight, CheckCircle2,
-    Activity, Award
+    LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer
+} from "recharts";
+import {
+    Baby, CheckCircle2, Award, MessageSquare,
+    QrCode, ChevronRight, Clock, Activity
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import DashboardShell from "./DashboardShell";
+
+const SparkTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg text-xs">
+            <p className="font-semibold text-foreground">{label}</p>
+            <p className="text-muted-foreground">{payload[0].value} days attended</p>
+        </div>
+    );
+};
 
 const ParentDashboardNew = () => {
     const { user } = useAuth();
@@ -27,18 +37,13 @@ const ParentDashboardNew = () => {
         queryKey: ["parent-my-children", user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            
-            // Use the RPC for consistency and to avoid RLS issues with direct queries
-            const { data, error } = await supabase.rpc('get_parent_children_with_classes', {
-                parent_user_id: user.id
+            const { data, error } = await supabase.rpc("get_parent_children_with_classes", {
+                parent_user_id: user.id,
             });
-            
             if (error) {
                 console.error("Error fetching children for dashboard:", error);
                 return [];
             }
-
-            // Map RPC data to expected format if necessary
             return (data || []).map((child: any) => ({
                 id: child.child_id,
                 first_name: child.first_name,
@@ -46,7 +51,7 @@ const ParentDashboardNew = () => {
                 age: child.age,
                 allergies: child.allergies,
                 points_balance: child.points_balance || 0,
-                current_class_name: child.current_class_name
+                current_class_name: child.current_class_name,
             }));
         },
         enabled: !!user?.id,
@@ -59,14 +64,10 @@ const ParentDashboardNew = () => {
             const childIds = myChildren.map((c: any) => c.id);
             const { data } = await supabase
                 .from("attendance")
-                .select(`
-                    *,
-                    children (first_name, last_name),
-                    profiles!attendance_checked_in_by_fkey (first_name, last_name)
-                `)
+                .select("*, children(first_name, last_name), profiles!attendance_checked_in_by_fkey(first_name, last_name)")
                 .in("child_id", childIds)
                 .order("attendance_date", { ascending: false })
-                .limit(15);
+                .limit(20);
             return data || [];
         },
         enabled: !!user?.id && myChildren.length > 0,
@@ -79,221 +80,284 @@ const ParentDashboardNew = () => {
         return { day: format(d, "EEE"), attended: checked };
     });
 
-    const today = format(new Date(), "EEEE, MMMM dd");
-    const presentToday = recentAttendance.filter((a: any) =>
-        a.attendance_date === format(new Date(), "yyyy-MM-dd") && a.checked_in_at && !a.checked_out_at
+    const presentToday = recentAttendance.filter(
+        (a: any) =>
+            a.attendance_date === format(new Date(), "yyyy-MM-dd") &&
+            a.checked_in_at &&
+            !a.checked_out_at
     ).length;
 
-    return (
-        <div className="space-y-8 max-w-7xl mx-auto py-8 px-6">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight">Parent Dashboard</h1>
-                    <p className="text-sm text-muted-foreground">{today} • Family status</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Button onClick={() => navigate("/parent/messages")} variant="default">
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Messages
-                        {unreadCount > 0 && (
-                            <Badge variant="destructive" className="ml-2 px-1.5 h-5 min-w-[20px] justify-center">
-                                {unreadCount}
-                            </Badge>
-                        )}
-                    </Button>
-                </div>
-            </div>
+    const totalPoints = myChildren.reduce(
+        (acc: number, curr: any) => acc + (curr.points_balance || 0),
+        0
+    );
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                    { label: "My Children", value: myChildren.length, icon: Baby, color: "rose" },
-                    { label: "Present Today", value: presentToday, icon: CheckCircle2, color: "emerald" },
-                    { label: "Reward Points", value: myChildren.reduce((acc: number, curr: any) => acc + (curr.points_balance || 0), 0), icon: Award, color: "amber" },
-                    { label: "Notifications", value: unreadCount, icon: MessageSquare, color: "blue" }
-                ].map((s) => (
-                    <Card key={s.label} className="shadow-sm">
-                        <CardContent className="p-6">
-                            <div className="flex justify-between items-start">
-                                <div className="space-y-1">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{s.label}</p>
-                                    <h3 className="text-3xl font-bold tracking-tight">{s.value}</h3>
-                                </div>
-                                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                                    <s.icon className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+    const stats = [
+        {
+            label: "My Children",
+            value: myChildren.length,
+            icon: Baby,
+            iconBg: "bg-rose-500/10",
+            iconColor: "text-rose-500",
+            trend: "Registered",
+        },
+        {
+            label: "Present Today",
+            value: presentToday,
+            icon: CheckCircle2,
+            iconBg: "bg-emerald-500/10",
+            iconColor: "text-emerald-500",
+            trend: "On-site now",
+        },
+        {
+            label: "Reward Points",
+            value: totalPoints,
+            icon: Award,
+            iconBg: "bg-amber-500/10",
+            iconColor: "text-amber-500",
+            trend: "Total balance",
+        },
+        {
+            label: "Notifications",
+            value: unreadCount,
+            icon: MessageSquare,
+            iconBg: unreadCount > 0 ? "bg-rose-500/10" : "bg-muted",
+            iconColor: unreadCount > 0 ? "text-rose-500" : "text-muted-foreground",
+            trend: unreadCount > 0 ? "Unread" : "All caught up",
+        },
+    ];
+
+    const quickLinks = [
+        { label: "Messages", icon: MessageSquare, path: "/parent/messages", badge: unreadCount },
+        { label: "QR Code", icon: QrCode, path: "/parent/children" },
+        { label: "Attendance", icon: CheckCircle2, path: "/parent/attendance" },
+        { label: "My Children", icon: Baby, path: "/parent/children" },
+    ];
+
+    return (
+        <DashboardShell
+            title="Family Dashboard"
+            subtitle={format(new Date(), "EEEE, MMMM d")}
+            action={
+                <Button
+                    size="sm"
+                    onClick={() => navigate("/parent/messages")}
+                    variant="outline"
+                    className="gap-2"
+                >
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Messages
+                    {unreadCount > 0 && (
+                        <span className="ml-1 bg-rose-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
+                            {unreadCount}
+                        </span>
+                    )}
+                </Button>
+            }
+        >
+            {/* KPI row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {stats.map((stat, i) => (
+                    <div key={stat.label} className={cn("kpi-card animate-enter", `animate-enter-${i + 1}`)}>
+                        <div className={cn("kpi-icon", stat.iconBg)}>
+                            <stat.icon className={cn("h-5 w-5", stat.iconColor)} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="kpi-label">{stat.label}</p>
+                            <p className="kpi-value">{stat.value}</p>
+                            <p className="kpi-trend">{stat.trend}</p>
+                        </div>
+                    </div>
                 ))}
             </div>
 
-            {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold tracking-tight">Child Management</h2>
-                        <Button variant="link" size="sm" onClick={() => navigate("/parent/children")}>
-                            Manage all <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
+            {/* Children strip + sparkline */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-enter animate-enter-3">
+                {/* Children cards */}
+                <div className="surface-card lg:col-span-2">
+                    <div className="px-5 pt-5 pb-3 border-b border-border/50">
+                        <p className="font-semibold text-[14px]">Your Children</p>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">Current status for each child</p>
                     </div>
+                    <div className="p-4">
+                        {isLoading ? (
+                            <div className="py-10 text-center text-muted-foreground text-sm">Loading…</div>
+                        ) : myChildren.length === 0 ? (
+                            <div className="py-10 flex flex-col items-center text-muted-foreground">
+                                <Baby className="h-7 w-7 mb-2 opacity-25" />
+                                <p className="text-sm font-medium">No children registered yet</p>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="mt-3"
+                                    onClick={() => navigate("/parent/children")}
+                                >
+                                    Register a child
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {myChildren.map((child: any) => {
+                                    const childAttendance = recentAttendance.filter(
+                                        (a: any) =>
+                                            a.child_id === child.id &&
+                                            a.attendance_date === format(new Date(), "yyyy-MM-dd")
+                                    );
+                                    const isPresent =
+                                        childAttendance.length > 0 &&
+                                        childAttendance[0].checked_in_at &&
+                                        !childAttendance[0].checked_out_at;
+                                    const initials = `${child.first_name?.[0] ?? ""}${child.last_name?.[0] ?? ""}`.toUpperCase();
 
-                    {isLoading ? (
-                        <div className="space-y-4">
-                            {[1, 2].map((i) => <div key={i} className="h-32 bg-muted rounded animate-pulse" />)}
-                        </div>
-                    ) : myChildren.length === 0 ? (
-                        <Card className="p-12 text-center shadow-sm border-dashed">
-                            <Baby className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                            <h3 className="text-lg font-bold">No children linked</h3>
-                            <Button onClick={() => navigate("/parent/children")} className="mt-4">
-                                Register Child
-                            </Button>
-                        </Card>
-                    ) : (
-                        <div className="space-y-4">
-                            {myChildren.map((child: any) => {
-                                const activeAttendance = recentAttendance.find((a: any) => 
-                                    a.child_id === child.id && 
-                                    a.attendance_date === format(new Date(), "yyyy-MM-dd") && 
-                                    a.checked_in_at && 
-                                    !a.checked_out_at
-                                );
-                                
-                                const isAtCenter = !!activeAttendance;
-
-                                return (
-                                    <Card key={child.id} className="shadow-sm overflow-hidden hover:bg-muted/10 transition-all duration-300 border-l-4 border-l-transparent data-[status=onsite]:border-l-emerald-500" data-status={isAtCenter ? 'onsite' : 'offsite'}>
-                                        <CardContent className="p-6">
-                                            <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-6">
-                                                <div className="flex flex-col sm:flex-row items-center gap-6 flex-1">
-                                                    <div className="relative">
-                                                        <div className="w-20 h-20 rounded-2xl border bg-primary/5 flex items-center justify-center text-2xl font-bold text-primary shadow-inner">
-                                                            {child.first_name?.[0]}{child.last_name?.[0]}
-                                                        </div>
-                                                        {isAtCenter && (
-                                                            <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
-                                                                <CheckCircle2 className="h-3 w-3 text-white" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    <div className="space-y-3 text-center sm:text-left flex-1">
-                                                        <div>
-                                                            <h3 className="text-xl font-bold tracking-tight">{child.first_name} {child.last_name}</h3>
-                                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                                                {child.age} years old • {child.current_class_name || 'Unassigned'}
-                                                            </p>
-                                                        </div>
-                                                        
-                                                        <div className="flex flex-wrap justify-center sm:justify-start gap-2">
-                                                            {isAtCenter ? (
-                                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-2xl text-[11px] font-bold">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <Clock className="h-3 w-3" />
-                                                                        Checked in {format(new Date(activeAttendance.checked_in_at), "h:mm a")}
-                                                                    </div>
-                                                                    {activeAttendance.profiles && (
-                                                                        <span className="hidden sm:inline opacity-40">|</span>
-                                                                    )}
-                                                                    {activeAttendance.profiles && (
-                                                                        <span>by {activeAttendance.profiles.first_name}</span>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <Badge variant="outline" className="text-[10px] uppercase font-bold opacity-60">Off-site</Badge>
-                                                            )}
-                                                            
-                                                            {child.allergies && (
-                                                                <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-full text-[11px] font-bold">
-                                                                    <Activity className="h-3 w-3" />
-                                                                    Allergy: {child.allergies}
-                                                                </div>
-                                                            )}
-                                                            
-                                                            <div className="flex items-center gap-2 px-3 py-1 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold">
-                                                                <Award className="h-3 w-3" />
-                                                                {child.points_balance || 0} Points
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-auto">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        onClick={() => navigate("/parent/children")} 
-                                                        className="flex-1 h-10 px-4 font-bold text-xs"
-                                                    >
-                                                        <QrCode className="h-4 w-4 mr-2" /> QR Code
-                                                    </Button>
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="sm" 
-                                                        onClick={() => navigate(`/parent/children`)} 
-                                                        className="flex-1 h-10 px-4 font-bold text-xs"
-                                                    >
-                                                        Details
-                                                    </Button>
-                                                </div>
+                                    return (
+                                        <div
+                                            key={child.id}
+                                            onClick={() => navigate("/parent/children")}
+                                            className="flex items-center gap-3 p-3.5 rounded-xl border border-border/60 hover:border-rose-300 hover:bg-rose-500/5 transition-all cursor-pointer group"
+                                        >
+                                            <div className="h-10 w-10 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0 text-sm font-bold text-rose-500">
+                                                {initials}
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
-                        </div>
-                    )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[13px] font-semibold leading-none truncate">
+                                                    {child.first_name} {child.last_name}
+                                                </p>
+                                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                    {child.current_class_name || `Age ${child.age}`}
+                                                </p>
+                                            </div>
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded-full text-[10px] font-bold border flex-shrink-0",
+                                                isPresent
+                                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                                    : "bg-muted text-muted-foreground border-border"
+                                            )}>
+                                                {isPresent ? "Present" : "Away"}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="space-y-6">
-                    <h2 className="text-xl font-bold tracking-tight">Active Trends</h2>
-                    <Card className="shadow-sm">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Attendance Log</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="h-[160px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={attendanceTrend}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
-                                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                                        <Tooltip />
-                                        <Area type="monotone" dataKey="attended" stroke="#0f172a" fill="#0f172a" fillOpacity={0.1} strokeWidth={2} />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <div className="space-y-3">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Quick Access</h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            {[
-                                { label: 'Log', icon: Clock, path: "/parent/attendance" },
-                                { label: 'Calendar', icon: Calendar, path: "/calendar" },
-                                { label: 'Profile', icon: Baby, path: "/parent/children" }, // Adjusted path
-                                { label: 'Inbox', icon: MessageSquare, path: "/parent/messages" },
-                            ].map((link) => (
-                                <Button 
-                                    key={link.label}
-                                    variant="outline"
-                                    className="h-16 flex flex-col gap-1 rounded-lg"
-                                    onClick={() => navigate(link.path)}
-                                >
-                                    <link.icon className="h-4 w-4" />
-                                    <span className="text-[10px] font-bold">{link.label}</span>
-                                </Button>
-                            ))}
+                {/* Attendance sparkline */}
+                <div className="surface-card">
+                    <div className="px-5 pt-5 pb-3 border-b border-border/50">
+                        <p className="font-semibold text-[14px]">Attendance This Week</p>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">Daily check-in summary</p>
+                    </div>
+                    <div className="p-5 h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={attendanceTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(220,9%,46%)" }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(220,9%,46%)" }} allowDecimals={false} />
+                                <Tooltip content={<SparkTooltip />} />
+                                <Line
+                                    type="monotone"
+                                    dataKey="attended"
+                                    stroke="hsl(346,84%,58%)"
+                                    strokeWidth={2.5}
+                                    dot={{ fill: "hsl(346,84%,58%)", r: 4, strokeWidth: 0 }}
+                                    activeDot={{ r: 5, strokeWidth: 0 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                    {/* Week summary */}
+                    <div className="px-5 pb-5 grid grid-cols-2 gap-3">
+                        <div className="bg-muted/50 rounded-lg p-3 text-center">
+                            <p className="text-lg font-bold">{attendanceTrend.reduce((s, d) => s + d.attended, 0)}</p>
+                            <p className="text-[10px] text-muted-foreground font-semibold uppercase">Total Days</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-3 text-center">
+                            <p className="text-lg font-bold">{totalPoints}</p>
+                            <p className="text-[10px] text-muted-foreground font-semibold uppercase">Points</p>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {/* Quick links */}
+            <div className="animate-enter animate-enter-4">
+                <p className="section-label mb-3">Quick Links</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {quickLinks.map((link) => (
+                        <button
+                            key={link.label}
+                            onClick={() => navigate(link.path)}
+                            className="group relative flex flex-col items-center gap-2.5 p-5 rounded-xl border border-border/70 bg-card hover:border-rose-300 hover:bg-rose-500/5 hover:shadow-sm transition-all duration-200"
+                        >
+                            <div className="h-10 w-10 rounded-xl bg-rose-500/10 flex items-center justify-center group-hover:bg-rose-500/15 transition-colors">
+                                <link.icon className="h-5 w-5 text-rose-500" />
+                            </div>
+                            <span className="text-[12px] font-semibold text-foreground">{link.label}</span>
+                            {link.badge != null && link.badge > 0 && (
+                                <span className="absolute top-3 right-3 h-4 min-w-[16px] px-1 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                    {link.badge}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Recent attendance */}
+            <div className="animate-enter animate-enter-5">
+                <div className="flex items-center justify-between mb-3">
+                    <p className="section-label">Recent Activity</p>
+                    <button
+                        onClick={() => navigate("/parent/attendance")}
+                        className="flex items-center gap-1 text-[12px] text-muted-foreground hover:text-primary transition-colors font-medium"
+                    >
+                        View all <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+                <div className="surface-card divide-y divide-border/50">
+                    {recentAttendance.length === 0 ? (
+                        <div className="py-12 flex flex-col items-center text-muted-foreground">
+                            <Activity className="h-7 w-7 mb-2 opacity-25" />
+                            <p className="text-sm font-medium">No recent activity</p>
+                        </div>
+                    ) : (
+                        recentAttendance.slice(0, 5).map((record: any) => {
+                            const initials = `${record.children?.first_name?.[0] ?? ""}${record.children?.last_name?.[0] ?? ""}`.toUpperCase();
+                            const isPresent = record.checked_in_at && !record.checked_out_at;
+                            return (
+                                <div key={record.id} className="feed-row">
+                                    <div className="feed-avatar bg-rose-500/10 text-rose-600">
+                                        {initials}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-semibold leading-none mb-0.5">
+                                            {record.children?.first_name} {record.children?.last_name}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                            <Clock className="h-3 w-3" />
+                                            {record.checked_out_at
+                                                ? `Left · ${format(new Date(record.checked_out_at), "MMM d, HH:mm")}`
+                                                : record.checked_in_at
+                                                    ? `Arrived · ${format(new Date(record.checked_in_at), "MMM d, HH:mm")}`
+                                                    : record.attendance_date}
+                                        </p>
+                                    </div>
+                                    <span className={cn(
+                                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold border",
+                                        isPresent
+                                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                            : "bg-muted text-muted-foreground border-border"
+                                    )}>
+                                        {isPresent ? "Present" : "Away"}
+                                    </span>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        </DashboardShell>
     );
 };
 
 export default ParentDashboardNew;
-
-

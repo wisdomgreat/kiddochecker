@@ -42,15 +42,26 @@ export const useSettings = () => {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (updates: Partial<OrganizationSettings>) => {
-      const { data, error } = await supabase
-        .from('organization_settings')
-        .update(updates)
-        .eq('id', settingsQuery.data?.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      if (settingsQuery.data?.id) {
+        const { data, error } = await supabase
+          .from('organization_settings')
+          .update(updates)
+          .eq('id', settingsQuery.data.id)
+          .select()
+          .maybeSingle();
+        
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase
+          .from('organization_settings')
+          .insert([updates as any])
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization-settings"] });

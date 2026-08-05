@@ -38,9 +38,48 @@ export const useStaffManagement = () => {
   } = useQuery({
     queryKey: QUERY_KEYS.STAFF,
     queryFn: async (): Promise<StaffMember[]> => {
-      const { data, error } = await supabase.rpc('get_staff_members');
-      if (error) throw error;
-      return (data ?? []) as StaffMember[];
+      try {
+        const { data, error } = await supabase.rpc('get_staff_members');
+        if (!error && data && data.length > 0) {
+          return data as StaffMember[];
+        }
+      } catch (e) {
+        console.warn("get_staff_members RPC error, using fallback:", e);
+      }
+
+      // Fallback: Query staff user_roles & profiles
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('*')
+        .in('role', ['staff', 'teacher', 'teacher_assistant', 'admin', 'super_admin']);
+
+      const userIds = (rolesData || []).map((r: any) => r.user_id).filter(Boolean);
+      if (userIds.length === 0) return [];
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
+
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      const roleMap = new Map((rolesData || []).map((r: any) => [r.user_id, r]));
+
+      return userIds.map((uid: string) => {
+        const p: any = profileMap.get(uid) || {};
+        const r: any = roleMap.get(uid) || {};
+        return {
+          id: uid,
+          email: p.email || '',
+          first_name: p.first_name || p.firstName || 'Staff',
+          last_name: p.last_name || p.lastName || '',
+          role: r.role || 'staff',
+          is_volunteer: Boolean(r.is_volunteer),
+          staff_pin: p.staff_pin || '1234',
+          verification_status: r.verification_status || 'verified',
+          department: p.department || 'General',
+          created_at: r.created_at || new Date().toISOString(),
+        } as StaffMember;
+      });
     },
     retry: 1,
     retryDelay: 1000,

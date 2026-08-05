@@ -1,15 +1,16 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
 import { supabase } from "@/integrations/supabase/client";
 import { PersonalInfoStep } from "./PersonalInfoStep";
 import { AccountSetupStep } from "./AccountSetupStep";
-import { ChildrenRegistrationStep } from "./ChildrenRegistrationStep";
+import { ChildrenRegistrationStep, ChildData } from "./ChildrenRegistrationStep";
 import { ReviewStep } from "./ReviewStep";
-import { UserPlus, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { User, Lock, Baby, CheckCircle2, ArrowLeft, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ParentData {
   firstName: string;
@@ -21,23 +22,14 @@ interface ParentData {
   emergencyPhone: string;
   password: string;
   confirmPassword: string;
-}
-
-interface ChildData {
-  firstName: string;
-  lastName: string;
-  birthdate: string;
-  age: number;
-  allergies: string;
-  medicalInfo: string;
-  notes: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
+  securityPin: string;
 }
 
 export const ParentRegistrationFlow = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const isEs = language === 'es';
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -50,7 +42,8 @@ export const ParentRegistrationFlow = () => {
     emergencyContact: "",
     emergencyPhone: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    securityPin: ""
   });
 
   const [children, setChildren] = useState<ChildData[]>([{
@@ -66,10 +59,10 @@ export const ParentRegistrationFlow = () => {
   }]);
 
   const steps = [
-    { title: "Personal Information", icon: UserPlus },
-    { title: "Account Setup", icon: UserPlus },
-    { title: "Children Information", icon: UserPlus },
-    { title: "Review & Submit", icon: Check }
+    { number: 1, title: isEs ? "Datos Personales" : "Personal Details", icon: User },
+    { number: 2, title: isEs ? "Contraseña" : "Account Password", icon: Lock },
+    { number: 3, title: isEs ? "Registrar Niños" : "Register Children", icon: Baby },
+    { number: 4, title: isEs ? "Revisar y Confirmar" : "Review & Confirm", icon: CheckCircle2 }
   ];
 
   const validateStep = (step: number): boolean => {
@@ -77,7 +70,7 @@ export const ParentRegistrationFlow = () => {
       case 1:
         return !!(parentData.firstName && parentData.lastName && parentData.email && parentData.phone);
       case 2:
-        return !!(parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 6);
+        return !!(parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 6 && parentData.securityPin && parentData.securityPin.length >= 4);
       case 3:
         return children.every(child => child.firstName && child.lastName && child.birthdate);
       case 4:
@@ -92,8 +85,8 @@ export const ParentRegistrationFlow = () => {
       setCurrentStep(prev => Math.min(prev + 1, 4));
     } else {
       toast({
-        title: "Please complete all required fields",
-        description: "Fill in all required information before proceeding",
+        title: isEs ? "Complete los campos requeridos" : "Please complete required fields",
+        description: isEs ? "Complete toda la información requerida antes de continuar." : "Fill in all required information before proceeding to the next step.",
         variant: "destructive"
       });
     }
@@ -104,6 +97,7 @@ export const ParentRegistrationFlow = () => {
   };
 
   const calculateAge = (birthdate: string): number => {
+    if (!birthdate) return 0;
     const today = new Date();
     const birth = new Date(birthdate);
     let age = today.getFullYear() - birth.getFullYear();
@@ -111,7 +105,7 @@ export const ParentRegistrationFlow = () => {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
-    return age;
+    return Math.max(0, age);
   };
 
   const handleSubmit = async () => {
@@ -132,11 +126,12 @@ export const ParentRegistrationFlow = () => {
         email: parentData.email,
         password: parentData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/parent-dashboard`,
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             first_name: parentData.firstName,
             last_name: parentData.lastName,
-            phone: parentData.phone
+            phone: parentData.phone,
+            role: 'parent'
           }
         }
       });
@@ -154,7 +149,9 @@ export const ParentRegistrationFlow = () => {
           address: parentData.address,
           first_name: parentData.firstName,
           last_name: parentData.lastName,
-          phone: parentData.phone
+          phone: parentData.phone,
+          security_pin: parentData.securityPin,
+          role: 'parent'
         })
         .eq('id', authData.user.id);
 
@@ -162,11 +159,11 @@ export const ParentRegistrationFlow = () => {
         console.error('Profile update error:', profileError);
       }
 
-      // Register children
+      // Register children and save structured medical profiles
       for (const child of children) {
         const childAge = calculateAge(child.birthdate);
         
-        const { error: childError } = await supabase
+        const { data: insertedChild, error: childError } = await supabase
           .from('children')
           .insert({
             parent_id: authData.user.id,
@@ -178,17 +175,40 @@ export const ParentRegistrationFlow = () => {
             notes: child.notes || null,
             emergency_contact_name: child.emergencyContactName || parentData.emergencyContact,
             emergency_contact_phone: child.emergencyContactPhone || parentData.emergencyPhone
-          });
+          })
+          .select('id')
+          .single();
 
         if (childError) {
           console.error('Child registration error:', childError);
           throw new Error(`Failed to register child: ${child.firstName}`);
         }
+
+        // Upsert structured medical profile if child was inserted
+        if (insertedChild?.id) {
+          try {
+            await (supabase.from('child_medical_profiles' as any) as any).upsert({
+              child_id: insertedChild.id,
+              allergies: child.structuredAllergies || [],
+              medications: child.structuredMedications || [],
+              conditions: child.structuredConditions || [],
+              blood_type: child.bloodType || '',
+              doctor_name: child.doctorName || '',
+              doctor_phone: child.doctorPhone || '',
+              insurance_provider: child.insuranceProvider || '',
+              insurance_number: child.insuranceNumber || '',
+              emergency_notes: child.medicalInfo || ''
+            });
+            console.log(`[Registration] Medical profile created for child ${insertedChild.id}`);
+          } catch (medErr) {
+            console.warn('[Registration] Notice saving medical profile:', medErr);
+          }
+        }
       }
 
       toast({
-        title: "Registration Successful!",
-        description: "Your account has been created. Please check your email to verify your account.",
+        title: "Registration Complete!",
+        description: "Your account has been created. You can now log in.",
       });
 
       navigate('/login');
@@ -208,121 +228,154 @@ export const ParentRegistrationFlow = () => {
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <PersonalInfoStep
-            data={parentData}
-            onChange={setParentData}
-          />
-        );
+        return <PersonalInfoStep data={parentData} onChange={setParentData} />;
       case 2:
-        return (
-          <AccountSetupStep
-            data={parentData}
-            onChange={setParentData}
-          />
-        );
+        return <AccountSetupStep data={parentData} onChange={setParentData} />;
       case 3:
-        return (
-          <ChildrenRegistrationStep
-            children={children}
-            onChange={setChildren}
-          />
-        );
+        return <ChildrenRegistrationStep children={children} onChange={setChildren} />;
       case 4:
-        return (
-          <ReviewStep
-            parentData={parentData}
-            children={children}
-          />
-        );
+        return <ReviewStep parentData={parentData} children={children} />;
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
+    <div className="min-h-screen bg-background py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        {/* Header navigation bar */}
+        <div className="flex items-center justify-between">
           <Button 
-            variant="outline" 
+            variant="ghost" 
+            size="sm"
             onClick={() => navigate('/landing')}
-            className="mb-4"
+            className="gap-2 text-muted-foreground hover:text-foreground text-xs font-semibold uppercase tracking-wider"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4" />
             Back to Home
           </Button>
+
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-primary/10 rounded-lg">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+            </div>
+            <span className="font-bold text-sm text-foreground tracking-tight">KiddoChecker Parent Portal</span>
+          </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">Parent Registration</CardTitle>
-            
-            {/* Progress Steps */}
-            <div className="flex justify-center mt-6">
-              <div className="flex items-center space-x-4">
-                {steps.map((step, index) => {
-                  const stepNumber = index + 1;
-                  const isActive = stepNumber === currentStep;
-                  const isCompleted = stepNumber < currentStep;
-                  
-                  return (
-                    <div key={stepNumber} className="flex items-center">
-                      <div className={`
-                        flex items-center justify-center w-10 h-10 rounded-full border-2 
-                        ${isCompleted ? 'bg-green-500 border-green-500 text-white' : 
-                          isActive ? 'bg-blue-500 border-blue-500 text-white' : 
-                          'bg-gray-200 border-gray-300 text-gray-500'}
-                      `}>
-                        {isCompleted ? <Check className="w-5 h-5" /> : stepNumber}
-                      </div>
-                      <div className="ml-2 text-sm">
-                        <div className={isActive ? 'font-semibold' : 'text-gray-500'}>
-                          {step.title}
-                        </div>
-                      </div>
-                      {stepNumber < steps.length && (
-                        <div className={`w-12 h-0.5 ml-4 ${stepNumber < currentStep ? 'bg-green-500' : 'bg-gray-300'}`} />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </CardHeader>
+        {/* Title Section */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+            Create Parent Account
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Register your family to enable secure check-ins, medical alerts, and instant communication.
+          </p>
+        </div>
 
-          <CardContent className="space-y-6">
+        {/* Step Progress Tracker */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-card border border-border/70 p-3 rounded-2xl shadow-sm">
+          {steps.map((step) => {
+            const Icon = step.icon;
+            const isActive = currentStep === step.number;
+            const isCompleted = currentStep > step.number;
+
+            return (
+              <div 
+                key={step.number}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl transition-all",
+                  isActive && "bg-primary/10 text-primary font-semibold",
+                  isCompleted && "text-foreground",
+                  !isActive && !isCompleted && "text-muted-foreground opacity-60"
+                )}
+              >
+                <div className={cn(
+                  "h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors",
+                  isActive && "bg-primary text-primary-foreground",
+                  isCompleted && "bg-emerald-500 text-white",
+                  !isActive && !isCompleted && "bg-muted text-muted-foreground"
+                )}>
+                  {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground leading-none">
+                    Step 0{step.number}
+                  </p>
+                  <p className="text-xs truncate font-medium mt-0.5">
+                    {step.title}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Form Content Card */}
+        <Card className="border border-border/70 shadow-sm rounded-2xl overflow-hidden bg-card">
+          <CardContent className="p-6 sm:p-10">
             {renderStepContent()}
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between pt-6">
+            {/* Step Controls */}
+            <div className="flex items-center justify-between pt-8 mt-8 border-t border-border/50">
               <Button
+                type="button"
                 variant="outline"
                 onClick={handleBack}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isSubmitting}
+                className="gap-2 rounded-xl text-xs font-semibold uppercase tracking-wider"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
+                <ArrowLeft className="h-4 w-4" />
+                Previous Step
               </Button>
 
               {currentStep < 4 ? (
-                <Button onClick={handleNext}>
-                  Next
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  className="gap-2 rounded-xl text-xs font-semibold uppercase tracking-wider px-6"
+                >
+                  Next Step
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button 
+                <Button
+                  type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
+                  className="gap-2 rounded-xl text-xs font-semibold uppercase tracking-wider px-8 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
                 >
-                  {isSubmitting ? "Creating Account..." : "Complete Registration"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    <>
+                      Complete Registration
+                      <CheckCircle2 className="h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Already have an account prompt */}
+        <p className="text-center text-xs text-muted-foreground">
+          Already registered?{" "}
+          <button 
+            type="button" 
+            onClick={() => navigate('/login')} 
+            className="text-primary font-bold hover:underline"
+          >
+            Sign in to your account
+          </button>
+        </p>
+
       </div>
     </div>
   );
 };
-

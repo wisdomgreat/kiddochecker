@@ -1,7 +1,7 @@
-import EnhancedLoginForm from "@/components/auth/EnhancedLoginForm";
+import ParentRegistration from "./ParentRegistration";
 
 const RegisterPage = () => {
-  return <EnhancedLoginForm />;
+  return <ParentRegistration />;
 };
 
 export default RegisterPage;

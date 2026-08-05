@@ -27,7 +27,7 @@ const GeneralSettings = () => {
       const { data, error } = await supabase
         .from("organization_settings")
         .select("*")
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -58,20 +58,33 @@ const GeneralSettings = () => {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (values: GeneralSettingsFormValues) => {
-      const { data, error } = await supabase
-        .from("organization_settings")
-        .update({
-          name: values.churchName,
-          logo_url: values.logoUrl,
-          show_center_finder: values.showCenterFinder,
-          timezone: values.timeZone,
-        })
-        .eq("id", orgSettings?.id)
-        .select()
-        .single();
+      const payload = {
+        name: values.churchName,
+        logo_url: values.logoUrl,
+        show_center_finder: values.showCenterFinder,
+        timezone: values.timeZone,
+      };
 
-      if (error) throw error;
-      return data;
+      if (orgSettings?.id) {
+        const { data, error } = await supabase
+          .from("organization_settings")
+          .update(payload)
+          .eq("id", orgSettings.id)
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase
+          .from("organization_settings")
+          .insert([payload])
+          .select()
+          .maybeSingle();
+
+        if (error) throw error;
+        return data;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization-settings"] });

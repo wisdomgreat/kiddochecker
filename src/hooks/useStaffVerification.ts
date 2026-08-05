@@ -103,13 +103,48 @@ export const useStaffVerification = () => {
     // Get all pending staff verifications (admin only)
     const pendingVerificationsQuery = useQuery({
         queryKey: ["pending-staff-verifications"],
-        queryFn: async () => {
-            const { data, error } = await supabase.rpc('get_pending_staff_verifications' as any);
-            if (error) {
-                console.error("Error fetching pending verifications:", error);
-                return [];
-            }
-            return (data || []) as unknown as PendingVerification[];
+        queryFn: async (): Promise<PendingVerification[]> => {
+            try {
+                const { data, error } = await supabase.rpc('get_pending_staff_verifications' as any);
+                if (!error && data && data.length > 0) {
+                    return data as unknown as PendingVerification[];
+                }
+            } catch (e) { }
+
+            // Fallback: Query staff roles and profiles directly
+            const { data: rolesData } = await supabase
+                .from('user_roles')
+                .select('*')
+                .in('role', ['staff', 'teacher', 'teacher_assistant']);
+
+            const userIds = (rolesData || []).map((r: any) => r.user_id).filter(Boolean);
+            if (userIds.length === 0) return [];
+
+            const [{ data: profiles }, { data: docs }] = await Promise.all([
+                supabase.from('profiles').select('id, email, first_name, last_name').in('id', userIds),
+                supabase.from('staff_documents').select('user_id, status').in('user_id', userIds)
+            ]);
+
+            const roleMap = new Map((rolesData || []).map((r: any) => [r.user_id, r]));
+            const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+            return userIds.map((uid: string) => {
+                const p: any = profileMap.get(uid) || {};
+                const r: any = roleMap.get(uid) || {};
+                const userDocs = (docs || []).filter((d: any) => d.user_id === uid);
+                return {
+                    user_id: uid,
+                    email: p.email || '',
+                    first_name: p.first_name || p.firstName || 'Staff',
+                    last_name: p.last_name || p.lastName || '',
+                    role: r.role || 'staff',
+                    verification_status: r.verification_status || 'pending',
+                    created_at: r.created_at || new Date().toISOString(),
+                    documents_submitted: userDocs.length,
+                    documents_approved: userDocs.filter((d: any) => d.status === 'approved').length,
+                    documents_pending: userDocs.filter((d: any) => d.status === 'pending').length,
+                };
+            });
         },
     });
 

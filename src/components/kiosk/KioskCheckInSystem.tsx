@@ -5,10 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle, Maximize, Loader2,
   MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone
+  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone, ShieldAlert, Printer
 } from 'lucide-react';
+import { PrintService } from '@/services/printService';
 import { AttendanceService } from '@/services/attendanceService';
 import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/apiClient';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
@@ -44,6 +46,34 @@ type KioskTab = 'parent' | 'youth' | 'staff' | 'checkout';
 const KioskCheckInSystem = () => {
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
+  const isEs = language === 'es';
+  const [activeOrgId, setActiveOrgId] = useState<string>(() => window.localStorage.getItem('kiosk_active_org_id') || '00000000-0000-0000-0000-000000000001');
+  const [organizations, setOrganizations] = useState<any[]>([
+    { id: '00000000-0000-0000-0000-000000000001', name: 'English Congregation', slug: 'english', language_code: 'en' },
+    { id: '00000000-0000-0000-0000-000000000002', name: 'Spanish Congregation', slug: 'spanish', language_code: 'es' },
+    { id: 'all', name: 'Combined Service / Servicio Combinado', slug: 'combined', language_code: 'es' }
+  ]);
+
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const { data, error } = await supabase.from('organizations').select('*');
+        if (!error && data && data.length > 0) {
+          setOrganizations(data);
+          const currentValid = data.some(o => o.id === activeOrgId);
+          if (!currentValid) {
+            setActiveOrgId(data[0].id);
+            window.localStorage.setItem('kiosk_active_org_id', data[0].id);
+            setLanguage(data[0].language_code || 'en');
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load organizations from database:', err);
+      }
+    };
+    fetchOrgs();
+  }, []);
+
   const [activeTab, setActiveTab] = useState<KioskTab>('parent');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayCount, setTodayCount] = useState(0);
@@ -51,11 +81,61 @@ const KioskCheckInSystem = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showStaffKeyboard, setShowStaffKeyboard] = useState(false);
+  const [securityBlockedIp, setSecurityBlockedIp] = useState<string | null>(null);
+
+  const [showPrinterDialog, setShowPrinterDialog] = useState(false);
+  const [printServerIp, setPrintServerIp] = useState(() => localStorage.getItem('kiddochecker_print_server_url') || '');
+  const [targetPrinterIp, setTargetPrinterIp] = useState(() => localStorage.getItem('kiddochecker_target_printer_ip') || '');
+  const [targetPrinterName, setTargetPrinterName] = useState(() => localStorage.getItem('kiddochecker_target_printer_name') || '');
+  const [isTestingPrinter, setIsTestingPrinter] = useState(false);
+
+  const testPrinterConnection = async () => {
+    if (!printServerIp.trim()) {
+      toast({ title: "IP Required", description: "Please enter your Print Server PC IP.", variant: "destructive" });
+      return;
+    }
+    setIsTestingPrinter(true);
+    let target = printServerIp.trim();
+    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+      target = `http://${target}`;
+    }
+    if (!target.includes(':3003') && !target.endsWith('/health')) {
+      target = `${target}:3003/health`;
+    } else if (!target.endsWith('/health')) {
+      target = `${target}/health`;
+    }
+
+    try {
+      const res = await fetch(target, { method: 'GET' });
+      if (res.ok) {
+        toast({ title: "Print Server Online! ✅", description: `Connected to Print Server at ${target}` });
+      } else {
+        toast({ title: "Server Warning", description: `Received status ${res.status}`, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Connection Failed ❌",
+        description: `Could not reach ${target}. Ensure print server is running on port 3003.`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingPrinter(false);
+    }
+  };
+
+  const savePrinterSettings = () => {
+    localStorage.setItem('kiddochecker_print_server_url', printServerIp.trim());
+    localStorage.setItem('kiddochecker_target_printer_ip', targetPrinterIp.trim());
+    localStorage.setItem('kiddochecker_target_printer_name', targetPrinterName.trim());
+    setShowPrinterDialog(false);
+    toast({ title: "Printer Saved 🖨️", description: "Kiosk printer configuration updated." });
+  };
 
   const [parentPhone, setParentPhone] = useState('');
   const [parentPin, setParentPin] = useState('');
   const [parentLoggedIn, setParentLoggedIn] = useState(false);
   const [parentName, setParentName] = useState('');
+  const [parentProfileId, setParentProfileId] = useState<string | null>(null);
   const [parentChildren, setParentChildren] = useState<Child[]>([]);
   const [parentLoginError, setParentLoginError] = useState('');
   const [activeInput, setActiveInput] = useState<'phone' | 'pin'>('phone');
@@ -78,15 +158,23 @@ const KioskCheckInSystem = () => {
   };
   const [checkedInChildIds, setCheckedInChildIds] = useState<Set<string>>(new Set());
 
-  const [staffSearchTerm, setStaffSearchTerm] = useState('');
-  const [staffSearchResults, setStaffSearchResults] = useState<Child[]>([]);
   const [staffAuthed, setStaffAuthed] = useState(false);
   const [staffName, setStaffName] = useState('');
+  const [staffRole, setStaffRole] = useState('');
+  const [canManageKiosk, setCanManageKiosk] = useState(false);
   const [staffPinInput, setStaffPinInput] = useState('');
   const [staffPinError, setStaffPinError] = useState('');
+  const [staffSearchTerm, setStaffSearchTerm] = useState('');
+  const [staffSearchResults, setStaffSearchResults] = useState<Child[]>([]);
   const [staffShifts, setStaffShifts] = useState<any[]>([]);
   const [isLoadingShifts, setIsLoadingShifts] = useState(false);
   const [isRegisteringNFC, setIsRegisteringNFC] = useState<string | null>(null);
+
+  const canAccessKioskSettings = staffAuthed && (
+    staffRole === 'admin' || 
+    staffRole === 'super_admin' || 
+    canManageKiosk === true
+  );
 
   const [youthPinInput, setYouthPinInput] = useState('');
   const [youthLoginError, setYouthLoginError] = useState('');
@@ -117,8 +205,72 @@ const KioskCheckInSystem = () => {
 
   useEffect(() => {
     loadTodayData();
+  }, [activeOrgId]);
+
+  useEffect(() => {
     requestGeo();
+    restoreSession();
   }, []);
+
+  const restoreSession = async () => {
+    const savedId = window.localStorage.getItem('kiosk_active_parent_id');
+    const savedName = window.localStorage.getItem('kiosk_active_parent_name');
+    if (savedId && savedName && !parentLoggedIn) {
+      console.log('[Kiosk] Attempting session restoration for:', savedName);
+      setIsLoading(true);
+      try {
+        // CRITICAL (Azure): Validate via Azure API that the cached parent ID still
+        // has an active user_roles entry. Deleted accounts have no user_roles row.
+        // We use apiFetch (Azure Container App) — NOT Supabase directly.
+        const validateRes = await apiFetch('/api/query', {
+          method: 'POST',
+          body: JSON.stringify({
+            table: 'user_roles',
+            select: 'role',
+            filters: [
+              { column: 'user_id', value: savedId, operator: '=' },
+              { column: 'role', value: 'parent', operator: '=' },
+              { operator: 'maybeSingle' }
+            ]
+          })
+        });
+
+        const roleCheck = validateRes?.data;
+        if (!roleCheck) {
+          console.log('[Kiosk] Session invalidated: parent account no longer active. Clearing cache.');
+          window.localStorage.removeItem('kiosk_active_parent_id');
+          window.localStorage.removeItem('kiosk_active_parent_name');
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch children via Azure API
+        const { data: kids, error } = await supabase
+          .from('children')
+          .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+          .eq('parent_id', savedId)
+          .eq('organization_id', activeOrgId);
+
+        if (!error && kids && kids.length > 0) {
+          setParentName(savedName);
+          setParentProfileId(savedId);
+          setParentChildren(kids as any);
+          setParentLoggedIn(true);
+          console.log('[Kiosk] Session restored successfully.');
+        } else {
+          // No children found — clear stale session
+          window.localStorage.removeItem('kiosk_active_parent_id');
+          window.localStorage.removeItem('kiosk_active_parent_name');
+        }
+      } catch (err) {
+        console.error('[Kiosk] Session restoration failed:', err);
+        window.localStorage.removeItem('kiosk_active_parent_id');
+        window.localStorage.removeItem('kiosk_active_parent_name');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   // ─── NFC Integration ──────────────────────────────────────────────────────
   const { isSupported: nfcSupported, startScanning: startNfc } = useNFC((serial) => {
@@ -180,10 +332,6 @@ const KioskCheckInSystem = () => {
     }
   };
 
-  useEffect(() => {
-    if (nfcSupported) startNfc();
-  }, [nfcSupported, startNfc]);
-
   const handleNfcLogin = async (serial: string) => {
     try {
       setIsLoading(true);
@@ -199,23 +347,54 @@ const KioskCheckInSystem = () => {
         return;
       }
 
-      // Handle login based on profile type
-      if (data.role === 'parent') {
+      // Query user_roles table for ultimate role assignment correctness
+      const { data: roleRes } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.id)
+        .maybeSingle();
+
+      const userRole = roleRes?.role || data.role || 'parent';
+
+      // Handle login based on resolved role type
+      if (userRole === 'parent') {
         setParentPhone(data.phone || '');
         setParentName(`${data.first_name} ${data.last_name}`);
-        const kids = await supabase.from('children').select('*').eq('parent_id', data.id);
-        setParentChildren(kids.data || []);
+        setParentProfileId(data.id);
+
+        const kids = await supabase.from('children').select('*').eq('parent_id', data.id).eq('organization_id', activeOrgId);
+        const kidsWithClasses = await Promise.all(((kids.data) || []).map(async (k: any) => {
+          const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
+          return { ...k, class_id: c?.class_id };
+        }));
+
+        setParentChildren(kidsWithClasses || []);
         setParentLoggedIn(true);
         setActiveTab('parent');
+
+        window.localStorage.setItem('kiosk_active_parent_id', data.id);
+        window.localStorage.setItem('kiosk_active_parent_name', `${data.first_name} ${data.last_name}`);
+
+        await logActivity('parent_login', { parent_id: data.id, parent_name: `${data.first_name} ${data.last_name}` });
+        startAutoLogoutTimer(120);
         showSuccess(`Welcome back, ${data.first_name}!`);
-      } else if (['staff', 'teacher', 'admin', 'super_admin'].includes(data.role)) {
+      } else if (['staff', 'teacher', 'admin', 'super_admin'].includes(userRole)) {
         setStaffAuthed(true);
         setStaffName(`${data.first_name} ${data.last_name}`);
         setActiveTab('staff');
+        await logActivity('staff_login', { staff_id: data.id, staff_name: `${data.first_name} ${data.last_name}` });
+        fetchStaffShifts();
+        startAutoLogoutTimer(2700);
         showSuccess(`Staff access granted: ${data.first_name}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[NFC] Login failed:', err);
+      const errMsg = err.message || '';
+      if (errMsg.includes('ACCESS_DENIED')) {
+        const ipMatch = errMsg.match(/IP address\s+([^\s\.]+)/);
+        const ip = ipMatch ? ipMatch[1] : 'External IP';
+        setSecurityBlockedIp(ip);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -246,9 +425,9 @@ const KioskCheckInSystem = () => {
 
   const loadTodayData = async () => {
     try {
-      const todayData = await AttendanceService.getTodaysAttendance();
+      const todayData = await AttendanceService.getTodaysAttendance(activeOrgId);
       setTodayCount(todayData.length);
-      const presentData = await AttendanceService.getCheckedInChildren();
+      const presentData = await AttendanceService.getCheckedInChildren(activeOrgId);
       const ids = new Set<string>();
       presentData.forEach((r) => ids.add(r.child_id));
       setCheckedInChildIds(ids);
@@ -301,6 +480,13 @@ const KioskCheckInSystem = () => {
         return result as any; 
       } catch (err: any) {
         lastError = err;
+        const errMsg = err.message || '';
+        if (errMsg.includes('ACCESS_DENIED')) {
+          const ipMatch = errMsg.match(/IP address\s+([^\s\.]+)/);
+          const ip = ipMatch ? ipMatch[1] : 'External IP';
+          setSecurityBlockedIp(ip);
+          return { data: null, error: err };
+        }
         await new Promise(r => setTimeout(r, 500 * (i + 1)));
       }
     }
@@ -327,7 +513,8 @@ const KioskCheckInSystem = () => {
     try {
       const { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
         p_search_val: cleanPhone || parentPhone.trim(),
-        p_pin: parentPin.trim()
+        p_pin: parentPin.trim(),
+        p_org_id: activeOrgId
       });
 
       if (error || !matched || (matched as any).length === 0) {
@@ -340,7 +527,8 @@ const KioskCheckInSystem = () => {
       const parent = (matched as any)[0];
       let { data: kids, error: kidsError } = await safeRPC('get_children_for_kiosk', {
         p_parent_id: parent.id,
-        p_pin: parentPin
+        p_pin: parentPin,
+        p_org_id: activeOrgId
       });
 
       if (kidsError) console.warn('[Kiosk] get_children_for_kiosk error:', kidsError);
@@ -349,7 +537,8 @@ const KioskCheckInSystem = () => {
         const { data: fallbackKids } = await supabase
           .from('children')
           .select('id, first_name, last_name, age, allergies, notes, parent_id')
-          .eq('parent_id', parent.id);
+          .eq('parent_id', parent.id)
+          .eq('organization_id', activeOrgId);
         if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
       }
       
@@ -359,6 +548,7 @@ const KioskCheckInSystem = () => {
       }));
       
       setParentName(`${parent.first_name} ${parent.last_name}`);
+      setParentProfileId(parent.id);
       setParentChildren(kidsWithClasses || []);
       setParentLoggedIn(true);
       
@@ -373,6 +563,71 @@ const KioskCheckInSystem = () => {
     } finally { setIsLoading(false); }
   };
 
+  const handleQRScan = async (scannedData: string) => {
+    console.log('[Kiosk] Scanned QR Code Data:', scannedData);
+    if (!scannedData || !scannedData.trim()) return;
+
+    setIsLoading(true);
+    setParentLoginError('');
+
+    try {
+      let targetId = '';
+      let targetPhone = '';
+
+      const trimmed = scannedData.trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          targetId = parsed.parentId || parsed.id || parsed.user_id || '';
+          targetPhone = parsed.phone || '';
+        } catch (e) { }
+      } else if (/^[0-9a-fA-F-]{36}$/.test(trimmed)) {
+        targetId = trimmed;
+      } else {
+        targetPhone = trimmed;
+      }
+
+      let profileData: any = null;
+      if (targetId) {
+        const { data } = await supabase.from('profiles').select('*').eq('id', targetId).maybeSingle();
+        profileData = data;
+      } else if (targetPhone) {
+        const cleanPhone = targetPhone.replace(/\D/g, '');
+        const { data } = await supabase.from('profiles').select('*').eq('phone', cleanPhone).maybeSingle();
+        profileData = data;
+      }
+
+      if (!profileData) {
+        toast({ title: "QR Scan Unrecognized", description: "No registered account matched this QR code.", variant: "destructive" });
+        return;
+      }
+
+      // Fetch children for this parent
+      let { data: kids } = await supabase
+        .from('children')
+        .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+        .eq('parent_id', profileData.id)
+        .eq('organization_id', activeOrgId);
+
+      setParentName(`${profileData.first_name || ''} ${profileData.last_name || ''}`);
+      setParentProfileId(profileData.id);
+      setParentChildren(kids || []);
+      setParentLoggedIn(true);
+
+      window.localStorage.setItem('kiosk_active_parent_id', profileData.id);
+      window.localStorage.setItem('kiosk_active_parent_name', `${profileData.first_name} ${profileData.last_name}`);
+
+      await logActivity('parent_qr_login', { parent_id: profileData.id, parent_name: `${profileData.first_name} ${profileData.last_name}` });
+      startAutoLogoutTimer(120);
+      showSuccess(`Welcome back, ${profileData.first_name}!`);
+    } catch (err: any) {
+      console.error('[Kiosk] QR login exception:', err);
+      toast({ title: "QR Login Failed", description: err.message || "Failed to process QR code", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleParentLogout = () => {
     setParentLoggedIn(false);
     setParentName('');
@@ -384,7 +639,12 @@ const KioskCheckInSystem = () => {
 
   const handleParentCheckIn = (child: Child) => {
     if (checkedInChildIds.has(child.id)) {
-      toast({ title: "Already In", description: `${child.first_name} is already checked in.`, variant: "destructive" });
+      const record = checkedInChildren.find(r => r.child_id === child.id && !r.checked_out_at);
+      if (record) {
+        initiateCheckOut(record);
+      } else {
+        toast({ title: "Already In", description: `${child.first_name} is already checked in.`, variant: "destructive" });
+      }
       return;
     }
 
@@ -420,7 +680,9 @@ const KioskCheckInSystem = () => {
       } else {
         setStaffAuthed(true);
         setStaffName(`${staffMember.first_name} ${staffMember.last_name}`);
-        await logActivity('staff_login', { staff_id: staffMember.id, staff_name: staffName });
+        setStaffRole(staffMember.role || 'staff');
+        setCanManageKiosk(Boolean(staffMember.can_manage_kiosk || staffMember.role === 'admin' || staffMember.role === 'super_admin'));
+        await logActivity('staff_login', { staff_id: staffMember.id, staff_name: `${staffMember.first_name} ${staffMember.last_name}` });
         fetchStaffShifts();
         startAutoLogoutTimer(2700);
       }
@@ -463,10 +725,12 @@ const KioskCheckInSystem = () => {
   const handleStaffLogout = () => {
     setStaffAuthed(false);
     setStaffName('');
-    setStaffPinInput('');
+    setStaffRole('');
+    setCanManageKiosk(false);
     setStaffSearchTerm('');
     setStaffSearchResults([]);
-    setStaffShifts([]);
+    setStaffPinInput('');
+    setStaffPinError('');
   };
 
   const handleYouthLogin = async () => {
@@ -512,7 +776,7 @@ const KioskCheckInSystem = () => {
     if (!staffAuthed || staffSearchTerm.length < 2) { setStaffSearchResults([]); return; }
     const t_out = setTimeout(async () => {
       const cleaned = staffSearchTerm.trim();
-      let query = supabase.from('children').select('*');
+      let query = supabase.from('children').select('*').eq('organization_id', activeOrgId);
       if (cleaned.includes(' ')) {
         const parts = cleaned.split(' ').filter(p => p.length > 0);
         if (parts.length >= 2) query = query.ilike('first_name', `%${parts[0]}%`).ilike('last_name', `%${parts[1]}%`);
@@ -524,7 +788,7 @@ const KioskCheckInSystem = () => {
       setStaffSearchResults(data || []);
     }, 300);
     return () => clearTimeout(t_out);
-  }, [staffSearchTerm, staffAuthed]);
+  }, [staffSearchTerm, staffAuthed, activeOrgId]);
 
   const handleStaffCheckIn = (child: Child) => {
     if (checkedInChildIds.has(child.id)) {
@@ -561,7 +825,7 @@ const KioskCheckInSystem = () => {
         return;
       }
       if (result.type === 'parent') {
-        const { data: kids } = await supabase.from('children').select('*').eq('parent_id', result.id);
+        const { data: kids } = await supabase.from('children').select('*').eq('parent_id', result.id).eq('organization_id', activeOrgId);
         if (kids && kids.length > 0) {
           setParentChildren(kids as any);
           setParentLoggedIn(true);
@@ -571,7 +835,7 @@ const KioskCheckInSystem = () => {
         return;
       }
       if (result.type === 'child') {
-        const { data: child } = await supabase.from('children').select('*, class_id').eq('id', result.id).maybeSingle();
+        const { data: child } = await supabase.from('children').select('*, class_id').eq('id', result.id).eq('organization_id', activeOrgId).maybeSingle();
         if (child) {
           if (checkedInChildIds.has(child.id)) {
             const record = checkedInChildren.find((r: any) => r.child_id === child.id);
@@ -597,8 +861,7 @@ const KioskCheckInSystem = () => {
     try {
       const { data: classData } = await supabase.from('classes').select('name').eq('id', classId).single();
       let actorId = (user as any)?.id;
-      const storedParentId = window.localStorage.getItem('kiosk_active_parent_id');
-      if (parentLoggedIn && storedParentId) actorId = storedParentId;
+      if (parentLoggedIn) actorId = parentProfileId || window.localStorage.getItem('kiosk_active_parent_id') || actorId;
 
       const result = await AttendanceService.checkInChild({
         childId: selectedChild.id,
@@ -609,7 +872,8 @@ const KioskCheckInSystem = () => {
         specialInstructions,
         hasFever,
         hasCough,
-        deviceId: (user as any)?.user_metadata?.device_id
+        deviceId: (user as any)?.user_metadata?.device_id,
+        orgId: activeOrgId
       });
 
       if (result.success) {
@@ -632,20 +896,13 @@ const KioskCheckInSystem = () => {
   };
 
   useEffect(() => {
-    console.log(`[Kiosk] Filter Run | parentLoggedIn: ${parentLoggedIn} | staffAuthed: ${staffAuthed} | Total Records: ${checkedInChildren.length}`);
+    console.log(`[Kiosk] Filter Run | parentLoggedIn: ${parentLoggedIn} | Total Records: ${checkedInChildren.length}`);
     let baseList = checkedInChildren;
     
     if (parentLoggedIn) {
-      const pid = parentChildren[0]?.parent_id || '';
-      console.log(`[Kiosk] Target Parent ID: ${pid} from parentChildren:`, parentChildren[0]);
-      baseList = checkedInChildren.filter((r) => {
-        const cpid = r.child?.parent_id;
-        const match = cpid === pid;
-        console.log(`[Kiosk] Checking child ${r.child?.first_name}: Parent ID in record: ${cpid} | Target: ${pid} | Match: ${match}`);
-        return match;
-      });
+      const myChildIds = new Set(parentChildren.map(c => c.id));
+      baseList = checkedInChildren.filter((r) => myChildIds.has(r.child_id));
     } else if (!staffAuthed) {
-      console.log('[Kiosk] No parent or staff login detected. Hiding list for security.');
       baseList = [];
     }
 
@@ -662,7 +919,7 @@ const KioskCheckInSystem = () => {
     setIsLoading(true);
     try {
       let actorId = (await supabase.auth.getUser()).data.user?.id;
-      if (parentLoggedIn && parentChildren.length > 0) actorId = parentChildren[0].parent_id;
+      if (parentLoggedIn) actorId = parentProfileId || parentChildren[0]?.parent_id || actorId;
 
       const result = await AttendanceService.checkOutChild({
         attendanceId: record.id,
@@ -727,8 +984,53 @@ const KioskCheckInSystem = () => {
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {settings?.name || 'KiddoChecker'}
           </Badge>
+          {nfcSupported ? (
+            <Badge variant="outline" className="h-6 gap-1.5 font-bold border-emerald-500/30 text-emerald-700 bg-emerald-50/50">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              NFC Active
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="h-6 gap-1.5 font-bold border-slate-500/30 text-slate-700 bg-slate-50/50">
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-slate-400" />
+              NFC Standby
+            </Badge>
+          )}
         </div>
         
+        {/* Premium Glassmorphic Congregation Switcher */}
+        <div className="relative flex items-center bg-muted/70 p-1.5 rounded-full border border-border/40 shadow-inner max-w-sm backdrop-blur-md">
+          {organizations.map((org) => {
+            const isActive = activeOrgId === org.id;
+            return (
+              <button
+                key={org.id}
+                onClick={() => {
+                  if (activeOrgId !== org.id) {
+                    setActiveOrgId(org.id);
+                    window.localStorage.setItem('kiosk_active_org_id', org.id);
+                    setLanguage(org.language_code || 'en');
+                    handleGlobalLogout();
+                    toast({
+                      title: `Switched to ${org.name}`,
+                      description: `Enforcing strict boundary isolation. All active sessions cleared.`,
+                    });
+                  }
+                }}
+                className={`relative px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider transition-all duration-300 ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {org.slug === 'english' ? '🇬🇧 EN' : org.slug === 'spanish' ? '🇪🇸 ES' : org.slug === 'combined' ? '🤝 COMBINED / COMBINADO' : org.name}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex items-center gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -751,6 +1053,18 @@ const KioskCheckInSystem = () => {
              <span className="text-foreground">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
+          {canAccessKioskSettings && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowPrinterDialog(true)} 
+              className="h-8 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10 animate-in fade-in"
+              title="Printer & Print Server Setup"
+            >
+              <Printer className="h-4 w-4" />
+              <span className="hidden sm:inline">Printer Setup</span>
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={toggleFs} className="h-8 w-8"><Maximize className="h-4 w-4" /></Button>
         </div>
       </header>
@@ -808,8 +1122,12 @@ const KioskCheckInSystem = () => {
                   <div className="w-12 h-12 mx-auto bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
                     <LogIn className="w-6 h-6 text-slate-500" />
                   </div>
-                  <h2 className="text-xl font-bold tracking-tight">Parent Verification</h2>
-                  <p className="text-sm text-muted-foreground">Sign in with phone or scan QR profile</p>
+                  <h2 className="text-xl font-bold tracking-tight">
+                    {isEs ? "Verificación de Padres" : "Parent Verification"}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {isEs ? "Inicie sesión con su teléfono o escanee el QR familiar" : "Sign in with phone or scan QR profile"}
+                  </p>
                 </div>
 
                 <div className="space-y-4 pt-2">
@@ -821,7 +1139,9 @@ const KioskCheckInSystem = () => {
                            setShowParentScanner(false);
                         }} />
                       </div>
-                      <Button variant="ghost" onClick={() => setShowParentScanner(false)} className="w-full text-xs font-bold uppercase tracking-wider">Cancel Scan</Button>
+                      <Button variant="ghost" onClick={() => setShowParentScanner(false)} className="w-full text-xs font-bold uppercase tracking-wider">
+                        {isEs ? "Cancelar Escaneo" : "Cancel Scan"}
+                      </Button>
                     </div>
                   ) : (
                     <Button 
@@ -830,7 +1150,9 @@ const KioskCheckInSystem = () => {
                       className="w-full h-24 flex flex-col gap-2 rounded-2xl border-dashed border-2 hover:bg-muted/50"
                     >
                       <QrCode className="h-6 w-6 text-primary" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Scan Family QR Code</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider">
+                        {isEs ? "Escanear Código QR Familiar" : "Scan Family QR Code"}
+                      </span>
                     </Button>
                   )}
                   
@@ -841,7 +1163,7 @@ const KioskCheckInSystem = () => {
                         value={parentPhone} 
                         onFocus={() => setActiveInput('phone')}
                         onChange={e => setParentPhone(formatPhoneNumber(e.target.value))} 
-                        placeholder="Phone Number" 
+                        placeholder={isEs ? "Número de Teléfono" : "Phone Number"} 
                         inputMode="none"
                         className={cn("h-10 pl-10 transition-all", activeInput === 'phone' && "ring-2 ring-primary/20 border-primary")} 
                       />
@@ -853,14 +1175,16 @@ const KioskCheckInSystem = () => {
                         value={parentPin} 
                         onFocus={() => setActiveInput('pin')}
                         onChange={e => setParentPin(e.target.value)} 
-                        placeholder="Direct PIN" 
+                        placeholder={isEs ? "PIN Directo" : "Direct PIN"} 
                         inputMode="none"
                         className={cn("h-10 pl-10 transition-all", activeInput === 'pin' && "ring-2 ring-primary/20 border-primary")} 
                         maxLength={8} 
                       />
                     </div>
                     {parentLoginError && <p className="text-destructive text-xs font-bold text-center">{parentLoginError}</p>}
-                    <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-10 font-bold uppercase tracking-wide">Identification Search</Button>
+                    <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-10 font-bold uppercase tracking-wide">
+                      {isEs ? "Buscar Identificación" : "Identification Search"}
+                    </Button>
                     
                     <NumericKeypad 
                       value={activeInput === 'phone' ? parentPhone.replace(/\D/g, '') : parentPin} 
@@ -877,10 +1201,14 @@ const KioskCheckInSystem = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-end px-2">
                 <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Family Account</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase">
+                    {isEs ? "Cuenta Familiar" : "Family Account"}
+                  </p>
                   <h2 className="text-xl font-bold">{parentName}</h2>
                 </div>
-                <Button variant="ghost" size="sm" onClick={handleParentLogout} className="text-xs h-8"><LogOut className="w-3 h-3 mr-1.5" /> Sign Out</Button>
+                <Button variant="ghost" size="sm" onClick={handleParentLogout} className="text-xs h-8">
+                  <LogOut className="w-3 h-3 mr-1.5" /> {isEs ? "Cerrar Sesión" : "Sign Out"}
+                </Button>
               </div>
 
               {/* NFC Self-Link Option for Parents at Kiosk */}
@@ -891,8 +1219,12 @@ const KioskCheckInSystem = () => {
                          <Smartphone className="h-5 w-5 text-emerald-700" />
                       </div>
                       <div>
-                         <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Quick Setup</p>
-                         <p className="font-bold text-sm text-foreground">Link NFC Tag</p>
+                         <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">
+                          {isEs ? "Configuración Rápida" : "Quick Setup"}
+                         </p>
+                         <p className="font-bold text-sm text-foreground">
+                          {isEs ? "Vincular Etiqueta NFC" : "Link NFC Tag"}
+                         </p>
                       </div>
                    </div>
                    <Button 
@@ -904,11 +1236,16 @@ const KioskCheckInSystem = () => {
                         if (parentId) {
                           setIsRegisteringNFC(parentId);
                           startNfc();
-                          toast({ title: "Ready for NFC", description: "Please tap your physical tag or phone against the reader now." });
+                          toast({ 
+                            title: isEs ? "Listo para NFC" : "Ready for NFC", 
+                            description: isEs ? "Por favor acerque su tarjeta o teléfono al lector." : "Please tap your physical tag or phone against the reader now." 
+                          });
                         }
                       }}
                    >
-                      {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') ? "Waiting for Tap..." : "Link My Tag"}
+                      {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') 
+                        ? (isEs ? "Esperando toque..." : "Waiting for Tap...") 
+                        : (isEs ? "Vincular mi Etiqueta" : "Link My Tag")}
                    </Button>
                 </CardContent>
               </Card>
@@ -917,19 +1254,25 @@ const KioskCheckInSystem = () => {
                 {parentChildren.map(child => {
                   const checked = alreadyIn(child.id);
                   return (
-                    <Card key={child.id} className={cn("overflow-hidden cursor-pointer hover:border-primary/50 transition-all rounded-2xl shadow-sm", checked && "bg-muted/30 border-primary/20 opacity-80")}>
+                    <Card key={child.id} className={cn("overflow-hidden cursor-pointer hover:border-primary/50 transition-all rounded-2xl shadow-sm", checked ? "border-red-200 hover:border-red-400 bg-red-50/10" : "hover:border-primary/50")}>
                         <CardContent className="p-5" onClick={() => handleParentCheckIn(child)}>
                             <div className="flex items-center gap-5">
-                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl transition-all shadow-inner", checked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl transition-all shadow-inner", checked ? "bg-red-500 text-white shadow-red-100" : "bg-muted text-muted-foreground")}>
                                     {checked ? <CheckCircle className="w-7 h-7" /> : child.first_name[0]}
                                 </div>
                                 <div className="flex-1">
                                     <p className="font-bold text-base">{child.first_name} {child.last_name}</p>
-                                    <p className="text-[10px] uppercase font-bold text-muted-foreground">
-                                        {checked ? "Already in session" : "Available for check-in"}
+                                    <p className={cn("text-[10px] uppercase font-bold", checked ? "text-red-500 animate-pulse" : "text-muted-foreground")}>
+                                        {checked 
+                                          ? (isEs ? "Registrado • Tocar para Salida" : "Checked In • Tap to Check Out") 
+                                          : (isEs ? "Disponible para entrada" : "Available for check-in")}
                                     </p>
                                 </div>
-                                {!checked && <ArrowRight className="w-4 h-4 text-muted-foreground" />}
+                                {checked ? (
+                                    <LogOut className="w-4 h-4 text-red-500 animate-pulse" />
+                                ) : (
+                                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -946,8 +1289,12 @@ const KioskCheckInSystem = () => {
                         <div className="w-16 h-16 mx-auto bg-primary/10 rounded-3xl flex items-center justify-center">
                             <User className="w-8 h-8 text-primary" />
                         </div>
-                        <h2 className="text-2xl font-bold tracking-tight">Youth Self-Check</h2>
-                        <p className="text-sm text-muted-foreground">Enter security PIN to log entry/exit</p>
+                        <h2 className="text-2xl font-bold tracking-tight">
+                          {isEs ? "Autoregistro de Jóvenes" : "Youth Self-Check"}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {isEs ? "Ingrese su PIN de seguridad para registrar entrada/salida" : "Enter security PIN to log entry/exit"}
+                        </p>
                     </div>
                     <div className="space-y-4">
                         <div className="relative">
@@ -956,7 +1303,7 @@ const KioskCheckInSystem = () => {
                                 type="password"
                                 inputMode="none"
                                 maxLength={6}
-                                placeholder="Security PIN"
+                                placeholder={isEs ? "PIN de Seguridad" : "Security PIN"}
                                 value={youthPinInput}
                                 onChange={(e) => setYouthPinInput(e.target.value)}
                                 className="pl-12 h-12 text-2xl tracking-[0.4em] font-bold"
@@ -968,7 +1315,7 @@ const KioskCheckInSystem = () => {
                             disabled={isLoading || youthPinInput.length < 4}
                             className="w-full h-12 font-bold uppercase"
                         >
-                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify Identity"}
+                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEs ? "Verificar Identidad" : "Verify Identity")}
                         </Button>
                         
                         <NumericKeypad 
@@ -987,8 +1334,12 @@ const KioskCheckInSystem = () => {
                   <Card className="shadow-sm rounded-3xl">
                     <CardContent className="p-10 space-y-6">
                         <div className="text-center space-y-2 mb-6">
-                            <h2 className="text-2xl font-bold">Staff Access</h2>
-                            <p className="text-sm text-muted-foreground">Identification PIN required</p>
+                            <h2 className="text-2xl font-bold">
+                              {isEs ? "Acceso de Personal" : "Staff Access"}
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                              {isEs ? "Se requiere PIN de identificación" : "Identification PIN required"}
+                            </p>
                         </div>
                         
                         <div className="space-y-4">
@@ -996,7 +1347,7 @@ const KioskCheckInSystem = () => {
                             type="password" 
                             value={staffPinInput} 
                             onChange={e => setStaffPinInput(e.target.value.toUpperCase())} 
-                            placeholder="STAFF PIN" 
+                            placeholder={isEs ? "PIN DE PERSONAL" : "STAFF PIN"} 
                             inputMode={showStaffKeyboard ? undefined : "none"}
                             className="h-16 text-center text-3xl tracking-[0.6em] font-bold rounded-2xl bg-muted border-none shadow-inner" 
                           />
@@ -1009,7 +1360,9 @@ const KioskCheckInSystem = () => {
                                 onClick={() => setShowStaffKeyboard(!showStaffKeyboard)}
                              >
                                 <PenTool className="h-3 w-3" />
-                                {showStaffKeyboard ? "Use Numeric Keypad" : "Use Full Keyboard"}
+                                {showStaffKeyboard 
+                                  ? (isEs ? "Usar Teclado Numérico" : "Use Numeric Keypad") 
+                                  : (isEs ? "Usar Teclado Completo" : "Use Full Keyboard")}
                              </Button>
                           </div>
 
@@ -1020,11 +1373,15 @@ const KioskCheckInSystem = () => {
                               maxLength={8}
                             />
                           ) : (
-                            <p className="text-[10px] text-center text-slate-400 font-medium">Please use your physical or on-screen keyboard to type your alphanumeric PIN.</p>
+                            <p className="text-[10px] text-center text-slate-400 font-medium">
+                              {isEs ? "Use su teclado para escribir su PIN alfanumérico." : "Please use your physical or on-screen keyboard to type your alphanumeric PIN."}
+                            </p>
                           )}
                         </div>
 
-                        <Button onClick={handleStaffAuth} className="w-full h-14 font-bold uppercase text-base tracking-wider rounded-2xl">Unlock Station</Button>
+                        <Button onClick={handleStaffAuth} className="w-full h-14 font-bold uppercase text-base tracking-wider rounded-2xl">
+                          {isEs ? "Desbloquear Estación" : "Unlock Station"}
+                        </Button>
                         {staffPinError && <p className="text-destructive text-center text-xs font-bold uppercase tracking-tight">{staffPinError}</p>}
                     </CardContent>
                   </Card>
@@ -1032,15 +1389,30 @@ const KioskCheckInSystem = () => {
                   <div className="space-y-6">
                       <div className="flex justify-between items-center bg-card p-5 border rounded-2xl shadow-sm">
                         <div>
-                          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-0.5">Authenticated Staff</p>
+                          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-0.5">
+                            {isEs ? "Personal Autenticado" : "Authenticated Staff"}
+                          </p>
                           <p className="font-bold text-lg">{staffName}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {canAccessKioskSettings && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setShowPrinterDialog(true)} 
+                              className="h-9 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10"
+                            >
+                              <Printer className="h-4 w-4" />
+                              <span>{isEs ? "Configurar Impresora" : "Printer Setup"}</span>
+                            </Button>
+                          )}
                         </div>
                       </div>
 
                       <Tabs defaultValue="search" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="search">Children</TabsTrigger>
-                          <TabsTrigger value="shifts">Shifts</TabsTrigger>
+                          <TabsTrigger value="search">{isEs ? "Niños" : "Children"}</TabsTrigger>
+                          <TabsTrigger value="shifts">{isEs ? "Turnos" : "Shifts"}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="search" className="space-y-4">
@@ -1049,7 +1421,7 @@ const KioskCheckInSystem = () => {
                           </Card>
                           <div className="relative">
                             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input value={staffSearchTerm} onChange={e => setStaffSearchTerm(e.target.value)} placeholder="Manual search..." className="pl-10" />
+                            <Input value={staffSearchTerm} onChange={e => setStaffSearchTerm(e.target.value)} placeholder={isEs ? "Búsqueda manual..." : "Manual search..."} className="pl-10" />
                           </div>
                           <div className="grid gap-2">
                             {staffSearchResults.map(child => (
@@ -1071,11 +1443,11 @@ const KioskCheckInSystem = () => {
                                         e.stopPropagation();
                                         setIsRegisteringNFC(child.parent_id);
                                         startNfc();
-                                        toast({ title: "Ready for NFC", description: "Please tap the parent's device or sticker now." });
+                                        toast({ title: isEs ? "Listo para NFC" : "Ready for NFC", description: isEs ? "Toque el teléfono o etiqueta del padre." : "Please tap the parent's device or sticker now." });
                                       }}
                                     >
                                       <KeyRound className="w-3 h-3" />
-                                      {isRegisteringNFC === child.parent_id ? "Waiting..." : "Link Tag"}
+                                      {isRegisteringNFC === child.parent_id ? (isEs ? "Esperando..." : "Waiting...") : (isEs ? "Vincular" : "Link Tag")}
                                     </Button>
                                 </CardContent>
                               </Card>
@@ -1103,18 +1475,22 @@ const KioskCheckInSystem = () => {
 
                                   {!shift.actual_start_time ? (
                                     <Button onClick={() => handleShiftAction(shift.shift_id, 'check_in')} className="w-full font-bold h-9">
-                                      Start Shift
+                                      {isEs ? "Iniciar Turno" : "Start Shift"}
                                     </Button>
                                   ) : !shift.actual_end_time ? (
                                     <div className="space-y-2">
-                                      <p className="text-[10px] text-emerald-600 font-bold text-center">Active: {new Date(shift.actual_start_time).toLocaleTimeString()}</p>
+                                      <p className="text-[10px] text-emerald-600 font-bold text-center">
+                                        {isEs ? "Activo desde: " : "Active: "}{new Date(shift.actual_start_time).toLocaleTimeString()}
+                                      </p>
                                       <Button variant="outline" onClick={() => handleShiftAction(shift.shift_id, 'check_out')} className="w-full text-amber-600 border-amber-200 hover:bg-amber-50 h-9 font-bold">
-                                        End Shift
+                                        {isEs ? "Finalizar Turno" : "End Shift"}
                                       </Button>
                                     </div>
                                   ) : (
                                     <div className="text-center p-2 bg-emerald-50 rounded-md">
-                                      <p className="text-[10px] text-emerald-600 font-bold">Completed at {new Date(shift.actual_end_time).toLocaleTimeString()}</p>
+                                      <p className="text-[10px] text-emerald-600 font-bold">
+                                        {isEs ? "Completado a las " : "Completed at "}{new Date(shift.actual_end_time).toLocaleTimeString()}
+                                      </p>
                                     </div>
                                   )}
                                 </CardContent>
@@ -1122,7 +1498,7 @@ const KioskCheckInSystem = () => {
                             ))
                           ) : (
                             <div className="text-center py-12 text-muted-foreground">
-                              <p className="text-sm">No shifts found for today.</p>
+                              <p className="text-sm">{isEs ? "No hay turnos programados para hoy." : "No shifts found for today."}</p>
                             </div>
                           )}
                         </TabsContent>
@@ -1137,14 +1513,18 @@ const KioskCheckInSystem = () => {
               {!(parentLoggedIn || staffAuthed) ? (
                 <Card className="p-12 text-center text-muted-foreground border-dashed">
                     <Shield className="w-10 h-10 mx-auto mb-4 opacity-20" />
-                    <p className="text-sm font-bold uppercase tracking-tight">Security ID Required</p>
-                    <p className="text-xs pt-1">Please identify as Parent or Staff first</p>
+                    <p className="text-sm font-bold uppercase tracking-tight">
+                      {isEs ? "Se Requiere ID de Seguridad" : "Security ID Required"}
+                    </p>
+                    <p className="text-xs pt-1">
+                      {isEs ? "Por favor identifíquese primero como Padre o Personal" : "Please identify as Parent or Staff first"}
+                    </p>
                 </Card>
               ) : (
                 <div className="space-y-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input value={checkoutSearch} onChange={e => setCheckoutSearch(e.target.value)} placeholder="Filter children..." className="pl-10" />
+                    <Input value={checkoutSearch} onChange={e => setCheckoutSearch(e.target.value)} placeholder={isEs ? "Filtrar niños..." : "Filter children..."} className="pl-10" />
                   </div>
                   <div className="grid gap-2">
                     {checkoutFilteredChildren.map(record => (
@@ -1159,18 +1539,61 @@ const KioskCheckInSystem = () => {
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase">{record.class?.name}</p>
                                 </div>
                             </div>
-                            <Button size="sm" onClick={() => initiateCheckOut(record)} className="font-bold uppercase text-[10px] h-8 px-4">Log Exit</Button>
+                            <Button size="sm" onClick={() => initiateCheckOut(record)} className="font-bold uppercase text-[10px] h-8 px-4">
+                              {isEs ? "Registrar Salida" : "Log Exit"}
+                            </Button>
                         </CardContent>
                       </Card>
                     ))}
                     {checkoutFilteredChildren.length === 0 && (
                         <div className="py-12 text-center text-muted-foreground">
-                            <p className="text-sm font-bold uppercase">No records found</p>
+                            <p className="text-sm font-bold uppercase">
+                              {isEs ? "No se encontraron registros" : "No records found"}
+                            </p>
                         </div>
                     )}
                   </div>
                 </div>
               )}
+            </div>
+          )}
+          {/* Dev Mode NFC Emulator */}
+          {(!nfcSupported || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+            <div className="mt-8 p-5 bg-slate-950 text-slate-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800 shadow-xl">
+              <div className="flex items-center gap-3">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                </span>
+                <div>
+                  <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-0.5">Developer Console</p>
+                  <p className="text-sm font-bold text-slate-200">Hardware NFC Simulator</p>
+                </div>
+              </div>
+              <div className="flex gap-2 w-full md:w-auto">
+                <Input 
+                  placeholder="Tag UID (e.g. nfc-101)" 
+                  className="bg-slate-900 border-slate-700 text-white h-9 text-xs rounded-xl" 
+                  id="dev-nfc-input"
+                />
+                <Button 
+                  variant="secondary"
+                  size="sm"
+                  className="h-9 px-4 font-bold bg-blue-600 text-white hover:bg-blue-500 rounded-xl"
+                  onClick={() => {
+                    const el = document.getElementById('dev-nfc-input') as HTMLInputElement;
+                    const val = el?.value || 'nfc-101';
+                    console.log('[Dev NFC] Simulating NFC tap with serial:', val);
+                    if (isRegisteringNFC) {
+                      handleNfcRegister(val);
+                    } else {
+                      handleNfcLogin(val);
+                    }
+                  }}
+                >
+                  Simulate Tap
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -1182,6 +1605,7 @@ const KioskCheckInSystem = () => {
         onConfirm={handleClassSelected} 
         childName={selectedChild?.first_name || ''} 
         initialClassId={selectedChild?.class_id}
+        orgId={activeOrgId}
       />
       
       {selectedChild && (
@@ -1227,6 +1651,123 @@ const KioskCheckInSystem = () => {
                 </div>
               </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── IP Lockdown Block Warning Screen ─── */}
+      {securityBlockedIp && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-xl animate-fade-in">
+          <div className="max-w-md w-full mx-4 p-8 rounded-2xl border border-rose-500/35 bg-slate-900/90 text-white shadow-2xl shadow-rose-950/40 text-center space-y-6">
+            <div className="inline-flex p-4 bg-rose-500/10 border border-rose-500/25 rounded-full text-rose-500 animate-pulse">
+              <ShieldAlert className="h-10 w-10" />
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-xl font-black tracking-tight text-rose-500 uppercase">Terminal Access Locked</h2>
+              <p className="text-xs font-semibold tracking-wider text-rose-400 uppercase">Unauthorized Physical Location Network</p>
+            </div>
+            
+            <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-950/50 text-left space-y-3">
+              <p className="text-xs text-rose-200 leading-relaxed">
+                This kiosk check-in terminal is attempting to authenticate from an external, unauthorized IP address:
+              </p>
+              <div className="font-mono text-sm bg-rose-950/40 text-rose-300 py-1.5 px-3 rounded border border-rose-900 font-bold select-all text-center">
+                {securityBlockedIp}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                To enable access, this IP address must be registered under the authorized location settings in the Admin Dashboard panel.
+              </p>
+            </div>
+            
+            <div className="pt-2 flex flex-col gap-2">
+              <Button 
+                onClick={() => setSecurityBlockedIp(null)} 
+                variant="outline" 
+                className="w-full bg-slate-800 border-slate-700 text-white hover:bg-slate-700/80 hover:text-white"
+              >
+                Dismiss Notice
+              </Button>
+              <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wide">
+                Security Policy SEC-01 • Active Protection
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Kiosk Printer & Print Server Setup Dialog */}
+      <Dialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5 text-primary" />
+              Kiosk Printer & Print Server Setup
+            </DialogTitle>
+            <DialogDescription>
+              Configure the Linux Print Server IP and Label Printer for this Kiosk terminal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                Print Server PC IP (Linux Server)
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={printServerIp}
+                  onChange={(e) => setPrintServerIp(e.target.value)}
+                  placeholder="e.g. 192.168.1.150"
+                  className="font-mono"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={testPrinterConnection} 
+                  disabled={isTestingPrinter}
+                >
+                  {isTestingPrinter ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test IP'}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Local IP address of the Linux PC running print server on port 3003.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                Target Wireless Printer IP (Optional)
+              </label>
+              <Input
+                value={targetPrinterIp}
+                onChange={(e) => setTargetPrinterIp(e.target.value)}
+                placeholder="e.g. 192.168.1.101 (Leave blank for default)"
+                className="font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Assign Printer 1 (e.g. .101) or Printer 2 (e.g. .102) to this kiosk.
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+                Printer Model / Name
+              </label>
+              <Input
+                value={targetPrinterName}
+                onChange={(e) => setTargetPrinterName(e.target.value)}
+                placeholder="e.g. DYMO LabelWriter 450"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowPrinterDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={savePrinterSettings} className="gap-1.5 font-bold">
+              <CheckCircle className="h-4 w-4" /> Save Printer Config
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

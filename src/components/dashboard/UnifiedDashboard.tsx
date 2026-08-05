@@ -5,6 +5,7 @@ import { Navigate, Link } from "react-router-dom";
 import AdminDashboardNew from "./AdminDashboardNew";
 import StaffTeacherDashboard from "./StaffTeacherDashboard";
 import ParentDashboardNew from "./ParentDashboardNew";
+import VolunteerDashboardNew from "./VolunteerDashboardNew";
 import DocumentUploadSystem from "@/components/staff/DocumentUploadSystem";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,11 @@ const UnifiedDashboard = () => {
       }
       
       return <StaffTeacherDashboard />;
+    }
+
+    // Volunteer
+    if (userRole === "volunteer") {
+      return <VolunteerDashboardNew />;
     }
 
     // Parent 

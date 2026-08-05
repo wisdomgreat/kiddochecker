@@ -37,6 +37,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Check, PlusCircle, Smartphone } from "lucide-react";
 import { useNFC } from "@/hooks/useNFC";
+import MfaEnrollment from "../auth/MfaEnrollment";
 
 interface Milestone {
   type: string;
@@ -265,6 +266,7 @@ const ParentProfile = () => {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
+      className="space-y-6"
     >
       <Card className="w-full">
         <CardHeader className="space-y-0.5">
@@ -637,6 +639,8 @@ const ParentProfile = () => {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MfaEnrollment />
     </motion.div>
   );
 };

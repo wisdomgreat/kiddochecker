@@ -27,6 +27,7 @@ const DeviceLoginPage = lazy(() => import("./pages/DeviceLoginPage"));
 const AdminDocumentVerification = lazy(() => import("./pages/AdminDocumentVerification"));
 const StaffDocumentUpload = lazy(() => import("./pages/StaffDocumentUpload"));
 const CheckInPage = lazy(() => import("./pages/CheckInPage"));
+const CheckInSetupPage = lazy(() => import("./pages/CheckInSetupPage"));
 const CheckOutPage = lazy(() => import("./pages/CheckOutPage"));
 const AttendancePage = lazy(() => import("./pages/AttendancePage"));
 const DeviceEnrollmentPage = lazy(() => import("./pages/DeviceEnrollmentPage"));
@@ -35,6 +36,7 @@ const CombinedReportsWrapper = lazy(() => import("./pages/CombinedReportsPage"))
 const UsersPage = lazy(() => import("./pages/UsersPage"));
 const RolesPage = lazy(() => import("./pages/RolesPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const ParentRegistration = lazy(() => import("./pages/ParentRegistration"));
 const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
@@ -115,6 +117,7 @@ function App() {
                       <Route path="/login" element={<LoginPage />} />
                       <Route path="/device-login" element={<DeviceLoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
+                      <Route path="/parent-registration" element={<ParentRegistration />} />
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/landing" element={<LandingPage />} />
@@ -126,6 +129,11 @@ function App() {
                       <Route path="/check-out" element={
                         <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk']}>
                           <CheckOutPage />
+                        </RoleBasedRoute>
+                      } />
+                      <Route path="/check-in-setup" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'kiosk', 'staff', 'teacher', 'volunteer']}>
+                          <CheckInSetupPage />
                         </RoleBasedRoute>
                       } />
 

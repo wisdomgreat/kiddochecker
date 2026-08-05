@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 const DeviceLogin = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { signInWithPassword } = useAuth();
 
     // Form state
     const [code, setCode] = useState("");
@@ -120,9 +121,26 @@ const DeviceLogin = () => {
             };
             if (withPin) body.pin = pin.trim();
 
-            const { data, error } = await supabase.functions.invoke('device-login', {
-                body
-            });
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            let data: any = null;
+            let error: any = null;
+
+            try {
+                const response = await fetch(`${baseUrl}/api/functions/device-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const resJson = await response.json();
+                if (resJson.error) {
+                    error = new Error(resJson.error);
+                } else {
+                    data = resJson;
+                }
+            } catch (fetchErr: any) {
+                console.error("[DeviceLogin] Direct Azure fetch error:", fetchErr);
+                error = new Error(fetchErr?.message || "Unable to connect to Azure API server. Please check your network connection.");
+            }
 
             if (error) {
                 if (silent) {
@@ -137,33 +155,37 @@ const DeviceLogin = () => {
                 throw error;
             }
 
-            if (data.error) {
+            if (!data || data.error) {
+                const errMsg = data?.error || "Invalid response from authorization server";
                 if (silent) {
                     setLoading(false);
                     return;
                 }
-                if (data.error === "Master PIN required") {
+                if (errMsg === "Master PIN required") {
                     setNeedPin(true);
                     setLoading(false);
                     return;
                 }
-                throw new Error(data.error);
+                throw new Error(errMsg);
             }
 
             if (!data.success || !data.email || !data.password) {
                 throw new Error("Invalid response from authorization server");
             }
 
-            const { error: authError } = await supabase.auth.signInWithPassword({
-                email: data.email,
-                password: data.password,
-            });
+            if (data.token) {
+                localStorage.setItem('bridge_token', data.token);
+            }
 
-            if (authError) throw authError;
+            try {
+                await signInWithPassword(data.email, data.password);
+            } catch (aErr) {
+                console.warn("[DeviceLogin] Supabase auth fallback notice (non-fatal):", aErr);
+            }
 
             toast({
                 title: "Device Activated!",
-                description: `Successfully locked to ${data.device.name}.`,
+                description: `Successfully locked to ${data.device?.name || 'Device'}.`,
             });
 
             // Store the hardware ID for future silent re-auth
@@ -175,11 +197,13 @@ const DeviceLogin = () => {
 
         } catch (error: any) {
             console.error("Device Authentication Error:", error);
-            toast({
-                title: "Access Denied",
-                description: error.message || "Invalid reference code or PIN.",
-                variant: "destructive",
-            });
+            if (!silent) {
+                toast({
+                    title: "Access Denied",
+                    description: error.message || "Invalid reference code or PIN.",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setLoading(false);
         }

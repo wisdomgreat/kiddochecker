@@ -5,11 +5,20 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useDashboardNavigation } from "@/hooks/useDashboardNavigation";
-import { Menu, X, Shield, ArrowRight } from "lucide-react";
+import { Menu, X, Shield, ArrowRight, Globe } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const LandingNavigation = () => {
   const { user, userRole } = useAuth();
   const { navigateToDashboard } = useDashboardNavigation();
+  const { language, setLanguage } = useLanguage();
+  const isEs = language === 'es';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -22,9 +31,9 @@ const LandingNavigation = () => {
   }, []);
   
   const getDashboardName = () => {
-    if (userRole === "admin" || userRole === "super_admin") return "Admin Dashboard";
-    if (userRole === "teacher" || userRole === "teacher_assistant" || userRole === "staff") return "Staff Dashboard";
-    return "Parent Dashboard";
+    if (userRole === "admin" || userRole === "super_admin") return isEs ? "Tablero de Administración" : "Admin Dashboard";
+    if (userRole === "teacher" || userRole === "teacher_assistant" || userRole === "staff") return isEs ? "Tablero de Personal" : "Staff Dashboard";
+    return isEs ? "Portal de Padres" : "Parent Dashboard";
   };
   
   return (
@@ -44,10 +53,35 @@ const LandingNavigation = () => {
         
         {/* Desktop navigation */}
         <div className="hidden md:flex items-center space-x-8">
-          <Link to="/#features" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">Features</Link>
-          <Link to="/#security" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">Security</Link>
-          <Link to="/#pricing" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">Pricing</Link>
+          <Link to="/#features" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">
+            {isEs ? "Características" : "Features"}
+          </Link>
+          <Link to="/#security" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">
+            {isEs ? "Seguridad" : "Security"}
+          </Link>
+          <Link to="/#pricing" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">
+            {isEs ? "Precios" : "Pricing"}
+          </Link>
           <div className="h-4 w-px bg-slate-200 ml-4" />
+
+          {/* Language Switcher */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2 font-bold text-xs rounded-xl">
+                <Globe className="h-4 w-4 text-indigo-600" />
+                <span>{isEs ? "Español" : "English"}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl">
+              <DropdownMenuItem onClick={() => setLanguage('en')} className="font-bold text-xs cursor-pointer">
+                🇺🇸 English
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLanguage('es')} className="font-bold text-xs cursor-pointer">
+                🇪🇸 Español
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {user ? (
             <Button onClick={navigateToDashboard} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-100">
               {getDashboardName()}
@@ -56,11 +90,11 @@ const LandingNavigation = () => {
           ) : (
             <div className="flex items-center space-x-4">
               <Link to="/login" className="text-foreground font-bold text-sm hover:text-indigo-600 transition-colors">
-                Log In
+                {isEs ? "Iniciar Sesión" : "Log In"}
               </Link>
               <Link to="/parent-registration">
                 <Button className="rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 shadow-xl shadow-slate-200">
-                  Get Started
+                  {isEs ? "Comenzar" : "Get Started"}
                 </Button>
               </Link>
             </div>
@@ -83,22 +117,32 @@ const LandingNavigation = () => {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-card border-t border-slate-100 shadow-2xl z-50 py-8 px-8 flex flex-col space-y-6 animate-in slide-in-from-top duration-300">
-          <Link to="/#features" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">Features</Link>
-          <Link to="/#security" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">Security</Link>
-          <Link to="/#pricing" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">Pricing</Link>
+          <Link to="/#features" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">
+            {isEs ? "Características" : "Features"}
+          </Link>
+          <Link to="/#security" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">
+            {isEs ? "Seguridad" : "Security"}
+          </Link>
+          <Link to="/#pricing" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">
+            {isEs ? "Precios" : "Pricing"}
+          </Link>
           
           <div className="pt-6 border-t border-slate-100">
             {user ? (
               <Button onClick={() => { navigateToDashboard(); setMobileMenuOpen(false); }} className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-lg shadow-xl shadow-indigo-100">
-                Go to Dashboard
+                {isEs ? "Ir al Tablero" : "Go to Dashboard"}
               </Button>
             ) : (
               <div className="flex flex-col space-y-4">
                 <Link to="/login" className="w-full">
-                  <Button variant="outline" className="w-full h-14 rounded-2xl border-slate-200 font-bold text-lg">Log In</Button>
+                  <Button variant="outline" className="w-full h-14 rounded-2xl border-slate-200 font-bold text-lg">
+                    {isEs ? "Iniciar Sesión" : "Log In"}
+                  </Button>
                 </Link>
                 <Link to="/parent-registration" className="w-full">
-                  <Button className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-lg shadow-xl shadow-indigo-100">Create Free Account</Button>
+                  <Button className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-lg shadow-xl shadow-indigo-100">
+                    {isEs ? "Crear Cuenta Gratis" : "Create Free Account"}
+                  </Button>
                 </Link>
               </div>
             )}

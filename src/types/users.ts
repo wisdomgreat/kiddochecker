@@ -31,6 +31,7 @@ export const formatUserData = (user: any): UserProfile => {
     lastName: user.last_name || user.lastName,
     role: user.role,
     isActive: user.is_active !== false,
+    isVolunteer: user.is_volunteer || false,
     createdAt: user.created_at,
     phone: user.phone || ''
   };

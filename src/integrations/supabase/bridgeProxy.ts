@@ -17,6 +17,7 @@ export const createBridgeProxy = (realClient: any) => {
         const mutation = filters.find(f => f.action);
         if (mutation) {
           console.log(`[BridgeProxy] Mutating ${table}:`, mutation.action, mutation.data);
+          const mutationFilters = filters.filter(f => !f.action && f.column);
           res = await apiFetch('/api/mutate', {
             method: 'POST',
             body: JSON.stringify({ 
@@ -24,7 +25,7 @@ export const createBridgeProxy = (realClient: any) => {
               action: mutation.action, 
               data: mutation.data, 
               options: mutation.options,
-              filters: filters.filter(f => !f.action) 
+              filters: mutationFilters 
             })
           });
         } else {
@@ -198,14 +199,165 @@ export const createBridgeProxy = (realClient: any) => {
         localStorage.removeItem('bridge_token');
         return { error: null };
       },
-      signInWithPassword: async () => {
-        throw new Error("Direct password login via Bridge is deprecated. Use OTP or Azure Entra.");
+      signUp: async ({ email, password, options }: any) => {
+        try {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const res = await fetch(`${baseUrl}/api/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              password,
+              firstName: options?.data?.first_name || '',
+              lastName: options?.data?.last_name || '',
+              phone: options?.data?.phone || '',
+              role: options?.data?.role || 'parent'
+            })
+          });
+          if (!res.ok) {
+            let errorMsg = 'Signup failed';
+            try {
+              const errorObj = await res.json();
+              errorMsg = errorObj.error || errorObj.message || errorMsg;
+            } catch (jsonErr) {
+              const text = await res.text().catch(() => '');
+              errorMsg = text || `Server error (${res.status})`;
+            }
+            return { data: { session: null, user: null }, error: new Error(errorMsg) };
+          }
+          const data = await res.json();
+          const { token, profile } = data;
+          if (token) {
+            localStorage.setItem('bridge_token', token);
+          }
+          
+          const sbUser = {
+            id: profile.id,
+            email: profile.email,
+            user_metadata: {
+              first_name: profile.first_name,
+              last_name: profile.last_name,
+              phone: profile.phone
+            }
+          };
+
+          return {
+            data: {
+              session: token ? { access_token: token, user: sbUser } : null,
+              user: sbUser
+            },
+            error: null
+          };
+        } catch (e: any) {
+          return { data: { session: null, user: null }, error: e };
+        }
+      },
+      signInWithPassword: async ({ email, password }: any) => {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          if (!res.ok) {
+            const error = await res.json();
+            return { data: { session: null, user: null }, error: new Error(error.error || 'Login failed') };
+          }
+          const data = await res.json();
+          if (data.mfaRequired) {
+            return { data: { mfaRequired: true, email: data.email }, error: null };
+          }
+          const { token, profile } = data;
+          localStorage.setItem('bridge_token', token);
+          return { data: { session: { access_token: token, user: profile }, user: profile }, error: null };
+        } catch (e: any) {
+          return { data: { session: null, user: null }, error: e };
+        }
       },
       setSession: async (session: any) => {
         if (session?.access_token) {
           localStorage.setItem('bridge_token', session.access_token);
         }
         return { data: { session }, error: null };
+      },
+      mfa: {
+        listFactors: async () => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/list`, {
+              headers: { 
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              }
+            });
+            if (!res.ok) return { data: { all: [] }, error: new Error('Failed to list factors') };
+            const data = await res.json();
+            return { data: { all: data.all || [] }, error: null };
+          } catch (e: any) {
+            return { data: { all: [] }, error: e };
+          }
+        },
+        enroll: async ({ friendlyName, issuer }: any) => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/enroll`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              },
+              body: JSON.stringify({ friendlyName, issuer })
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              return { data: null, error: new Error(error.error || 'Failed to enroll') };
+            }
+            const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        },
+        challenge: async ({ factorId }: any) => {
+          return { data: { id: 'mock-challenge-id' }, error: null };
+        },
+        verify: async ({ factorId, challengeId, code }: any) => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/verify`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              },
+              body: JSON.stringify({ factorId, challengeId, code })
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              return { data: null, error: new Error(error.error || 'Failed to verify') };
+            }
+            const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        },
+        unenroll: async ({ factorId }: any) => {
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/unenroll`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
+              },
+              body: JSON.stringify({ factorId })
+            });
+            if (!res.ok) {
+              const error = await res.json();
+              return { data: null, error: new Error(error.error || 'Failed to unenroll') };
+            }
+            const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        }
       }
     },
     // Realistic mock for realtime channels
@@ -214,16 +366,56 @@ export const createBridgeProxy = (realClient: any) => {
       subscribe: (cb: any) => { if (cb) cb('SUBSCRIBED'); return { unsubscribe: () => {} }; },
       unsubscribe: () => {}
     }),
-    removeChannel: () => {},
-    // Delegate non-migrated features to the real client
-    storage: realClient?.storage,
-    functions: realClient?.functions,
+    // Local Storage Proxy for Azure mode (converts uploads to Data URLs locally without hitting Supabase)
+    storage: {
+      from: (bucket: string) => ({
+        upload: async (path: string, file: any, options?: any) => {
+          console.log(`[BridgeProxy Storage] Local Azure upload for bucket '${bucket}':`, path);
+          if (file instanceof Blob || file instanceof File) {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const base64 = reader.result as string;
+                resolve({ data: { path: base64, publicUrl: base64, Key: path }, error: null });
+              };
+              reader.onerror = (err) => {
+                resolve({ data: null, error: err });
+              };
+              reader.readAsDataURL(file);
+            });
+          }
+          return { data: { path, publicUrl: '' }, error: null };
+        },
+        getPublicUrl: (path: string) => {
+          return { data: { publicUrl: path } };
+        },
+        remove: async (paths: string[]) => ({ data: paths, error: null }),
+        list: async () => ({ data: [], error: null }),
+      })
+    },
+    functions: {
+      invoke: async (name: string, options: any = {}) => {
+        console.log(`[BridgeProxy] Invoking function '${name}':`, options);
+        try {
+          const res = await apiFetch(`/api/functions/${name}`, {
+            method: 'POST',
+            body: JSON.stringify(options.body || {})
+          });
+          return { data: res, error: null };
+        } catch (err: any) {
+          console.error(`[BridgeProxy] Error in function '${name}':`, err);
+          return { data: null, error: err };
+        }
+      }
+    },
   };
 
   return new Proxy(client, {
     get: (target, prop) => {
       if (prop in target) return target[prop];
-      if (realClient && prop in realClient) return realClient[prop];
+      if (typeof prop === 'string' && (prop.startsWith('on') || prop === 'subscribe' || prop === 'unsubscribe')) {
+        return () => ({ unsubscribe: () => {} });
+      }
       return () => client;
     }
   });

@@ -8,16 +8,23 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import gsap from 'gsap';
 
+import { useLanguage } from '@/context/LanguageContext';
+
 const EnhancedLoginForm = () => {
+  const { language } = useLanguage();
+  const isEs = language === 'es';
+
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [password, setPassword] = useState('');
+  const [step, setStep] = useState<'login' | 'mfa'>('login');
+  const [mfaCode, setMfaCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, loading, sendNativeCode, verifyNativeCode, signIn } = useAuth();
+  const { user, loading, signInWithPassword, signIn } = useAuth();
   
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -27,55 +34,72 @@ const EnhancedLoginForm = () => {
     }
   }, [user, loading, navigate]);
 
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     
     setIsLoading(true);
     setError('');
     try {
-      await sendNativeCode(email);
-      
-      gsap.to(formRef.current, {
-        duration: 0.4,
-        x: -50,
-        opacity: 0,
-        onComplete: () => {
-          setStep('code');
-          gsap.fromTo(formRef.current, { x: 50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4 });
-        }
+      const res: any = await signInWithPassword(email, password);
+      if (res?.error) {
+        throw res.error;
+      }
+      if (res?.data?.mfaRequired) {
+        setStep('mfa');
+        toast({ 
+          title: isEs ? "Código MFA Requerido" : "MFA Code Required", 
+          description: isEs ? "Por favor ingrese su código de autenticador 2FA." : "Please enter your 2FA authenticator code." 
+        });
+        return;
+      }
+      toast({ 
+        title: isEs ? "Bienvenido de nuevo" : "Welcome Back", 
+        description: isEs ? "Identidad verificada con éxito." : "Identity verified successfully." 
       });
-
-      toast({ title: "Code Sent", description: "Check your inbox for your 6-digit code." });
+      window.location.href = '/';
     } catch (err: any) {
-      setError(err.message || "Failed to send verification code");
+      setError(err.message || (isEs ? "Correo o contraseña no válidos" : "Invalid email or password"));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifyCode = async (e: React.FormEvent) => {
+  const handleMfaVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code) return;
+    if (!mfaCode) return;
     
     setIsLoading(true);
     setError('');
     try {
-      await verifyNativeCode(email, code);
-      toast({ title: "Welcome Back", description: "Identity verified successfully." });
-      // Use hard reload to ensure all contexts are fully refreshed with the new token
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login/mfa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: mfaCode })
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || (isEs ? 'Código de verificación no válido' : 'Invalid verification code'));
+      }
+      const { token } = await res.json();
+      localStorage.setItem('bridge_token', token);
+      
+      toast({ 
+        title: isEs ? "Bienvenido de nuevo" : "Welcome Back", 
+        description: isEs ? "Identidad verificada con éxito." : "Identity verified successfully." 
+      });
       window.location.href = '/';
     } catch (err: any) {
-      setError(err.message || "Invalid or expired code");
+      setError(err.message || (isEs ? "Código MFA no válido o caducado" : "Invalid or expired MFA code"));
     } finally {
       setIsLoading(false);
     }
   };
 
   const features = [
-    { icon: QrCode, title: 'QR Check-in', desc: 'Secure contactless entry for children.' },
-    { icon: ShieldCheck, title: 'Staff Verification', desc: 'Background track approved personnel.' },
-    { icon: Activity, title: 'Live Feed', desc: 'Real-time attendance and safety alerts.' },
+    { icon: QrCode, title: isEs ? 'Registro con QR' : 'QR Check-in', desc: isEs ? 'Entrada segura sin contacto para niños.' : 'Secure contactless entry for children.' },
+    { icon: ShieldCheck, title: isEs ? 'Verificación de Personal' : 'Staff Verification', desc: isEs ? 'Verificación de antecedentes del personal autorizado.' : 'Background track approved personnel.' },
+    { icon: Activity, title: isEs ? 'Registro en Vivo' : 'Live Feed', desc: isEs ? 'Asistencia y alertas de seguridad en tiempo real.' : 'Real-time attendance and safety alerts.' },
   ];
 
   return (
@@ -98,11 +122,16 @@ const EnhancedLoginForm = () => {
 
             <div className="space-y-6">
               <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1] text-white">
-                Securing the Future <br/>
-                <span className="text-primary">of Childcare.</span>
+                {isEs ? (
+                  <>Asegurando el Futuro <br/><span className="text-primary">del Cuidado Infantil.</span></>
+                ) : (
+                  <>Securing the Future <br/><span className="text-primary">of Childcare.</span></>
+                )}
               </h1>
               <p className="text-slate-300 text-lg md:text-xl max-w-md font-medium">
-                Universal safety management for children's organizations.
+                {isEs 
+                  ? "Gestión de seguridad universal para organizaciones infantiles." 
+                  : "Universal safety management for children's organizations."}
               </p>
               
               <div className="space-y-6 pt-8">
@@ -130,7 +159,7 @@ const EnhancedLoginForm = () => {
               rel="noopener noreferrer"
               className="hover:text-primary transition-colors flex items-center gap-1.5"
             >
-              Powered by <span className="text-slate-300">TDWAS Technology</span>
+              {isEs ? "Tecnología De" : "Powered by"} <span className="text-slate-300">TDWAS Technology</span>
             </a>
           </div>
         </div>
@@ -138,26 +167,64 @@ const EnhancedLoginForm = () => {
         {/* RIGHT PANEL: AUTH FORM */}
         <div className="lg:col-span-5 p-10 md:p-16 flex flex-col justify-center bg-white/50">
           <div className="w-full max-w-sm mx-auto" ref={formRef}>
-            {step === 'email' ? (
-              <form onSubmit={handleSendCode} className="space-y-8">
+            {step === 'login' ? (
+              <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Sign In</h2>
-                  <p className="text-slate-500 font-medium">Enter your email to access your dashboard.</p>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                    {isEs ? "Iniciar Sesión" : "Sign In"}
+                  </h2>
+                  <p className="text-slate-500 font-medium">
+                    {isEs ? "Ingrese sus credenciales para acceder a su panel." : "Enter your credentials to access your dashboard."}
+                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Email Address</Label>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                    <Input 
-                      id="email"
-                      placeholder="name@example.com"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
-                      required
-                    />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">
+                      {isEs ? "Correo Electrónico" : "Email Address"}
+                    </Label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="email"
+                        placeholder="nombre@ejemplo.com"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">
+                        {isEs ? "Contraseña" : "Password"}
+                      </Label>
+                      <button type="button" onClick={() => navigate('/forgot-password')} className="text-[10px] font-bold text-primary hover:underline tracking-widest uppercase">
+                        {isEs ? "¿Olvidó su contraseña?" : "Forgot Password?"}
+                      </button>
+                    </div>
+                    <div className="relative group">
+                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="password"
+                        placeholder="••••••••"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 hover:text-primary transition-colors"
+                      >
+                        {showPassword ? (isEs ? "Ocultar" : "Hide") : (isEs ? "Mostrar" : "Show")}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -167,9 +234,22 @@ const EnhancedLoginForm = () => {
                   className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
                 >
                   {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                    <>Continue <ArrowRight className="h-5 w-5" /></>
+                    <>{isEs ? "Iniciar Sesión" : "Sign In"} <ArrowRight className="h-5 w-5" /></>
                   )}
                 </Button>
+
+                <div className="text-center pt-2">
+                  <p className="text-sm text-slate-500 font-medium">
+                    {isEs ? "¿No tiene una cuenta? " : "Don't have an account? "}
+                    <button 
+                      type="button" 
+                      onClick={() => navigate('/parent-registration')} 
+                      className="text-primary hover:underline font-bold"
+                    >
+                      {isEs ? "Regístrese aquí" : "Register here"}
+                    </button>
+                  </p>
+                </div>
 
                 {error && (
                   <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
@@ -179,44 +259,61 @@ const EnhancedLoginForm = () => {
                 )}
               </form>
             ) : (
-              <form onSubmit={handleVerifyCode} className="space-y-8">
+              <form onSubmit={handleMfaVerify} className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Verify Code</h2>
-                  <p className="text-slate-500 font-medium">We sent a 6-digit code to <br/><span className="text-primary font-bold">{email}</span></p>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Two-Factor Auth</h2>
+                  <p className="text-slate-500 font-medium">Enter the 6-digit code from your authenticator app to complete sign-in.</p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="code" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest text-center block w-full">6-Digit Verification Code</Label>
-                  <Input 
-                    id="code"
-                    placeholder="000000"
-                    type="text"
-                    maxLength={6}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                    className="h-20 text-center text-4xl font-black tracking-[0.4em] rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all shadow-inner"
-                    required
-                    autoFocus
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="mfaCode" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Verification Code</Label>
+                    <div className="relative group">
+                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="mfaCode"
+                        placeholder="000000"
+                        type="text"
+                        maxLength={6}
+                        value={mfaCode}
+                        onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-center text-xl font-mono tracking-[0.3em] font-medium"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <Button 
                   type="submit" 
                   disabled={isLoading} 
-                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-green-500/20 hover:shadow-green-500/30 transition-all bg-green-600 hover:bg-green-700 flex gap-2 active:scale-[0.98]"
+                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
                 >
                   {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                    <>Verify & Sign In <CheckCircle2 className="h-5 w-5" /></>
+                    <>Verify Code <ArrowRight className="h-5 w-5" /></>
                   )}
                 </Button>
 
-                <button 
+                <Button
                   type="button"
-                  onClick={() => setStep('email')}
-                  className="w-full text-center text-sm font-bold text-primary hover:underline transition-all"
+                  variant="ghost"
+                  onClick={() => {
+                    setStep('login');
+                    setMfaCode('');
+                    setError('');
+                  }}
+                  className="w-full h-12 rounded-xl text-slate-500 font-semibold"
                 >
-                  Edit email address
-                </button>
+                  Back to Sign In
+                </Button>
+
+                {error && (
+                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
               </form>
             )}
 

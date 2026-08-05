@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,173 +6,233 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98.5%;
-    --foreground: 222.2 47.4% 11.2%;
+    --background: 220 18% 94%;
+    --foreground: 224 71% 4%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card-foreground: 224 71% 4%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 224 71% 4%;
 
-    --primary: 230 75% 55%; /* Richer indigo */
-    --primary-foreground: 210 40% 98%;
+    --primary: 230 75% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 14% 95%;
+    --secondary-foreground: 224 71% 4%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 14% 95%;
+    --accent-foreground: 224 71% 4%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 220 13% 85%;
+    --input: 220 13% 85%;
     --ring: 230 75% 55%;
+    --radius: 0.625rem;
 
-    --radius: 0.75rem;
+    /* Semantic tokens */
+    --success: 152 76% 36%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
 
-    /* Forensic Semantic Tokens */
-    --success: 150 80% 35%;
-    --warning: 35 90% 45%;
-    --info: 195 90% 45%;
-    
-    --glass-background: 0 0% 100% / 0.7;
-    --glass-border: 214.3 31.8% 91.4% / 0.5;
+    /* Role accent colours */
+    --color-admin:     230 75% 55%;
+    --color-staff:     152 69% 38%;
+    --color-parent:    346 84% 58%;
+    --color-volunteer: 38 92% 50%;
+
+    /* Surfaces */
+    --surface-1: 220 18% 94%;
+    --surface-2: 220 14% 90%;
   }
 
   .dark {
-    --background: 224 71% 4%; /* Deeper, richer background */
+    --background: 224 71% 4%;
     --foreground: 213 31% 91%;
 
-    --card: 224 71% 7%; /* Slightly lighter than background for depth */
+    --card: 222 50% 6%;
     --card-foreground: 213 31% 91%;
 
-    --popover: 224 71% 6%;
-    --popover-foreground: 215 20.2% 65.1%;
+    --popover: 222 50% 6%;
+    --popover-foreground: 215 20% 65%;
 
-    --primary: 230 85% 65%; /* Softer, glowing indigo in dark mode */
+    --primary: 230 85% 65%;
     --primary-foreground: 224 71% 4%;
 
-    --secondary: 215 27.9% 16.9%;
+    --secondary: 215 28% 11%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 215 27.9% 12.9%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 215 28% 9%;
+    --muted-foreground: 217 19% 52%;
 
-    --accent: 215 27.9% 16.9%;
+    --accent: 215 28% 11%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
+    --border: 215 28% 13%;
+    --input: 215 28% 13%;
     --ring: 230 85% 65%;
 
-    /* Forensic Semantic Tokens (Dark) */
-    --success: 150 80% 50%;
-    --warning: 35 90% 55%;
-    --info: 195 90% 55%;
+    --success: 152 76% 44%;
+    --warning: 38 92% 58%;
+    --info: 199 89% 55%;
 
-    --glass-background: 224 71% 4% / 0.7;
-    --glass-border: 215 27.9% 16.9% / 0.5;
+    --color-admin:     230 85% 65%;
+    --color-staff:     152 69% 46%;
+    --color-parent:    346 84% 64%;
+    --color-volunteer: 38 92% 58%;
+
+    --surface-1: 224 71% 4%;
+    --surface-2: 215 28% 11%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
-    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  h1 { @apply text-2xl font-bold tracking-tight text-foreground; }
+  h2 { @apply text-base font-semibold tracking-tight text-foreground; }
 }
 
 @layer components {
-  /* Premium Glass Surfaces */
-  .glass-card {
-    background: hsl(var(--glass-background));
-    backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--glass-border));
-    @apply rounded-2xl shadow-xl transition-all duration-300;
+
+  /* ── KPI / Stat Cards ─────────────────────────────────── */
+  .kpi-card {
+    @apply relative bg-card border border-border/70 rounded-xl p-5
+           flex items-start gap-4 overflow-hidden
+           hover:border-border hover:shadow-sm
+           transition-all duration-200;
   }
 
-  .glass-card:hover {
-    border-color: hsl(var(--primary) / 0.3);
-    @apply shadow-2xl;
+  .kpi-icon {
+    @apply flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center;
   }
 
-  /* Refined stat cards with depth */
-  .stat-card {
-    @apply bg-card text-card-foreground border rounded-2xl p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  .kpi-label {
+    @apply text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1;
   }
 
-  .sidebar-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all font-medium text-sm;
+  .kpi-value {
+    @apply text-3xl font-bold tracking-tight leading-none text-foreground;
   }
 
-  .sidebar-item.active {
-    @apply bg-primary/10 text-primary font-bold shadow-sm shadow-primary/5;
+  .kpi-trend {
+    @apply text-[11px] text-muted-foreground mt-2;
   }
 
-  /* Forensic Semantic Badges */
-  .badge-success { 
+  /* ── Feed / Activity rows ─────────────────────────────── */
+  .feed-row {
+    @apply flex items-center gap-3 px-5 py-3 hover:bg-muted/50
+           transition-colors cursor-default;
+  }
+
+  .feed-avatar {
+    @apply h-8 w-8 rounded-full bg-muted flex-shrink-0 overflow-hidden
+           flex items-center justify-center text-[11px] font-bold text-muted-foreground;
+  }
+
+  /* ── Section titles ───────────────────────────────────── */
+  .section-label {
+    @apply text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground;
+  }
+
+  /* ── Sidebar nav items ───────────────────────────────── */
+  .nav-item {
+    @apply relative flex items-center gap-2.5 px-3 py-[7px] rounded-lg
+           text-[13px] font-medium text-muted-foreground
+           hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5
+           transition-all duration-150 select-none;
+  }
+
+  .nav-item.active {
+    @apply text-foreground font-semibold;
+    background: linear-gradient(90deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--primary) / 0.02) 100%);
+    border-left: 2px solid hsl(var(--primary));
+    padding-left: calc(0.75rem - 2px); /* compensate for border so text doesn't shift */
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+
+  /* ── Card base ──────────────────────────────────────── */
+  .surface-card {
+    @apply bg-card border border-border/70 rounded-xl overflow-hidden;
+  }
+
+  /* ── Status badges ──────────────────────────────────── */
+  .badge-success {
     background: hsl(var(--success) / 0.1);
     color: hsl(var(--success));
-    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
-    border-color: hsl(var(--success) / 0.2);
+    border: 1px solid hsl(var(--success) / 0.2);
+    @apply px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center;
   }
-  
-  .badge-warning { 
+
+  .badge-warning {
     background: hsl(var(--warning) / 0.1);
     color: hsl(var(--warning));
-    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
-    border-color: hsl(var(--warning) / 0.2);
+    border: 1px solid hsl(var(--warning) / 0.2);
+    @apply px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center;
   }
-  
-  .badge-danger { 
+
+  .badge-danger {
     background: hsl(var(--destructive) / 0.1);
     color: hsl(var(--destructive));
-    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
-    border-color: hsl(var(--destructive) / 0.2);
+    border: 1px solid hsl(var(--destructive) / 0.2);
+    @apply px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center;
   }
-  
-  .badge-info { 
+
+  .badge-info {
     background: hsl(var(--info) / 0.1);
     color: hsl(var(--info));
-    @apply px-2.5 py-1 rounded-full text-[10px] font-bold border border-transparent shadow-none; 
-    border-color: hsl(var(--info) / 0.2);
+    border: 1px solid hsl(var(--info) / 0.2);
+    @apply px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center;
   }
 
-  /* Typography Enhancements */
-  h1 { @apply text-4xl font-extrabold tracking-tight text-foreground mb-4; }
-  h2 { @apply text-2xl font-bold tracking-tight text-foreground mb-3; }
-  
-  .text-label { @apply text-muted-foreground font-bold uppercase text-[9px] tracking-[0.2em]; }
-
-  /* Smooth scroll and scrollbar */
-  html {
-    scroll-behavior: smooth;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  /* ── Scrollbar ──────────────────────────────────────── */
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.2);
-    @apply rounded-full hover:bg-muted-foreground/40 transition-colors;
+    background: hsl(var(--muted-foreground) / 0.18);
+    @apply rounded-full;
   }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.35);
+  }
+
+  html { scroll-behavior: smooth; }
 }
 
+/* ── Entrance animations ───────────────────────────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-enter {
+  animation: fadeSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-enter-1 { animation-delay: 0.04s; }
+.animate-enter-2 { animation-delay: 0.08s; }
+.animate-enter-3 { animation-delay: 0.12s; }
+.animate-enter-4 { animation-delay: 0.16s; }
+.animate-enter-5 { animation-delay: 0.20s; }
+.animate-enter-6 { animation-delay: 0.24s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter { animation: none; }
+}

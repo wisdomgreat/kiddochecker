@@ -19,13 +19,16 @@ param administratorLoginPassword string
 @description('The Docker image for the Data Bridge API.')
 param apiImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
-@description('The Resend API Key for email delivery.')
-@secure()
-param resendApiKey string
+@description('The frontend SWA URL for password reset links.')
+param frontendUrl string = 'https://happy-glacier-0746a2210.7.azurestaticapps.net'
 
-@description('The Bridge Secret for JWT signing.')
+@description('Resend API key for email delivery.')
 @secure()
-param bridgeSecret string
+param resendApiKey string = 're_placeholder_key_configured_in_azure'
+
+@description('Secret key for signing JWT tokens in the bridge API.')
+@secure()
+param bridgeSecret string = 'kiddochecker-jwt-secret-key-2026'
 
 // Unique string based on resource group to prevent naming collisions
 var suffix = substring(uniqueString(resourceGroup().id), 0, 5)
@@ -267,11 +270,11 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
         {
           name: 'resend-api-key'
-          value: 're_fzzhs1Gi_3EGMrF9BG8HfsAB5ANgykb2V'
+          value: resendApiKey
         }
         {
           name: 'bridge-secret'
-          value: 'kiddochecker-super-secret-2026'
+          value: bridgeSecret
         }
       ]
     }
@@ -283,7 +286,7 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
           env: [
             {
               name: 'DB_HOST'
-              value: '${dbServerName}.private.postgres.database.azure.com'
+              value: '10.0.1.4'
             }
             {
               name: 'DB_PASSWORD'
@@ -304,6 +307,10 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'BRIDGE_SECRET'
               secretRef: 'bridge-secret'
+            }
+            {
+              name: 'FRONTEND_URL'
+              value: frontendUrl
             }
           ]
           resources: {

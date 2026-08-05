@@ -14436,3 +14436,107 @@ USING (
         SELECT organization_id FROM public.profiles WHERE id = auth.uid()
     )
 );
+
+-- 6. Church Stats RPC Function
+CREATE OR REPLACE FUNCTION public.get_church_stats()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    result JSONB;
+    v_total_members INTEGER := 0;
+    v_registered_count INTEGER := 0;
+    v_regular_count INTEGER := 0;
+    v_visitor_count INTEGER := 0;
+    v_active_journey INTEGER := 0;
+    v_first_followup INTEGER := 0;
+    v_ministry_count INTEGER := 0;
+    v_group_count INTEGER := 0;
+BEGIN
+    SELECT COALESCE(count(*), 0) INTO v_total_members FROM public.church_memberships;
+    SELECT COALESCE(count(*), 0) INTO v_registered_count FROM public.church_memberships WHERE membership_type = 'registered';
+    SELECT COALESCE(count(*), 0) INTO v_regular_count FROM public.church_memberships WHERE membership_type = 'regular';
+    SELECT COALESCE(count(*), 0) INTO v_visitor_count FROM public.church_memberships WHERE membership_type = 'visitor';
+    
+    SELECT COALESCE(count(*), 0) INTO v_active_journey FROM public.church_memberships 
+    WHERE membership_type = 'visitor' AND joined_at >= (now() - interval '30 days');
+    
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='visitor_interactions') THEN
+        SELECT COALESCE(count(DISTINCT visitor_id), 0) INTO v_first_followup 
+        FROM public.visitor_interactions;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='ministries') THEN
+        SELECT COALESCE(count(*), 0) INTO v_ministry_count FROM public.ministries;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='ministry_groups') THEN
+        SELECT COALESCE(count(*), 0) INTO v_group_count FROM public.ministry_groups;
+    END IF;
+
+    SELECT jsonb_build_object(
+        'total_members', v_total_members,
+        'registered_count', v_registered_count,
+        'regular_count', v_regular_count,
+        'visitor_count', v_visitor_count,
+        'active_journey', v_active_journey,
+        'first_followup', v_first_followup,
+        'total_ministries', v_ministry_count,
+        'active_groups', v_group_count,
+        'integrations_perc', CASE 
+            WHEN v_total_members = 0 THEN 0 
+            ELSE ROUND((v_registered_count::float / v_total_members::float) * 100) 
+        END
+    ) INTO result;
+    
+    RETURN result;
+END;
+$$;
+
+-- 7. Overloaded RPC Functions accepting optional p_user_id to ensure backward compatibility
+CREATE OR REPLACE FUNCTION public.get_staff_members(p_user_id UUID DEFAULT NULL)
+RETURNS TABLE(
+  user_id uuid, email text, first_name text, last_name text, phone text,
+  role text, is_super_admin boolean, is_volunteer boolean, is_active boolean,
+  staff_pin text, avatar_url text, photo_url text, department text,
+  specialties text[], max_hours_per_week integer, supervisor_id uuid
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY SELECT * FROM public.get_staff_members();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_users_with_roles(p_user_id UUID DEFAULT NULL)
+RETURNS TABLE(
+  user_id uuid, email text, role text, is_super_admin boolean, is_volunteer boolean,
+  first_name text, last_name text, phone text, created_at timestamptz
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY SELECT * FROM public.get_users_with_roles();
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_attendance_summary_stats(
+  start_date DATE DEFAULT CURRENT_DATE,
+  end_date DATE DEFAULT CURRENT_DATE,
+  p_user_id UUID DEFAULT NULL
+)
+RETURNS TABLE(
+  total_checked_in bigint,
+  total_checked_out bigint,
+  currently_present bigint
+)
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    COUNT(*)::bigint as total_checked_in,
+    COUNT(checked_out_at)::bigint as total_checked_out,
+    COUNT(CASE WHEN checked_out_at IS NULL THEN 1 END)::bigint as currently_present
+  FROM public.attendance
+  WHERE attendance_date BETWEEN start_date AND end_date;
+END;
+$$;

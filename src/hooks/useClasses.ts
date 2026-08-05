@@ -14,19 +14,25 @@ export interface Class {
   updated_at: string;
 }
 
-export const useClasses = () => {
+export const useClasses = (orgId?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: classes = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["classes"],
+    queryKey: ["classes", orgId],
     queryFn: async (): Promise<Class[]> => {
       try {
         // Direct query without joins to avoid recursion
-        const { data, error } = await supabase
+        let query = supabase
           .from('classes')
           .select('*')
           .order('name');
+
+        if (orgId) {
+          query = query.or(`organization_id.is.null,organization_id.eq.${orgId}`);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.error("Error fetching classes:", error);

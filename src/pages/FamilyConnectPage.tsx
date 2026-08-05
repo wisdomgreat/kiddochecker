@@ -1,507 +1,391 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import {
+  Dialog, DialogContent, DialogFooter,
+  DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem,
+  SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/useToast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from "@/hooks/useAuth";
-import { 
-  MessageSquare, 
-  Send, 
-  Inbox, 
-  Users, 
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Mail
+import { useAuth } from '@/hooks/useAuth';
+import {
+  Inbox, Send, Search, Reply, Clock,
+  CheckCheck, SquarePen, MessageSquare,
 } from 'lucide-react';
+import { format, isToday, isYesterday } from 'date-fns';
+import { cn } from '@/lib/utils';
+import DashboardShell from '@/components/dashboard/DashboardShell';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const fmtTime = (d: string) => {
+  const date = new Date(d);
+  if (isToday(date)) return format(date, 'HH:mm');
+  if (isYesterday(date)) return 'Yesterday';
+  return format(date, 'MMM d');
+};
+
+const initials = (fn?: string, ln?: string) =>
+  `${fn?.[0] ?? ''}${ln?.[0] ?? ''}`.toUpperCase() || '?';
+
+const displayName = (p?: { first_name?: string; last_name?: string; email?: string }) => {
+  if (!p) return 'Admin';
+  const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+  return name || p.email || 'Admin';
+};
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface UserProfile { id: string; email: string; first_name?: string; last_name?: string; role: string; }
 
 interface Message {
-  id: string;
-  content: string;
-  created_at: string;
-  is_read: boolean;
-  recipient_id: string;
-  sender_id: string;
-  subject: string;
-  updated_at: string;
-  sender?: {
-    first_name?: string;
-    last_name?: string;
-    email?: string;
-  };
-  recipient?: {
-    first_name?: string;
-    last_name?: string;
-    email?: string;
-  };
+  id: string; content: string; created_at: string; is_read: boolean;
+  recipient_id: string; sender_id: string; subject: string; updated_at: string;
+  sender?: { first_name?: string; last_name?: string; email?: string };
+  recipient?: { first_name?: string; last_name?: string; email?: string };
 }
 
-interface UserProfile {
-  id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  role: string;
-}
+// ── Message Row ───────────────────────────────────────────────────────────────
+
+const MessageRow = ({
+  message, isSelected, onClick, userId,
+}: { message: Message; isSelected: boolean; onClick: () => void; userId?: string }) => {
+  const isIncoming = message.recipient_id === userId;
+  const person = isIncoming ? message.sender : message.recipient;
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'w-full text-left flex items-start gap-3 px-4 py-3.5 border-b border-border/40 transition-colors',
+        isSelected ? 'bg-rose-500/8 border-l-2 border-l-rose-500' : 'hover:bg-muted/50',
+        !message.is_read && isIncoming && !isSelected ? 'bg-rose-50/60 dark:bg-rose-950/20' : ''
+      )}
+    >
+      <div className="h-8 w-8 rounded-full bg-rose-500/10 flex items-center justify-center text-[11px] font-bold text-rose-600 flex-shrink-0 mt-0.5">
+        {initials(person?.first_name, person?.last_name)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className={cn('text-[13px] truncate leading-none', !message.is_read && isIncoming ? 'font-semibold' : 'font-medium')}>
+            {isIncoming ? displayName(message.sender) : `To: ${displayName(message.recipient)}`}
+          </p>
+          <span className="text-[11px] text-muted-foreground flex-shrink-0">{fmtTime(message.created_at)}</span>
+        </div>
+        <p className={cn('text-[12px] mt-0.5 truncate', !message.is_read && isIncoming ? 'text-foreground font-medium' : 'text-muted-foreground')}>
+          {message.subject || '(no subject)'}
+        </p>
+        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{message.content}</p>
+      </div>
+      {!message.is_read && isIncoming && (
+        <div className="h-2 w-2 rounded-full bg-rose-500 flex-shrink-0 mt-2" />
+      )}
+    </button>
+  );
+};
+
+// ── Message Detail ────────────────────────────────────────────────────────────
+
+const MessageDetail = ({
+  message, userId, onMarkRead, onReply,
+}: { message: Message; userId?: string; onMarkRead: (id: string) => void; onReply: (m: Message) => void }) => {
+  const isIncoming = message.recipient_id === userId;
+  const person = isIncoming ? message.sender : message.recipient;
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-4 border-b border-border/50 flex-shrink-0">
+        <h2 className="text-[15px] font-semibold text-foreground mb-3">
+          {message.subject || '(no subject)'}
+        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full bg-rose-500/10 flex items-center justify-center text-[11px] font-bold text-rose-600">
+              {initials(person?.first_name, person?.last_name)}
+            </div>
+            <div>
+              <p className="text-[13px] font-medium leading-none">
+                {isIncoming ? displayName(message.sender) : `To: ${displayName(message.recipient)}`}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {format(new Date(message.created_at), "MMM d, yyyy 'at' HH:mm")}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {!message.is_read && isIncoming && (
+              <Button size="sm" variant="outline" className="h-7 px-3 text-[11px] gap-1" onClick={() => onMarkRead(message.id)}>
+                <CheckCheck className="h-3 w-3" /> Mark read
+              </Button>
+            )}
+            {isIncoming && (
+              <Button size="sm" className="h-7 px-3 text-[11px] gap-1 bg-rose-500 hover:bg-rose-600" onClick={() => onReply(message)}>
+                <Reply className="h-3 w-3" /> Reply
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <p className="text-[14px] text-foreground leading-relaxed whitespace-pre-wrap">{message.content}</p>
+      </div>
+    </div>
+  );
+};
+
+// ── Compose Dialog ────────────────────────────────────────────────────────────
+
+const ComposeDialog = ({
+  open, onOpenChange, recipients, initial, onSend, sending,
+}: {
+  open: boolean; onOpenChange: (v: boolean) => void; recipients: UserProfile[];
+  initial?: Partial<{ recipient_id: string; subject: string; content: string }>;
+  onSend: (data: { recipient_id: string; subject: string; content: string }) => Promise<void>;
+  sending: boolean;
+}) => {
+  const [form, setForm] = useState({ recipient_id: '', subject: '', content: '' });
+
+  useEffect(() => {
+    if (initial) setForm({ recipient_id: initial.recipient_id ?? '', subject: initial.subject ?? '', content: initial.content ?? '' });
+  }, [initial, open]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onSend(form);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl border border-border/70">
+        <DialogHeader className="px-6 py-5 border-b border-border/50 bg-muted/30">
+          <DialogTitle className="text-[15px] font-semibold flex items-center gap-2">
+            <SquarePen className="h-4 w-4 text-rose-500" />
+            New Message
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">To</Label>
+            <Select value={form.recipient_id} onValueChange={(v) => setForm(f => ({ ...f, recipient_id: v }))}>
+              <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Select recipient…" /></SelectTrigger>
+              <SelectContent>
+                {recipients.map(r => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {`${r.first_name ?? ''} ${r.last_name ?? ''}`.trim() || r.email} ({r.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="parent-subject" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Subject</Label>
+            <Input id="parent-subject" className="h-9 text-[13px]" placeholder="Enter subject…" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="parent-content" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Message</Label>
+            <Textarea id="parent-content" className="text-[13px] resize-none" placeholder="Write your message…" rows={7} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} required />
+          </div>
+          <DialogFooter className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Discard</Button>
+            <Button type="submit" size="sm" disabled={sending || !form.recipient_id} className="gap-1.5 bg-rose-500 hover:bg-rose-600">
+              <Send className="h-3.5 w-3.5" />
+              {sending ? 'Sending…' : 'Send'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 const FamilyConnectPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'inbox' | 'compose'>('inbox');
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [recipients, setRecipients] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  
-  // Compose form state
-  const [newMessage, setNewMessage] = useState({
-    recipient_id: '',
-    subject: '',
-    content: ''
-  });
+  const [selected, setSelected] = useState<Message | null>(null);
+  const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'inbox' | 'sent'>('inbox');
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeInitial, setComposeInitial] = useState<any>(undefined);
 
   useEffect(() => {
     if (user) {
-      Promise.all([
-        fetchMessages(),
-        fetchRecipients()
-      ]).finally(() => setLoading(false));
+      Promise.all([fetchMessages(), fetchRecipients()]).finally(() => setLoading(false));
     }
   }, [user]);
 
   const fetchMessages = async () => {
     if (!user?.id) return;
-    
-    try {
-      console.log('Fetching messages for user:', user.id);
-      
-      // Get messages
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
+    const { data: md, error } = await supabase
+      .from('messages').select('*')
+      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
 
-      if (messagesError) {
-        console.error('Error fetching messages:', messagesError);
-        return;
-      }
+    if (error || !md?.length) { setMessages([]); return; }
 
-      if (!messagesData || messagesData.length === 0) {
-        console.log('No messages found');
-        setMessages([]);
-        return;
-      }
+    const ids = [...new Set([...md.map(m => m.sender_id), ...md.map(m => m.recipient_id).filter(Boolean)])];
+    const { data: profiles } = await supabase.from('profiles').select('id,first_name,last_name').in('id', ids);
+    const { data: authUsers } = await supabase.rpc('get_users_emails', { user_ids: ids });
 
-      // Get unique user IDs
-      const userIds = [...new Set([
-        ...messagesData.map(m => m.sender_id),
-        ...messagesData.map(m => m.recipient_id).filter(Boolean)
-      ])];
-
-      // Get profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', userIds);
-
-      // Get emails using secure function
-      const { data: authUsers } = await supabase
-        .rpc('get_users_emails', { user_ids: userIds });
-
-      // Combine data
-      const messagesWithProfiles = messagesData.map(message => {
-        const senderProfile = profiles?.find(p => p.id === message.sender_id);
-        const senderAuth = authUsers?.find(a => a.id === message.sender_id);
-        const recipientProfile = profiles?.find(p => p.id === message.recipient_id);
-        const recipientAuth = authUsers?.find(a => a.id === message.recipient_id);
-
-        return {
-          ...message,
-          sender: senderProfile || senderAuth ? {
-            first_name: senderProfile?.first_name,
-            last_name: senderProfile?.last_name,
-            email: senderAuth?.email
-          } : undefined,
-          recipient: recipientProfile || recipientAuth ? {
-            first_name: recipientProfile?.first_name,
-            last_name: recipientProfile?.last_name,
-            email: recipientAuth?.email
-          } : undefined
-        };
-      });
-
-      setMessages(messagesWithProfiles);
-    } catch (error) {
-      console.error('Error in fetchMessages:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load messages",
-        variant: "destructive",
-      });
-    }
+    setMessages(md.map(m => ({
+      ...m,
+      sender: (() => { const p = profiles?.find(x => x.id === m.sender_id); const a = authUsers?.find(x => x.id === m.sender_id); return (p || a) ? { first_name: p?.first_name, last_name: p?.last_name, email: a?.email } : undefined; })(),
+      recipient: (() => { const p = profiles?.find(x => x.id === m.recipient_id); const a = authUsers?.find(x => x.id === m.recipient_id); return (p || a) ? { first_name: p?.first_name, last_name: p?.last_name, email: a?.email } : undefined; })(),
+    })));
   };
 
   const fetchRecipients = async () => {
     if (!user?.id) return;
-    
-    try {
-      console.log('Fetching recipients for user:', user.id);
-      
-      // Get all user roles except current user
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .neq('user_id', user.id);
-
-      if (rolesError) {
-        console.error('Error fetching user roles:', rolesError);
-        return;
-      }
-
-      if (!userRoles || userRoles.length === 0) {
-        console.log('No other users found');
-        setRecipients([]);
-        return;
-      }
-
-      const userIds = userRoles.map(ur => ur.user_id);
-
-      // Get profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', userIds);
-
-      // Get emails using secure function
-      const { data: authUsers } = await supabase
-        .rpc('get_users_emails', { user_ids: userIds });
-
-      // Combine data
-      const combinedData: UserProfile[] = userRoles.map(role => {
-        const profile = profiles?.find(p => p.id === role.user_id);
-        const authUser = authUsers?.find(au => au.id === role.user_id);
-        
-        return {
-          id: role.user_id,
-          email: authUser?.email || 'Unknown',
-          first_name: profile?.first_name,
-          last_name: profile?.last_name,
-          role: role.role
-        };
-      }).filter(user => user.email !== 'Unknown'); // Filter out users without emails
-
-      console.log('Combined recipients data:', combinedData);
-      setRecipients(combinedData);
-    } catch (error) {
-      console.error('Error in fetchRecipients:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load recipients",
-        variant: "destructive",
-      });
-    }
+    const { data: roles } = await supabase.from('user_roles').select('user_id,role').neq('user_id', user.id);
+    if (!roles?.length) { setRecipients([]); return; }
+    const ids = roles.map(r => r.user_id);
+    const { data: profiles } = await supabase.from('profiles').select('id,first_name,last_name').in('id', ids);
+    const { data: authUsers } = await supabase.rpc('get_users_emails', { user_ids: ids });
+    setRecipients(roles.map(r => {
+      const p = profiles?.find(x => x.id === r.user_id);
+      const a = authUsers?.find(x => x.id === r.user_id);
+      return { id: r.user_id, email: a?.email || '', first_name: p?.first_name, last_name: p?.last_name, role: r.role };
+    }).filter(r => r.email));
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.recipient_id || !newMessage.subject || !newMessage.content) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const sendMsg = async (data: { recipient_id: string; subject: string; content: string }) => {
     setSending(true);
     try {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: user!.id,
-          recipient_id: newMessage.recipient_id,
-          subject: newMessage.subject,
-          content: newMessage.content,
-          is_read: false
-        });
-
+      const { error } = await supabase.from('messages').insert({ sender_id: user!.id, ...data, is_read: false });
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Message sent successfully!",
-      });
-
-      setNewMessage({ recipient_id: '', subject: '', content: '' });
-      setActiveTab('inbox');
+      toast({ title: 'Message sent!' });
+      setComposeOpen(false);
+      setComposeInitial(undefined);
+      setTab('sent');
       fetchMessages();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
     } finally {
       setSending(false);
     }
   };
 
-  const markAsRead = async (messageId: string) => {
-    try {
-      const { error } = await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('id', messageId);
-
-      if (error) throw error;
-      
-      // Update local state
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId ? { ...msg, is_read: true } : msg
-      ));
-    } catch (error) {
-      console.error('Error marking message as read:', error);
-    }
+  const markRead = async (id: string) => {
+    await supabase.from('messages').update({ is_read: true }).eq('id', id);
+    setMessages(prev => prev.map(m => m.id === id ? { ...m, is_read: true } : m));
+    setSelected(prev => prev?.id === id ? { ...prev, is_read: true } : prev);
   };
 
-  const getDisplayName = (profile?: { first_name?: string; last_name?: string; email?: string }) => {
-    if (!profile) return 'Unknown User';
-    if (profile.first_name || profile.last_name) {
-      return `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-    }
-    return profile.email || 'Unknown User';
+  const handleReply = (m: Message) => {
+    setComposeInitial({
+      recipient_id: m.sender_id,
+      subject: m.subject?.startsWith('Re:') ? m.subject : `Re: ${m.subject || 'Message'}`,
+      content: `\n\n— Original —\n${m.content}`,
+    });
+    setComposeOpen(true);
   };
 
-  const unreadCount = messages.filter(msg => msg.recipient_id === user?.id && !msg.is_read).length;
-
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex justify-center items-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading messages...</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
+  const q = search.toLowerCase();
+  const filtered = messages.filter(m =>
+    !q || m.subject?.toLowerCase().includes(q) || m.content?.toLowerCase().includes(q) ||
+    displayName(m.sender).toLowerCase().includes(q)
+  );
+  const inbox = filtered.filter(m => m.recipient_id === user?.id);
+  const sent = filtered.filter(m => m.sender_id === user?.id);
+  const list = tab === 'inbox' ? inbox : sent;
+  const unread = inbox.filter(m => !m.is_read).length;
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Family Connect</h1>
-            <p className="text-muted-foreground">
-              Communicate with staff, teachers, and other parents.
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge variant={unreadCount > 0 ? "default" : "outline"}>
-              {unreadCount} unread
-            </Badge>
-          </div>
-        </div>
+      <DashboardShell
+        title="Messages"
+        subtitle="Stay connected with the care team"
+        action={
+          <Button size="sm" onClick={() => { setComposeInitial(undefined); setComposeOpen(true); }} className="gap-2 bg-rose-500 hover:bg-rose-600">
+            <SquarePen className="h-3.5 w-3.5" />
+            New Message
+          </Button>
+        }
+      >
+        <div className="bg-card border border-border/70 rounded-xl overflow-hidden flex h-[calc(100vh-200px)] min-h-[520px]">
 
-        {/* Navigation Tabs */}
-        <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
-          <Button
-            variant={activeTab === 'inbox' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('inbox')}
-            className="flex items-center gap-2"
-          >
-            <Inbox className="h-4 w-4" />
-            Inbox
-            {unreadCount > 0 && (
-              <Badge variant="secondary" className="ml-1">
-                {unreadCount}
-              </Badge>
+          {/* ── Column 1: Nav ─────────────────────────────── */}
+          <div className="w-44 flex-shrink-0 border-r border-border/50 flex flex-col bg-muted/30">
+            <div className="p-3 border-b border-border/40">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className="h-8 pl-8 text-[12px] bg-background border-border/50" />
+              </div>
+            </div>
+            <nav className="p-2 space-y-0.5">
+              {([
+                { id: 'inbox' as const, label: 'Inbox', icon: Inbox, count: unread > 0 ? unread : null },
+                { id: 'sent' as const, label: 'Sent', icon: Send, count: null },
+              ]).map(({ id, label, icon: Icon, count }) => (
+                <button key={id} onClick={() => { setTab(id); setSelected(null); }}
+                  className={cn('w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-medium transition-colors',
+                    tab === id ? 'bg-rose-500/10 text-rose-600' : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5'
+                  )}>
+                  <span className="flex items-center gap-2"><Icon className="h-3.5 w-3.5" />{label}</span>
+                  {count != null && (
+                    <span className="bg-rose-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">{count}</span>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* ── Column 2: List ────────────────────────────── */}
+          <div className={cn('flex flex-col border-r border-border/50 overflow-y-auto custom-scrollbar', selected ? 'w-64 flex-shrink-0' : 'flex-1')}>
+            <div className="px-4 py-3 border-b border-border/40 bg-muted/20 flex items-center justify-between flex-shrink-0">
+              <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider">{tab === 'inbox' ? 'Inbox' : 'Sent'}</p>
+              <span className="text-[11px] text-muted-foreground">{list.length}</span>
+            </div>
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+              </div>
+            ) : list.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 py-12">
+                <MessageSquare className="h-8 w-8 opacity-20" />
+                <p className="text-[13px] font-medium">No messages here</p>
+              </div>
+            ) : (
+              list.map(msg => (
+                <MessageRow key={msg.id} message={msg} isSelected={selected?.id === msg.id} userId={user?.id}
+                  onClick={() => { setSelected(msg); if (!msg.is_read && msg.recipient_id === user?.id) markRead(msg.id); }} />
+              ))
             )}
-          </Button>
-          <Button
-            variant={activeTab === 'compose' ? 'default' : 'ghost'}
-            onClick={() => setActiveTab('compose')}
-            className="flex items-center gap-2"
-          >
-            <Send className="h-4 w-4" />
-            Compose
-          </Button>
+          </div>
+
+          {/* ── Column 3: Detail ──────────────────────────── */}
+          <div className="flex-1 min-w-0 overflow-hidden">
+            {selected ? (
+              <MessageDetail message={selected} userId={user?.id} onMarkRead={markRead} onReply={handleReply} />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3">
+                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                  <Inbox className="h-5 w-5 opacity-40" />
+                </div>
+                <p className="text-[13px] font-medium">Select a message to read</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Inbox Tab */}
-        {activeTab === 'inbox' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Inbox className="h-5 w-5" />
-                Messages
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {messages.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-medium mb-2 text-gray-900">No messages yet</h3>
-                  <p className="text-gray-600 mb-6">Start a conversation by composing a new message</p>
-                  <Button onClick={() => setActiveTab('compose')}>
-                    <Send className="h-4 w-4 mr-2" />
-                    Compose Message
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {messages.map((message) => {
-                    const isReceived = message.recipient_id === user?.id;
-                    const otherUser = isReceived ? message.sender : message.recipient;
-                    
-                    return (
-                      <div
-                        key={message.id}
-                        className={`p-4 border rounded-lg transition-colors ${
-                          isReceived && !message.is_read 
-                            ? 'bg-blue-50 border-blue-200' 
-                            : 'bg-card border-border hover:bg-gray-50'
-                        }`}
-                        onClick={() => {
-                          if (isReceived && !message.is_read) {
-                            markAsRead(message.id);
-                          }
-                        }}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              isReceived ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
-                            }`}>
-                              {isReceived ? <Mail className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                            </div>
-                            <div>
-                              <p className="font-medium">
-                                {isReceived ? 'From' : 'To'}: {getDisplayName(otherUser)}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(message.created_at).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {isReceived && !message.is_read && (
-                              <Badge variant="default" className="text-xs">
-                                New
-                              </Badge>
-                            )}
-                            {isReceived ? (
-                              <CheckCircle className="h-4 w-4 text-blue-600" />
-                            ) : (
-                              <Clock className="h-4 w-4 text-green-600" />
-                            )}
-                          </div>
-                        </div>
-                        
-                        <h4 className="font-semibold mb-2">{message.subject}</h4>
-                        <p className="text-gray-700 text-sm">{message.content}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Compose Tab */}
-        {activeTab === 'compose' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Send className="h-5 w-5" />
-                Compose Message
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">To</label>
-                <Select 
-                  value={newMessage.recipient_id} 
-                  onValueChange={(value) => setNewMessage(prev => ({ ...prev, recipient_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select recipient" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {recipients.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">
-                        <AlertCircle className="h-4 w-4 mx-auto mb-2" />
-                        No recipients available
-                      </div>
-                    ) : (
-                      recipients.map((recipient) => (
-                        <SelectItem key={recipient.id} value={recipient.id}>
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            <span>
-                              {getDisplayName(recipient)} 
-                              <span className="text-xs text-gray-500 ml-2">({recipient.role})</span>
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Subject</label>
-                <Input
-                  placeholder="Enter message subject"
-                  value={newMessage.subject}
-                  onChange={(e) => setNewMessage(prev => ({ ...prev, subject: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Message</label>
-                <Textarea
-                  placeholder="Type your message here..."
-                  value={newMessage.content}
-                  onChange={(e) => setNewMessage(prev => ({ ...prev, content: e.target.value }))}
-                  rows={6}
-                />
-              </div>
-
-              <Button 
-                onClick={sendMessage}
-                disabled={sending || !newMessage.recipient_id || !newMessage.subject || !newMessage.content}
-                className="w-full"
-              >
-                {sending ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                    Sending...
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Message
-                  </div>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        <ComposeDialog open={composeOpen} onOpenChange={setComposeOpen} recipients={recipients} initial={composeInitial} onSend={sendMsg} sending={sending} />
+      </DashboardShell>
     </AppLayout>
   );
 };
 
 export default FamilyConnectPage;
-
-

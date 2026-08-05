@@ -13,6 +13,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import DOMPurify from 'dompurify';
 import { useTranslation, Language } from '@/lib/i18n';
 
+import { useLanguage } from '@/context/LanguageContext';
+import { getPrintProxyUrl } from '@/services/printService';
+
 interface NameTagPrintDialogProps {
   open: boolean;
   onClose: () => void;
@@ -39,6 +42,8 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   specialInstructions,
 }) => {
   const { t } = useTranslation();
+  const { language } = useLanguage();
+  const isEs = language === 'es';
   const printRef = useRef<HTMLDivElement>(null);
   
   // Generate a matching security code for the session if not provided
@@ -57,12 +62,74 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     }
   }, [open]);
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const safeFirstName = DOMPurify.sanitize(child.first_name);
     const safeLastName = DOMPurify.sanitize(child.last_name);
     const safeAllergies = child.allergies ? DOMPurify.sanitize(child.allergies) : '';
     const safeClassName = className ? DOMPurify.sanitize(className) : '';
     const safeInstructions = specialInstructions ? DOMPurify.sanitize(specialInstructions) : '';
+
+    const targetPrinterIp = localStorage.getItem('kiddochecker_target_printer_ip') || '';
+    const targetPrinterName = localStorage.getItem('kiddochecker_target_printer_name') || '';
+
+    // 1. Primary: Enqueue to Azure Cloud Relay (Immune to browser CORS / Mixed Content)
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+      const cloudRes = await fetch(`${baseUrl}/api/print-jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          labelData: {
+            name: `${safeFirstName} ${safeLastName}`,
+            allergies: safeAllergies,
+            class: safeClassName,
+            instructions: safeInstructions,
+            securityCode: displayCode,
+            qrData: qrData
+          },
+          printerIp: targetPrinterIp,
+          printerName: targetPrinterName
+        }),
+      });
+
+      if (cloudRes.ok) {
+        console.log('[Printer] Silent print job enqueued via Azure Cloud Relay.');
+        setTimeout(onClose, 1500);
+        return;
+      }
+    } catch (cErr) {
+      console.warn('[Printer] Azure Cloud Relay unreachable, trying direct local print proxy:', cErr);
+    }
+
+    // 2. Secondary: Direct Local Print Proxy
+    console.log('[Printer] Attempting silent network printing via proxy...');
+    try {
+      const proxyUrl = getPrintProxyUrl();
+      const response = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          labelData: {
+            name: `${safeFirstName} ${safeLastName}`,
+            allergies: safeAllergies,
+            class: safeClassName,
+            instructions: safeInstructions,
+            securityCode: displayCode,
+            qrData: qrData
+          },
+          printerIp: targetPrinterIp,
+          printerName: targetPrinterName
+        }),
+      });
+
+      if (response.ok) {
+        console.log('[Printer] Silent print successful via local proxy.');
+        setTimeout(onClose, 1500);
+        return;
+      }
+    } catch (err) {
+      console.warn('[Printer] Local print proxy unavailable. Falling back to browser print...');
+    }
 
     // Use a hidden iframe for more reliable "silent" printing without popup blockers
     let printFrame = document.getElementById('silent-print-frame') as HTMLIFrameElement;
@@ -80,6 +147,13 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
 
     const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
     if (!frameDoc) return;
+
+    const classTxt = isEs ? 'Clase' : 'Class';
+    const noteTxt = isEs ? 'NOTA' : 'NOTE';
+    const allergyTxt = isEs ? 'ALERGIA' : 'ALLERGY';
+    const claimTxt = isEs ? 'BOLETO DE RETIRO DE TUTOR' : 'PRIMARY GUARDIAN CLAIM TICKET';
+    const secTxt = isEs ? 'CÓDIGO DE SEGURIDAD' : 'SECURITY CODE';
+    const validTxt = isEs ? 'Se requiere identificación válida para retirar.' : 'Valid identification required for pickup.';
 
     frameDoc.open();
     frameDoc.write(`
@@ -111,21 +185,21 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                 <div><div class="child-name">${safeFirstName}</div><div class="child-name">${safeLastName}</div></div>
                 <div class="security-code">${displayCode}</div>
               </div>
-              ${safeAllergies ? `<div class="allergy">⚠️ ALLERGY: ${safeAllergies}</div>` : ''}
-              ${safeInstructions ? `<div style="font-size:9px; border:1px solid #000; padding:3px; margin-top:3px;"><strong>NOTE:</strong> ${safeInstructions}</div>` : ''}
+              ${safeAllergies ? `<div class="allergy">⚠️ ${allergyTxt}: ${safeAllergies}</div>` : ''}
+              ${safeInstructions ? `<div style="font-size:9px; border:1px solid #000; padding:3px; margin-top:3px;"><strong>${noteTxt}:</strong> ${safeInstructions}</div>` : ''}
             </div>
             <div>
-              <div class="footer"><span>Class: ${safeClassName || 'N/A'}</span><span>${new Date().toLocaleDateString()}</span></div>
+              <div class="footer"><span>${classTxt}: ${safeClassName || 'N/A'}</span><span>${new Date().toLocaleDateString()}</span></div>
               <div class="qr-area">
                 <div id="qr-target"></div>
-                <div style="font-size:9px;"><strong>IMPORTANT:</strong> Valid identification required for pickup.</div>
+                <div style="font-size:9px;"><strong>IMPORTANTE:</strong> ${validTxt}</div>
               </div>
             </div>
           </div>
           <div class="label-box">
-            <div style="text-align:center; font-weight:bold; border-bottom:1px solid #000; margin-bottom:10px;">CLAIM TICKET</div>
+            <div style="text-align:center; font-weight:bold; border-bottom:1px solid #000; margin-bottom:10px;">${claimTxt}</div>
             <div style="text-align:center; margin: auto 0;">
-              <div style="font-size:10px;">SECURITY CODE</div>
+              <div style="font-size:10px;">${secTxt}</div>
               <div style="background:#000; color:#fff; font-size:32px; padding:10px; display:inline-block; font-family:monospace;">${displayCode}</div>
               <div style="font-size:14px; margin-top:10px; font-weight:bold;">${safeFirstName} ${safeLastName}</div>
             </div>

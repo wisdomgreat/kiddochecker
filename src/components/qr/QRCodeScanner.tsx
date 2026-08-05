@@ -133,8 +133,9 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
     if (manualInput.trim()) { onScanComplete(manualInput.trim()); setManualInput(''); }
   };
 
-  // Cleanup on unmount
+  // Cleanup & auto-start on mount
   useEffect(() => {
+    startScanning();
     return () => {
       if (scannerRef.current) {
         try { scannerRef.current.stop(); } catch { }
@@ -142,7 +143,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
         scannerRef.current = null;
       }
     };
-  }, []);
+  }, [startScanning]);
 
   const dm = darkMode;
 

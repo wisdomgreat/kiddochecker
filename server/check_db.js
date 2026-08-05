@@ -10,9 +10,42 @@ const pool = new Pool({
 
 async function run() {
   try {
-    // Check if profiles exist
-    const { rows } = await pool.query('SELECT COUNT(*) FROM public.profiles');
-    console.log('Profiles count:', rows[0].count);
+    const { rows: countRows } = await pool.query('SELECT COUNT(*) FROM public.profiles');
+    console.log('Profiles count:', countRows[0].count);
+    const { rows: emailRows } = await pool.query('SELECT email FROM public.profiles');
+    console.log('Emails:', emailRows.map(r => r.email).join(', '));
+
+    try {
+      const { rows: churchRows } = await pool.query('SELECT id, name, domain FROM public.churches');
+      console.log('Churches:', JSON.stringify(churchRows));
+    } catch (e) {
+      console.error('Error fetching churches:', e.message);
+    }
+
+    try {
+      console.log('=== Clearing placeholder Resend API key for Church ID 1 ===');
+      const { rowCount } = await pool.query('UPDATE public.communication_settings SET resend_api_key = NULL WHERE church_id = 1');
+      console.log(`Updated ${rowCount} row(s)`);
+    } catch (e) {
+      console.error('Error clearing placeholder key:', e.message);
+    }
+    
+    try {
+      const { rows: churches } = await pool.query('SELECT id, name FROM public.churches');
+      for (const church of churches) {
+        console.log(`=== Testing for Church ID: ${church.id} (${church.name}) ===`);
+        const client = await pool.connect();
+        try {
+          await client.query('SET app.church_id = $1', [church.id]);
+          const { rows: settings } = await client.query('SELECT * FROM public.communication_settings');
+          console.log('Settings:', JSON.stringify(settings));
+        } finally {
+          client.release();
+        }
+      }
+    } catch (e) {
+      console.error('Error testing tenant settings:', e.message);
+    }
     
     // Add default uuid to id
     await pool.query('ALTER TABLE public.profiles ALTER COLUMN id SET DEFAULT gen_random_uuid()');

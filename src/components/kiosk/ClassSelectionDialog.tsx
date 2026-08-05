@@ -25,6 +25,7 @@ interface ClassSelectionDialogProps {
   onConfirm: (classId: string, specialInstructions: string, hasFever: boolean, hasCough: boolean) => void;
   childName: string;
   initialClassId?: string;
+  orgId?: string;
 }
 
 const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
@@ -33,14 +34,17 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
   onConfirm,
   childName,
   initialClassId,
+  orgId,
 }) => {
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [instructions, setInstructions] = useState('');
   const [hasFever, setHasFever] = useState<boolean | null>(null);
   const [hasCough, setHasCough] = useState<boolean | null>(null);
-  const { classes, isLoading } = useClasses();
+  const { classes, isLoading } = useClasses(orgId);
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const { language } = useLanguage();
+  const isEs = language === 'es';
 
   React.useEffect(() => {
     if (open && initialClassId) {
@@ -66,23 +70,27 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
     <Dialog open={open} onValueChange={onClose} onOpenChange={onClose}>
       <DialogContent className="max-w-xl max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="p-6 bg-muted/30 border-b">
-          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-1">Check-in Process</p>
+          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-1">
+            {isEs ? "Proceso de Registro" : "Check-in Process"}
+          </p>
           <DialogTitle className="text-2xl font-bold tracking-tight">{childName}</DialogTitle>
           <DialogDescription>
-            Confirm destination class and wellness status
+            {isEs ? "Confirme la clase de destino y el estado de salud" : "Confirm destination class and wellness status"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
           {isLoading ? (
-            <div className="text-center py-10 text-muted-foreground text-sm font-bold uppercase">Updating classes...</div>
+            <div className="text-center py-10 text-muted-foreground text-sm font-bold uppercase">
+              {isEs ? "Actualizando clases..." : "Updating classes..."}
+            </div>
           ) : (
             <div className="space-y-8">
               {/* Class Selection */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase text-muted-foreground">
                     <Users className="w-3.5 h-3.5" />
-                    Target Class
+                    {isEs ? "Clase de Destino" : "Target Class"}
                 </div>
                 <RadioGroup value={selectedClass} onValueChange={setSelectedClass} className="grid grid-cols-1 gap-2">
                   {classes?.filter(cls => !initialClassId || cls.id === initialClassId).map((cls) => (
@@ -108,7 +116,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                       </div>
                       {selectedClass === cls.id && (
                         <div className="flex items-center gap-2">
-                           {initialClassId && <Badge variant="outline" className="text-[9px] font-bold uppercase text-emerald-600 border-emerald-200 bg-emerald-50">Assigned</Badge>}
+                           {initialClassId && <Badge variant="outline" className="text-[9px] font-bold uppercase text-emerald-600 border-emerald-200 bg-emerald-50">{isEs ? "Asignado" : "Assigned"}</Badge>}
                            <Check className="w-4 h-4" />
                         </div>
                       )}
@@ -116,7 +124,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                   ))}
                   {initialClassId && classes?.length && classes.length > 1 && (
                     <p className="text-[10px] text-center text-muted-foreground font-medium italic mt-2">
-                      Class locked based on child's assigned registry.
+                      {isEs ? "Clase bloqueada según el registro asignado al niño." : "Class locked based on child's assigned registry."}
                     </p>
                   )}
                 </RadioGroup>
@@ -138,7 +146,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                             size="sm" 
                             className="flex-1 h-10 font-bold"
                             onClick={() => setHasFever(true)}
-                        >Yes</Button>
+                        >{isEs ? "Sí" : "Yes"}</Button>
                         <Button 
                             variant={hasFever === false ? "default" : "outline"} 
                             size="sm" 
@@ -155,7 +163,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                             size="sm" 
                             className="flex-1 h-10 font-bold"
                             onClick={() => setHasCough(true)}
-                        >Yes</Button>
+                        >{isEs ? "Sí" : "Yes"}</Button>
                         <Button 
                             variant={hasCough === false ? "default" : "outline"} 
                             size="sm" 
@@ -181,7 +189,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
                     {t('specialInstructions')}
                 </div>
                 <Textarea 
-                  placeholder="Notes for staff (optional)..."
+                  placeholder={isEs ? "Notas para el personal (opcional)..." : "Notes for staff (optional)..."}
                   className="resize-none min-h-[80px]"
                   maxLength={150}
                   value={instructions}
@@ -194,7 +202,7 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
 
         <DialogFooter className="p-6 bg-muted/10 border-t gap-3 sm:gap-2">
           <Button variant="ghost" onClick={onClose} className="flex-1 font-bold h-11 uppercase tracking-tight text-xs">
-            Abort
+            {isEs ? "Cancelar" : "Abort"}
           </Button>
           <Button 
             onClick={handleConfirm} 
@@ -202,12 +210,12 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
             className="flex-1 font-bold h-11 uppercase tracking-tight text-xs"
           >
             {hasFever || hasCough 
-              ? "Health Alert" 
+              ? (isEs ? "Alerta de Salud" : "Health Alert") 
               : !selectedClass 
-                ? "Select Class" 
+                ? (isEs ? "Seleccionar Clase" : "Select Class") 
                 : showWellnessCheck && !wellnessAttempted 
-                  ? "Pending Survey" 
-                  : "Finalize Entry"}
+                  ? (isEs ? "Encuesta Pendiente" : "Pending Survey") 
+                  : (isEs ? "Finalizar Entrada" : "Finalize Entry")}
           </Button>
         </DialogFooter>
       </DialogContent>

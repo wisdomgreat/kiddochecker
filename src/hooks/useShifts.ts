@@ -31,17 +31,12 @@ export interface Shift {
 export const useShifts = (filters?: { from?: Date; to?: Date; event_id?: string }) => {
   const queryClient = useQueryClient();
 
-  const { data: shifts, isLoading, error } = useQuery({
+  const { data: shifts = [], isLoading, error } = useQuery({
     queryKey: ['shifts', filters],
     queryFn: async () => {
       let query = supabase
         .from('shifts')
-        .select(`
-          *,
-          profiles:staff_id (first_name, last_name, avatar_url),
-          classes:class_id (name),
-          volunteer_roles:volunteer_role_id (name)
-        `)
+        .select('*')
         .order('start_time', { ascending: true });
 
       if (filters?.from) {
@@ -54,9 +49,28 @@ export const useShifts = (filters?: { from?: Date; to?: Date; event_id?: string 
         query = query.eq('event_id', filters.event_id);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as Shift[];
+      const { data: shiftRows, error: shiftErr } = await query;
+      if (shiftErr) {
+        console.error("Shifts query error:", shiftErr);
+      }
+
+      // Fetch profiles & classes map for client enrichment
+      const [{ data: profiles }, { data: classes }] = await Promise.all([
+        supabase.from('profiles').select('id, first_name, last_name, avatar_url'),
+        supabase.from('classes').select('id, name')
+      ]);
+
+      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      const classMap = new Map((classes || []).map((c: any) => [c.id, c]));
+
+      const rawShifts = shiftRows || [];
+      const enrichedShifts: Shift[] = rawShifts.map((s: any) => ({
+        ...s,
+        profiles: s.staff_id ? profileMap.get(s.staff_id) : undefined,
+        classes: s.class_id ? classMap.get(s.class_id) : undefined,
+      }));
+
+      return enrichedShifts;
     },
   });
 

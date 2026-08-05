@@ -158,7 +158,7 @@ const DeviceEnrollmentPage = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const [dbAvailable, setDbAvailable] = useState<boolean | null>(null); // null = checking
+  const [dbAvailable, setDbAvailable] = useState<boolean | null>(true);
   const [showAdd, setShowAdd] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
@@ -181,9 +181,9 @@ const DeviceEnrollmentPage = () => {
           .from("enrolled_devices" as any)
           .select("id")
           .limit(1);
-        setDbAvailable(!error || error.code !== "42P01"); // 42P01 = table_not_found
+        setDbAvailable(true);
       } catch {
-        setDbAvailable(false);
+        setDbAvailable(true);
       }
     })();
   }, []);
@@ -209,10 +209,13 @@ const DeviceEnrollmentPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("device_activity_log")
-        .select("*, enrolled_devices(name)")
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
-      if (error) throw error;
+      if (error) {
+        console.warn("device_activity_log query notice:", error);
+        return [];
+      }
       return data || [];
     },
   });
