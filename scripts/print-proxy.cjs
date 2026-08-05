@@ -47,6 +47,17 @@ function addLog(type, message, details = {}) {
 
 addLog('info', 'KiddoChecker Remote Print Server Initializing...');
 
+// Automatically patch brother_ql's conversion module for Python 3.12 / Pillow 10+ compatibility
+function autoPatchBrotherQl() {
+    try {
+        const patchScript = `import brother_ql.conversion as c, inspect; p=inspect.getfile(c); txt=open(p).read(); open(p,'w').write(txt.replace('Image.ANTIALIAS', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))')) if 'Image.ANTIALIAS' in txt else None`;
+        exec(`python3 -c "${patchScript}"`, (err) => {
+            if (!err) addLog('info', 'Brother QL PIL.Image compatibility check complete.');
+        });
+    } catch(e) {}
+}
+autoPatchBrotherQl();
+
 // ─── Printer Model Registry ──────────────────────────────────────
 // All supported printer models. Select once from the web console;
 // the server auto-generates the correct protocol payload.
@@ -506,8 +517,7 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                 const qlModel = (modelId === 'brother_ql_810' ? 'QL-810W' : 'QL-820NWB');
 
                 const getQlCmd = (pngFile) => {
-                    const pyPatch = `import PIL.Image; PIL.Image.ANTIALIAS = getattr(PIL.Image, 'LANCZOS', getattr(getattr(PIL.Image, 'Resampling', {}), 'LANCZOS', None)); from brother_ql.cli import main; import sys; sys.argv=['brother_ql', '--model', '${qlModel}', '--backend', 'network', '--printer', 'tcp://${printerIp}:9100', 'print', '--label', '${labelSize}', '--rotate', 'auto', '${pngFile}']; main()`;
-                    return `(python3 -c "${pyPatch}" || brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
+                    return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize} --rotate auto "${pngFile}")`;
                 };
 
                 const qlCmd1 = getQlCmd(tmpPng1);
