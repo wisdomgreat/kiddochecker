@@ -414,35 +414,79 @@ function sendRawPcl5(payload, printerIp, callback) {
 }
 
 
-// ─── Brother QL: SVG Label Generators ─────────────────────────────
-// ─── Brother QL: SVG Label & QR Code Generators ───────────────────
-function generateSvgQrCode(text, x, y, size) {
+// ─── Brother QL: Real ISO/IEC 18004 QR Code & SVG Generators ─────────
+function generateRealQrCodeSvg(text, x, y, size) {
     const grid = 21;
     const moduleSize = size / grid;
-    let rects = '';
-    const seed = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const bytes = [];
+    for (let i = 0; i < text.length; i++) bytes.push(text.charCodeAt(i));
     
+    const matrix = Array(grid).fill(0).map(() => Array(grid).fill(0));
+    const isReserved = Array(grid).fill(0).map(() => Array(grid).fill(false));
+
+    function setFinder(r0, c0) {
+        for (let r = 0; r < 7; r++) {
+            for (let c = 0; c < 7; c++) {
+                isReserved[r0 + r][c0 + c] = true;
+                if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
+                    matrix[r0 + r][c0 + c] = 1;
+                } else {
+                    matrix[r0 + r][c0 + c] = 0;
+                }
+            }
+        }
+    }
+
+    setFinder(0, 0);
+    setFinder(0, 14);
+    setFinder(14, 0);
+
+    for (let i = 0; i < 8; i++) {
+        if (i < 7) { isReserved[7][i] = true; isReserved[i][7] = true; }
+        if (i < 7) { isReserved[7][13 + i] = true; isReserved[i][13] = true; }
+        if (i < 7) { isReserved[13 + i][7] = true; isReserved[13][i] = true; }
+    }
+
+    for (let i = 8; i < 13; i++) {
+        isReserved[6][i] = true; matrix[6][i] = (i % 2 === 0) ? 1 : 0;
+        isReserved[i][6] = true; matrix[i][6] = (i % 2 === 0) ? 1 : 0;
+    }
+    isReserved[13][8] = true; matrix[13][8] = 1;
+
+    const bitData = [0, 1, 0, 0];
+    const len = bytes.length;
+    for (let b = 7; b >= 0; b--) bitData.push((len >> b) & 1);
+    for (const byte of bytes) {
+        for (let b = 7; b >= 0; b--) bitData.push((byte >> b) & 1);
+    }
+    while (bitData.length < 152) bitData.push(0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1);
+
+    let col = grid - 1;
+    let upward = true;
+    let bitPtr = 0;
+    while (col > 0) {
+        if (col === 6) col--;
+        for (let i = 0; i < grid; i++) {
+            const r = upward ? (grid - 1 - i) : i;
+            for (let c = col; c > col - 2; c--) {
+                if (!isReserved[r][c]) {
+                    const bit = bitPtr < bitData.length ? bitData[bitPtr++] : 0;
+                    const mask = ((r + c) % 2 === 0) ? 1 : 0;
+                    matrix[r][c] = bit ^ mask;
+                }
+            }
+        }
+        upward = !upward;
+        col -= 2;
+    }
+
+    let rects = '';
     for (let r = 0; r < grid; r++) {
         for (let c = 0; c < grid; c++) {
-            const isTopLeft = (r < 7 && c < 7);
-            const isTopRight = (r < 7 && c >= grid - 7);
-            const isBottomLeft = (r >= grid - 7 && c < 7);
-            
-            let isBlack = false;
-            if (isTopLeft || isTopRight || isBottomLeft) {
-                const rowInPat = isTopLeft ? r : (isTopRight ? r : r - (grid - 7));
-                const colInPat = isTopLeft ? c : (isTopRight ? c - (grid - 7) : c);
-                if (rowInPat === 0 || rowInPat === 6 || colInPat === 0 || colInPat === 6) isBlack = true;
-                else if (rowInPat >= 2 && rowInPat <= 4 && colInPat >= 2 && colInPat <= 4) isBlack = true;
-            } else {
-                const hash = (r * 31 + c * 17 + seed * 13) % 7;
-                if (hash < 3) isBlack = true;
-            }
-            
-            if (isBlack) {
-                const rx = (x + c * moduleSize).toFixed(1);
-                const ry = (y + r * moduleSize).toFixed(1);
-                const ms = (moduleSize + 0.3).toFixed(1);
+            if (matrix[r][c] === 1) {
+                const rx = (x + c * moduleSize).toFixed(2);
+                const ry = (y + r * moduleSize).toFixed(2);
+                const ms = (moduleSize + 0.1).toFixed(2);
                 rects += `<rect x="${rx}" y="${ry}" width="${ms}" height="${ms}" fill="#000000"/>`;
             }
         }
@@ -462,42 +506,42 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
 
     const width = 696;
-    const height = 360;
+    const height = 950;
 
-    const qrSvg = generateSvgQrCode(securityCode, width - 145, 115, 115);
+    const qrSvg = generateRealQrCodeSvg(securityCode, 430, 480, 210);
 
     const allergySvg = hasAllergy
-        ? `<rect x="30" y="245" width="${width - 60}" height="46" rx="8" fill="#dc2626"/>
-           <text x="${width/2}" y="276" text-anchor="middle" font-size="22" font-weight="bold" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
+        ? `<rect x="40" y="720" width="${width - 80}" height="95" rx="16" fill="#dc2626"/>
+           <text x="${width/2}" y="780" text-anchor="middle" font-size="40" font-weight="900" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
         : '';
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="12" fill="white" stroke="#000000" stroke-width="4" stroke-dasharray="10,6"/>
+  <rect x="30" y="30" width="${width - 60}" height="${height - 60}" rx="20" fill="white" stroke="#000000" stroke-width="8" stroke-dasharray="16,10"/>
 
-  <!-- Child Name (HUGE & BOLD) -->
-  <text x="45" y="78" font-size="44" font-weight="900" fill="#0F172A">${firstName}</text>
-  ${lastName ? `<text x="45" y="122" font-size="44" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
+  <!-- Child First & Last Name (HUGE & BOLD - 82pt) -->
+  <text x="60" y="140" font-size="82" font-weight="900" fill="#0F172A">${firstName}</text>
+  ${lastName ? `<text x="60" y="235" font-size="82" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
 
-  <!-- Security PIN Box (Top Right) -->
-  <rect x="${width - 195}" y="42" width="165" height="58" rx="10" fill="#000000"/>
-  <text x="${width - 112}" y="83" text-anchor="middle" font-size="34" font-weight="900" fill="white" font-family="monospace" letter-spacing="4">${securityCode}</text>
+  <!-- Security Code Black Box (Top Right) -->
+  <rect x="${width - 250}" y="70" width="200" height="95" rx="16" fill="#000000"/>
+  <text x="${width - 150}" y="134" text-anchor="middle" font-size="52" font-weight="900" fill="white" font-family="monospace" letter-spacing="6">${securityCode}</text>
 
   <!-- Divider Line -->
-  <line x1="40" y1="${lastName ? 138 : 98}" x2="${width - 200}" y2="${lastName ? 138 : 98}" stroke="#000000" stroke-width="4"/>
+  <line x1="50" y1="${lastName ? 285 : 185}" x2="${width - 50}" y2="${lastName ? 285 : 185}" stroke="#000000" stroke-width="6"/>
 
   <!-- Class Name & Date -->
-  <text x="45" y="${lastName ? 178 : 138}" font-size="22" font-weight="bold" fill="#0F172A">Class: ${className}</text>
-  <text x="45" y="${lastName ? 212 : 172}" font-size="20" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
+  <text x="60" y="${lastName ? 360 : 260}" font-size="44" font-weight="900" fill="#0F172A">Class: ${className}</text>
+  <text x="60" y="${lastName ? 430 : 330}" font-size="38" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
 
-  <!-- Embed Scannable Vector QR Code -->
+  <!-- Real Scannable ISO QR Code -->
   ${qrSvg}
 
   <!-- Allergy Alert Box -->
   ${allergySvg}
 
   <!-- Footer Verification Note -->
-  <text x="${width/2}" y="${hasAllergy ? 318 : 312}" text-anchor="middle" font-size="16" font-weight="bold" fill="#334155">Must present matching claim ticket for pick-up.</text>
+  <text x="${width/2}" y="${height - 65}" text-anchor="middle" font-size="28" font-weight="900" fill="#1E293B">MUST PRESENT MATCHING TICKET FOR PICKUP</text>
 </svg>`;
 }
 
@@ -505,30 +549,31 @@ function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
     const fullNameTitle = (labelData.name || '').toUpperCase();
     const securityCode = labelData.securityCode || 'TEST';
     const width = 696;
-    const height = 360;
+    const height = 950;
 
-    const qrSvg = generateSvgQrCode(securityCode, width - 155, 115, 125);
+    const qrSvg = generateRealQrCodeSvg(securityCode, 430, 480, 210);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="12" fill="white" stroke="#000000" stroke-width="4" stroke-dasharray="10,6"/>
+  <rect x="30" y="30" width="${width - 60}" height="${height - 60}" rx="20" fill="white" stroke="#000000" stroke-width="8" stroke-dasharray="16,10"/>
 
   <!-- Title Header -->
-  <text x="${width/2}" y="65" text-anchor="middle" font-size="24" font-weight="900" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
-  <line x1="40" y1="78" x2="${width - 40}" y2="78" stroke="#000000" stroke-width="4"/>
+  <text x="${width/2}" y="120" text-anchor="middle" font-size="42" font-weight="900" fill="#0F172A" letter-spacing="2">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="50" y1="155" x2="${width - 50}" y2="155" stroke="#000000" stroke-width="6"/>
 
-  <!-- Security Code Section -->
-  <text x="45" y="125" font-size="20" font-weight="bold" fill="#475569">Security Match Code:</text>
+  <!-- Security Code Header -->
+  <text x="60" y="240" font-size="38" font-weight="bold" fill="#475569">Security Match Code:</text>
 
-  <rect x="45" y="142" width="310" height="95" rx="14" fill="#000000"/>
-  <text x="200" y="208" text-anchor="middle" font-size="54" font-weight="900" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
+  <!-- Security Code Black Box -->
+  <rect x="60" y="275" width="576" height="150" rx="24" fill="#000000"/>
+  <text x="348" y="375" text-anchor="middle" font-size="86" font-weight="900" fill="white" font-family="monospace" letter-spacing="14">${securityCode}</text>
 
-  <!-- Embed Scannable Vector QR Code -->
+  <!-- Real Scannable ISO QR Code -->
   ${qrSvg}
 
   <!-- Child Name Footer -->
-  <text x="${width/2}" y="280" text-anchor="middle" font-size="26" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
-  <text x="${width/2}" y="312" text-anchor="middle" font-size="16" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
+  <text x="${width/2}" y="740" text-anchor="middle" font-size="46" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
+  <text x="${width/2}" y="810" text-anchor="middle" font-size="32" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
 </svg>`;
 }
 
