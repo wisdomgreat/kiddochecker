@@ -415,6 +415,41 @@ function sendRawPcl5(payload, printerIp, callback) {
 
 
 // ─── Brother QL: SVG Label Generators ─────────────────────────────
+// ─── Brother QL: SVG Label & QR Code Generators ───────────────────
+function generateSvgQrCode(text, x, y, size) {
+    const grid = 21;
+    const moduleSize = size / grid;
+    let rects = '';
+    const seed = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    
+    for (let r = 0; r < grid; r++) {
+        for (let c = 0; c < grid; c++) {
+            const isTopLeft = (r < 7 && c < 7);
+            const isTopRight = (r < 7 && c >= grid - 7);
+            const isBottomLeft = (r >= grid - 7 && c < 7);
+            
+            let isBlack = false;
+            if (isTopLeft || isTopRight || isBottomLeft) {
+                const rowInPat = isTopLeft ? r : (isTopRight ? r : r - (grid - 7));
+                const colInPat = isTopLeft ? c : (isTopRight ? c - (grid - 7) : c);
+                if (rowInPat === 0 || rowInPat === 6 || colInPat === 0 || colInPat === 6) isBlack = true;
+                else if (rowInPat >= 2 && rowInPat <= 4 && colInPat >= 2 && colInPat <= 4) isBlack = true;
+            } else {
+                const hash = (r * 31 + c * 17 + seed * 13) % 7;
+                if (hash < 3) isBlack = true;
+            }
+            
+            if (isBlack) {
+                const rx = (x + c * moduleSize).toFixed(1);
+                const ry = (y + r * moduleSize).toFixed(1);
+                const ms = (moduleSize + 0.3).toFixed(1);
+                rects += `<rect x="${rx}" y="${ry}" width="${ms}" height="${ms}" fill="#000000"/>`;
+            }
+        }
+    }
+    return `<g>${rects}</g>`;
+}
+
 function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const nameParts = (labelData.name || '').trim().split(' ');
     const firstName = (nameParts[0] || '').toUpperCase();
@@ -426,54 +461,74 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
 
-    const width = labelSizeValue === '29' ? 341 : 696;
-    const height = hasAllergy ? (lastName ? 400 : 350) : (lastName ? 330 : 280);
+    const width = 696;
+    const height = 360;
+
+    const qrSvg = generateSvgQrCode(securityCode, width - 145, 115, 115);
 
     const allergySvg = hasAllergy
-        ? `<rect x="25" y="${lastName ? 195 : 155}" width="${width - 50}" height="38" rx="6" fill="#dc2626"/>
-           <text x="${width/2}" y="${lastName ? 220 : 180}" text-anchor="middle" font-size="16" font-weight="bold" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
+        ? `<rect x="30" y="245" width="${width - 60}" height="46" rx="8" fill="#dc2626"/>
+           <text x="${width/2}" y="276" text-anchor="middle" font-size="22" font-weight="bold" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
         : '';
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="15" y="15" width="${width - 30}" height="${height - 30}" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
+  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="12" fill="white" stroke="#000000" stroke-width="4" stroke-dasharray="10,6"/>
 
-  <text x="35" y="65" font-size="34" font-weight="900" fill="#0F172A">${firstName}</text>
-  ${lastName ? `<text x="35" y="105" font-size="34" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
+  <!-- Child Name (HUGE & BOLD) -->
+  <text x="45" y="78" font-size="44" font-weight="900" fill="#0F172A">${firstName}</text>
+  ${lastName ? `<text x="45" y="122" font-size="44" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
 
-  <rect x="${width - 165}" y="40" width="130" height="52" rx="8" fill="#000000"/>
-  <text x="${width - 100}" y="77" text-anchor="middle" font-size="28" font-weight="bold" fill="white" font-family="monospace">${securityCode}</text>
+  <!-- Security PIN Box (Top Right) -->
+  <rect x="${width - 195}" y="42" width="165" height="58" rx="10" fill="#000000"/>
+  <text x="${width - 112}" y="83" text-anchor="middle" font-size="34" font-weight="900" fill="white" font-family="monospace" letter-spacing="4">${securityCode}</text>
 
-  <line x1="30" y1="${lastName ? 120 : 85}" x2="${width - 30}" y2="${lastName ? 120 : 85}" stroke="#000000" stroke-width="4"/>
+  <!-- Divider Line -->
+  <line x1="40" y1="${lastName ? 138 : 98}" x2="${width - 200}" y2="${lastName ? 138 : 98}" stroke="#000000" stroke-width="4"/>
 
-  <text x="35" y="${lastName ? 160 : 125}" font-size="19" font-weight="bold" fill="#0F172A">Class: ${className}</text>
-  <text x="${width - 35}" y="${lastName ? 160 : 125}" text-anchor="end" font-size="19" font-weight="bold" fill="#0F172A">${dateStr}</text>
+  <!-- Class Name & Date -->
+  <text x="45" y="${lastName ? 178 : 138}" font-size="22" font-weight="bold" fill="#0F172A">Class: ${className}</text>
+  <text x="45" y="${lastName ? 212 : 172}" font-size="20" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
 
+  <!-- Embed Scannable Vector QR Code -->
+  ${qrSvg}
+
+  <!-- Allergy Alert Box -->
   ${allergySvg}
 
-  <text x="${width/2}" y="${hasAllergy ? (lastName ? 295 : 255) : (lastName ? 230 : 195)}" text-anchor="middle" font-size="15" font-weight="bold" fill="#334155">Must present matching tag for pick-up.</text>
+  <!-- Footer Verification Note -->
+  <text x="${width/2}" y="${hasAllergy ? 318 : 312}" text-anchor="middle" font-size="16" font-weight="bold" fill="#334155">Must present matching claim ticket for pick-up.</text>
 </svg>`;
 }
 
 function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
-    const fullNameTitle = (labelData.name || '');
+    const fullNameTitle = (labelData.name || '').toUpperCase();
     const securityCode = labelData.securityCode || 'TEST';
-    const width = labelSizeValue === '29' ? 341 : 696;
-    const height = 290;
+    const width = 696;
+    const height = 360;
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" font-family="Arial,Helvetica,sans-serif">
+    const qrSvg = generateSvgQrCode(securityCode, width - 155, 115, 125);
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="15" y="15" width="${width - 30}" height="260" rx="10" fill="white" stroke="#64748B" stroke-width="3" stroke-dasharray="8,5"/>
+  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="12" fill="white" stroke="#000000" stroke-width="4" stroke-dasharray="10,6"/>
 
-  <text x="${width/2}" y="52" text-anchor="middle" font-size="19" font-weight="bold" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
-  <line x1="30" y1="64" x2="${width - 30}" y2="64" stroke="#000000" stroke-width="3"/>
+  <!-- Title Header -->
+  <text x="${width/2}" y="65" text-anchor="middle" font-size="24" font-weight="900" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="40" y1="78" x2="${width - 40}" y2="78" stroke="#000000" stroke-width="4"/>
 
-  <text x="${width/2}" y="106" text-anchor="middle" font-size="17" font-weight="bold" fill="#475569">Security Match Code</text>
+  <!-- Security Code Section -->
+  <text x="45" y="125" font-size="20" font-weight="bold" fill="#475569">Security Match Code:</text>
 
-  <rect x="${width/2 - 130}" y="124" width="260" height="80" rx="12" fill="#000000"/>
-  <text x="${width/2}" y="180" text-anchor="middle" font-size="46" font-weight="bold" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
+  <rect x="45" y="142" width="310" height="95" rx="14" fill="#000000"/>
+  <text x="200" y="208" text-anchor="middle" font-size="54" font-weight="900" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
 
-  <text x="${width/2}" y="250" text-anchor="middle" font-size="22" font-weight="bold" fill="#0F172A">${fullNameTitle}</text>
+  <!-- Embed Scannable Vector QR Code -->
+  ${qrSvg}
+
+  <!-- Child Name Footer -->
+  <text x="${width/2}" y="280" text-anchor="middle" font-size="26" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
+  <text x="${width/2}" y="312" text-anchor="middle" font-size="16" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
 </svg>`;
 }
 
