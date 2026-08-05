@@ -534,7 +534,7 @@ function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
 
 // ─── Brother QL: Print via Python CLI (Prints 2 Labels & Cuts Each) ──────
 function printViaBrotherQl(labelData, printerIp, callback) {
-    const labelSize = labelData.labelSize || serverConfig.defaultLabelSize || '62';
+    const labelSize = (serverConfig.defaultLabelSize || labelData.labelSize || '62red').trim();
     const svg1 = generateBrotherQlChildBadgeSvg(labelData, labelSize);
     const svg2 = generateBrotherQlGuardianTicketSvg(labelData, labelSize);
     const tmpBase = path.join(os.tmpdir(), 'kiddo_label_' + Date.now());
