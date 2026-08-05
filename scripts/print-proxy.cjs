@@ -50,7 +50,7 @@ addLog('info', 'KiddoChecker Remote Print Server Initializing...');
 // Automatically patch brother_ql's conversion module for Python 3.12 / Pillow 10+ compatibility
 function autoPatchBrotherQl() {
     try {
-        const patchScript = `import brother_ql.conversion as c, inspect; p=inspect.getfile(c); txt=open(p).read(); open(p,'w').write(txt.replace('Image.ANTIALIAS', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))')) if 'Image.ANTIALIAS' in txt else None`;
+        const patchScript = `import brother_ql.conversion as c, inspect; p=inspect.getfile(c); txt=open(p).read(); txt=txt.replace('getattr(Image, LANCZOS, getattr(getattr(Image, Resampling, {}), LANCZOS, 1))', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))'); txt=txt.replace('Image.ANTIALIAS', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))'); open(p,'w').write(txt)`;
         exec(`python3 -c "${patchScript}"`, (err) => {
             if (!err) addLog('info', 'Brother QL PIL.Image compatibility check complete.');
         });
