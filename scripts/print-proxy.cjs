@@ -616,10 +616,11 @@ function printViaBrotherQl(labelData, printerIp, callback) {
 
     function convertSvgToPng(svgPath, pngPath, cb) {
         const cmds = [
+            `rsvg-convert -b white -o "${pngPath}" "${svgPath}"`,
             `rsvg-convert -o "${pngPath}" "${svgPath}"`,
             `cairosvg "${svgPath}" -o "${pngPath}"`,
             `python3 -c "import cairosvg; cairosvg.svg2png(url='${svgPath}', write_to='${pngPath}')"`,
-            `convert "${svgPath}" "${pngPath}"`
+            `convert -background white -flatten "${svgPath}" "${pngPath}"`
         ];
 
         function tryCmd(idx) {
@@ -646,7 +647,7 @@ function printViaBrotherQl(labelData, printerIp, callback) {
             const redFlag = isRed ? ' --red' : '';
 
             const getQlCmd = (pngFile) => {
-                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}")`;
+                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}")`;
             };
 
             const qlCmd1 = getQlCmd(tmpPng1);
