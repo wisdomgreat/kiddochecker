@@ -646,21 +646,21 @@ function printViaBrotherQl(labelData, printerIp, callback) {
             const redFlag = isRed ? ' --red' : '';
 
             const getQlCmd = (pngFile) => {
-                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || ~/.local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}")`;
+                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate auto "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}")`;
             };
 
             const qlCmd1 = getQlCmd(tmpPng1);
             const qlCmd2 = getQlCmd(tmpPng2);
 
             addLog('info', `Brother QL: Printing Label 1 (Child Badge) on tcp://${printerIp}:9100...`);
-            exec(qlCmd1, (pErr1) => {
+            exec(qlCmd1, (pErr1, stdout1, stderr1) => {
                 addLog('info', `Brother QL: Printing Label 2 (Guardian Ticket) on tcp://${printerIp}:9100...`);
-                exec(qlCmd2, (pErr2) => {
+                exec(qlCmd2, (pErr2, stdout2, stderr2) => {
                     cleanup();
                     if (pErr1 || pErr2) {
-                        const msg = (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '');
-                        addLog('warn', `Brother QL CLI warning (${msg.substring(0, 100)}...). Streaming direct TCP socket fallback to ${printerIp}:9100...`);
-                        return sendRawEscPosPayload(generateEscPosPayload(labelData), printerIp, callback);
+                        const errOutput = ((stderr1 || '') + ' ' + (stderr2 || '') + ' ' + (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '')).trim();
+                        addLog('error', `❌ Brother QL Error (${errOutput.substring(0, 150)})`, { error: errOutput, targetIp: printerIp });
+                        return callback && callback(null, { success: false, error: errOutput || 'Brother QL print error', printer: printerIp });
                     }
                     addLog('success', `✅ Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${printerIp}!`);
                     callback && callback(null, { success: true, printer: printerIp, mode: 'brother_ql_2label' });
