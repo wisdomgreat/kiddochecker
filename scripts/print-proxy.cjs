@@ -96,6 +96,8 @@ let serverConfig = {
     defaultPrinterName:  process.env.PRINTER_NAME  || 'Default Printer',
     defaultPrinterModel: process.env.PRINTER_MODEL || 'brother_ql_820',
     defaultLabelSize:    process.env.LABEL_SIZE    || '62',
+    childBadgeLength:    parseInt(process.env.CHILD_BADGE_LENGTH || '520', 10),
+    guardianTicketLength: parseInt(process.env.GUARDIAN_TICKET_LENGTH || '380', 10),
 };
 
 function loadServerConfig() {
@@ -506,33 +508,37 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
 
     const width = 696;
-    const height = 950;
+    const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || 520, 10);
 
-    const qrSvg = generateRealQrCodeSvg(securityCode, 430, 480, 210);
+    const qrSize = Math.min(180, Math.floor(height * 0.32));
+    const qrX = width - qrSize - 45;
+    const qrY = 120;
+    const qrSvg = generateRealQrCodeSvg(securityCode, qrX, qrY, qrSize);
 
+    const allergyY = height - 110;
     const allergySvg = hasAllergy
-        ? `<rect x="40" y="720" width="${width - 80}" height="95" rx="16" fill="#dc2626"/>
-           <text x="${width/2}" y="780" text-anchor="middle" font-size="40" font-weight="900" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
+        ? `<rect x="35" y="${allergyY}" width="${width - 70}" height="55" rx="10" fill="#dc2626"/>
+           <text x="${width/2}" y="${allergyY + 38}" text-anchor="middle" font-size="28" font-weight="900" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
         : '';
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="30" y="30" width="${width - 60}" height="${height - 60}" rx="20" fill="white" stroke="#000000" stroke-width="8" stroke-dasharray="16,10"/>
+  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="white" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
-  <!-- Child First & Last Name (HUGE & BOLD - 82pt) -->
-  <text x="60" y="140" font-size="82" font-weight="900" fill="#0F172A">${firstName}</text>
-  ${lastName ? `<text x="60" y="235" font-size="82" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
+  <!-- Child First & Last Name (HUGE & BOLD - 58pt) -->
+  <text x="45" y="105" font-size="58" font-weight="900" fill="#0F172A">${firstName}</text>
+  ${lastName ? `<text x="45" y="170" font-size="58" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
 
   <!-- Security Code Black Box (Top Right) -->
-  <rect x="${width - 250}" y="70" width="200" height="95" rx="16" fill="#000000"/>
-  <text x="${width - 150}" y="134" text-anchor="middle" font-size="52" font-weight="900" fill="white" font-family="monospace" letter-spacing="6">${securityCode}</text>
+  <rect x="${width - 215}" y="45" width="170" height="65" rx="12" fill="#000000"/>
+  <text x="${width - 130}" y="91" text-anchor="middle" font-size="38" font-weight="900" fill="white" font-family="monospace" letter-spacing="4">${securityCode}</text>
 
   <!-- Divider Line -->
-  <line x1="50" y1="${lastName ? 285 : 185}" x2="${width - 50}" y2="${lastName ? 285 : 185}" stroke="#000000" stroke-width="6"/>
+  <line x1="40" y1="${lastName ? 200 : 135}" x2="${width - 220}" y2="${lastName ? 200 : 135}" stroke="#000000" stroke-width="4"/>
 
   <!-- Class Name & Date -->
-  <text x="60" y="${lastName ? 360 : 260}" font-size="44" font-weight="900" fill="#0F172A">Class: ${className}</text>
-  <text x="60" y="${lastName ? 430 : 330}" font-size="38" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
+  <text x="45" y="${lastName ? 250 : 185}" font-size="32" font-weight="900" fill="#0F172A">Class: ${className}</text>
+  <text x="45" y="${lastName ? 298 : 233}" font-size="28" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
 
   <!-- Real Scannable ISO QR Code -->
   ${qrSvg}
@@ -540,8 +546,8 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
   <!-- Allergy Alert Box -->
   ${allergySvg}
 
-  <!-- Footer Verification Note -->
-  <text x="${width/2}" y="${height - 65}" text-anchor="middle" font-size="28" font-weight="900" fill="#1E293B">MUST PRESENT MATCHING TICKET FOR PICKUP</text>
+  <!-- Footer Claim Note -->
+  <text x="${width/2}" y="${height - 40}" text-anchor="middle" font-size="20" font-weight="900" fill="#334155">Must present matching ticket for pick-up.</text>
 </svg>`;
 }
 
@@ -549,31 +555,32 @@ function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
     const fullNameTitle = (labelData.name || '').toUpperCase();
     const securityCode = labelData.securityCode || 'TEST';
     const width = 696;
-    const height = 950;
+    const height = parseInt(serverConfig.guardianTicketLength || labelData.guardianTicketLength || 380, 10);
 
-    const qrSvg = generateRealQrCodeSvg(securityCode, 430, 480, 210);
+    const qrSize = 150;
+    const qrSvg = generateRealQrCodeSvg(securityCode, width - qrSize - 45, 115, qrSize);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="30" y="30" width="${width - 60}" height="${height - 60}" rx="20" fill="white" stroke="#000000" stroke-width="8" stroke-dasharray="16,10"/>
+  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="white" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
   <!-- Title Header -->
-  <text x="${width/2}" y="120" text-anchor="middle" font-size="42" font-weight="900" fill="#0F172A" letter-spacing="2">PRIMARY GUARDIAN CLAIM TICKET</text>
-  <line x1="50" y1="155" x2="${width - 50}" y2="155" stroke="#000000" stroke-width="6"/>
+  <text x="${width/2}" y="75" text-anchor="middle" font-size="30" font-weight="900" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="40" y1="92" x2="${width - 40}" y2="92" stroke="#000000" stroke-width="4"/>
 
   <!-- Security Code Header -->
-  <text x="60" y="240" font-size="38" font-weight="bold" fill="#475569">Security Match Code:</text>
+  <text x="45" y="145" font-size="26" font-weight="bold" fill="#475569">Security Match Code:</text>
 
   <!-- Security Code Black Box -->
-  <rect x="60" y="275" width="576" height="150" rx="24" fill="#000000"/>
-  <text x="348" y="375" text-anchor="middle" font-size="86" font-weight="900" fill="white" font-family="monospace" letter-spacing="14">${securityCode}</text>
+  <rect x="45" y="165" width="410" height="100" rx="16" fill="#000000"/>
+  <text x="250" y="235" text-anchor="middle" font-size="64" font-weight="900" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
 
   <!-- Real Scannable ISO QR Code -->
   ${qrSvg}
 
   <!-- Child Name Footer -->
-  <text x="${width/2}" y="740" text-anchor="middle" font-size="46" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
-  <text x="${width/2}" y="810" text-anchor="middle" font-size="32" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
+  <text x="${width/2}" y="${height - 70}" text-anchor="middle" font-size="32" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
+  <text x="${width/2}" y="${height - 38}" text-anchor="middle" font-size="20" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
 </svg>`;
 }
 
@@ -792,8 +799,15 @@ app.get('/api/printers', (req, res) => res.json({ printers: PRINTER_REGISTRY, cu
 app.get('/api/config', (req, res) => res.json(serverConfig));
 
 app.post('/api/config', (req, res) => {
-    const { defaultPrinterIp, defaultPrinterName, defaultPrinterModel, defaultLabelSize } = req.body || {};
-    const updated = saveServerConfig({ defaultPrinterIp, defaultPrinterName, defaultPrinterModel, defaultLabelSize });
+    const { defaultPrinterIp, defaultPrinterName, defaultPrinterModel, defaultLabelSize, childBadgeLength, guardianTicketLength } = req.body || {};
+    const updated = saveServerConfig({ 
+        defaultPrinterIp, 
+        defaultPrinterName, 
+        defaultPrinterModel, 
+        defaultLabelSize,
+        childBadgeLength: childBadgeLength ? parseInt(childBadgeLength, 10) : 520,
+        guardianTicketLength: guardianTicketLength ? parseInt(guardianTicketLength, 10) : 380
+    });
     updated ? res.json({ success: true, serverConfig }) : res.status(500).json({ success: false, error: 'Failed to write config file' });
 });
 
@@ -982,7 +996,18 @@ app.get(['/', '/logs'], (req, res) => {
                     <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">DEFAULT PRINTER IP ADDRESS:</label>
                     <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.2.13" value="${serverConfig.defaultPrinterIp}" />
 
-                    <button onclick="saveDefaultConfig()" style="background: var(--success);">💾 Save Printer Configuration</button>
+                    <div style="display:flex; gap:12px; margin-top:8px;">
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">CHILD BADGE LENGTH (PX):</label>
+                            <input type="number" id="childBadgeLengthInput" placeholder="520" value="${serverConfig.childBadgeLength || 520}" />
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">GUARDIAN TICKET LENGTH (PX):</label>
+                            <input type="number" id="guardianTicketLengthInput" placeholder="380" value="${serverConfig.guardianTicketLength || 380}" />
+                        </div>
+                    </div>
+
+                    <button onclick="saveDefaultConfig()" style="background: var(--success); margin-top:12px;">💾 Save Printer Configuration</button>
                     <div id="configResult" style="font-size: 12px; font-weight: bold; margin-top: 4px;"></div>
                 </div>
 
@@ -1118,6 +1143,8 @@ app.get(['/', '/logs'], (req, res) => {
                 const model = modelSel ? modelSel.value : 'generic_thermal_80';
                 const labelSizeSel = document.getElementById('labelSizeSelect');
                 const labelSize = labelSizeSel ? labelSizeSel.value : '62';
+                const badgeLen = document.getElementById('childBadgeLengthInput') ? document.getElementById('childBadgeLengthInput').value : 520;
+                const ticketLen = document.getElementById('guardianTicketLengthInput') ? document.getElementById('guardianTicketLengthInput').value : 380;
                 const resDiv = document.getElementById('configResult');
                 resDiv.innerText = 'Saving...';
                 resDiv.style.color = '#f59e0b';
@@ -1126,11 +1153,17 @@ app.get(['/', '/logs'], (req, res) => {
                     const res = await fetch('/api/config', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ defaultPrinterIp: ip, defaultPrinterModel: model, defaultLabelSize: labelSize })
+                        body: JSON.stringify({ 
+                            defaultPrinterIp: ip, 
+                            defaultPrinterModel: model, 
+                            defaultLabelSize: labelSize,
+                            childBadgeLength: badgeLen,
+                            guardianTicketLength: ticketLen
+                        })
                     });
                     const data = await res.json();
                     if (data.success) {
-                        resDiv.innerText = 'Saved! IP: ' + ip + ' | Model: ' + model;
+                        resDiv.innerText = 'Saved! IP: ' + ip + ' | Model: ' + model + ' | Lengths: Badge=' + badgeLen + 'px Ticket=' + ticketLen + 'px';
                         resDiv.style.color = '#10b981';
                         document.getElementById('testIp').value = ip;
                     } else {
