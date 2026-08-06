@@ -501,6 +501,7 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const firstName = (nameParts[0] || '').toUpperCase();
     const lastName = (nameParts.slice(1).join(' ') || '').toUpperCase();
     const securityCode = labelData.securityCode || 'TEST';
+    const qrDataPayload = labelData.qrData || securityCode;
     const className = labelData.class || 'General';
     const allergies = labelData.allergies || '';
     const now = new Date();
@@ -510,10 +511,11 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const width = 696;
     const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || 520, 10);
 
-    const qrSize = Math.min(180, Math.floor(height * 0.32));
-    const qrX = width - qrSize - 45;
-    const qrY = 120;
-    const qrSvg = generateRealQrCodeSvg(securityCode, qrX, qrY, qrSize);
+    // Large 220px x 220px QR Code with Quiet Zone
+    const qrSize = 220;
+    const qrX = width - qrSize - 35;
+    const qrY = 100;
+    const qrSvg = generateRealQrCodeSvg(qrDataPayload, qrX, qrY, qrSize);
 
     const allergyY = height - 110;
     const allergySvg = hasAllergy
@@ -525,22 +527,24 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
   <rect width="${width}" height="${height}" fill="white"/>
   <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="white" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
-  <!-- Child First & Last Name (HUGE & BOLD - 58pt) -->
-  <text x="45" y="105" font-size="58" font-weight="900" fill="#0F172A">${firstName}</text>
-  ${lastName ? `<text x="45" y="170" font-size="58" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
+  <!-- Child First & Last Name (HUGE & BOLD - 56pt) -->
+  <text x="45" y="105" font-size="56" font-weight="900" fill="#0F172A">${firstName}</text>
+  ${lastName ? `<text x="45" y="165" font-size="56" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
 
   <!-- Security Code Black Box (Top Right) -->
-  <rect x="${width - 215}" y="45" width="170" height="65" rx="12" fill="#000000"/>
-  <text x="${width - 130}" y="91" text-anchor="middle" font-size="38" font-weight="900" fill="white" font-family="monospace" letter-spacing="4">${securityCode}</text>
+  <rect x="${width - 200}" y="35" width="165" height="58" rx="10" fill="#000000"/>
+  <text x="${width - 118}" y="77" text-anchor="middle" font-size="34" font-weight="900" fill="white" font-family="monospace" letter-spacing="4">${securityCode}</text>
 
   <!-- Divider Line -->
-  <line x1="40" y1="${lastName ? 200 : 135}" x2="${width - 220}" y2="${lastName ? 200 : 135}" stroke="#000000" stroke-width="4"/>
+  <line x1="40" y1="${lastName ? 190 : 130}" x2="${width - 250}" y2="${lastName ? 190 : 130}" stroke="#000000" stroke-width="4"/>
 
   <!-- Class Name & Date -->
-  <text x="45" y="${lastName ? 250 : 185}" font-size="32" font-weight="900" fill="#0F172A">Class: ${className}</text>
-  <text x="45" y="${lastName ? 298 : 233}" font-size="28" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
+  <text x="45" y="${lastName ? 238 : 178}" font-size="30" font-weight="900" fill="#0F172A">Class: ${className}</text>
+  <text x="45" y="${lastName ? 282 : 222}" font-size="26" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
 
-  <!-- Real Scannable ISO QR Code -->
+  <!-- White Quiet-Zone Background Box for QR Code -->
+  <rect x="${qrX - 10}" y="${qrY - 10}" width="${qrSize + 20}" height="${qrSize + 20}" rx="12" fill="white" stroke="#000000" stroke-width="3"/>
+  <!-- Prominent 220px Real Scannable ISO QR Code -->
   ${qrSvg}
 
   <!-- Allergy Alert Box -->
@@ -554,33 +558,39 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
 function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
     const fullNameTitle = (labelData.name || '').toUpperCase();
     const securityCode = labelData.securityCode || 'TEST';
+    const qrDataPayload = labelData.qrData || securityCode;
     const width = 696;
     const height = parseInt(serverConfig.guardianTicketLength || labelData.guardianTicketLength || 380, 10);
 
-    const qrSize = 150;
-    const qrSvg = generateRealQrCodeSvg(securityCode, width - qrSize - 45, 115, qrSize);
+    // Large 210px x 210px QR Code with Quiet Zone
+    const qrSize = 210;
+    const qrX = width - qrSize - 35;
+    const qrY = 100;
+    const qrSvg = generateRealQrCodeSvg(qrDataPayload, qrX, qrY, qrSize);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
   <rect width="${width}" height="${height}" fill="white"/>
   <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="white" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
   <!-- Title Header -->
-  <text x="${width/2}" y="75" text-anchor="middle" font-size="30" font-weight="900" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
-  <line x1="40" y1="92" x2="${width - 40}" y2="92" stroke="#000000" stroke-width="4"/>
+  <text x="${width/2}" y="70" text-anchor="middle" font-size="28" font-weight="900" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <line x1="40" y1="86" x2="${width - 40}" y2="86" stroke="#000000" stroke-width="4"/>
 
   <!-- Security Code Header -->
-  <text x="45" y="145" font-size="26" font-weight="bold" fill="#475569">Security Match Code:</text>
+  <text x="45" y="135" font-size="24" font-weight="bold" fill="#475569">Security Match Code:</text>
 
   <!-- Security Code Black Box -->
-  <rect x="45" y="165" width="410" height="100" rx="16" fill="#000000"/>
-  <text x="250" y="235" text-anchor="middle" font-size="64" font-weight="900" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
+  <rect x="45" y="155" width="370" height="100" rx="16" fill="#000000"/>
+  <text x="230" y="225" text-anchor="middle" font-size="58" font-weight="900" fill="white" font-family="monospace" letter-spacing="8">${securityCode}</text>
 
-  <!-- Real Scannable ISO QR Code -->
+  <!-- White Quiet-Zone Background Box for QR Code -->
+  <rect x="${qrX - 10}" y="${qrY - 10}" width="${qrSize + 20}" height="${qrSize + 20}" rx="12" fill="white" stroke="#000000" stroke-width="3"/>
+  <!-- Prominent 210px Real Scannable ISO QR Code -->
   ${qrSvg}
 
   <!-- Child Name Footer -->
-  <text x="${width/2}" y="${height - 70}" text-anchor="middle" font-size="32" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
-  <text x="${width/2}" y="${height - 38}" text-anchor="middle" font-size="20" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
+  <text x="${width/2}" y="${height - 65}" text-anchor="middle" font-size="30" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
+  <text x="${width/2}" y="${height - 35}" text-anchor="middle" font-size="18" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
 </svg>`;
 }
 
