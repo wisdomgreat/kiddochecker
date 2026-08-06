@@ -519,38 +519,38 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
 
     const allergyY = height - 100;
     const allergySvg = hasAllergy
-        ? `<rect x="35" y="${allergyY}" width="${width - 70}" height="48" rx="8" fill="#dc2626"/>
-           <text x="${width/2}" y="${allergyY + 33}" text-anchor="middle" font-size="24" font-weight="900" fill="white">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
+        ? `<rect x="35" y="${allergyY}" width="${width - 70}" height="48" rx="8" fill="#FF0000"/>
+           <text x="${width/2}" y="${allergyY + 33}" text-anchor="middle" font-size="24" font-weight="900" fill="#FFFFFF">⚠️ ALLERGY: ${allergies.toUpperCase()}</text>`
         : '';
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
-  <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="white" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
+  <rect width="${width}" height="${height}" fill="#FFFFFF"/>
+  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="#FFFFFF" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
   <!-- Left Column: Child Name (50pt bold) -->
-  <text x="45" y="92" font-size="50" font-weight="900" fill="#0F172A">${firstName}</text>
-  ${lastName ? `<text x="45" y="148" font-size="50" font-weight="900" fill="#0F172A">${lastName}</text>` : ''}
+  <text x="45" y="92" font-size="50" font-weight="900" fill="#000000">${firstName}</text>
+  ${lastName ? `<text x="45" y="148" font-size="50" font-weight="900" fill="#000000">${lastName}</text>` : ''}
 
   <!-- Left Column Divider (restricted to X=430 to avoid QR column) -->
   <line x1="40" y1="${lastName ? 172 : 118}" x2="440" y2="${lastName ? 172 : 118}" stroke="#000000" stroke-width="4"/>
 
   <!-- Left Column: Class & Date -->
-  <text x="45" y="${lastName ? 215 : 160}" font-size="28" font-weight="900" fill="#0F172A">Class: ${className}</text>
-  <text x="45" y="${lastName ? 255 : 200}" font-size="24" font-weight="bold" fill="#475569">Date: ${dateStr}</text>
+  <text x="45" y="${lastName ? 215 : 160}" font-size="28" font-weight="900" fill="#000000">Class: ${className}</text>
+  <text x="45" y="${lastName ? 255 : 200}" font-size="24" font-weight="bold" fill="#000000">Date: ${dateStr}</text>
 
   <!-- Right Column Top: Security PIN Box -->
   <rect x="460" y="38" width="190" height="60" rx="10" fill="#000000"/>
-  <text x="555" y="80" text-anchor="middle" font-size="34" font-weight="900" fill="white" font-family="monospace" letter-spacing="4">${securityCode}</text>
+  <text x="555" y="80" text-anchor="middle" font-size="34" font-weight="900" fill="#FFFFFF" font-family="monospace" letter-spacing="4">${securityCode}</text>
 
   <!-- Right Column Bottom: White Quiet Zone Box + 160px ISO QR Code -->
-  <rect x="${qrX - 8}" y="${qrY - 8}" width="${qrSize + 16}" height="${qrSize + 16}" rx="10" fill="white" stroke="#000000" stroke-width="2"/>
+  <rect x="${qrX - 8}" y="${qrY - 8}" width="${qrSize + 16}" height="${qrSize + 16}" rx="10" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
   ${qrSvg}
 
   <!-- Bottom Section: Allergy Banner -->
   ${allergySvg}
 
   <!-- Bottom Section: Footer Verification Note -->
-  <text x="${width/2}" y="${height - 38}" text-anchor="middle" font-size="18" font-weight="900" fill="#334155">Must present matching ticket for pick-up.</text>
+  <text x="${width/2}" y="${height - 38}" text-anchor="middle" font-size="18" font-weight="900" fill="#000000">Must present matching ticket for pick-up.</text>
 </svg>`;
 }
 
@@ -568,27 +568,27 @@ function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
     const qrSvg = generateRealQrCodeSvg(qrDataPayload, qrX, qrY, qrSize);
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Arial,Helvetica,sans-serif">
-  <rect width="${width}" height="${height}" fill="white"/>
-  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="white" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
+  <rect width="${width}" height="${height}" fill="#FFFFFF"/>
+  <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="#FFFFFF" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
   <!-- Header -->
-  <text x="${width/2}" y="65" text-anchor="middle" font-size="26" font-weight="900" fill="#0F172A" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
+  <text x="${width/2}" y="65" text-anchor="middle" font-size="26" font-weight="900" fill="#000000" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
   <line x1="40" y1="80" x2="${width - 40}" y2="80" stroke="#000000" stroke-width="4"/>
 
   <!-- Match Code Label -->
-  <text x="45" y="122" font-size="22" font-weight="bold" fill="#475569">Security Match Code:</text>
+  <text x="45" y="122" font-size="22" font-weight="bold" fill="#000000">Security Match Code:</text>
 
   <!-- Left Box: Giant Security PIN Box (390px x 120px) -->
   <rect x="45" y="138" width="390" height="120" rx="16" fill="#000000"/>
-  <text x="240" y="222" text-anchor="middle" font-size="64" font-weight="900" fill="white" font-family="monospace" letter-spacing="10">${securityCode}</text>
+  <text x="240" y="222" text-anchor="middle" font-size="64" font-weight="900" fill="#FFFFFF" font-family="monospace" letter-spacing="10">${securityCode}</text>
 
   <!-- Right Box: White Quiet Zone + 160px ISO QR Code -->
-  <rect x="${qrX - 8}" y="${qrY - 8}" width="${qrSize + 16}" height="${qrSize + 16}" rx="10" fill="white" stroke="#000000" stroke-width="2"/>
+  <rect x="${qrX - 8}" y="${qrY - 8}" width="${qrSize + 16}" height="${qrSize + 16}" rx="10" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
   ${qrSvg}
 
   <!-- Child Name Footer -->
-  <text x="${width/2}" y="${height - 62}" text-anchor="middle" font-size="28" font-weight="900" fill="#0F172A">Child: ${fullNameTitle}</text>
-  <text x="${width/2}" y="${height - 35}" text-anchor="middle" font-size="18" font-weight="bold" fill="#64748B">Keep this ticket until child is picked up.</text>
+  <text x="${width/2}" y="${height - 62}" text-anchor="middle" font-size="28" font-weight="900" fill="#000000">Child: ${fullNameTitle}</text>
+  <text x="${width/2}" y="${height - 35}" text-anchor="middle" font-size="18" font-weight="bold" fill="#000000">Keep this ticket until child is picked up.</text>
 </svg>`;
 }
 
