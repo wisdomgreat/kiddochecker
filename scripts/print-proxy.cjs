@@ -651,13 +651,14 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                 return sendRawEscPosPayload(generateEscPosPayload(labelData), printerIp, callback);
             }
 
+            const cleanIp = (printerIp || '').replace(/^tcp:\/\//i, '').replace(/:9100$/, '').trim();
             const modelId = serverConfig.defaultPrinterModel || 'brother_ql_820';
             const qlModel = (modelId === 'brother_ql_810' ? 'QL-810W' : 'QL-820NWB');
             const isRed = (labelSize === '62red' || labelSize.includes('red'));
             const redFlag = isRed ? ' --red' : '';
 
             const getQlCmd = (pngFile) => {
-                return `(brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} --rotate 0 "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}")`;
+                return `(brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${cleanIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || python3 -m brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}")`;
             };
 
             const qlCmd1 = getQlCmd(tmpPng1);
@@ -670,8 +671,8 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                     if (pErr1 || pErr2) {
                         if (labelSize !== '62red') {
                             addLog('warn', `Brother QL: First attempt with "${labelSize}" failed. Retrying with starter roll "62red --red"...`);
-                            const redCmd1 = `brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label 62red --red "${tmpPng1}"`;
-                            const redCmd2 = `brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label 62red --red "${tmpPng2}"`;
+                            const redCmd1 = `brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label 62red --red "${tmpPng1}"`;
+                            const redCmd2 = `brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label 62red --red "${tmpPng2}"`;
                             exec(redCmd1, (rErr1) => {
                                 exec(redCmd2, (rErr2) => {
                                     cleanup();
