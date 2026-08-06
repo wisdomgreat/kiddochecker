@@ -658,7 +658,7 @@ function printViaBrotherQl(labelData, printerIp, callback) {
             const redFlag = isRed ? ' --red' : '';
 
             const getQlCmd = (pngFile) => {
-                return `(brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${cleanIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || /usr/local/bin/brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || python3 -m brother_ql.cli --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}")`;
+                return `(brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${cleanIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend linux_kernel --printer /dev/usb/lp0 print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend pyusb print --label ${labelSize}${redFlag} "${pngFile}" || python3 -m brother_ql.cli --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}")`;
             };
 
             const qlCmd1 = getQlCmd(tmpPng1);
