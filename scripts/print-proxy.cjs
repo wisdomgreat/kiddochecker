@@ -47,10 +47,20 @@ function addLog(type, message, details = {}) {
 
 addLog('info', 'KiddoChecker Remote Print Server Initializing...');
 
-// Automatically patch brother_ql's conversion module for Python 3.12 / Pillow 10+ compatibility
+// Automatically patch brother_ql package for Python 3.12 / Pillow 10+ compatibility across all files
 function autoPatchBrotherQl() {
     try {
-        const patchScript = `import brother_ql.conversion as c, inspect; p=inspect.getfile(c); txt=open(p).read(); txt=txt.replace('getattr(Image, LANCZOS, getattr(getattr(Image, Resampling, {}), LANCZOS, 1))', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))'); txt=txt.replace('Image.ANTIALIAS', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))'); open(p,'w').write(txt)`;
+        const patchScript = `import os, glob, brother_ql
+pkg_dir = os.path.dirname(brother_ql.__file__)
+for py_file in glob.glob(os.path.join(pkg_dir, '**', '*.py'), recursive=True):
+    try:
+        content = open(py_file, 'r', encoding='utf-8', errors='ignore').read()
+        modified = content.replace('Image.ANTIALIAS', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))')
+        modified = modified.replace('PIL.Image.ANTIALIAS', 'getattr(Image, "LANCZOS", getattr(getattr(Image, "Resampling", {}), "LANCZOS", 1))')
+        if modified != content:
+            open(py_file, 'w', encoding='utf-8').write(modified)
+    except Exception:
+        pass`;
         exec(`python3 -c "${patchScript}"`, (err) => {
             if (!err) addLog('info', 'Brother QL PIL.Image compatibility check complete.');
         });
@@ -63,8 +73,8 @@ autoPatchBrotherQl();
 // the server auto-generates the correct protocol payload.
 const PRINTER_REGISTRY = [
     { id: 'brother_ql_820', name: 'Brother QL-820NWBc / QL-820NWB', brand: 'Brother', protocol: 'brother_ql', labelSizes: [
-        { value: '62', label: 'DK-2205 - 62mm Continuous Black/White Roll' },
         { value: '62red', label: 'DK-2251 / DK-22251 - 62mm Continuous Black/Red Roll (Starter Roll)' },
+        { value: '62', label: 'DK-2205 - 62mm Continuous Black/White Roll' },
         { value: '29', label: 'DK-1201 - 29mm x 90mm Standard Address Labels' },
         { value: '62x100', label: 'DK-1202 - 62mm x 100mm Large Address Labels' },
         { value: '62x29', label: 'DK-1204 - 62mm x 29mm Multi-Purpose Labels' },
@@ -74,8 +84,8 @@ const PRINTER_REGISTRY = [
         { value: '102', label: 'DK-1247 - 102mm x 51mm Shipping Labels' },
     ]},
     { id: 'brother_ql_810', name: 'Brother QL-810W / QL-800', brand: 'Brother', protocol: 'brother_ql', labelSizes: [
-        { value: '62', label: 'DK-2205 - 62mm Continuous Black/White Roll' },
         { value: '62red', label: 'DK-2251 / DK-22251 - 62mm Continuous Black/Red Roll (Starter Roll)' },
+        { value: '62', label: 'DK-2205 - 62mm Continuous Black/White Roll' },
         { value: '29', label: 'DK-1201 - 29mm x 90mm Standard Address Labels' },
         { value: '62x100', label: 'DK-1202 - 62mm x 100mm Large Address Labels' },
         { value: '62x29', label: 'DK-1204 - 62mm x 29mm Multi-Purpose Labels' },
@@ -95,7 +105,7 @@ let serverConfig = {
     defaultPrinterIp:    process.env.PRINTER_IP    || '',
     defaultPrinterName:  process.env.PRINTER_NAME  || 'Default Printer',
     defaultPrinterModel: process.env.PRINTER_MODEL || 'brother_ql_820',
-    defaultLabelSize:    process.env.LABEL_SIZE    || '62',
+    defaultLabelSize:    process.env.LABEL_SIZE    || '62red',
     childBadgeLength:    parseInt(process.env.CHILD_BADGE_LENGTH || '520', 10),
     guardianTicketLength: parseInt(process.env.GUARDIAN_TICKET_LENGTH || '380', 10),
 };
@@ -657,12 +667,31 @@ function printViaBrotherQl(labelData, printerIp, callback) {
             exec(qlCmd1, (pErr1, stdout1, stderr1) => {
                 addLog('info', `Brother QL: Printing Label 2 (Guardian Ticket) on tcp://${printerIp}:9100...`);
                 exec(qlCmd2, (pErr2, stdout2, stderr2) => {
-                    cleanup();
                     if (pErr1 || pErr2) {
+                        if (labelSize !== '62red') {
+                            addLog('warn', `Brother QL: First attempt with "${labelSize}" failed. Retrying with starter roll "62red --red"...`);
+                            const redCmd1 = `brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label 62red --red "${tmpPng1}"`;
+                            const redCmd2 = `brother_ql --model ${qlModel} --backend network --printer tcp://${printerIp}:9100 print --label 62red --red "${tmpPng2}"`;
+                            exec(redCmd1, (rErr1) => {
+                                exec(redCmd2, (rErr2) => {
+                                    cleanup();
+                                    if (!rErr1 && !rErr2) {
+                                        addLog('success', `✅ Brother QL: Auto-retry with 62red starter roll succeeded on ${printerIp}!`);
+                                        return callback && callback(null, { success: true, printer: printerIp, mode: 'brother_ql_62red_retry' });
+                                    }
+                                    const errOutput = ((stderr1 || '') + ' ' + (stderr2 || '') + ' ' + (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '')).trim();
+                                    addLog('error', `❌ Brother QL Error (${errOutput.substring(0, 150)})`, { error: errOutput, targetIp: printerIp });
+                                    return callback && callback(null, { success: false, error: errOutput || 'Brother QL print error', printer: printerIp });
+                                });
+                            });
+                            return;
+                        }
+                        cleanup();
                         const errOutput = ((stderr1 || '') + ' ' + (stderr2 || '') + ' ' + (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '')).trim();
                         addLog('error', `❌ Brother QL Error (${errOutput.substring(0, 150)})`, { error: errOutput, targetIp: printerIp });
                         return callback && callback(null, { success: false, error: errOutput || 'Brother QL print error', printer: printerIp });
                     }
+                    cleanup();
                     addLog('success', `✅ Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${printerIp}!`);
                     callback && callback(null, { success: true, printer: printerIp, mode: 'brother_ql_2label' });
                 });
