@@ -895,7 +895,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.get('/api/logs', (req, res) => {
+app.get(['/api/logs', '/api/status-logs'], (req, res) => {
     res.json({
         server: 'KiddoChecker Print Server',
         uptimeSeconds: Math.floor(process.uptime()),
@@ -1543,13 +1543,15 @@ app.get(['/', '/logs'], (req, res) => {
                 try {
                     const controller = new AbortController();
                     const timeout = setTimeout(() => controller.abort(), 4000);
-                    const res = await fetch('/api/logs', { signal: controller.signal });
+                    const res = await fetch('/api/status-logs', { signal: controller.signal });
                     clearTimeout(timeout);
 
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
                     
-                    document.getElementById('uptime').innerText = Math.floor(data.uptimeSeconds / 60) + ' mins ' + (data.uptimeSeconds % 60) + ' secs';
+                    const uptimeEl = document.getElementById('uptime');
+                    if (uptimeEl) uptimeEl.innerText = Math.floor(data.uptimeSeconds / 60) + ' mins ' + (data.uptimeSeconds % 60) + ' secs';
+                    
                     if (data.serverConfig && data.serverConfig.defaultPrinterIp) {
                         const currentInput = document.getElementById('defaultIpInput');
                         if (document.activeElement !== currentInput) {
@@ -1576,7 +1578,12 @@ app.get(['/', '/logs'], (req, res) => {
                             '</div>';
                         }).join('');
                     }
-                } catch(e) { }
+                } catch(e) {
+                    const box = document.getElementById('log-box');
+                    if (box && currentLogs.length === 0) {
+                        box.innerHTML = '<div style="color:#f43f5e; padding:14px; font-size:12px;">⚠️ Log Stream Status: ' + e.message + '. (Server running on port 3003)</div>';
+                    }
+                }
             }
 
             function setLogFilter(filter) {
