@@ -1155,6 +1155,68 @@ app.post('/api/test-print', (req, res) => {
     });
 });
 
+app.get('/api/preview-badge', (req, res) => {
+    const { model, labelSize, childBadgeLength, name, securityCode, allergies, className } = req.query || {};
+    const labelData = {
+        name: (name || 'SAMUEL OKONKWO').trim(),
+        securityCode: securityCode || 'K984',
+        class: className || 'Preschool Room 2',
+        allergies: allergies || 'PEANUTS',
+        childBadgeLength: childBadgeLength ? parseInt(childBadgeLength, 10) : 520,
+    };
+    const modelId = model || serverConfig.defaultPrinterModel || 'brother_ql_820';
+    const printerMeta = PRINTER_REGISTRY.find(p => p.id === modelId) || PRINTER_REGISTRY[0];
+
+    if (printerMeta.protocol === 'pcl5') {
+        const svg = generateHpChildBadgeSvg(labelData);
+        res.setHeader('Content-Type', 'image/svg+xml');
+        return res.send(svg);
+    }
+
+    const svg = generateBrotherQlChildBadgeSvg(labelData, labelSize || serverConfig.defaultLabelSize || '62red');
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+});
+
+app.get('/api/diagnose-network', (req, res) => {
+    addLog('info', 'Running deep network & printer diagnostics...');
+    const results = {
+        timestamp: new Date().toISOString(),
+        os: `${process.platform} (${os.type()} ${os.release()})`,
+        hostname: os.hostname(),
+        lanInterfaces: getPhysicalLanInterfaces(),
+        targetIp: serverConfig.defaultPrinterIp,
+        python: null,
+        brotherQlPkg: null,
+        usbPrinters: [],
+        pingTarget: null
+    };
+
+    getPythonCmd((pyErr, pyCmd) => {
+        results.python = pyErr ? pyErr.message : pyCmd;
+        
+        exec(`${pyCmd || 'python3'} -c "import brother_ql; print(brother_ql.__version__)" 2>/dev/null`, (bErr, bStdout) => {
+            results.brotherQlPkg = bErr ? 'brother_ql package not found in Python' : `brother_ql ${bStdout.trim()}`;
+
+            exec('ls -la /dev/usb/lp* 2>/dev/null || lsusb 2>/dev/null', (uErr, uStdout) => {
+                results.usbPrinters = (!uErr && uStdout) ? uStdout.trim().split('\n') : ['No USB printers found on /dev/usb/lp*'];
+
+                const targetIp = serverConfig.defaultPrinterIp || '192.168.2.169';
+                exec(`ping -c 2 -w 2 ${targetIp} 2>/dev/null || ping -n 2 ${targetIp}`, (pErr, pStdout) => {
+                    results.pingTarget = {
+                        targetIp: targetIp,
+                        reachable: !pErr,
+                        output: (pStdout || '').trim()
+                    };
+
+                    addLog('info', `Diagnostics complete. Target ${targetIp} reachability: ${!pErr ? 'ONLINE' : 'UNREACHABLE'}`);
+                    res.json(results);
+                });
+            });
+        });
+    });
+});
+
 // ─── Ultra-Premium Glassmorphic Web Dashboard (`GET /` & `GET /logs`) ───
 app.get(['/', '/logs'], (req, res) => {
     const lanInterfaces = getPhysicalLanInterfaces();
@@ -1290,7 +1352,8 @@ app.get(['/', '/logs'], (req, res) => {
                     </div>
                 </div>
             </div>
-            <div style="display: flex; gap: 10px; items-center;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="runDeepDiagnostics()" class="btn-secondary" style="width: auto; margin: 0; padding: 8px 16px;">🔬 Deep Diagnostics</button>
                 <button onclick="fetchLogs()" class="btn-secondary" style="width: auto; margin: 0; padding: 8px 16px;">🔄 Refresh Logs</button>
                 <button onclick="scanNetworkPrinters()" class="btn-success" style="width: auto; margin: 0; padding: 8px 16px;">🔍 Auto-Scan Printers</button>
             </div>
@@ -1346,31 +1409,31 @@ app.get(['/', '/logs'], (req, res) => {
                     <div class="card-title" style="color: var(--primary); margin-bottom: 14px;">⚙️ Printer Configuration</div>
 
                     <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">PRINTER MODEL:</label>
-                    <select id="printerModelSelect" onchange="onModelChange(this.value)">
+                    <select id="printerModelSelect" onchange="onModelChange(this.value); updateLivePreview();">
                         ${printerOptionsHtml}
                     </select>
 
                     <div id="labelSizeRow" class="${isBrother ? '' : 'hidden'}">
                         <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">BROTHER DK LABEL ROLL SIZE:</label>
-                        <select id="labelSizeSelect">
+                        <select id="labelSizeSelect" onchange="updateLivePreview()">
                             ${labelSizeOptionsHtml}
                         </select>
                     </div>
 
                     <div id="brotherQlNote" class="note-box ${isBrother ? '' : 'hidden'}">
-                        ⚠️ <strong>Ubuntu Brother QL Setup:</strong><br>
-                        Run once in terminal:<br>
-                        <code>sudo apt update && sudo apt install librsvg2-bin -y</code><br>
-                        <code>pip3 install brother_ql cairosvg "Pillow<10" --break-system-packages</code>
+                        ⚠️ <strong>Ubuntu Brother QL Setup & IP Guide:</strong><br>
+                        • On Brother QL LCD: Press <strong>Menu ➔ WLAN ➔ WLAN Status ➔ IP Address</strong>.<br>
+                        • Or hold <strong>Cut</strong> button for 3s to print Network IP label.<br>
+                        • Ubuntu packages (run once): <code>sudo apt update && sudo apt install librsvg2-bin avahi-utils -y</code>
                     </div>
 
                     <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">PRINTER IP OR CUPS QUEUE NAME:</label>
-                    <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.1.169 or Brother_QL_820NWB" value="${serverConfig.defaultPrinterIp}" />
+                    <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.1.169 or /dev/usb/lp0" value="${serverConfig.defaultPrinterIp}" />
 
                     <div style="display:flex; gap:10px; margin-top:4px;">
                         <div style="flex:1;">
                             <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">BADGE LENGTH (PX):</label>
-                            <input type="number" id="childBadgeLengthInput" value="${serverConfig.childBadgeLength || 520}" />
+                            <input type="number" id="childBadgeLengthInput" value="${serverConfig.childBadgeLength || 520}" oninput="updateLivePreview()" />
                         </div>
                         <div style="flex:1;">
                             <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">TICKET LENGTH (PX):</label>
@@ -1384,7 +1447,7 @@ app.get(['/', '/logs'], (req, res) => {
 
                 <!-- Live Badge Preview Visualizer -->
                 <div class="card glass">
-                    <div class="card-title">👁️ Live Badge Preview</div>
+                    <div class="card-title">👁️ Live Dynamic Badge Preview</div>
                     <div class="preview-box">
                         ${sampleSvg}
                     </div>
@@ -1395,7 +1458,7 @@ app.get(['/', '/logs'], (req, res) => {
                     <div class="card-title">🚀 Direct Printer Tester</div>
                     <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Send immediate test payload to printer IP or CUPS queue.</p>
                     <input type="text" id="testIp" placeholder="Printer IP or CUPS Name" value="${serverConfig.defaultPrinterIp || '192.168.1.169'}" />
-                    <input type="text" id="testName" placeholder="Test Child Name" value="SAMUEL OKONKWO" />
+                    <input type="text" id="testName" placeholder="Test Child Name" value="SAMUEL OKONKWO" oninput="updateLivePreview()" />
                     <button onclick="sendTestPrint()">🚀 Dispatch Test Print</button>
                     <div id="testResult" style="font-size: 12px; font-weight: 700; margin-top: 6px;"></div>
                 </div>
@@ -1420,6 +1483,49 @@ app.get(['/', '/logs'], (req, res) => {
         <script>
             let currentLogs = [];
             let activeLogFilter = 'all';
+
+            async function updateLivePreview() {
+                const modelSel = document.getElementById('printerModelSelect');
+                const model = modelSel ? modelSel.value : 'brother_ql_820';
+                const labelSizeSel = document.getElementById('labelSizeSelect');
+                const labelSize = labelSizeSel ? labelSizeSel.value : '62red';
+                const badgeLenInput = document.getElementById('childBadgeLengthInput');
+                const badgeLen = badgeLenInput ? badgeLenInput.value : 520;
+                const testNameInput = document.getElementById('testName');
+                const name = testNameInput ? testNameInput.value : 'SAMUEL OKONKWO';
+
+                const url = '/api/preview-badge?model=' + encodeURIComponent(model) +
+                            '&labelSize=' + encodeURIComponent(labelSize) +
+                            '&childBadgeLength=' + encodeURIComponent(badgeLen) +
+                            '&name=' + encodeURIComponent(name);
+                try {
+                    const res = await fetch(url);
+                    if (res.ok) {
+                        const svgText = await res.text();
+                        const box = document.querySelector('.preview-box');
+                        if (box) box.innerHTML = svgText;
+                    }
+                } catch(e) {}
+            }
+
+            async function runDeepDiagnostics() {
+                alert('🔬 Running deep diagnostic scan on Ubuntu Print Server...');
+                try {
+                    const res = await fetch('/api/diagnose-network');
+                    const data = await res.json();
+                    const pingStatus = data.pingTarget ? (data.pingTarget.reachable ? '✅ ONLINE' : '❌ UNREACHABLE (No route to host)') : 'Unknown';
+                    const report = '=== UBUNTU PRINT SERVER DIAGNOSTICS ===\n\n' +
+                        '• OS: ' + data.os + '\n' +
+                        '• Hostname: ' + data.hostname + '\n' +
+                        '• Target IP: ' + data.targetIp + ' (' + pingStatus + ')\n' +
+                        '• Python: ' + data.python + '\n' +
+                        '• Brother QL Package: ' + data.brotherQlPkg + '\n' +
+                        '• USB Printers: ' + data.usbPrinters.join(', ') + '\n';
+                    alert(report);
+                } catch(e) {
+                    alert('❌ Diagnostic error: ' + e.message);
+                }
+            }
 
             async function fetchLogs() {
                 try {
