@@ -1348,7 +1348,7 @@ app.get(['/', '/logs'], (req, res) => {
             <div class="brand">
                 <div class="brand-logo">🖨️</div>
                 <div>
-                    <div class="brand-title">KiddoChecker Print Server</div>
+                    <div class="brand-title">KiddoChecker Print Server <span style="font-size:12px; color:#10b981; font-weight:700; background:rgba(16,185,129,0.15); padding:2px 8px; border-radius:12px; border:1px solid rgba(16,185,129,0.3);">v2.4.0</span></div>
                     <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
                         <span class="badge badge-os">UBUNTU / LINUX SERVER</span>
                         <span class="badge badge-online"><span class="dot"></span> AGENT ACTIVE</span>
@@ -1772,8 +1772,11 @@ const server = app.listen(PORT, HOST, () => {
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-        console.error(`❌ [Fatal Error] Port ${PORT} is already in use by another process. Run: fuser -k ${PORT}/tcp or killall node`);
+        console.error(`❌ [Fatal Error] Port ${PORT} is already in use by an old background process!`);
+        console.error(`👉 Run: fuser -k ${PORT}/tcp or killall node to terminate old processes before starting.`);
+        process.exit(1);
     } else {
         console.error(`❌ [Fatal Error] Server error:`, err);
+        process.exit(1);
     }
 });
