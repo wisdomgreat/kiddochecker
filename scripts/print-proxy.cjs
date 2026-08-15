@@ -939,8 +939,59 @@ app.post('/print', (req, res) => {
     });
 });
 
+function scanArpAndMdnsPrinters(cb) {
+    const discovered = [];
+
+    if (process.platform === 'linux' || process.platform === 'darwin') {
+        const cmd = `avahi-browse -rt _printer._tcp --parsable 2>/dev/null || avahi-browse -rt _pdl-datastream._tcp --parsable 2>/dev/null`;
+        exec(cmd, { timeout: 3000 }, (err, stdout) => {
+            if (!err && stdout) {
+                const lines = stdout.split('\n');
+                lines.forEach(line => {
+                    const parts = line.split(';');
+                    if (parts.length >= 8 && parts[0] === '=') {
+                        const pName = parts[3];
+                        const hostName = parts[6];
+                        const ipAddr = parts[7] || '';
+                        discovered.push({
+                            name: `${pName} (${ipAddr || hostName})`,
+                            ip: ipAddr || hostName,
+                            source: 'mDNS / Avahi Bonjour',
+                            type: 'mdns'
+                        });
+                    }
+                });
+            }
+
+            exec('cat /proc/net/arp 2>/dev/null || ip neighbor 2>/dev/null || arp -an 2>/dev/null', (arpErr, arpStdout) => {
+                if (!arpErr && arpStdout) {
+                    const arpLines = arpStdout.split('\n');
+                    arpLines.forEach(l => {
+                        const match = l.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+                        if (match) {
+                            const ip = match[1];
+                            if (!ip.endsWith('.1') && !ip.endsWith('.255')) {
+                                discovered.push({
+                                    name: `LAN Host (${ip})`,
+                                    ip: ip,
+                                    source: 'ARP Cache',
+                                    type: 'arp'
+                                });
+                            }
+                        }
+                    });
+                }
+                cb(discovered);
+            });
+        });
+        return;
+    }
+
+    cb(discovered);
+}
+
 app.get('/api/scan-printers', async (req, res) => {
-    addLog('info', 'Initiating multi-subnet & system printer auto-scan...');
+    addLog('info', 'Initiating multi-subnet, mDNS & system printer auto-scan...');
     const lanInterfaces = getPhysicalLanInterfaces();
 
     detectSystemPrinters(async (systemPrinters) => {
@@ -957,50 +1008,64 @@ app.get('/api/scan-printers', async (req, res) => {
             });
         });
 
-        const subnets = [...new Set(lanInterfaces.map(i => i.ip.substring(0, i.ip.lastIndexOf('.'))))];
-        if (subnets.length === 0) {
-            const localIps = getLocalIpAddresses();
-            if (localIps.length > 0) subnets.push(localIps[0].substring(0, localIps[0].lastIndexOf('.')));
-        }
-
-        const scanPromises = [];
-        for (const subnet of subnets) {
-            for (let i = 1; i <= 254; i++) {
-                const testIp = `${subnet}.${i}`;
-                scanPromises.push(new Promise((resolve) => {
-                    const socket = new net.Socket();
-                    socket.setTimeout(350);
-                    socket.connect(9100, testIp, () => {
-                        if (!foundMap.has(testIp)) {
-                            foundMap.set(testIp, {
-                                ip: testIp,
-                                name: `Network Thermal Printer (${testIp})`,
-                                source: 'Port 9100 (Raw TCP)',
-                                type: 'network_ip'
-                            });
-                        }
-                        socket.destroy();
-                        resolve(true);
+        scanArpAndMdnsPrinters(async (mdnsArpPrinters) => {
+            mdnsArpPrinters.forEach(mp => {
+                if (!foundMap.has(mp.ip)) {
+                    foundMap.set(mp.ip, {
+                        ip: mp.ip,
+                        name: mp.name,
+                        source: mp.source,
+                        type: mp.type
                     });
-                    socket.on('error', () => { socket.destroy(); resolve(false); });
-                    socket.on('timeout', () => { socket.destroy(); resolve(false); });
-                }));
+                }
+            });
+
+            const subnets = [...new Set(lanInterfaces.map(i => i.ip.substring(0, i.ip.lastIndexOf('.'))))];
+            if (subnets.length === 0) {
+                const localIps = getLocalIpAddresses();
+                if (localIps.length > 0) subnets.push(localIps[0].substring(0, localIps[0].lastIndexOf('.')));
             }
-        }
 
-        await Promise.all(scanPromises);
-        const printersList = Array.from(foundMap.values());
+            const scanPromises = [];
+            const PORTS = [9100, 515, 631];
+            for (const subnet of subnets) {
+                for (let i = 1; i <= 254; i++) {
+                    const testIp = `${subnet}.${i}`;
+                    scanPromises.push(new Promise((resolve) => {
+                        const socket = new net.Socket();
+                        socket.setTimeout(300);
+                        socket.connect(9100, testIp, () => {
+                            if (!foundMap.has(testIp)) {
+                                foundMap.set(testIp, {
+                                    ip: testIp,
+                                    name: `Network Thermal Printer (${testIp})`,
+                                    source: 'Port 9100 (Raw TCP)',
+                                    type: 'network_ip'
+                                });
+                            }
+                            socket.destroy();
+                            resolve(true);
+                        });
+                        socket.on('error', () => { socket.destroy(); resolve(false); });
+                        socket.on('timeout', () => { socket.destroy(); resolve(false); });
+                    }));
+                }
+            }
 
-        addLog('success', `Scan complete! Discovered ${printersList.length} printer(s) across subnets [${subnets.join(', ')}]`, {
-            subnets,
-            printersCount: printersList.length
-        });
+            await Promise.all(scanPromises);
+            const printersList = Array.from(foundMap.values());
 
-        res.json({
-            subnets,
-            lanInterfaces,
-            systemPrinters,
-            printers: printersList
+            addLog('success', `Scan complete! Discovered ${printersList.length} printer(s) across subnets [${subnets.join(', ')}]`, {
+                subnets,
+                printersCount: printersList.length
+            });
+
+            res.json({
+                subnets,
+                lanInterfaces,
+                systemPrinters,
+                printers: printersList
+            });
         });
     });
 });
