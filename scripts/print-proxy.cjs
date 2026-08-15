@@ -970,8 +970,70 @@ function scanArpAndMdnsPrinters(cb) {
     cb(discovered);
 }
 
+function discoverWsdAndSnmpPrinters(timeoutMs = 2000, cb) {
+    const discoveredMap = new Map();
+    let client = null;
+    try {
+        const dgram = require('dgram');
+        client = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+
+        const wsdProbe = `<?xml version="1.0" encoding="UTF-8"?>
+<e:Envelope xmlns:e="http://www.w3.org/2003/05/soap-envelope" xmlns:w="http://schemas.xmlsoap.org/ws/2004/10/discovery" xmlns:p="http://schemas.microsoft.com/windows/2006/08/wdp/print">
+  <e:Header>
+    <w:MessageID>urn:uuid:${Math.random().toString(36).substring(2, 10)}-${Date.now()}</w:MessageID>
+    <w:To>urn:schemas-xmlsoap-org:ws:2004/10/discovery</w:To>
+    <w:Action>http://schemas.xmlsoap.org/ws/2004/10/discovery/Probe</w:Action>
+  </e:Header>
+  <e:Body>
+    <w:Probe><w:Types>p:PrintDeviceType</w:Types></w:Probe>
+  </e:Body>
+</e:Envelope>`;
+
+        client.on('error', () => { try { client.close(); } catch(e){} });
+
+        client.on('message', (msg, rinfo) => {
+            const str = msg.toString('utf-8');
+            const ip = rinfo.address;
+
+            let printerName = `Network Printer (${ip})`;
+            if (str.includes('Brother') || str.includes('QL-') || str.includes('brother')) {
+                const modelMatch = str.match(/(QL-[0-9A-Za-z\-]+|Brother[A-Za-z0-9_\-\s]+)/i);
+                printerName = modelMatch ? modelMatch[0] : `Brother Printer (${ip})`;
+            } else {
+                const nameMatch = str.match(/<w:Computer>([^<]+)<\/w:Computer>/i) || str.match(/<w:Address>([^<]+)<\/w:Address>/i);
+                if (nameMatch) printerName = `WSD Printer (${ip})`;
+            }
+
+            discoveredMap.set(ip, {
+                ip: ip,
+                name: `${printerName} [${ip}]`,
+                source: 'WS-Discovery (WSD / UDP 3702)',
+                type: 'wsd'
+            });
+        });
+
+        client.bind(() => {
+            try {
+                client.setBroadcast(true);
+                client.setMulticastTTL(8);
+                const messageBuf = Buffer.from(wsdProbe, 'utf-8');
+                client.send(messageBuf, 0, messageBuf.length, 3702, '239.255.255.250');
+                client.send(messageBuf, 0, messageBuf.length, 3702, '255.255.255.255');
+            } catch(e) {}
+        });
+
+        setTimeout(() => {
+            try { client.close(); } catch(e){}
+            cb(Array.from(discoveredMap.values()));
+        }, timeoutMs);
+
+    } catch (err) {
+        cb([]);
+    }
+}
+
 app.get('/api/scan-printers', async (req, res) => {
-    addLog('info', 'Initiating printer auto-scan (CUPS, mDNS, and Ports 9100/515/631)...');
+    addLog('info', 'Initiating printer auto-scan (WSD, CUPS, mDNS, and Ports 9100/515/631)...');
     const lanInterfaces = getPhysicalLanInterfaces();
 
     detectSystemPrinters(async (systemPrinters) => {
@@ -1000,62 +1062,75 @@ app.get('/api/scan-printers', async (req, res) => {
                 }
             });
 
-            const subnets = [...new Set(lanInterfaces.map(i => i.ip.substring(0, i.ip.lastIndexOf('.'))))];
-            if (subnets.length === 0) {
-                const localIps = getLocalIpAddresses();
-                if (localIps.length > 0) subnets.push(localIps[0].substring(0, localIps[0].lastIndexOf('.')));
-            }
-
-            const scanPromises = [];
-            const PRINTER_PORTS = [9100, 515, 631];
-
-            function probePrinterIpPort(ip, port) {
-                return new Promise((resolve) => {
-                    const socket = new net.Socket();
-                    socket.setTimeout(350);
-                    socket.connect(port, ip, () => {
-                        socket.destroy();
-                        resolve({ open: true, ip, port });
-                    });
-                    socket.on('error', () => { socket.destroy(); resolve({ open: false, ip, port }); });
-                    socket.on('timeout', () => { socket.destroy(); resolve({ open: false, ip, port }); });
+            discoverWsdAndSnmpPrinters(2000, async (wsdPrinters) => {
+                wsdPrinters.forEach(wp => {
+                    if (!foundMap.has(wp.ip)) {
+                        foundMap.set(wp.ip, {
+                            ip: wp.ip,
+                            name: wp.name,
+                            source: wp.source,
+                            type: wp.type
+                        });
+                    }
                 });
-            }
 
-            for (const subnet of subnets) {
-                for (let i = 1; i <= 254; i++) {
-                    const testIp = `${subnet}.${i}`;
-                    for (const port of PRINTER_PORTS) {
-                        scanPromises.push(probePrinterIpPort(testIp, port));
+                const subnets = [...new Set(lanInterfaces.map(i => i.ip.substring(0, i.ip.lastIndexOf('.'))))];
+                if (subnets.length === 0) {
+                    const localIps = getLocalIpAddresses();
+                    if (localIps.length > 0) subnets.push(localIps[0].substring(0, localIps[0].lastIndexOf('.')));
+                }
+
+                const scanPromises = [];
+                const PRINTER_PORTS = [9100, 515, 631];
+
+                function probePrinterIpPort(ip, port) {
+                    return new Promise((resolve) => {
+                        const socket = new net.Socket();
+                        socket.setTimeout(350);
+                        socket.connect(port, ip, () => {
+                            socket.destroy();
+                            resolve({ open: true, ip, port });
+                        });
+                        socket.on('error', () => { socket.destroy(); resolve({ open: false, ip, port }); });
+                        socket.on('timeout', () => { socket.destroy(); resolve({ open: false, ip, port }); });
+                    });
+                }
+
+                for (const subnet of subnets) {
+                    for (let i = 1; i <= 254; i++) {
+                        const testIp = `${subnet}.${i}`;
+                        for (const port of PRINTER_PORTS) {
+                            scanPromises.push(probePrinterIpPort(testIp, port));
+                        }
                     }
                 }
-            }
 
-            const scanResults = await Promise.all(scanPromises);
-            scanResults.forEach(resItem => {
-                if (resItem.open && !foundMap.has(resItem.ip)) {
-                    const portName = resItem.port === 9100 ? 'Raw TCP (9100)' : resItem.port === 515 ? 'LPD (515)' : 'IPP (631)';
-                    foundMap.set(resItem.ip, {
-                        ip: resItem.ip,
-                        name: `Verified Printer (${resItem.ip})`,
-                        source: `Port ${resItem.port} (${portName})`,
-                        type: 'network_ip'
-                    });
-                }
-            });
+                const scanResults = await Promise.all(scanPromises);
+                scanResults.forEach(resItem => {
+                    if (resItem.open && !foundMap.has(resItem.ip)) {
+                        const portName = resItem.port === 9100 ? 'Raw TCP (9100)' : resItem.port === 515 ? 'LPD (515)' : 'IPP (631)';
+                        foundMap.set(resItem.ip, {
+                            ip: resItem.ip,
+                            name: `Verified Printer (${resItem.ip})`,
+                            source: `Port ${resItem.port} (${portName})`,
+                            type: 'network_ip'
+                        });
+                    }
+                });
 
-            const printersList = Array.from(foundMap.values());
+                const printersList = Array.from(foundMap.values());
 
-            addLog('success', `Scan complete! Found ${printersList.length} verified printer(s) across subnets [${subnets.join(', ')}]`, {
-                subnets,
-                printersCount: printersList.length
-            });
+                addLog('success', `Scan complete! Found ${printersList.length} verified printer(s) across subnets [${subnets.join(', ')}]`, {
+                    subnets,
+                    printersCount: printersList.length
+                });
 
-            res.json({
-                subnets,
-                lanInterfaces,
-                systemPrinters,
-                printers: printersList
+                res.json({
+                    subnets,
+                    lanInterfaces,
+                    systemPrinters,
+                    printers: printersList
+                });
             });
         });
     });
