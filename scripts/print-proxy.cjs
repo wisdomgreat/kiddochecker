@@ -13,7 +13,7 @@ const HOST = '0.0.0.0'; // Listen on all interfaces
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Enable CORS for browser fetch calls from Android tablet kiosks
+// Enable CORS for browser fetch calls from Android tablet kiosks & web apps
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
@@ -92,8 +92,6 @@ for py_file in glob.glob(os.path.join(pkg_dir, '**', '*.py'), recursive=True):
 autoPatchBrotherQl();
 
 // ─── Printer Model Registry ──────────────────────────────────────
-// All supported printer models. Select once from the web console;
-// the server auto-generates the correct protocol payload.
 const PRINTER_REGISTRY = [
     { id: 'brother_ql_820', name: 'Brother QL-820NWBc / QL-820NWB', brand: 'Brother', protocol: 'brother_ql', labelSizes: [
         { value: '62red', label: 'DK-2251 / DK-22251 - 62mm Continuous Black/Red Roll (Starter Roll)' },
@@ -119,6 +117,7 @@ const PRINTER_REGISTRY = [
     { id: 'generic_thermal_80', name: 'Generic Thermal Printer (80mm)',     brand: 'Generic', protocol: 'escpos', paperWidth: 80 },
     { id: 'generic_thermal_58', name: 'Generic Thermal Printer (58mm)',     brand: 'Generic', protocol: 'escpos', paperWidth: 58 },
     { id: 'hp_laserjet',        name: 'HP LaserJet / OfficeJet / DeskJet', brand: 'HP',      protocol: 'pcl5' },
+    { id: 'cups_queue',         name: 'CUPS Linux / System Print Queue',   brand: 'CUPS',    protocol: 'cups' },
 ];
 
 // ─── Persistent Server Configuration ─────────────────────────────
@@ -129,6 +128,7 @@ let serverConfig = {
     defaultPrinterName:  process.env.PRINTER_NAME  || 'Default Printer',
     defaultPrinterModel: process.env.PRINTER_MODEL || 'brother_ql_820',
     defaultLabelSize:    process.env.LABEL_SIZE    || '62red',
+    orgId:               process.env.ORG_ID        || 'default_org',
     childBadgeLength:    parseInt(process.env.CHILD_BADGE_LENGTH || '520', 10),
     guardianTicketLength: parseInt(process.env.GUARDIAN_TICKET_LENGTH || '380', 10),
 };
@@ -139,7 +139,7 @@ function loadServerConfig() {
             const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
             Object.keys(serverConfig).forEach(k => { if (parsed[k] !== undefined) serverConfig[k] = parsed[k]; });
             const model = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel);
-            addLog('info', `Config loaded: IP="${serverConfig.defaultPrinterIp || 'None'}" Model="${model ? model.name : serverConfig.defaultPrinterModel}"`);
+            addLog('info', `Config loaded: IP/Queue="${serverConfig.defaultPrinterIp || 'None'}" Model="${model ? model.name : serverConfig.defaultPrinterModel}"`);
         }
     } catch (err) {
         addLog('warn', `Could not load printer-config.json: ${err.message}`);
@@ -151,7 +151,7 @@ function saveServerConfig(newConfig) {
         serverConfig = { ...serverConfig, ...newConfig };
         fs.writeFileSync(CONFIG_FILE, JSON.stringify(serverConfig, null, 2), 'utf-8');
         const model = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel);
-        addLog('success', `Config saved: IP=${serverConfig.defaultPrinterIp} | Model=${model ? model.name : serverConfig.defaultPrinterModel}`);
+        addLog('success', `Config saved: IP/Queue=${serverConfig.defaultPrinterIp} | Model=${model ? model.name : serverConfig.defaultPrinterModel}`);
         return true;
     } catch (err) {
         addLog('error', `Failed to save config: ${err.message}`);
@@ -164,18 +164,19 @@ loadServerConfig();
 const AZURE_API_URL = process.env.AZURE_API_URL || 'https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io';
 let cloudRelayStatus = { active: false, lastPoll: null, jobsProcessed: 0, lastError: null };
 
-// ─── Azure Cloud Print Relay Polling (Universal Node https) ───────
+// ─── Azure Cloud Print Relay Polling ─────────────────────────────
 function pollAzureCloudPrintQueue() {
     try {
         const https = require('https');
-        const pollUrl = `${AZURE_API_URL}/api/print-jobs/poll`;
+        const orgQuery = serverConfig.orgId ? `?orgId=${encodeURIComponent(serverConfig.orgId)}` : '';
+        const pollUrl = `${AZURE_API_URL}/api/print-jobs/poll${orgQuery}`;
         const urlObj = new URL(pollUrl);
 
         const req = https.get({
             hostname: urlObj.hostname,
             path: urlObj.pathname + urlObj.search,
             port: 443,
-            timeout: 4000,  // 4-second hard timeout — prevents blocking the event loop
+            timeout: 4000,
         }, (res) => {
             let rawData = '';
             res.on('data', chunk => rawData += chunk);
@@ -224,10 +225,102 @@ function pollAzureCloudPrintQueue() {
     }
 }
 
-// Poll every 5 seconds (was 1.5s — reduced to prevent network saturation)
 setInterval(pollAzureCloudPrintQueue, 5000);
 addLog('info', `Azure Cloud Relay polling initialized (${AZURE_API_URL})`);
 
+// ─── Network Interface & OS Printer Discovery ─────────────────────
+function getPhysicalLanInterfaces() {
+    const interfaces = os.networkInterfaces();
+    const result = [];
+    const ignoredPatterns = [/docker/i, /veth/i, /virbr/i, /br-/i, /tun/i, /tap/i, /lo/i];
+
+    for (const devName in interfaces) {
+        if (ignoredPatterns.some(p => p.test(devName))) continue;
+        const iface = interfaces[devName];
+        for (const alias of iface) {
+            if ((alias.family === 'IPv4' || alias.family === 4) && !alias.internal) {
+                result.push({ interface: devName, ip: alias.address });
+            }
+        }
+    }
+    return result;
+}
+
+function getLocalIpAddresses() {
+    return getPhysicalLanInterfaces().map(i => i.ip);
+}
+
+function detectSystemPrinters(cb) {
+    const systemPrinters = [];
+
+    // On Linux/Ubuntu: query CUPS lpstat
+    if (process.platform === 'linux' || process.platform === 'darwin') {
+        exec('lpstat -e 2>/dev/null && lpstat -v 2>/dev/null', (err, stdout) => {
+            if (!err && stdout) {
+                const lines = stdout.split('\n');
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('device for ')) {
+                        const match = trimmed.match(/^device for ([^:]+):\s+(.+)$/);
+                        if (match) {
+                            const pName = match[1].trim();
+                            const pUri = match[2].trim();
+                            const ipMatch = pUri.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+                            systemPrinters.push({
+                                name: pName,
+                                type: 'cups',
+                                uri: pUri,
+                                ip: ipMatch ? ipMatch[1] : ''
+                            });
+                        }
+                    } else if (trimmed && !trimmed.startsWith('device for ')) {
+                        systemPrinters.push({ name: trimmed, type: 'cups', uri: `cups://${trimmed}`, ip: '' });
+                    }
+                });
+            }
+            cb && cb(systemPrinters);
+        });
+        return;
+    }
+
+    // On Windows: query PowerShell Get-Printer & Get-PrinterPort
+    if (process.platform === 'win32') {
+        const psCmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Printer | Select-Object Name, DriverName, PortName, PrinterStatus | ConvertTo-Json"`;
+        const psPortCmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-PrinterPort | Select-Object Name, PrinterHostAddress | ConvertTo-Json"`;
+        exec(psCmd, (err1, stdout1) => {
+            exec(psPortCmd, (err2, stdout2) => {
+                try {
+                    let portsMap = {};
+                    if (!err2 && stdout2) {
+                        const ports = JSON.parse(stdout2);
+                        const portArr = Array.isArray(ports) ? ports : [ports];
+                        portArr.forEach(p => { if (p && p.Name) portsMap[p.Name] = p.PrinterHostAddress; });
+                    }
+                    if (!err1 && stdout1) {
+                        const printers = JSON.parse(stdout1);
+                        const printerArr = Array.isArray(printers) ? printers : [printers];
+                        printerArr.forEach(p => {
+                            if (p && p.Name) {
+                                const hostIp = portsMap[p.PortName] || (p.PortName.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/) || [])[1] || '';
+                                systemPrinters.push({
+                                    name: p.Name,
+                                    driver: p.DriverName,
+                                    port: p.PortName,
+                                    type: 'win32',
+                                    ip: hostIp
+                                });
+                            }
+                        });
+                    }
+                } catch(e) {}
+                cb && cb(systemPrinters);
+            });
+        });
+        return;
+    }
+
+    cb && cb(systemPrinters);
+}
 
 // ─── ESC/POS Payload Generator (Epson, Star, Generic Thermal) ────
 function generateEscPosPayload(labelData) {
@@ -239,7 +332,6 @@ function generateEscPosPayload(labelData) {
     const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const LINE = '─'.repeat(32) + '\n';
-    const DBL_LINE = '═'.repeat(32) + '\n';
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
     return Buffer.from(
         '\x1b@' + '\x1ba\x01' +
@@ -259,7 +351,6 @@ function generateEscPosPayload(labelData) {
 
 // ─── HP Printer: Vector SVG / PDF Badge Generators ─────────────────
 function generateHpChildBadgeSvg(labelData) {
-
     const nameParts = (labelData.name || '').trim().split(' ');
     const firstName = (nameParts[0] || '').toUpperCase();
     const lastName = (nameParts.slice(1).join(' ') || '').toUpperCase();
@@ -321,49 +412,6 @@ function generateHpGuardianTicketSvg(labelData) {
 </svg>`;
 }
 
-// Strict 7-bit ASCII PCL5 2-page fallback (Page 1 = Child Badge, Page 2 = Guardian Ticket)
-function generatePcl5Payload(labelData) {
-    const childName = labelData.name || '';
-    const securityCode = labelData.securityCode || 'TEST';
-    const className = labelData.class || 'General';
-    const allergies = labelData.allergies || '';
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const div = '-'.repeat(46) + '\r\n';
-    const dDiv = '='.repeat(46) + '\r\n';
-    const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
-    return Buffer.from(
-        // PAGE 1: CHILD BADGE
-        '\x1bE' +               // Reset printer
-        '\x1b&l2A' +            // Letter size
-        '\x1b&l0O' +            // Portrait
-        '\x1b&l6D' +            // 6 lines per inch
-        '\x1b&l0E' +            // Top margin 0
-        '\x1b&a5L' +            // Left margin 5
-        `KIDDOCHECKER CHILD CHECK-IN\r\n` + div +
-        `NAME  : ${childName.toUpperCase()}\r\n` +
-        `CODE  : [ ${securityCode} ]\r\n` +
-        `CLASS : ${className}\r\n` +
-        `TIME  : ${timeStr}  ${dateStr}\r\n` +
-        (hasAllergy ? `\r\n!! ALLERGY ALERT: ${allergies.toUpperCase()} !!\r\n` : '') +
-        div +
-        `Must present matching code at pick-up to claim child.\r\n\r\n` +
-        '\x0C' +                  // Eject Page 1
-
-        // PAGE 2: PRIMARY GUARDIAN CLAIM TICKET
-        dDiv +
-        `        PRIMARY GUARDIAN CLAIM TICKET\r\n` +
-        dDiv +
-        `Security Code : [ ${securityCode} ]\r\n` +
-        `Child Name    : ${childName}\r\n` +
-        `Date          : ${dateStr}\r\n` +
-        div +
-        `Present this ticket at pick-up to claim child.\r\n\r\n` +
-        '\x0C'                  // Eject Page 2
-    , 'ascii');
-}
-
 function printViaHpPrinter(labelData, printerIp, callback) {
     const svg1 = generateHpChildBadgeSvg(labelData);
     const svg2 = generateHpGuardianTicketSvg(labelData);
@@ -390,15 +438,14 @@ function printViaHpPrinter(labelData, printerIp, callback) {
     function tryConvert(idx) {
         if (idx >= convertCmds.length) {
             cleanup();
-            addLog('warn', 'HP PDF converter unavailable. Using 2-page 7-bit ASCII PCL5 mode...');
-            sendRawPcl5(generatePcl5Payload(labelData), printerIp, callback);
-            return;
+            addLog('warn', 'HP PDF converter unavailable. Using 2-page ASCII mode...');
+            return sendRawEscPosPayload(generateEscPosPayload(labelData), printerIp, callback);
         }
 
         exec(convertCmds[idx], (err) => {
             if (err || !fs.existsSync(tmpPdf)) return tryConvert(idx + 1);
 
-            addLog('info', `HP Printer: Streaming 2-page PDF vector badges (Page 1: Child Badge, Page 2: Guardian Ticket) to tcp://${printerIp}:9100...`, { targetIp: printerIp });
+            addLog('info', `HP Printer: Streaming 2-page PDF vector badges to tcp://${printerIp}:9100...`, { targetIp: printerIp });
             const pdfBuffer = fs.readFileSync(tmpPdf);
             cleanup();
 
@@ -425,29 +472,6 @@ function printViaHpPrinter(labelData, printerIp, callback) {
 
     tryConvert(0);
 }
-
-function sendRawPcl5(payload, printerIp, callback) {
-    addLog('info', `TCP Socket → ${printerIp}:9100 [PCL5 STRICT ASCII]...`, { targetIp: printerIp });
-    const socket = new net.Socket();
-    socket.setTimeout(8000);
-    socket.connect(9100, printerIp, () => {
-        socket.write(payload, () => {
-            socket.end();
-            addLog('success', `✅ PCL5 2-page ASCII label printed on ${printerIp}!`, { targetIp: printerIp });
-            callback && callback(null, { success: true, printer: printerIp, mode: 'pcl5_ascii_2page' });
-        });
-    });
-    socket.on('error', (err) => {
-        addLog('error', `❌ Socket error ${printerIp}:9100 — ${err.message}`, { targetIp: printerIp, error: err.message });
-        callback && callback(null, { success: false, error: err.message, targetIp: printerIp });
-    });
-    socket.on('timeout', () => {
-        addLog('warn', `⚠️ Socket timeout ${printerIp}:9100`, { targetIp: printerIp });
-        socket.destroy();
-        callback && callback(null, { success: false, error: `Connection timeout to ${printerIp}` });
-    });
-}
-
 
 // ─── Brother QL: Real ISO/IEC 18004 QR Code & SVG Generators ─────────
 function generateRealQrCodeSvg(text, x, y, size) {
@@ -544,7 +568,6 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const width = 696;
     const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || 520, 10);
 
-    // Right Column QR Code (160px x 160px) — sits cleanly below PIN box
     const qrSize = 160;
     const qrX = 475;
     const qrY = 118;
@@ -560,29 +583,22 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
   <rect width="${width}" height="${height}" fill="#FFFFFF"/>
   <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="#FFFFFF" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
-  <!-- Left Column: Child Name (50pt bold) -->
   <text x="45" y="92" font-size="50" font-weight="900" fill="#000000">${firstName}</text>
   ${lastName ? `<text x="45" y="148" font-size="50" font-weight="900" fill="#000000">${lastName}</text>` : ''}
 
-  <!-- Left Column Divider (restricted to X=430 to avoid QR column) -->
   <line x1="40" y1="${lastName ? 172 : 118}" x2="440" y2="${lastName ? 172 : 118}" stroke="#000000" stroke-width="4"/>
 
-  <!-- Left Column: Class & Date -->
   <text x="45" y="${lastName ? 215 : 160}" font-size="28" font-weight="900" fill="#000000">Class: ${className}</text>
   <text x="45" y="${lastName ? 255 : 200}" font-size="24" font-weight="bold" fill="#000000">Date: ${dateStr}</text>
 
-  <!-- Right Column Top: Security PIN Box -->
   <rect x="460" y="38" width="190" height="60" rx="10" fill="#000000"/>
   <text x="555" y="80" text-anchor="middle" font-size="34" font-weight="900" fill="#FFFFFF" font-family="monospace" letter-spacing="4">${securityCode}</text>
 
-  <!-- Right Column Bottom: White Quiet Zone Box + 160px ISO QR Code -->
   <rect x="${qrX - 8}" y="${qrY - 8}" width="${qrSize + 16}" height="${qrSize + 16}" rx="10" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
   ${qrSvg}
 
-  <!-- Bottom Section: Allergy Banner -->
   ${allergySvg}
 
-  <!-- Bottom Section: Footer Verification Note -->
   <text x="${width/2}" y="${height - 38}" text-anchor="middle" font-size="18" font-weight="900" fill="#000000">Must present matching ticket for pick-up.</text>
 </svg>`;
 }
@@ -594,7 +610,6 @@ function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
     const width = 696;
     const height = parseInt(serverConfig.guardianTicketLength || labelData.guardianTicketLength || 380, 10);
 
-    // Right Box: 160px x 160px ISO QR Code
     const qrSize = 160;
     const qrX = 475;
     const qrY = 118;
@@ -604,28 +619,40 @@ function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
   <rect width="${width}" height="${height}" fill="#FFFFFF"/>
   <rect x="25" y="25" width="${width - 50}" height="${height - 50}" rx="16" fill="#FFFFFF" stroke="#000000" stroke-width="6" stroke-dasharray="12,8"/>
 
-  <!-- Header -->
   <text x="${width/2}" y="65" text-anchor="middle" font-size="26" font-weight="900" fill="#000000" letter-spacing="1">PRIMARY GUARDIAN CLAIM TICKET</text>
   <line x1="40" y1="80" x2="${width - 40}" y2="80" stroke="#000000" stroke-width="4"/>
 
-  <!-- Match Code Label -->
   <text x="45" y="122" font-size="22" font-weight="bold" fill="#000000">Security Match Code:</text>
 
-  <!-- Left Box: Giant Security PIN Box (390px x 120px) -->
   <rect x="45" y="138" width="390" height="120" rx="16" fill="#000000"/>
   <text x="240" y="222" text-anchor="middle" font-size="64" font-weight="900" fill="#FFFFFF" font-family="monospace" letter-spacing="10">${securityCode}</text>
 
-  <!-- Right Box: White Quiet Zone + 160px ISO QR Code -->
   <rect x="${qrX - 8}" y="${qrY - 8}" width="${qrSize + 16}" height="${qrSize + 16}" rx="10" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
   ${qrSvg}
 
-  <!-- Child Name Footer -->
   <text x="${width/2}" y="${height - 62}" text-anchor="middle" font-size="28" font-weight="900" fill="#000000">Child: ${fullNameTitle}</text>
   <text x="${width/2}" y="${height - 35}" text-anchor="middle" font-size="18" font-weight="bold" fill="#000000">Keep this ticket until child is picked up.</text>
 </svg>`;
 }
 
-// ─── Brother QL: Print via Python CLI (Prints 2 Labels & Cuts Each) ──────
+// ─── Linux CUPS Printing Fallback ──────────────────────────────────
+function printViaCups(labelData, printerName, callback) {
+    const tmpFile = path.join(os.tmpdir(), `kiddo_badge_${Date.now()}.txt`);
+    const payload = generateEscPosPayload(labelData);
+    fs.writeFileSync(tmpFile, payload);
+    
+    exec(`lp -d "${printerName}" "${tmpFile}" || lpr -P "${printerName}" "${tmpFile}"`, (err, stdout, stderr) => {
+        try { fs.unlinkSync(tmpFile); } catch(e) {}
+        if (err) {
+            addLog('error', `❌ CUPS Print Error (${printerName}): ${err.message}`);
+            return callback && callback(null, { success: false, error: err.message });
+        }
+        addLog('success', `✅ Label printed via Linux CUPS queue [${printerName}]`);
+        callback && callback(null, { success: true, printer: printerName, mode: 'cups' });
+    });
+}
+
+// ─── Brother QL Print Handler ──────────────────────────────────────
 function printViaBrotherQl(labelData, printerIp, callback) {
     const labelSize = (serverConfig.defaultLabelSize || '62red').trim();
     const svg1 = generateBrotherQlChildBadgeSvg(labelData, labelSize);
@@ -671,7 +698,7 @@ function printViaBrotherQl(labelData, printerIp, callback) {
     convertSvgToPng(tmpSvg1, tmpPng1, (err1) => {
         if (err1) {
             cleanup();
-            const renderErrMsg = 'Brother QL raster conversion tool unavailable. Please install cairosvg (pip install cairosvg brother_ql) or librsvg2-bin on the server.';
+            const renderErrMsg = 'Brother QL raster conversion tool unavailable. Please run on Ubuntu: sudo apt install librsvg2-bin -y or pip install cairosvg brother_ql.';
             addLog('error', `❌ ${renderErrMsg}`, { targetIp: printerIp });
             return callback && callback(null, { success: false, error: renderErrMsg, targetIp: printerIp });
         }
@@ -693,7 +720,7 @@ function printViaBrotherQl(labelData, printerIp, callback) {
             getPythonCmd((pErr, pyCmd) => {
                 const pythonExe = pyCmd || 'python3';
                 const getQlCmd = (pngFile) => {
-                    return `(brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${cleanIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || ${pythonExe} -m brother_ql.cli --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}")`;
+                    return `(brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${cleanIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend linux_kernel --printer /dev/usb/lp0 print --label ${labelSize}${redFlag} "${pngFile}" || ${pythonExe} -m brother_ql.cli --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}")`;
                 };
 
                 const qlCmd1 = getQlCmd(tmpPng1);
@@ -744,7 +771,7 @@ function printViaBrotherQl(labelData, printerIp, callback) {
     });
 }
 
-// ─── Print Job History & Reprint Queue ────────────────────────────
+// ─── Print Job History Store ──────────────────────────────────────
 const printJobsHistory = [];
 
 function recordPrintJob(labelData, targetIp) {
@@ -763,7 +790,7 @@ function recordPrintJob(labelData, targetIp) {
     return job;
 }
 
-// ─── Core Dispatcher ─────────────────────────────
+// ─── Core Dispatcher ─────────────────────────────────────────────
 function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     if (!labelData || !labelData.name) {
         addLog('error', 'Print job rejected: Invalid or missing label data');
@@ -784,12 +811,21 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
 
     if (!targetIp) {
         jobRecord.status = 'failed';
-        jobRecord.error = 'No printer IP configured';
-        addLog('warn', `No Printer IP set for "${labelData.name}". Set one in the web console.`);
+        jobRecord.error = 'No printer IP or CUPS queue configured';
+        addLog('warn', `No Printer IP/Queue set for "${labelData.name}". Select one in the Web Console.`);
         return callback && callback(null, { success: false, error: 'No printer IP configured. Set one in the web console.' });
     }
 
-    // Route to correct handler based on protocol
+    // Check if printing to CUPS printer queue
+    if (printerMeta.protocol === 'cups' || targetIp.startsWith('cups://') || !targetIp.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+        const cupsQueueName = targetIp.replace(/^cups:\/\//, '');
+        printViaCups(labelData, cupsQueueName, (err, res) => {
+            if (res && res.success) { jobRecord.status = 'success'; } else { jobRecord.status = 'failed'; jobRecord.error = (res && res.error) || 'CUPS error'; }
+            callback && callback(err, res);
+        });
+        return;
+    }
+
     if (printerMeta.protocol === 'brother_ql') {
         printViaBrotherQl(labelData, targetIp, (err, res) => {
             if (res && res.success) { jobRecord.status = 'success'; } else { jobRecord.status = 'failed'; jobRecord.error = (res && res.error) || 'Brother QL error'; }
@@ -807,7 +843,6 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     }
 
     const payload = generateEscPosPayload(labelData);
-
 
     addLog('info', `TCP Socket → ${targetIp}:9100 [${printerMeta.protocol.toUpperCase()}]...`, { jobId: jobRecord.id, targetIp });
     const socket = new net.Socket();
@@ -841,12 +876,13 @@ app.get('/health', (req, res) => {
     res.json({
         status: 'ok',
         server: 'KiddoChecker Remote Multi-Printer Server',
-        os: process.platform,
+        os: `${process.platform} (${os.type()} ${os.release()})`,
         uptimeSeconds: Math.floor(process.uptime()),
         timestamp: new Date().toISOString(),
         cloudRelay: cloudRelayStatus,
         serverConfig: serverConfig,
-        localIps: getLocalIpAddresses()
+        localIps: getLocalIpAddresses(),
+        lanInterfaces: getPhysicalLanInterfaces()
     });
 });
 
@@ -882,12 +918,13 @@ app.get('/api/printers', (req, res) => res.json({ printers: PRINTER_REGISTRY, cu
 app.get('/api/config', (req, res) => res.json(serverConfig));
 
 app.post('/api/config', (req, res) => {
-    const { defaultPrinterIp, defaultPrinterName, defaultPrinterModel, defaultLabelSize, childBadgeLength, guardianTicketLength } = req.body || {};
+    const { defaultPrinterIp, defaultPrinterName, defaultPrinterModel, defaultLabelSize, orgId, childBadgeLength, guardianTicketLength } = req.body || {};
     const updated = saveServerConfig({ 
         defaultPrinterIp, 
         defaultPrinterName, 
         defaultPrinterModel, 
         defaultLabelSize,
+        orgId: orgId || serverConfig.orgId || 'default_org',
         childBadgeLength: childBadgeLength ? parseInt(childBadgeLength, 10) : 520,
         guardianTicketLength: guardianTicketLength ? parseInt(guardianTicketLength, 10) : 380
     });
@@ -903,39 +940,76 @@ app.post('/print', (req, res) => {
 });
 
 app.get('/api/scan-printers', async (req, res) => {
-    addLog('info', 'Scanning local network subnet for active printers on Port 9100...');
-    const localIps = getLocalIpAddresses();
-    if (localIps.length === 0) return res.json({ printers: [] });
-    
-    const subnet = localIps[0].substring(0, localIps[0].lastIndexOf('.'));
-    const foundPrinters = [];
-    
-    const scanPromises = [];
-    for (let i = 1; i <= 254; i++) {
-        const testIp = `${subnet}.${i}`;
-        scanPromises.push(new Promise((resolve) => {
-            const socket = new net.Socket();
-            socket.setTimeout(400);
-            socket.connect(9100, testIp, () => {
-                foundPrinters.push(testIp);
-                socket.destroy();
-                resolve(true);
+    addLog('info', 'Initiating multi-subnet & system printer auto-scan...');
+    const lanInterfaces = getPhysicalLanInterfaces();
+
+    detectSystemPrinters(async (systemPrinters) => {
+        const foundMap = new Map();
+
+        systemPrinters.forEach(sp => {
+            const key = sp.ip || sp.name;
+            foundMap.set(key, {
+                ip: sp.ip || sp.name,
+                name: sp.name,
+                source: sp.type === 'cups' ? 'CUPS System Queue' : 'OS Printer Driver',
+                type: sp.ip ? 'network_cups' : 'cups_queue',
+                details: sp.uri || sp.driver || ''
             });
-            socket.on('error', () => { socket.destroy(); resolve(false); });
-            socket.on('timeout', () => { socket.destroy(); resolve(false); });
-        }));
-    }
-    
-    await Promise.all(scanPromises);
-    addLog('success', `Network scan finished! Found ${foundPrinters.length} printer(s) on ${subnet}.x: ${foundPrinters.join(', ') || 'None'}`);
-    res.json({ subnet, printers: foundPrinters });
+        });
+
+        const subnets = [...new Set(lanInterfaces.map(i => i.ip.substring(0, i.ip.lastIndexOf('.'))))];
+        if (subnets.length === 0) {
+            const localIps = getLocalIpAddresses();
+            if (localIps.length > 0) subnets.push(localIps[0].substring(0, localIps[0].lastIndexOf('.')));
+        }
+
+        const scanPromises = [];
+        for (const subnet of subnets) {
+            for (let i = 1; i <= 254; i++) {
+                const testIp = `${subnet}.${i}`;
+                scanPromises.push(new Promise((resolve) => {
+                    const socket = new net.Socket();
+                    socket.setTimeout(350);
+                    socket.connect(9100, testIp, () => {
+                        if (!foundMap.has(testIp)) {
+                            foundMap.set(testIp, {
+                                ip: testIp,
+                                name: `Network Thermal Printer (${testIp})`,
+                                source: 'Port 9100 (Raw TCP)',
+                                type: 'network_ip'
+                            });
+                        }
+                        socket.destroy();
+                        resolve(true);
+                    });
+                    socket.on('error', () => { socket.destroy(); resolve(false); });
+                    socket.on('timeout', () => { socket.destroy(); resolve(false); });
+                }));
+            }
+        }
+
+        await Promise.all(scanPromises);
+        const printersList = Array.from(foundMap.values());
+
+        addLog('success', `Scan complete! Discovered ${printersList.length} printer(s) across subnets [${subnets.join(', ')}]`, {
+            subnets,
+            printersCount: printersList.length
+        });
+
+        res.json({
+            subnets,
+            lanInterfaces,
+            systemPrinters,
+            printers: printersList
+        });
+    });
 });
 
 app.post('/api/test-print', (req, res) => {
     const { printerIp, childName } = req.body || {};
     const targetIp = (printerIp || serverConfig.defaultPrinterIp || '').trim();
     if (!targetIp) {
-        return res.status(400).json({ success: false, error: 'Printer IP is required' });
+        return res.status(400).json({ success: false, error: 'Printer IP or Queue Name is required' });
     }
     const testData = {
         name: childName || 'TEST BADGE',
@@ -950,24 +1024,9 @@ app.post('/api/test-print', (req, res) => {
     });
 });
 
-function getLocalIpAddresses() {
-    const interfaces = os.networkInterfaces();
-    const ips = [];
-    for (const devName in interfaces) {
-        const iface = interfaces[devName];
-        for (let i = 0; i < iface.length; i++) {
-            const alias = iface[i];
-            if ((alias.family === 'IPv4' || alias.family === 4) && !alias.internal) {
-                ips.push(alias.address);
-            }
-        }
-    }
-    return ips;
-}
-
-// ─── Interactive Web Dashboard & Live Log Console (`GET /` & `GET /logs`) ───
+// ─── Ultra-Premium Glassmorphic Web Dashboard (`GET /` & `GET /logs`) ───
 app.get(['/', '/logs'], (req, res) => {
-    const localIps = getLocalIpAddresses();
+    const lanInterfaces = getPhysicalLanInterfaces();
     const currentModel = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel) || PRINTER_REGISTRY[0];
     const isBrother = currentModel.protocol === 'brother_ql';
 
@@ -982,154 +1041,263 @@ app.get(['/', '/logs'], (req, res) => {
         ? currentModel.labelSizes.map(s => `<option value="${s.value}" ${serverConfig.defaultLabelSize === s.value ? 'selected' : ''}>${s.label}</option>`).join('')
         : '';
 
+    const sampleSvg = generateBrotherQlChildBadgeSvg({
+        name: 'SAMUEL OKONKWO',
+        securityCode: 'K984',
+        class: 'Preschool Room 2',
+        allergies: 'PEANUTS',
+        qrData: 'K984-SAMUEL'
+    }, serverConfig.defaultLabelSize || '62red');
+
     const html = `
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="en" class="dark">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>🖨️ KiddoChecker Print Server Console</title>
+        <title>⚡ KiddoChecker Print Server Console</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
         <style>
             :root {
-                --bg: #0f172a;
-                --card: #1e293b;
-                --border: #334155;
+                --bg: #070a12;
+                --panel: #0d1322;
+                --card: #131c31;
+                --card-hover: #192540;
+                --border: #23314d;
+                --border-bright: #384d77;
                 --text: #f8fafc;
                 --muted: #94a3b8;
                 --primary: #6366f1;
+                --primary-glow: rgba(99, 102, 241, 0.35);
+                --accent: #8b5cf6;
                 --success: #10b981;
-                --danger: #ef4444;
+                --success-glow: rgba(16, 185, 129, 0.3);
+                --danger: #f43f5e;
                 --warning: #f59e0b;
+                --info: #06b6d4;
             }
-            * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-            body { background: var(--bg); color: var(--text); padding: 24px; max-width: 1200px; margin: 0 auto; }
-            header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 24px; }
-            h1 { font-size: 24px; display: flex; items-center; gap: 10px; }
-            .badge { background: var(--success); color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-            .grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
-            @media(max-width: 850px) { .grid { grid-template-columns: 1fr; } }
-            .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-            .card h2 { font-size: 15px; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
-            .log-box { background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; height: 520px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-            .log-entry { padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); background: #131b2e; word-break: break-all; margin-bottom: 6px; }
-            .log-entry.success { border-color: var(--success); }
-            .log-entry.error { border-color: var(--danger); }
-            .log-entry.warn { border-color: var(--warning); }
-            .log-entry.cloud { border-color: var(--primary); }
-            .time { color: var(--muted); font-size: 11px; margin-right: 8px; }
-            input, select, button { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #090d16; color: #fff; margin-bottom: 10px; font-size: 14px; }
-            button { background: var(--primary); font-weight: bold; cursor: pointer; border: none; }
-            button:hover { opacity: 0.9; }
-            .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-            .ip-tag { background: #334155; padding: 3px 8px; border-radius: 4px; font-family: monospace; }
-            .note-box { background: #1e3a5f; border: 1px solid #2563eb; border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #93c5fd; margin-bottom: 10px; line-height: 1.6; }
+            * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+            body { background: var(--bg); color: var(--text); padding: 24px; max-width: 1400px; margin: 0 auto; min-height: 100vh; }
+            
+            /* Glassmorphism & Cards */
+            .glass { background: rgba(19, 28, 49, 0.75); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.6); }
+            .glow-primary { box-shadow: 0 0 30px var(--primary-glow); }
+            .glow-success { box-shadow: 0 0 25px var(--success-glow); }
+
+            /* Header */
+            header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+            .brand { display: flex; align-items: center; gap: 14px; }
+            .brand-logo { width: 44px; height: 44px; background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 0 20px var(--primary-glow); }
+            .brand-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            
+            /* Status Pills */
+            .badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 6px; }
+            .badge-online { background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+            .badge-os { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
+            .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+            @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+            /* Grid Layout */
+            .grid-main { display: grid; grid-template-columns: 1fr 420px; gap: 24px; }
+            @media(max-width: 1024px) { .grid-main { grid-template-columns: 1fr; } }
+            
+            .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px; margin-bottom: 24px; transition: border-color 0.2s ease; }
+            .card:hover { border-color: var(--border-bright); }
+            .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+            .card-title { font-size: 14px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; display: flex; align-items: center; gap: 8px; }
+
+            /* Live Terminal & Logs */
+            .terminal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+            .filter-pills { display: flex; gap: 6px; }
+            .pill-btn { background: #090d16; border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; width: auto; margin: 0; }
+            .pill-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+            .search-input { background: #080d1a; border: 1px solid var(--border); padding: 8px 14px; border-radius: 10px; font-size: 13px; color: #fff; width: 220px; margin: 0; }
+
+            .log-box { background: #050811; border: 1px solid var(--border); border-radius: 12px; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+            .log-entry { padding: 10px 14px; border-radius: 8px; border-left: 4px solid var(--border); background: #0c1324; word-break: break-all; transition: transform 0.1s; }
+            .log-entry:hover { transform: translateX(2px); }
+            .log-entry.success { border-color: var(--success); background: rgba(16, 185, 129, 0.05); }
+            .log-entry.error { border-color: var(--danger); background: rgba(244, 63, 94, 0.07); }
+            .log-entry.warn { border-color: var(--warning); background: rgba(245, 158, 11, 0.05); }
+            .log-entry.cloud { border-color: var(--primary); background: rgba(99, 102, 241, 0.07); }
+            .time { color: var(--muted); font-size: 11px; margin-right: 8px; opacity: 0.8; }
+
+            /* Discovered Printers Grid */
+            .printers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; max-height: 280px; overflow-y: auto; padding-right: 4px; }
+            .printer-item { background: #080d1a; border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s; }
+            .printer-item:hover { border-color: var(--primary); background: #0e172e; }
+            .printer-title { font-weight: 700; font-size: 13px; color: #fff; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+            .printer-sub { font-size: 11px; color: var(--muted); margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; }
+
+            /* Buttons & Inputs */
+            input, select, button { width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border); background: #080d1a; color: #fff; margin-bottom: 12px; font-size: 13px; transition: all 0.2s; }
+            input:focus, select:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px var(--primary-glow); }
+            button { background: linear-gradient(135deg, var(--primary), #4f46e5); font-weight: 700; cursor: pointer; border: none; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+            button:hover { transform: translateY(-1px); opacity: 0.95; }
+            .btn-secondary { background: #1e293b; color: #fff; border: 1px solid var(--border); box-shadow: none; }
+            .btn-secondary:hover { background: #334155; }
+            .btn-success { background: linear-gradient(135deg, var(--success), #059669); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+            
+            .ip-tag { background: #1e293b; border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #a5b4fc; display: inline-block; margin-right: 6px; margin-bottom: 6px; }
+            .note-box { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; padding: 12px; font-size: 12px; color: #c7d2fe; margin-bottom: 14px; line-height: 1.6; }
             .hidden { display: none !important; }
+            .preview-box { background: #ffffff; border-radius: 8px; padding: 12px; text-align: center; max-height: 220px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+            .preview-box svg { max-width: 100%; max-height: 190px; }
         </style>
     </head>
     <body>
         <header>
-            <h1>🖨️ KiddoChecker Print Server <span class="badge">ONLINE</span></h1>
-            <div>
-                <button onclick="fetchLogs()" style="width: auto; padding: 8px 16px;">🔄 Refresh Logs</button>
+            <div class="brand">
+                <div class="brand-logo">🖨️</div>
+                <div>
+                    <div class="brand-title">KiddoChecker Print Server</div>
+                    <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+                        <span class="badge badge-os">UBUNTU / LINUX SERVER</span>
+                        <span class="badge badge-online"><span class="dot"></span> AGENT ACTIVE</span>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; items-center;">
+                <button onclick="fetchLogs()" class="btn-secondary" style="width: auto; margin: 0; padding: 8px 16px;">🔄 Refresh Logs</button>
+                <button onclick="scanNetworkPrinters()" class="btn-success" style="width: auto; margin: 0; padding: 8px 16px;">🔍 Auto-Scan Printers</button>
             </div>
         </header>
 
-        <div class="grid">
+        <div class="grid-main">
             <div>
-                <div class="card">
-                    <h2>Live Activity & Print Logs</h2>
-                    <div id="log-box" class="log-box">Loading server logs...</div>
+                <!-- Discovered Network & OS Printers Card -->
+                <div class="card glass glow-primary" style="border-color: rgba(99, 102, 241, 0.4);">
+                    <div class="card-header">
+                        <div class="card-title">📡 Discovered System & Network Printers</div>
+                        <button onclick="scanNetworkPrinters()" class="btn-secondary" style="width: auto; margin: 0; padding: 4px 12px; font-size: 11px;">⚡ Re-Scan Subnets</button>
+                    </div>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 14px;">Automatically detects CUPS installed printers and active network thermal printers across all LAN subnets.</p>
+                    <div id="printersGrid" class="printers-grid">
+                        <div style="color: var(--muted); font-size: 12px; padding: 16px; text-align: center; grid-column: 1/-1;">
+                            Click <strong>Auto-Scan Printers</strong> to discover CUPS & network printers...
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Recent Print Jobs & Quick Reprint Card -->
-                <div class="card" style="border-color: #3b82f6;">
-                    <h2 style="color: #60a5fa;">📋 Recent Print Jobs (One-Click Reprint)</h2>
-                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">If a print job fails due to paper out or network disconnect, click <strong>Reprint</strong> below to retry immediately.</p>
-                    <div id="jobs-box" style="background:#090d16; border:1px solid var(--border); border-radius:8px; padding:10px; max-height:280px; overflow-y:auto;">
-                        <div style="color:#94a3b8; font-size:12px; padding:8px;">No print jobs in memory buffer yet.</div>
+                <!-- Live Activity Terminal Card -->
+                <div class="card glass">
+                    <div class="terminal-header">
+                        <div class="card-title">🖥️ Real-Time Activity Terminal</div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" id="logSearch" class="search-input" placeholder="Filter logs..." onkeyup="filterLogsRender()" />
+                            <div class="filter-pills">
+                                <button class="pill-btn active" id="filter-all" onclick="setLogFilter('all')">All</button>
+                                <button class="pill-btn" id="filter-success" onclick="setLogFilter('success')">Success</button>
+                                <button class="pill-btn" id="filter-error" onclick="setLogFilter('error')">Errors</button>
+                                <button class="pill-btn" id="filter-cloud" onclick="setLogFilter('cloud')">Cloud</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="log-box" class="log-box">Connecting to print daemon logs...</div>
+                </div>
+
+                <!-- Recent Jobs & One-Click Reprint Card -->
+                <div class="card glass" style="border-color: rgba(59, 130, 246, 0.4);">
+                    <div class="card-header">
+                        <div class="card-title" style="color: #60a5fa;">📋 Recent Print Jobs (One-Click Reprint)</div>
+                    </div>
+                    <div id="jobs-box" style="background:#050811; border:1px solid var(--border); border-radius:12px; padding:12px; max-height:260px; overflow-y:auto;">
+                        <div style="color:var(--muted); font-size:12px; padding:8px;">No print jobs in memory queue yet.</div>
                     </div>
                 </div>
             </div>
 
             <div>
                 <!-- Printer Configuration Card -->
-                <div class="card" style="border-color: var(--primary);">
-                    <h2 style="color: var(--primary);">⚙️ Printer Configuration</h2>
-                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Select your printer model. The server auto-generates the correct payload format.</p>
+                <div class="card glass">
+                    <div class="card-title" style="color: var(--primary); margin-bottom: 14px;">⚙️ Printer Configuration</div>
 
-                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">PRINTER MODEL:</label>
+                    <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">PRINTER MODEL:</label>
                     <select id="printerModelSelect" onchange="onModelChange(this.value)">
                         ${printerOptionsHtml}
                     </select>
 
                     <div id="labelSizeRow" class="${isBrother ? '' : 'hidden'}">
-                        <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">BROTHER DK LABEL ROLL SIZE:</label>
+                        <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">BROTHER DK LABEL ROLL SIZE:</label>
                         <select id="labelSizeSelect">
                             ${labelSizeOptionsHtml}
                         </select>
                     </div>
 
                     <div id="brotherQlNote" class="note-box ${isBrother ? '' : 'hidden'}">
-                        ⚠️ <strong>Brother QL Requirement:</strong><br>
-                        Run once on your print server:<br>
-                        <code>apt install librsvg2-bin -y</code><br>
+                        ⚠️ <strong>Ubuntu Brother QL Setup:</strong><br>
+                        Run once in terminal:<br>
+                        <code>sudo apt update && sudo apt install librsvg2-bin -y</code><br>
                         <code>pip3 install brother_ql cairosvg "Pillow<10" --break-system-packages</code>
                     </div>
 
-                    <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">DEFAULT PRINTER IP ADDRESS:</label>
-                    <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.2.13" value="${serverConfig.defaultPrinterIp}" />
+                    <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">PRINTER IP OR CUPS QUEUE NAME:</label>
+                    <input type="text" id="defaultIpInput" placeholder="e.g. 192.168.1.169 or Brother_QL_820NWB" value="${serverConfig.defaultPrinterIp}" />
 
-                    <div style="display:flex; gap:12px; margin-top:8px;">
+                    <div style="display:flex; gap:10px; margin-top:4px;">
                         <div style="flex:1;">
-                            <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">CHILD BADGE LENGTH (PX):</label>
-                            <input type="number" id="childBadgeLengthInput" placeholder="520" value="${serverConfig.childBadgeLength || 520}" />
+                            <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">BADGE LENGTH (PX):</label>
+                            <input type="number" id="childBadgeLengthInput" value="${serverConfig.childBadgeLength || 520}" />
                         </div>
                         <div style="flex:1;">
-                            <label style="font-size:11px; color: var(--muted); font-weight:bold; display:block; margin-bottom:4px;">GUARDIAN TICKET LENGTH (PX):</label>
-                            <input type="number" id="guardianTicketLengthInput" placeholder="380" value="${serverConfig.guardianTicketLength || 380}" />
+                            <label style="font-size:11px; color: var(--muted); font-weight:700; display:block; margin-bottom:4px;">TICKET LENGTH (PX):</label>
+                            <input type="number" id="guardianTicketLengthInput" value="${serverConfig.guardianTicketLength || 380}" />
                         </div>
                     </div>
 
-                    <button onclick="saveDefaultConfig()" style="background: var(--success); margin-top:12px;">💾 Save Printer Configuration</button>
-                    <div id="configResult" style="font-size: 12px; font-weight: bold; margin-top: 4px;"></div>
+                    <button onclick="saveDefaultConfig()" class="btn-success" style="margin-top:8px;">💾 Save Printer Configuration</button>
+                    <div id="configResult" style="font-size: 12px; font-weight: 700; margin-top: 6px; text-align: center;"></div>
+                </div>
+
+                <!-- Live Badge Preview Visualizer -->
+                <div class="card glass">
+                    <div class="card-title">👁️ Live Badge Preview</div>
+                    <div class="preview-box">
+                        ${sampleSvg}
+                    </div>
                 </div>
 
                 <!-- Direct Printer Tester Card -->
-                <div class="card">
-                    <h2>Direct Printer Tester</h2>
-                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Test network printer connectivity directly from server to target IP.</p>
-                    <input type="text" id="testIp" placeholder="Printer IP (e.g. 192.168.2.13)" value="${serverConfig.defaultPrinterIp || '192.168.2.13'}" />
-                    <input type="text" id="testName" placeholder="Test Child Name" value="Test Child Badge" />
-                    <button onclick="sendTestPrint()">🚀 Send Test Print to IP</button>
-                    <button onclick="scanNetworkPrinters()" style="background:#475569; margin-top:4px;">🔍 Auto-Scan Subnet for Printers</button>
-                    <div id="testResult" style="font-size: 12px; font-weight: bold; margin-top: 8px;"></div>
+                <div class="card glass">
+                    <div class="card-title">🚀 Direct Printer Tester</div>
+                    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Send immediate test payload to printer IP or CUPS queue.</p>
+                    <input type="text" id="testIp" placeholder="Printer IP or CUPS Name" value="${serverConfig.defaultPrinterIp || '192.168.1.169'}" />
+                    <input type="text" id="testName" placeholder="Test Child Name" value="SAMUEL OKONKWO" />
+                    <button onclick="sendTestPrint()">🚀 Dispatch Test Print</button>
+                    <div id="testResult" style="font-size: 12px; font-weight: 700; margin-top: 6px;"></div>
                 </div>
 
-                <!-- Server Info Card -->
-                <div class="card">
-                    <h2>Server Info</h2>
-                    <div class="stat-row"><span>Platform:</span> <strong>${process.platform}</strong></div>
-                    <div class="stat-row"><span>Uptime:</span> <strong id="uptime">Loading...</strong></div>
-                    <div class="stat-row"><span>Port:</span> <strong>${PORT}</strong></div>
-                    <div class="stat-row"><span>Active Model:</span> <strong id="activeModel">${currentModel.name}</strong></div>
-                    <div class="stat-row"><span>Azure Cloud Relay:</span> <strong style="color: var(--success);">Polling Active</strong></div>
+                <!-- Server Environment Info Card -->
+                <div class="card glass">
+                    <div class="card-title">🐧 Ubuntu Server Status</div>
+                    <div style="font-size: 13px; line-height: 1.8;">
+                        <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--border); padding: 6px 0;"><span>Platform:</span> <strong style="color:#a5b4fc;">${process.platform} (${os.type()})</strong></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--border); padding: 6px 0;"><span>Uptime:</span> <strong id="uptime">Loading...</strong></div>
+                        <div style="display:flex; justify-content:space-between; border-bottom: 1px solid var(--border); padding: 6px 0;"><span>Active Model:</span> <strong id="activeModel">${currentModel.name}</strong></div>
+                        <div style="display:flex; justify-content:space-between; padding: 6px 0;"><span>Cloud Relay:</span> <strong style="color: var(--success);">Polling Active</strong></div>
+                    </div>
                     <div style="margin-top: 14px;">
-                        <p style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">Server LAN IP Addresses:</p>
-                        ${localIps.map(ip => `<div style="margin-bottom:4px;"><span class="ip-tag">http://${ip}:${PORT}</span></div>`).join('')}
+                        <p style="font-size: 11px; color: var(--muted); font-weight: 700; margin-bottom: 6px;">PHYSICAL LAN SUBNETS & SERVER IPS:</p>
+                        ${lanInterfaces.map(iface => `<div style="margin-bottom:4px;"><span class="ip-tag">${iface.interface}: http://${iface.ip}:${PORT}</span></div>`).join('')}
                     </div>
                 </div>
             </div>
         </div>
 
         <script>
+            let currentLogs = [];
+            let activeLogFilter = 'all';
+
             async function fetchLogs() {
                 try {
                     const controller = new AbortController();
-                    const timeout = setTimeout(() => controller.abort(), 5000);
+                    const timeout = setTimeout(() => controller.abort(), 4000);
                     const res = await fetch('/api/logs', { signal: controller.signal });
                     clearTimeout(timeout);
 
-                    if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
                     
                     document.getElementById('uptime').innerText = Math.floor(data.uptimeSeconds / 60) + ' mins ' + (data.uptimeSeconds % 60) + ' secs';
@@ -1140,54 +1308,104 @@ app.get(['/', '/logs'], (req, res) => {
                         }
                     }
 
-                    const box = document.getElementById('log-box');
-                    if (!data.logs || data.logs.length === 0) {
-                        box.innerHTML = '<div style="color:#94a3b8; padding:12px;">✅ Server connected. No print jobs yet — waiting for activity...</div>';
-                    } else {
-                        box.innerHTML = data.logs.map(log => {
-                            const jobId = log.details && log.details.jobId ? log.details.jobId : '';
-                            const isFail = log.type === 'error' || log.type === 'warn';
-                            const retryBtn = (jobId && isFail) ? '<button onclick="reprintJob(&quot;' + jobId + '&quot;)" style="background:#ef4444; width:auto; padding:3px 8px; font-size:11px; margin-left:8px; display:inline-block;">🔁 Retry Print</button>' : '';
-                            return '<div class="log-entry ' + log.type + '">' +
-                                '<span class="time">' + log.time + '</span>' +
-                                '<strong>' + log.message + '</strong>' + retryBtn +
-                                (log.details && log.details.targetIp ? '<div style="font-size:11px; color:#94a3b8; margin-top:2px;">Target IP: ' + log.details.targetIp + '</div>' : '') +
-                                (log.details && log.details.model ? '<div style="font-size:11px; color:#6366f1;">Model: ' + log.details.model + '</div>' : '') +
-                            '</div>';
-                        }).join('');
-                    }
+                    currentLogs = data.logs || [];
+                    filterLogsRender();
 
                     const jobsBox = document.getElementById('jobs-box');
                     if (data.printJobsHistory && data.printJobsHistory.length > 0) {
                         jobsBox.innerHTML = data.printJobsHistory.map(job => {
-                            const statusColor = job.status === 'success' ? '#10b981' : (job.status === 'failed' ? '#ef4444' : '#f59e0b');
-                            const statusBadge = '<span style="color:' + statusColor + '; font-weight:bold;">' + job.status.toUpperCase() + '</span>';
-                            return '<div style="display:flex; justify-content:space-between; align-items:center; background:#131b2e; border:1px solid var(--border); padding:8px 12px; border-radius:6px; margin-bottom:6px; font-size:12px;">' +
+                            const statusColor = job.status === 'success' ? '#10b981' : (job.status === 'failed' ? '#f43f5e' : '#f59e0b');
+                            return '<div style="display:flex; justify-content:space-between; align-items:center; background:#0c1324; border:1px solid var(--border); padding:10px 14px; border-radius:8px; margin-bottom:6px; font-size:12px;">' +
                                 '<div>' +
                                     '<strong style="font-size:14px; color:#fff;">' + job.childName + '</strong> ' +
                                     '<span style="color:#94a3b8; font-size:11px;">[' + job.securityCode + ']</span>' +
-                                    '<div style="color:#64748b; font-size:11px;">' + job.time + ' | ' + (job.className || 'General') + ' | IP: ' + job.targetIp + ' | ' + statusBadge + '</div>' +
+                                    '<div style="color:#64748b; font-size:11px; margin-top:2px;">' + job.time + ' | Target: ' + job.targetIp + ' | <span style="color:' + statusColor + '; font-weight:bold;">' + job.status.toUpperCase() + '</span></div>' +
                                 '</div>' +
                                 '<div>' +
-                                    '<button onclick="reprintJob(&quot;' + job.id + '&quot;)" style="background:#2563eb; width:auto; padding:6px 12px; font-size:12px; margin:0;">🔁 Reprint Badge</button>' +
+                                    '<button onclick="reprintJob(&quot;' + job.id + '&quot;)" style="background:#2563eb; width:auto; padding:6px 12px; font-size:12px; margin:0;">🔁 Reprint</button>' +
                                 '</div>' +
                             '</div>';
                         }).join('');
                     }
-                } catch(e) {
-                    const box = document.getElementById('log-box');
-                    if (box) {
-                        box.innerHTML = '<div style="color:#ef4444; padding:12px; font-size:12px; border:1px solid #ef4444; border-radius:6px;">' +
-                            '<strong>⚠️ Failed to load server logs:</strong> ' + e.message +
-                            '<br><br><span style="color:#64748b;">Retrying automatically every 3 seconds...</span>' +
-                        '</div>';
+                } catch(e) { }
+            }
+
+            function setLogFilter(filter) {
+                activeLogFilter = filter;
+                document.querySelectorAll('.filter-pills .pill-btn').forEach(btn => btn.classList.remove('active'));
+                const el = document.getElementById('filter-' + filter);
+                if (el) el.classList.add('active');
+                filterLogsRender();
+            }
+
+            function filterLogsRender() {
+                const search = (document.getElementById('logSearch').value || '').toLowerCase();
+                const box = document.getElementById('log-box');
+                
+                let filtered = currentLogs.filter(log => {
+                    if (activeLogFilter !== 'all' && log.type !== activeLogFilter) return false;
+                    if (search) {
+                        const str = (log.message + ' ' + (log.details ? JSON.stringify(log.details) : '')).toLowerCase();
+                        return str.includes(search);
                     }
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    box.innerHTML = '<div style="color:#94a3b8; padding:12px; text-align:center;">No matching logs found...</div>';
+                    return;
                 }
+
+                box.innerHTML = filtered.map(log => {
+                    const jobId = log.details && log.details.jobId ? log.details.jobId : '';
+                    const isFail = log.type === 'error' || log.type === 'warn';
+                    const retryBtn = (jobId && isFail) ? '<button onclick="reprintJob(&quot;' + jobId + '&quot;)" style="background:#f43f5e; width:auto; padding:2px 8px; font-size:10px; margin-left:8px; display:inline-block;">🔁 Retry</button>' : '';
+                    return '<div class="log-entry ' + log.type + '">' +
+                        '<span class="time">' + log.time + '</span>' +
+                        '<strong>' + log.message + '</strong>' + retryBtn +
+                        (log.details && log.details.targetIp ? '<div style="font-size:11px; color:#94a3b8; margin-top:2px;">Target: ' + log.details.targetIp + '</div>' : '') +
+                    '</div>';
+                }).join('');
+            }
+
+            async function scanNetworkPrinters() {
+                const grid = document.getElementById('printersGrid');
+                grid.innerHTML = '<div style="color:#f59e0b; padding:16px; text-align:center; grid-column:1/-1;">Scanning CUPS queues & local subnets for active printers...</div>';
+                
+                try {
+                    const res = await fetch('/api/scan-printers');
+                    const data = await res.json();
+                    
+                    if (data.printers && data.printers.length > 0) {
+                        grid.innerHTML = data.printers.map(p => {
+                            const isNet = p.type === 'network_ip';
+                            const badgeColor = isNet ? '#10b981' : '#6366f1';
+                            return '<div class="printer-item">' +
+                                '<div>' +
+                                    '<div class="printer-title"><span>' + p.name + '</span> <span style="background:' + badgeColor + '; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px;">' + (isNet ? 'NETWORK IP' : 'CUPS SYSTEM') + '</span></div>' +
+                                    '<div class="printer-sub">' + p.ip + ' (' + p.source + ')</div>' +
+                                '</div>' +
+                                '<button onclick="selectDiscoveredPrinter(&quot;' + p.ip + '&quot;, &quot;' + p.name + '&quot;)" class="btn-success" style="padding:6px 12px; font-size:11px; margin:0;">⚡ Use Printer</button>' +
+                            '</div>';
+                        }).join('');
+                    } else {
+                        grid.innerHTML = '<div style="color:#f43f5e; padding:16px; text-align:center; grid-column:1/-1;">No active printers found on scanned subnets. Check printer IP address & Wi-Fi.</div>';
+                    }
+                } catch(e) {
+                    grid.innerHTML = '<div style="color:#f43f5e; padding:16px; text-align:center; grid-column:1/-1;">Scan error: ' + e.message + '</div>';
+                }
+                setTimeout(fetchLogs, 1000);
+            }
+
+            function selectDiscoveredPrinter(ip, name) {
+                document.getElementById('defaultIpInput').value = ip;
+                document.getElementById('testIp').value = ip;
+                saveDefaultConfig();
             }
 
             async function reprintJob(jobId) {
-                const customIp = prompt('Enter Printer IP to reprint badge (or leave default):', document.getElementById('defaultIpInput').value);
-                if (customIp === null) return; // User cancelled
+                const customIp = prompt('Enter Printer IP or CUPS queue to reprint badge:', document.getElementById('defaultIpInput').value);
+                if (customIp === null) return;
                 try {
                     const res = await fetch('/api/reprint', {
                         method: 'POST',
@@ -1200,9 +1418,7 @@ app.get(['/', '/logs'], (req, res) => {
                     } else {
                         alert('❌ Reprint failed: ' + (data.error || 'Unknown error'));
                     }
-                } catch(e) {
-                    alert('❌ Error requesting reprint: ' + e.message);
-                }
+                } catch(e) { alert('❌ Error: ' + e.message); }
                 setTimeout(fetchLogs, 1000);
             }
 
@@ -1214,10 +1430,6 @@ app.get(['/', '/logs'], (req, res) => {
                 const qlNote = document.getElementById('brotherQlNote');
                 if (lsRow) lsRow.style.display = isBrother ? 'block' : 'none';
                 if (qlNote) qlNote.style.display = isBrother ? 'block' : 'none';
-                if (isBrother && model.labelSizes) {
-                    const sel = document.getElementById('labelSizeSelect');
-                    if (sel) sel.innerHTML = model.labelSizes.map(s => '<option value="' + s.value + '">' + s.label + '</option>').join('');
-                }
             }
 
             async function saveDefaultConfig() {
@@ -1229,7 +1441,7 @@ app.get(['/', '/logs'], (req, res) => {
                 const badgeLen = document.getElementById('childBadgeLengthInput') ? document.getElementById('childBadgeLengthInput').value : 520;
                 const ticketLen = document.getElementById('guardianTicketLengthInput') ? document.getElementById('guardianTicketLengthInput').value : 380;
                 const resDiv = document.getElementById('configResult');
-                resDiv.innerText = 'Saving...';
+                resDiv.innerText = 'Saving configuration...';
                 resDiv.style.color = '#f59e0b';
 
                 try {
@@ -1246,16 +1458,15 @@ app.get(['/', '/logs'], (req, res) => {
                     });
                     const data = await res.json();
                     if (data.success) {
-                        resDiv.innerText = 'Saved! IP: ' + ip + ' | Model: ' + model + ' | Lengths: Badge=' + badgeLen + 'px Ticket=' + ticketLen + 'px';
+                        resDiv.innerText = 'Saved! Active Target: ' + ip;
                         resDiv.style.color = '#10b981';
-                        document.getElementById('testIp').value = ip;
                     } else {
                         resDiv.innerText = 'Failed to save config';
-                        resDiv.style.color = '#ef4444';
+                        resDiv.style.color = '#f43f5e';
                     }
                 } catch(e) {
-                    resDiv.innerText = 'Error saving: ' + e.message;
-                    resDiv.style.color = '#ef4444';
+                    resDiv.innerText = 'Error: ' + e.message;
+                    resDiv.style.color = '#f43f5e';
                 }
                 setTimeout(fetchLogs, 1000);
             }
@@ -1264,7 +1475,7 @@ app.get(['/', '/logs'], (req, res) => {
                 const ip = document.getElementById('testIp').value;
                 const name = document.getElementById('testName').value;
                 const resDiv = document.getElementById('testResult');
-                resDiv.innerText = 'Sending print request to ' + ip + '...';
+                resDiv.innerText = 'Sending test print to ' + ip + '...';
                 resDiv.style.color = '#f59e0b';
 
                 try {
@@ -1275,43 +1486,22 @@ app.get(['/', '/logs'], (req, res) => {
                     });
                     const data = await res.json();
                     if (data.success) {
-                        resDiv.innerText = 'Test Print Dispatched to ' + ip;
+                        resDiv.innerText = '✅ Test Print Dispatched to ' + ip;
                         resDiv.style.color = '#10b981';
                     } else {
-                        resDiv.innerText = 'Failed: ' + (data.error || 'Unknown error');
-                        resDiv.style.color = '#ef4444';
+                        resDiv.innerText = '❌ Failed: ' + (data.error || 'Unknown error');
+                        resDiv.style.color = '#f43f5e';
                     }
                 } catch(e) {
-                    resDiv.innerText = 'Error: ' + e.message;
-                    resDiv.style.color = '#ef4444';
-                }
-                setTimeout(fetchLogs, 1000);
-            }
-
-            async function scanNetworkPrinters() {
-                const resDiv = document.getElementById('testResult');
-                resDiv.innerText = 'Scanning local subnet for printers on port 9100...';
-                resDiv.style.color = '#f59e0b';
-                try {
-                    const res = await fetch('/api/scan-printers');
-                    const data = await res.json();
-                    if (data.printers && data.printers.length > 0) {
-                        resDiv.innerText = 'Found ' + data.printers.length + ' printer(s): ' + data.printers.join(', ');
-                        resDiv.style.color = '#10b981';
-                        document.getElementById('testIp').value = data.printers[0];
-                    } else {
-                        resDiv.innerText = 'No printers found on Port 9100 in ' + data.subnet + '.x subnet.';
-                        resDiv.style.color = '#f59e0b';
-                    }
-                } catch(e) {
-                    resDiv.innerText = 'Scan error: ' + e.message;
-                    resDiv.style.color = '#ef4444';
+                    resDiv.innerText = '❌ Error: ' + e.message;
+                    resDiv.style.color = '#f43f5e';
                 }
                 setTimeout(fetchLogs, 1000);
             }
 
             fetchLogs();
             setInterval(fetchLogs, 3000);
+            scanNetworkPrinters();
         </script>
     </body>
     </html>
@@ -1320,21 +1510,21 @@ app.get(['/', '/logs'], (req, res) => {
 });
 
 const server = app.listen(PORT, HOST, () => {
-    const localIps = getLocalIpAddresses();
+    const lanInterfaces = getPhysicalLanInterfaces();
     const model = PRINTER_REGISTRY.find(p => p.id === serverConfig.defaultPrinterModel);
     addLog('info', `Server listening on http://${HOST}:${PORT}`);
     console.log(`
     ===================================================================
-    KiddoChecker Multi-Printer Server & Web Dashboard
+    ⚡ KiddoChecker Ubuntu Print Server & Web Dashboard
     ===================================================================
-    OS Platform  : ${process.platform} (${os.release()})
+    OS Platform  : ${process.platform} (${os.type()} ${os.release()})
     Status       : Listening on http://${HOST}:${PORT}
     Cloud Relay  : Polling Azure API (${AZURE_API_URL})
     Active Model : ${model ? model.name : serverConfig.defaultPrinterModel} [${model ? model.protocol : '?'}]
     Default IP   : ${serverConfig.defaultPrinterIp || 'None (Set via Web Console)'}
     
-    Open Web Console in browser:
-    ${localIps.map(ip => `   http://${ip}:${PORT}`).join('\n')}
+    Physical LAN Server URLs:
+    ${lanInterfaces.map(i => `   http://${i.ip}:${PORT} (${i.interface})`).join('\n')}
 
     Supported: ${PRINTER_REGISTRY.length} models across ${[...new Set(PRINTER_REGISTRY.map(p => p.brand))].length} brands
     ===================================================================
