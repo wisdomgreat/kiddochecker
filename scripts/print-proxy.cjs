@@ -1080,13 +1080,10 @@ app.get('/api/scan-printers', async (req, res) => {
                     if (localIps.length > 0) subnets.push(localIps[0].substring(0, localIps[0].lastIndexOf('.')));
                 }
 
-                const scanPromises = [];
-                const PRINTER_PORTS = [9100, 515, 631];
-
                 function probePrinterIpPort(ip, port) {
                     return new Promise((resolve) => {
                         const socket = new net.Socket();
-                        socket.setTimeout(350);
+                        socket.setTimeout(180);
                         socket.connect(port, ip, () => {
                             socket.destroy();
                             resolve({ open: true, ip, port });
@@ -1096,27 +1093,33 @@ app.get('/api/scan-printers', async (req, res) => {
                     });
                 }
 
+                // Probe in fast non-blocking batches of 25 parallel sockets
+                const BATCH_SIZE = 25;
+                const ipsToProbe = [];
                 for (const subnet of subnets) {
                     for (let i = 1; i <= 254; i++) {
-                        const testIp = `${subnet}.${i}`;
-                        for (const port of PRINTER_PORTS) {
-                            scanPromises.push(probePrinterIpPort(testIp, port));
-                        }
+                        ipsToProbe.push(`${subnet}.${i}`);
                     }
                 }
 
-                const scanResults = await Promise.all(scanPromises);
-                scanResults.forEach(resItem => {
-                    if (resItem.open && !foundMap.has(resItem.ip)) {
-                        const portName = resItem.port === 9100 ? 'Raw TCP (9100)' : resItem.port === 515 ? 'LPD (515)' : 'IPP (631)';
-                        foundMap.set(resItem.ip, {
-                            ip: resItem.ip,
-                            name: `Verified Printer (${resItem.ip})`,
-                            source: `Port ${resItem.port} (${portName})`,
-                            type: 'network_ip'
-                        });
+                for (let i = 0; i < ipsToProbe.length; i += BATCH_SIZE) {
+                    const chunk = ipsToProbe.slice(i, i + BATCH_SIZE);
+                    const batchPromises = [];
+                    for (const ip of chunk) {
+                        batchPromises.push(probePrinterIpPort(ip, 9100));
                     }
-                });
+                    const batchResults = await Promise.all(batchPromises);
+                    batchResults.forEach(resItem => {
+                        if (resItem.open && !foundMap.has(resItem.ip)) {
+                            foundMap.set(resItem.ip, {
+                                ip: resItem.ip,
+                                name: `Verified Printer (${resItem.ip})`,
+                                source: 'Port 9100 (Raw TCP)',
+                                type: 'network_ip'
+                            });
+                        }
+                    });
+                }
 
                 const printersList = Array.from(foundMap.values());
 
@@ -1738,7 +1741,6 @@ app.get(['/', '/logs'], (req, res) => {
 
             fetchLogs();
             setInterval(fetchLogs, 3000);
-            scanNetworkPrinters();
         </script>
     </body>
     </html>
