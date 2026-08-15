@@ -255,7 +255,7 @@ function detectSystemPrinters(cb) {
 
     // On Linux/Ubuntu: query CUPS lpstat
     if (process.platform === 'linux' || process.platform === 'darwin') {
-        exec('lpstat -e 2>/dev/null && lpstat -v 2>/dev/null', (err, stdout) => {
+        exec('lpstat -e 2>/dev/null && lpstat -v 2>/dev/null', { timeout: 2500 }, (err, stdout) => {
             if (!err && stdout) {
                 const lines = stdout.split('\n');
                 lines.forEach(line => {
@@ -737,14 +737,16 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                 const qlCmd2 = getQlCmd(tmpPng2);
 
                 addLog('info', `Brother QL [${backend}]: Printing Label 1 (Child Badge) to ${targetPrinter}...`);
-                exec(qlCmd1, (pErr1, stdout1, stderr1) => {
+                exec(qlCmd1, { timeout: 7000 }, (pErr1, stdout1, stderr1) => {
                     addLog('info', `Brother QL [${backend}]: Printing Label 2 (Guardian Ticket) to ${targetPrinter}...`);
-                    exec(qlCmd2, (pErr2, stdout2, stderr2) => {
+                    exec(qlCmd2, { timeout: 7000 }, (pErr2, stdout2, stderr2) => {
                         if (pErr1 || pErr2) {
                             const rawErr = ((stderr1 || '') + ' ' + (stderr2 || '') + ' ' + (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '')).trim();
                             
                             let userFriendlyErr = rawErr;
-                            if (rawErr.includes('No route to host') || rawErr.includes('Errno 113')) {
+                            if (pErr1?.killed || pErr2?.killed || rawErr.includes('ETIMEDOUT') || rawErr.includes('timed out')) {
+                                userFriendlyErr = `Printer connection to ${cleanIp} TIMED OUT after 7s (Printer is OFFLINE or UNREACHABLE on Wi-Fi/LAN).`;
+                            } else if (rawErr.includes('No route to host') || rawErr.includes('Errno 113')) {
                                 userFriendlyErr = `Printer at IP ${cleanIp} is OFFLINE or UNREACHABLE (No route to host). Check power & Wi-Fi IP address.`;
                             } else if (rawErr.includes('Connection refused') || rawErr.includes('Errno 111')) {
                                 userFriendlyErr = `Printer at IP ${cleanIp} refused connection on port 9100. Check printer IP address.`;
@@ -754,8 +756,8 @@ function printViaBrotherQl(labelData, printerIp, callback) {
                                 addLog('warn', `Brother QL: Retrying print with starter roll "--label 62 --red"...`);
                                 const redCmd1 = `${pythonExe} -m brother_ql.cli --model ${qlModel} --backend ${backend} --printer "${targetPrinter}" print --label 62 --red "${tmpPng1}"`;
                                 const redCmd2 = `${pythonExe} -m brother_ql.cli --model ${qlModel} --backend ${backend} --printer "${targetPrinter}" print --label 62 --red "${tmpPng2}"`;
-                                exec(redCmd1, (rErr1) => {
-                                    exec(redCmd2, (rErr2) => {
+                                exec(redCmd1, { timeout: 7000 }, (rErr1) => {
+                                    exec(redCmd2, { timeout: 7000 }, (rErr2) => {
                                         cleanup();
                                         if (!rErr1 && !rErr2) {
                                             addLog('success', `✅ Brother QL: Auto-retry with 62 --red starter roll succeeded on ${cleanIp}!`);
