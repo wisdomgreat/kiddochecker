@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "print-server": "node scripts/print-proxy.cjs"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.9.0",

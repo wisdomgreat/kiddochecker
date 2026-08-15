@@ -1309,6 +1309,9 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       } catch (err) {
         console.error('[Bridge] Error in get_parent_for_kiosk:', err.message);
         return res.status(500).json({ error: err.message });
+      }
+    }
+
     // Direct safe handler for verify_staff_pin_for_kiosk
     if (finalFn === 'verify_staff_pin_for_kiosk') {
       try {
@@ -2108,42 +2111,78 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 // ─── Cloud Print Queue Endpoints ──────────────────────────────
 const cloudPrintQueue = [];
 let lastAgentPollTime = 0;
+const lastAgentPollByOrg = {};
 
 app.post('/api/print-jobs', (req, res) => {
-  const { labelData, printerIp, printerName } = req.body || {};
+  const { labelData, printerIp, printerName, orgId } = req.body || {};
   if (!labelData || !labelData.name) {
     return res.status(400).json({ success: false, error: 'Invalid label data' });
   }
+
+  const jobOrgId = orgId || labelData.orgId || labelData.organization_id || 'default_org';
 
   const job = {
     id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     labelData,
     printerIp: printerIp || '',
     printerName: printerName || '',
+    orgId: jobOrgId,
+    status: 'pending',
     created_at: new Date().toISOString()
   };
 
   cloudPrintQueue.push(job);
-  console.log(`[Cloud Print Relay] New job queued: ${job.id} for ${labelData.name}`);
+  // Keep queue size under control (max 200 items)
+  if (cloudPrintQueue.length > 200) {
+    cloudPrintQueue.shift();
+  }
+
+  console.log(`[Cloud Print Relay] New job queued: ${job.id} for ${labelData.name} (Org: ${jobOrgId})`);
   res.json({ success: true, jobId: job.id, message: 'Print job queued in Azure Cloud Relay' });
 });
 
 app.get('/api/print-jobs/poll', (req, res) => {
-  lastAgentPollTime = Date.now();
+  const reqOrgId = req.query.orgId || 'default_org';
+  const now = Date.now();
+  lastAgentPollTime = now;
+  lastAgentPollByOrg[reqOrgId] = now;
+
   if (cloudPrintQueue.length === 0) {
     return res.json({ jobs: [] });
   }
-  const pendingJobs = [...cloudPrintQueue];
-  cloudPrintQueue.length = 0;
+
+  // Poll matching jobs by orgId, or fallback to pending jobs if no specific orgId requested
+  const pendingIndices = [];
+  const pendingJobs = [];
+
+  for (let i = 0; i < cloudPrintQueue.length; i++) {
+    const job = cloudPrintQueue[i];
+    if (job.status === 'pending') {
+      if (!req.query.orgId || job.orgId === reqOrgId || job.orgId === 'default_org') {
+        job.status = 'dispatched';
+        pendingJobs.push(job);
+        pendingIndices.push(i);
+      }
+    }
+  }
+
+  // Remove dispatched jobs from queue
+  for (let i = pendingIndices.length - 1; i >= 0; i--) {
+    cloudPrintQueue.splice(pendingIndices[i], 1);
+  }
+
   res.json({ jobs: pendingJobs });
 });
 
 app.get('/api/print-jobs/health', (req, res) => {
-  const isAgentActive = (Date.now() - lastAgentPollTime) < 15000;
+  const reqOrgId = req.query.orgId || 'default_org';
+  const lastPollTime = lastAgentPollByOrg[reqOrgId] || lastAgentPollTime;
+  const isAgentActive = lastPollTime ? (Date.now() - lastPollTime) < 20000 : false;
+  
   res.json({
     status: 'ok',
     agentActive: isAgentActive,
-    lastSeenSecondsAgo: lastAgentPollTime ? Math.round((Date.now() - lastAgentPollTime) / 1000) : null,
+    lastSeenSecondsAgo: lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : null,
     queueSize: cloudPrintQueue.length
   });
 });

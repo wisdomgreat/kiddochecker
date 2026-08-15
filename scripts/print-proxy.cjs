@@ -47,6 +47,25 @@ function addLog(type, message, details = {}) {
 
 addLog('info', 'KiddoChecker Remote Print Server Initializing...');
 
+// Dynamic Python Binary Detector (supports python3 on Linux/macOS and python on Windows)
+let cachedPythonCmd = null;
+function getPythonCmd(cb) {
+    if (cachedPythonCmd) return cb(null, cachedPythonCmd);
+    exec('python3 --version', (err3) => {
+        if (!err3) {
+            cachedPythonCmd = 'python3';
+            return cb(null, 'python3');
+        }
+        exec('python --version', (errPy) => {
+            if (!errPy) {
+                cachedPythonCmd = 'python';
+                return cb(null, 'python');
+            }
+            cb(new Error('Python not installed on host machine'));
+        });
+    });
+}
+
 // Automatically patch brother_ql package for Python 3.12 / Pillow 10+ compatibility across all files
 function autoPatchBrotherQl() {
     try {
@@ -61,8 +80,12 @@ for py_file in glob.glob(os.path.join(pkg_dir, '**', '*.py'), recursive=True):
             open(py_file, 'w', encoding='utf-8').write(modified)
     except Exception:
         pass`;
-        exec(`python3 -c "${patchScript}"`, (err) => {
-            if (!err) addLog('info', 'Brother QL PIL.Image compatibility check complete.');
+        getPythonCmd((pErr, pyCmd) => {
+            if (!pErr) {
+                exec(`${pyCmd} -c "${patchScript}"`, (err) => {
+                    if (!err) addLog('info', `Brother QL PIL.Image compatibility check complete using ${pyCmd}.`);
+                });
+            }
         });
     } catch(e) {}
 }
@@ -604,7 +627,6 @@ function generateBrotherQlGuardianTicketSvg(labelData, labelSizeValue) {
 
 // ─── Brother QL: Print via Python CLI (Prints 2 Labels & Cuts Each) ──────
 function printViaBrotherQl(labelData, printerIp, callback) {
-    // Priority: Explicit serverConfig default (e.g. '62red' for starter roll) -> fallback to '62red'
     const labelSize = (serverConfig.defaultLabelSize || '62red').trim();
     const svg1 = generateBrotherQlChildBadgeSvg(labelData, labelSize);
     const svg2 = generateBrotherQlGuardianTicketSvg(labelData, labelSize);
@@ -625,30 +647,41 @@ function printViaBrotherQl(labelData, printerIp, callback) {
     }
 
     function convertSvgToPng(svgPath, pngPath, cb) {
-        const cmds = [
-            `rsvg-convert -b white -o "${pngPath}" "${svgPath}"`,
-            `rsvg-convert -o "${pngPath}" "${svgPath}"`,
-            `cairosvg "${svgPath}" -o "${pngPath}"`,
-            `python3 -c "import cairosvg; cairosvg.svg2png(url='${svgPath}', write_to='${pngPath}')"`,
-            `convert -background white -flatten "${svgPath}" "${pngPath}"`
-        ];
+        getPythonCmd((pErr, pyCmd) => {
+            const pythonExe = pyCmd || 'python3';
+            const cmds = [
+                `rsvg-convert -b white -o "${pngPath}" "${svgPath}"`,
+                `rsvg-convert -o "${pngPath}" "${svgPath}"`,
+                `cairosvg "${svgPath}" -o "${pngPath}"`,
+                `${pythonExe} -c "import cairosvg; cairosvg.svg2png(url='${svgPath}', write_to='${pngPath}')"`,
+                `convert -background white -flatten "${svgPath}" "${pngPath}"`
+            ];
 
-        function tryCmd(idx) {
-            if (idx >= cmds.length) return cb(new Error('SVG to PNG conversion unavailable'));
-            exec(cmds[idx], (err) => {
-                if (!err && fs.existsSync(pngPath) && fs.statSync(pngPath).size > 0) return cb(null);
-                tryCmd(idx + 1);
-            });
-        }
-        tryCmd(0);
+            function tryCmd(idx) {
+                if (idx >= cmds.length) return cb(new Error('SVG to PNG conversion tools (cairosvg/rsvg-convert/convert) missing on server host'));
+                exec(cmds[idx], (err) => {
+                    if (!err && fs.existsSync(pngPath) && fs.statSync(pngPath).size > 0) return cb(null);
+                    tryCmd(idx + 1);
+                });
+            }
+            tryCmd(0);
+        });
     }
 
     convertSvgToPng(tmpSvg1, tmpPng1, (err1) => {
+        if (err1) {
+            cleanup();
+            const renderErrMsg = 'Brother QL raster conversion tool unavailable. Please install cairosvg (pip install cairosvg brother_ql) or librsvg2-bin on the server.';
+            addLog('error', `❌ ${renderErrMsg}`, { targetIp: printerIp });
+            return callback && callback(null, { success: false, error: renderErrMsg, targetIp: printerIp });
+        }
+
         convertSvgToPng(tmpSvg2, tmpPng2, (err2) => {
-            if (err1 || err2) {
+            if (err2) {
                 cleanup();
-                addLog('warn', 'Brother QL: SVG→PNG tools unavailable. Falling back to direct TCP socket payload...');
-                return sendRawEscPosPayload(generateEscPosPayload(labelData), printerIp, callback);
+                const renderErrMsg = 'Brother QL raster conversion tool unavailable for label 2.';
+                addLog('error', `❌ ${renderErrMsg}`, { targetIp: printerIp });
+                return callback && callback(null, { success: false, error: renderErrMsg, targetIp: printerIp });
             }
 
             const cleanIp = (printerIp || '').replace(/^tcp:\/\//i, '').replace(/:9100$/, '').trim();
@@ -657,51 +690,54 @@ function printViaBrotherQl(labelData, printerIp, callback) {
             const isRed = (labelSize === '62red' || labelSize.includes('red'));
             const redFlag = isRed ? ' --red' : '';
 
-            const getQlCmd = (pngFile) => {
-                return `(brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${cleanIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend linux_kernel --printer /dev/usb/lp0 print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend pyusb print --label ${labelSize}${redFlag} "${pngFile}" || python3 -m brother_ql.cli --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}")`;
-            };
+            getPythonCmd((pErr, pyCmd) => {
+                const pythonExe = pyCmd || 'python3';
+                const getQlCmd = (pngFile) => {
+                    return `(brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}" || brother_ql --model ${qlModel} --backend network --printer tcp://${cleanIp}:9100 print --label ${labelSize}${redFlag} "${pngFile}" || ${pythonExe} -m brother_ql.cli --model ${qlModel} --backend network --printer ${cleanIp} print --label ${labelSize}${redFlag} "${pngFile}")`;
+                };
 
-            const qlCmd1 = getQlCmd(tmpPng1);
-            const qlCmd2 = getQlCmd(tmpPng2);
+                const qlCmd1 = getQlCmd(tmpPng1);
+                const qlCmd2 = getQlCmd(tmpPng2);
 
-            addLog('info', `Brother QL: Printing Label 1 (Child Badge) on tcp://${cleanIp}:9100...`);
-            exec(qlCmd1, (pErr1, stdout1, stderr1) => {
-                addLog('info', `Brother QL: Printing Label 2 (Guardian Ticket) on tcp://${cleanIp}:9100...`);
-                exec(qlCmd2, (pErr2, stdout2, stderr2) => {
-                    if (pErr1 || pErr2) {
-                        const rawErr = ((stderr1 || '') + ' ' + (stderr2 || '') + ' ' + (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '')).trim();
-                        
-                        let userFriendlyErr = rawErr;
-                        if (rawErr.includes('No route to host') || rawErr.includes('Errno 113')) {
-                            userFriendlyErr = `Printer at IP ${cleanIp} is OFFLINE or UNREACHABLE (No route to host). Check power & Wi-Fi IP address.`;
-                        } else if (rawErr.includes('Connection refused') || rawErr.includes('Errno 111')) {
-                            userFriendlyErr = `Printer at IP ${cleanIp} refused connection on port 9100. Check printer IP address.`;
-                        }
+                addLog('info', `Brother QL: Printing Label 1 (Child Badge) on tcp://${cleanIp}:9100...`);
+                exec(qlCmd1, (pErr1, stdout1, stderr1) => {
+                    addLog('info', `Brother QL: Printing Label 2 (Guardian Ticket) on tcp://${cleanIp}:9100...`);
+                    exec(qlCmd2, (pErr2, stdout2, stderr2) => {
+                        if (pErr1 || pErr2) {
+                            const rawErr = ((stderr1 || '') + ' ' + (stderr2 || '') + ' ' + (pErr1 ? pErr1.message : '') + ' ' + (pErr2 ? pErr2.message : '')).trim();
+                            
+                            let userFriendlyErr = rawErr;
+                            if (rawErr.includes('No route to host') || rawErr.includes('Errno 113')) {
+                                userFriendlyErr = `Printer at IP ${cleanIp} is OFFLINE or UNREACHABLE (No route to host). Check power & Wi-Fi IP address.`;
+                            } else if (rawErr.includes('Connection refused') || rawErr.includes('Errno 111')) {
+                                userFriendlyErr = `Printer at IP ${cleanIp} refused connection on port 9100. Check printer IP address.`;
+                            }
 
-                        if (labelSize !== '62red') {
-                            addLog('warn', `Brother QL: First attempt with "${labelSize}" failed. Retrying with starter roll "62red --red"...`);
-                            const redCmd1 = `brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label 62red --red "${tmpPng1}"`;
-                            const redCmd2 = `brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label 62red --red "${tmpPng2}"`;
-                            exec(redCmd1, (rErr1) => {
-                                exec(redCmd2, (rErr2) => {
-                                    cleanup();
-                                    if (!rErr1 && !rErr2) {
-                                        addLog('success', `✅ Brother QL: Auto-retry with 62red starter roll succeeded on ${cleanIp}!`);
-                                        return callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_ql_62red_retry' });
-                                    }
-                                    addLog('error', `❌ ${userFriendlyErr}`, { error: userFriendlyErr, targetIp: cleanIp });
-                                    return callback && callback(null, { success: false, error: userFriendlyErr, printer: cleanIp });
+                            if (labelSize !== '62red') {
+                                addLog('warn', `Brother QL: First attempt with "${labelSize}" failed. Retrying with starter roll "62red --red"...`);
+                                const redCmd1 = `brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label 62red --red "${tmpPng1}"`;
+                                const redCmd2 = `brother_ql --model ${qlModel} --backend network --printer ${cleanIp} print --label 62red --red "${tmpPng2}"`;
+                                exec(redCmd1, (rErr1) => {
+                                    exec(redCmd2, (rErr2) => {
+                                        cleanup();
+                                        if (!rErr1 && !rErr2) {
+                                            addLog('success', `✅ Brother QL: Auto-retry with 62red starter roll succeeded on ${cleanIp}!`);
+                                            return callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_ql_62red_retry' });
+                                        }
+                                        addLog('error', `❌ ${userFriendlyErr}`, { error: userFriendlyErr, targetIp: cleanIp });
+                                        return callback && callback(null, { success: false, error: userFriendlyErr, printer: cleanIp });
+                                    });
                                 });
-                            });
-                            return;
+                                return;
+                            }
+                            cleanup();
+                            addLog('error', `❌ ${userFriendlyErr}`, { error: userFriendlyErr, targetIp: cleanIp });
+                            return callback && callback(null, { success: false, error: userFriendlyErr, printer: cleanIp });
                         }
                         cleanup();
-                        addLog('error', `❌ ${userFriendlyErr}`, { error: userFriendlyErr, targetIp: cleanIp });
-                        return callback && callback(null, { success: false, error: userFriendlyErr, printer: cleanIp });
-                    }
-                    cleanup();
-                    addLog('success', `✅ Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${cleanIp}!`);
-                    callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_ql_2label' });
+                        addLog('success', `✅ Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${cleanIp}!`);
+                        callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_ql_2label' });
+                    });
                 });
             });
         });
@@ -921,7 +957,7 @@ function getLocalIpAddresses() {
         const iface = interfaces[devName];
         for (let i = 0; i < iface.length; i++) {
             const alias = iface[i];
-            if (alias.family === 'IPv4' && !alias.internal) {
+            if ((alias.family === 'IPv4' || alias.family === 4) && !alias.internal) {
                 ips.push(alias.address);
             }
         }

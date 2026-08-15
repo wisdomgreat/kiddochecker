@@ -816,7 +816,7 @@ const KioskCheckInSystem = () => {
     setShowClassDialog(true);
   };
 
-  const handleQRScan = async (rawQRData: string) => {
+  const handleDirectQRScan = async (rawQRData: string) => {
     setIsLoading(true);
     try {
       const result = await QRService.parseAndVerify(rawQRData);
