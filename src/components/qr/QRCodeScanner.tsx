@@ -138,35 +138,35 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
 
   return (
     <div className="w-full h-full flex flex-col justify-center items-center">
-      <div className="relative w-full h-full min-h-[160px] max-h-[220px] overflow-hidden rounded-xl bg-slate-950 flex items-center justify-center">
+      <div className="relative w-full aspect-square max-w-[280px] overflow-hidden rounded-2xl bg-black flex items-center justify-center shadow-lg border border-slate-700">
         <div
           id="kiosk-qr-reader"
-          className="w-full h-full flex items-center justify-center"
+          className="w-full h-full"
           style={{
-            display: showContainer ? 'flex' : 'none',
+            display: showContainer ? 'block' : 'none',
           }}
         />
 
-        {/* Professional Overlay */}
+        {/* Laser Scanner Reticle Overlay */}
         {(isActive || isStarting) && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            <div className="w-36 h-36 border-2 border-white/20 rounded-2xl relative pointer-events-auto shadow-2xl">
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
+            <div className="w-full h-full border-2 border-white/20 rounded-2xl relative pointer-events-auto shadow-2xl">
               {/* Corners */}
-              <div className="absolute -top-1 -left-1 w-5 h-5 border-t-3 border-l-3 border-blue-500 rounded-tl-lg" />
-              <div className="absolute -top-1 -right-1 w-5 h-5 border-t-3 border-r-3 border-blue-500 rounded-tr-lg" />
-              <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-3 border-l-3 border-blue-500 rounded-bl-lg" />
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-3 border-r-3 border-blue-500 rounded-br-lg" />
+              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-blue-500 rounded-tl-xl" />
+              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-blue-500 rounded-tr-xl" />
+              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-blue-500 rounded-bl-xl" />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-blue-500 rounded-br-xl" />
 
               {/* Laser Scan Line */}
               {isActive && (
-                <div className="absolute top-0 left-1 right-1 h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-[scan_1.8s_linear_infinite] shadow-[0_0_12px_rgba(59,130,246,0.9)]" />
+                <div className="absolute top-0 left-2 right-2 h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-[scan_1.8s_linear_infinite] shadow-[0_0_15px_rgba(59,130,246,1)]" />
               )}
 
               {isStarting && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs rounded-2xl">
-                  <div className="flex flex-col items-center gap-1.5">
-                    <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-300">Starting...</span>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-xs rounded-2xl">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Activating Camera...</span>
                   </div>
                 </div>
               )}
@@ -175,23 +175,23 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
               {availableCameras.length > 1 && (
                 <button
                   onClick={(e) => { e.preventDefault(); handleFlipCamera(); }}
-                  className="absolute bottom-2 right-2 h-7 w-7 bg-black/60 backdrop-blur-md rounded-lg border border-white/20 flex items-center justify-center text-white/90 hover:bg-black active:scale-90"
+                  className="absolute bottom-2.5 right-2.5 h-8 w-8 bg-black/70 backdrop-blur-md rounded-xl border border-white/30 flex items-center justify-center text-white hover:bg-black active:scale-90"
                   title="Switch Camera"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  <RefreshCw className="h-4 w-4" />
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* No active scanner / Error view */}
+        {/* Camera Offline / Error View */}
         {!isActive && !isStarting && !showContainer && (
-          <div className="h-full flex flex-col items-center justify-center gap-2 p-4 text-center bg-slate-900 text-slate-400">
-            <Camera className="h-6 w-6 text-slate-500" />
-            <p className="text-xs font-bold text-slate-400">{errorMessage || 'Camera Offline'}</p>
-            <Button size="sm" variant="ghost" onClick={startScanning} className="h-7 text-[10px] uppercase font-bold text-blue-400 hover:text-white">
-              Try Again
+          <div className="h-full w-full flex flex-col items-center justify-center gap-3 p-6 text-center bg-slate-950 text-slate-400">
+            <Camera className="h-8 w-8 text-slate-500" />
+            <p className="text-xs font-bold text-slate-300">{errorMessage || 'Camera Initializing...'}</p>
+            <Button size="sm" variant="outline" onClick={startScanning} className="h-8 text-xs font-bold border-slate-700 text-slate-200 hover:bg-slate-800">
+              Retry Camera
             </Button>
           </div>
         )}
@@ -199,19 +199,21 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
 
       <style>{`
         #kiosk-qr-reader {
+          width: 100% !important;
+          height: 100% !important;
           overflow: hidden !important;
         }
         #kiosk-qr-reader video {
           width: 100% !important;
           height: 100% !important;
           object-fit: cover !important;
-          border-radius: 0.75rem !important;
+          border-radius: 1rem !important;
         }
         #kiosk-qr-reader img { display: none !important; }
         #kiosk-qr-reader__dashboard { display: none !important; }
         #kiosk-qr-reader__header { display: none !important; }
         #kiosk-qr-reader__status_span { display: none !important; }
-        #kiosk-qr-reader__scan_region { display: flex !important; align-items: center !important; justify-content: center !important; }
+        #kiosk-qr-reader__scan_region { width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; }
         @keyframes scan {
           0% { top: 10%; opacity: 0; }
           15% { opacity: 1; }
@@ -222,7 +224,7 @@ const QRCodeScanner: React.FC<QRCodeScannerProps> = ({ onScanComplete, darkMode 
 
       {/* Optional Extra Controls (Only if not in compact mode) */}
       {!compact && (
-        <div className="w-full space-y-2 mt-2">
+        <div className="w-full max-w-[280px] space-y-2 mt-3">
           <div className="relative">
             <Input
               placeholder="Or type pass code..."

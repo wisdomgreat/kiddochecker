@@ -1186,46 +1186,24 @@ const KioskCheckInSystem = () => {
                     </div>
                   </div>
 
-                  {/* QR Scanner Area */}
+                  {/* QR Fast-Pass Activation Button */}
                   <div className="mt-3">
-                    {showParentScanner ? (
-                      <div className="space-y-2">
-                        <div className="h-44 rounded-xl overflow-hidden border border-blue-200 bg-slate-950 shadow-inner flex items-center justify-center p-1">
-                          <QRCodeScanner 
-                            compact={true}
-                            onScanComplete={(data) => {
-                              handleQRScan(data);
-                              setShowParentScanner(false);
-                            }} 
-                          />
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setShowParentScanner(false)} 
-                          className="w-full h-7 text-xs font-bold text-slate-500 hover:text-slate-800"
-                        >
-                          {isEs ? "Cerrar Cámara" : "Close Scanner"}
-                        </Button>
+                    <button
+                      onClick={() => setShowParentScanner(true)}
+                      className="w-full h-32 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-500 bg-slate-50/60 hover:bg-blue-50/30 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 group-hover:border-blue-500 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform">
+                        <QrCode className="w-5 h-5" />
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowParentScanner(true)}
-                        className="w-full h-32 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-500 bg-slate-50/60 hover:bg-blue-50/30 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer"
-                      >
-                        <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 group-hover:border-blue-500 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform">
-                          <QrCode className="w-5 h-5" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs font-bold uppercase tracking-wider text-slate-800 group-hover:text-blue-600">
-                            {isEs ? "Abrir Escáner QR" : "Scan Mobile QR Pass"}
-                          </p>
-                          <p className="text-[11px] text-slate-400">
-                            {isEs ? "Toque para activar la cámara" : "Tap to activate camera"}
-                          </p>
-                        </div>
-                      </button>
-                    )}
+                      <div className="text-center">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-800 group-hover:text-blue-600">
+                          {isEs ? "Abrir Escáner QR" : "Scan Mobile QR Pass"}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {isEs ? "Toque para abrir la cámara" : "Tap to activate camera"}
+                        </p>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
@@ -1818,6 +1796,48 @@ const KioskCheckInSystem = () => {
             specialInstructions={currentSpecialInstructions} 
         />
       )}
+
+      {/* Dedicated QR Fast-Pass Camera Scanner Dialog */}
+      <Dialog open={showParentScanner} onOpenChange={setShowParentScanner}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden bg-white border-slate-200 text-slate-900 shadow-2xl rounded-2xl">
+          <DialogHeader className="p-4 bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <QrCode className="h-4 w-4 text-blue-600" />
+                {isEs ? "Escanear Pase Móvil" : "Scan Mobile Fast-Pass"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 mt-0.5">
+                {isEs ? "Acerque el código QR de su pase a la cámara." : "Hold your digital QR pass in front of the camera."}
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <div className="p-4 flex flex-col items-center justify-center bg-slate-950">
+            <div className="w-full aspect-square max-w-[280px] rounded-xl overflow-hidden flex items-center justify-center">
+              <QRCodeScanner 
+                compact={true}
+                onScanComplete={(data) => {
+                  handleQRScan(data);
+                  setShowParentScanner(false);
+                  toast({
+                    title: isEs ? "Pase Reconocido" : "Pass Verified",
+                    description: isEs ? "Cargando perfil familiar..." : "Loading family profile...",
+                  });
+                }} 
+              />
+            </div>
+          </div>
+          <DialogFooter className="p-3 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowParentScanner(false)} 
+              className="border-slate-200 text-slate-700 font-bold text-xs"
+            >
+              {isEs ? "Cancelar" : "Cancel / Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Signature Dialog */}
       <Dialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
