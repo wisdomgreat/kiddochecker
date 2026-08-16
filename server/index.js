@@ -1,3 +1,10 @@
+const crypto = require('crypto');
+if (!globalThis.crypto) {
+  globalThis.crypto = crypto;
+} else if (!globalThis.crypto.randomUUID) {
+  globalThis.crypto.randomUUID = crypto.randomUUID ? crypto.randomUUID.bind(crypto) : () => crypto.randomBytes(16).toString('hex');
+}
+
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
