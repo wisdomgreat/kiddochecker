@@ -1113,21 +1113,21 @@ const KioskCheckInSystem = () => {
         </div>
       </div>
 
-      {/* ─── Main Responsive Workspace (Tightly Positioned, Max 5XL) ─── */}
-      <main className="flex-1 overflow-hidden px-4 py-3 sm:px-6 flex flex-col items-center justify-start">
-        <div className="w-full max-w-5xl flex-1 flex flex-col justify-start">
+      {/* ─── Main Responsive Workspace (Centered Elegantly, Max 5XL) ─── */}
+      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 flex flex-col items-center justify-center">
+        <div className="w-full max-w-5xl my-auto">
           
           {/* ══════════════════════════════════════════════════════════════
               PARENT CHECK-IN TAB (Unauthenticated)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && !parentLoggedIn && (
-            <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
               
               {/* Left Column: QR Fast Pass & NFC Tap (5 Cols) */}
-              <div className="md:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
-                <div>
-                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <div className="md:col-span-5 flex flex-col justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
+                    <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
                       <ArrowRight className="w-4 h-4" />
                     </div>
                     <div>
@@ -1141,19 +1141,19 @@ const KioskCheckInSystem = () => {
                   </div>
 
                   {/* Collapsible QR Fast-Pass Button */}
-                  <div className="mt-3.5">
+                  <div>
                     <button
                       onClick={() => setShowParentScanner(true)}
-                      className="w-full h-32 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/70 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer shadow-inner"
+                      className="w-full h-36 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/70 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-2.5 group cursor-pointer shadow-inner"
                     >
-                      <div className="w-11 h-11 rounded-full bg-blue-600/20 border border-blue-500/30 group-hover:border-blue-400 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
-                        <QrCode className="w-5 h-5" />
+                      <div className="w-12 h-12 rounded-full bg-blue-600/20 border border-blue-500/30 group-hover:border-blue-400 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
+                        <QrCode className="w-6 h-6" />
                       </div>
                       <div className="text-center">
                         <p className="text-xs font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-400">
                           {isEs ? "Abrir Escáner QR" : "Scan Mobile QR Pass"}
                         </p>
-                        <p className="text-[10px] text-slate-500">
+                        <p className="text-[11px] text-slate-500">
                           {isEs ? "Toque para abrir la cámara" : "Tap to activate camera"}
                         </p>
                       </div>
@@ -1163,11 +1163,11 @@ const KioskCheckInSystem = () => {
 
                 {/* NFC Tap Card */}
                 <div className="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/20 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
-                    <Smartphone className="w-4 h-4" />
+                  <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
+                    <Smartphone className="w-5 h-5" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[10px] font-extrabold uppercase text-emerald-400 tracking-wider">
+                    <p className="text-[11px] font-extrabold uppercase text-emerald-400 tracking-wider">
                       {isEs ? "Lector NFC Activo" : "NFC Reader Active"}
                     </p>
                     <p className="text-xs text-slate-400">
@@ -1178,11 +1178,11 @@ const KioskCheckInSystem = () => {
               </div>
 
               {/* Right Column: Phone / PIN Authentication & Touch Keypad (7 Cols) */}
-              <div className="md:col-span-7 flex flex-col justify-between p-5 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
+              <div className="md:col-span-7 flex flex-col justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
                 
-                <div>
+                <div className="space-y-3">
                   {/* Selector Tabs: Phone vs Direct PIN */}
-                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 mb-3">
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
                     <button
                       type="button"
                       onClick={() => {
@@ -1242,14 +1242,14 @@ const KioskCheckInSystem = () => {
                   </div>
 
                   {parentLoginError && (
-                    <p className="text-rose-400 text-xs font-bold text-center mt-1.5 animate-in fade-in">
+                    <p className="text-rose-400 text-xs font-bold text-center mt-1 animate-in fade-in">
                       {parentLoginError}
                     </p>
                   )}
                 </div>
 
                 {/* Tactile 3x4 Touch Keypad */}
-                <div className="my-1.5">
+                <div className="py-1">
                   <NumericKeypad 
                     value={activeInput === 'phone' ? parentPhone : parentPin} 
                     onChange={handleKeypadChange} 
