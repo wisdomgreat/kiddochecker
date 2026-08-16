@@ -635,6 +635,11 @@ async function runMigrations() {
         SET role = COALESCE(EXCLUDED.role, user_roles.role), 
             is_super_admin = COALESCE(EXCLUDED.is_super_admin, user_roles.is_super_admin);
       `);
+      console.log('[DB] User roles table synced with profiles.');
+    } catch (syncErr) {
+      console.warn('[DB] User roles auto-sync notice:', syncErr.message);
+    }
+
     // Execute Master Schema Restoration for all feature tables, seeds, and RPCs
     try {
       const masterSchemaPath = path.join(__dirname, 'master-schema-restore.sql');
