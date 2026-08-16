@@ -148,12 +148,11 @@ const KioskCheckInSystem = () => {
   };
 
   const handleKeypadChange = (val: string) => {
+    const cleaned = val.replace(/\D/g, '');
     if (activeInput === 'phone') {
-      const cleaned = val.replace(/\D/g, '');
-      if (cleaned.length <= 10) setParentPhone(formatPhoneNumber(cleaned));
-      if (cleaned.length === 10) setActiveInput('pin');
+      if (cleaned.length <= 10) setParentPhone(cleaned);
     } else {
-      setParentPin(val);
+      if (cleaned.length <= 6) setParentPin(cleaned);
     }
   };
   const [checkedInChildIds, setCheckedInChildIds] = useState<Set<string>>(new Set());
