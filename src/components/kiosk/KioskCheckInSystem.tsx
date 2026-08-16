@@ -572,12 +572,28 @@ const KioskCheckInSystem = () => {
       });
 
       if (!kids || (kids as any).length === 0) {
-        const { data: fallbackKids } = await supabase
+        // Fallback 1: Direct parent_id in children table
+        const { data: directKids } = await supabase
           .from('children')
           .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
-          .eq('parent_id', parent.id)
-          .eq('organization_id', activeOrgId);
-        if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
+          .eq('parent_id', parent.id);
+        if (directKids && directKids.length > 0) {
+          kids = directKids;
+        } else {
+          // Fallback 2: Check parent_guardians junction table
+          const { data: guardianRels } = await supabase
+            .from('parent_guardians')
+            .select('child_id')
+            .eq('parent_id', parent.id);
+          if (guardianRels && (guardianRels as any).length > 0) {
+            const childIds = (guardianRels as any).map((g: any) => g.child_id);
+            const { data: guardianKids } = await supabase
+              .from('children')
+              .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+              .in('id', childIds);
+            if (guardianKids && (guardianKids as any).length > 0) kids = guardianKids;
+          }
+        }
       }
       
       const kidsWithClasses = await Promise.all(((kids as any) || []).map(async (k: any) => {

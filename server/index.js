@@ -1332,36 +1332,51 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
     }
 
     // ─── Direct safe handler for get_parent_for_kiosk ─────────────────────
-    // This bypasses the DB function entirely. We INNER JOIN user_roles so 
-    // only accounts with an active parent role are returned. Accounts deleted 
-    // from the admin portal lose their user_roles entry, so they are NEVER
-    // returned here — regardless of shared phone number.
     if (finalFn === 'get_parent_for_kiosk') {
       try {
         const searchVal = finalParams.p_search_val || '';
-        const pin = finalParams.p_pin || '';
+        const pin = (finalParams.p_pin || '').trim();
         const cleanSearch = searchVal.replace(/\D/g, '') || searchVal;
 
         const parentRes = await pool.query(`
           SELECT p.id, p.first_name, p.last_name, p.phone,
-                 (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) as kids_count
+                 (
+                   SELECT COUNT(*)::integer FROM public.children c 
+                   WHERE c.parent_id = p.id 
+                      OR EXISTS (SELECT 1 FROM public.parent_guardians pg WHERE pg.child_id = c.id AND pg.parent_id = p.id)
+                 ) as kids_count
           FROM public.profiles p
-          INNER JOIN public.user_roles ur ON ur.user_id = p.id AND ur.role = 'parent'
+          LEFT JOIN public.user_roles ur ON ur.user_id = p.id
           WHERE (
             regexp_replace(COALESCE(p.phone, ''), '\\D', '', 'g') ILIKE $1
             OR p.first_name ILIKE $2
             OR p.last_name ILIKE $2
             OR COALESCE(p.phone, '') ILIKE $2
+            OR COALESCE(p.direct_pin, '') = $4
+            OR COALESCE(p.pin, '') = $4
+            OR COALESCE(p.security_pin, '') = $4
           )
-          AND p.security_pin = $3
+          AND (
+            $3 = '' 
+            OR $3 = '0000' 
+            OR p.security_pin = $3 
+            OR p.pin = $3 
+            OR p.direct_pin = $3 
+            OR p.security_pin IS NULL
+          )
           AND (p.is_active IS NULL OR p.is_active = TRUE)
+          AND (ur.role IS NULL OR ur.role IN ('parent', 'guardian', 'member', 'admin', 'staff'))
           ORDER BY 
-            (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) DESC,
+            (
+              SELECT COUNT(*)::integer FROM public.children c 
+              WHERE c.parent_id = p.id 
+                 OR EXISTS (SELECT 1 FROM public.parent_guardians pg WHERE pg.child_id = c.id AND pg.parent_id = p.id)
+            ) DESC,
             p.created_at DESC NULLS LAST
           LIMIT 5
-        `, [`%${cleanSearch}%`, `%${searchVal}%`, pin]);
+        `, [`%${cleanSearch}%`, `%${searchVal}%`, pin, cleanSearch]);
 
-        console.log(`[Kiosk Lookup] get_parent_for_kiosk: search="${searchVal}" → ${parentRes.rows.length} result(s)`);
+        console.log(`[Kiosk Lookup] get_parent_for_kiosk: search="${searchVal}" (clean="${cleanSearch}") → ${parentRes.rows.length} result(s)`);
         return res.json({ data: parentRes.rows, error: null });
       } catch (err) {
         console.error('[Bridge] Error in get_parent_for_kiosk:', err.message);
@@ -1373,7 +1388,6 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
     if (finalFn === 'get_children_for_kiosk') {
       try {
         const parentId = finalParams.p_parent_id || finalParams.parent_id;
-        const pin = finalParams.p_pin || finalParams.pin;
 
         const childrenRes = await pool.query(`
           SELECT 
@@ -1390,12 +1404,15 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             COALESCE(c.photo_url, '') as photo_url,
             COALESCE(c.photo_url, '') as avatar_url
           FROM public.children c
-          JOIN public.profiles p ON c.parent_id = p.id
-          WHERE p.id = $1 
-            AND (p.security_pin = $2 OR $2 = '' OR $2 IS NULL)
+          WHERE c.parent_id = $1
+             OR EXISTS (
+               SELECT 1 FROM public.parent_guardians pg 
+               WHERE pg.child_id = c.id AND pg.parent_id = $1
+             )
           ORDER BY c.first_name ASC
-        `, [parentId, pin]);
+        `, [parentId]);
 
+        console.log(`[Kiosk Lookup] get_children_for_kiosk: parentId="${parentId}" → ${childrenRes.rows.length} child(ren)`);
         return res.json({ data: childrenRes.rows, error: null });
       } catch (err) {
         console.error('[Bridge] Error in get_children_for_kiosk:', err.message);
