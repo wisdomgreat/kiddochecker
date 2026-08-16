@@ -40,6 +40,13 @@ jobs:
           docker tag ${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }} ${{ steps.acr-info.outputs.login_server }}/bridge-api:latest
           docker push ${{ steps.acr-info.outputs.login_server }}/bridge-api:latest
 
+      - name: Get ACS Connection String
+        id: acs-info
+        run: |
+          ACS_CONN=$(az communication list-key --name acs-kiddo-prod --resource-group rg-kiddo --query "primaryConnectionString" -o tsv || echo "")
+          echo "::add-mask::$ACS_CONN"
+          echo "connection_string=$ACS_CONN" >> $GITHUB_OUTPUT
+
       - name: Deploy Infrastructure & Update App
         uses: azure/arm-deploy@v2
         with:
@@ -50,3 +57,5 @@ jobs:
           parameters: >
             administratorLoginPassword=${{ secrets.DB_PASSWORD }}
             apiImage=${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}
+            azureCommunicationConnectionString="${{ steps.acs-info.outputs.connection_string }}"
+            azureCommunicationSenderAddress="DoNotReply@6e4fe926-0f85-412b-afef-0fb9c4d89667.azurecomm.net"
