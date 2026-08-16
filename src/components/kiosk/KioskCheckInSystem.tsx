@@ -1160,8 +1160,8 @@ const KioskCheckInSystem = () => {
       </header>
 
       {/* ─── Zero-Scroll Main Workspace (Crisp White Card Aesthetic) ─── */}
-      <main className="flex-1 overflow-hidden p-3 sm:p-4 lg:p-6 flex items-center justify-center">
-        <div className="w-full max-w-4xl h-full max-h-[580px] flex flex-col justify-center">
+      <main className="flex-1 overflow-hidden px-4 py-3 sm:px-6 sm:py-4 flex flex-col items-center justify-start">
+        <div className="w-full max-w-4xl flex-1 flex flex-col justify-start">
           
           {/* ══════════════════════════════════════════════════════════════
               PARENT CHECK-IN TAB (Unauthenticated)
