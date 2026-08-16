@@ -1068,78 +1068,33 @@ const KioskCheckInSystem = () => {
   return (
     <div className="fixed inset-0 h-screen max-h-screen overflow-hidden bg-[#070b14] text-slate-100 flex flex-col select-none font-sans">
       
-      {/* ─── Top Bar 1: Branding, Language, Stats & Controls (40px) ─── */}
-      <div className="h-[40px] min-h-[40px] px-4 sm:px-6 bg-[#090e1a] border-b border-slate-800/80 flex items-center justify-between z-50">
+      {/* ─── Ultra-Compact Sleek Header (Single 44px Bar, Zero Bloat) ─── */}
+      <header className="h-[44px] min-h-[44px] max-h-[44px] px-3 sm:px-5 bg-[#0a0f1d]/95 border-b border-slate-800/80 flex items-center justify-between z-50 backdrop-blur-md">
         
-        {/* Left: Organization Branding & Live Heartbeat */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-white text-xs font-bold shadow-inner">
+        {/* Left: Organization Branding */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-white text-xs font-bold shadow-xs">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="font-extrabold tracking-tight">{settings?.name || 'Green Valley Alliance'}</span>
+            <span className="font-extrabold text-[11px] tracking-tight">{settings?.name || 'Green Valley Alliance'}</span>
           </div>
 
           {nfcSupported && (
-            <Badge variant="outline" className="h-5 px-2 text-[9px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/40">
-              ● NFC Ready
+            <Badge variant="outline" className="h-5 px-1.5 text-[9px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/40 hidden sm:inline-flex">
+              NFC
             </Badge>
           )}
         </div>
 
-        {/* Center: Language Switcher Pill */}
-        <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px] font-extrabold">
-          <button 
-            onClick={() => setLanguage('en')} 
-            className={cn("px-2.5 py-0.5 rounded-md transition-all", language === 'en' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
-          >
-            🇬🇧 EN
-          </button>
-          <button 
-            onClick={() => setLanguage('es')} 
-            className={cn("px-2.5 py-0.5 rounded-md transition-all", language === 'es' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
-          >
-            🇪🇸 ES
-          </button>
-        </div>
-
-        {/* Right: Stats Counter, Printer & Fullscreen */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-0.5 rounded-lg border border-slate-800 text-[11px] font-bold text-slate-300">
-            <span className="text-emerald-400 font-black">{checkedInChildren.length} IN</span>
-            <span className="w-px h-3 bg-slate-700" />
-            <span className="text-slate-400">{todayCount} TOTAL</span>
-            <span className="w-px h-3 bg-slate-700" />
-            <span className="font-mono text-white">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          </div>
-
-          {canAccessKioskSettings && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowPrinterDialog(true)} 
-              className="h-7 px-2 text-[11px] font-bold border-blue-500/30 text-blue-400 bg-blue-950/30 hover:bg-blue-900/40"
-              title="Printer Setup"
-            >
-              <Printer className="h-3 w-3 mr-1" /> Printer
-            </Button>
-          )}
-
-          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-800">
-            <Maximize className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
-
-      {/* ─── Top Bar 2: Mode Switcher Pills (44px) ─── */}
-      <div className="h-[44px] min-h-[44px] px-4 sm:px-6 bg-[#0c1322]/95 border-b border-slate-800/90 flex items-center justify-center z-40 shadow-sm">
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800/90 shadow-inner">
+        {/* Center: Sleek Compact Mode Selector (Low-profile 28px height) */}
+        <div className="flex bg-slate-950/90 p-0.5 rounded-lg border border-slate-800 shadow-inner">
           {[
-            { id: 'parent', label: isEs ? 'Padres' : 'PARENT DROP-OFF', icon: KeyRound },
-            { id: 'youth', label: isEs ? 'Jóvenes' : 'YOUTH CHECK-IN', icon: User },
-            { id: 'checkout', label: isEs ? 'Salida' : 'SELF CHECK-OUT', icon: LogOut },
-            { id: 'staff', label: isEs ? 'Personal' : 'STAFF PORTAL', icon: UserCog },
+            { id: 'parent', label: isEs ? 'Padres' : 'Family', icon: KeyRound },
+            { id: 'youth', label: isEs ? 'Jóvenes' : 'Youth', icon: User },
+            { id: 'checkout', label: isEs ? 'Salida' : 'Check-Out', icon: LogOut },
+            { id: 'staff', label: isEs ? 'Personal' : 'Staff', icon: UserCog },
           ].map(tab => (
             <button
               key={tab.id}
@@ -1150,18 +1105,60 @@ const KioskCheckInSystem = () => {
                 setStaffPinError('');
               }}
               className={cn(
-                "flex items-center gap-1.5 py-1 px-3.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer",
+                "flex items-center gap-1 py-1 px-2.5 sm:px-3 rounded-md text-[11px] font-extrabold transition-all duration-150 cursor-pointer",
                 activeTab === tab.id 
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-900/50" 
+                  ? "bg-blue-600 text-white shadow-xs" 
                   : "text-slate-400 hover:text-white hover:bg-slate-900/60"
               )}
             >
-              <tab.icon className="w-3.5 h-3.5" />
+              <tab.icon className="w-3 h-3" />
               <span>{tab.label}</span>
             </button>
           ))}
         </div>
-      </div>
+
+        {/* Right: Compact Live Stats, Language & Fullscreen */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800 text-[10px] font-bold text-slate-300">
+            <span className="text-emerald-400 font-extrabold">{checkedInChildren.length} In</span>
+            <span className="w-px h-2.5 bg-slate-700" />
+            <span className="text-slate-400">{todayCount} Total</span>
+            <span className="w-px h-2.5 bg-slate-700 hidden sm:inline" />
+            <span className="font-mono text-white hidden sm:inline">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+
+          <div className="flex bg-slate-950 p-0.5 rounded-md border border-slate-800 text-[10px] font-bold">
+            <button 
+              onClick={() => setLanguage('en')} 
+              className={cn("px-1.5 py-0.5 rounded transition-all", language === 'en' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white")}
+            >
+              EN
+            </button>
+            <button 
+              onClick={() => setLanguage('es')} 
+              className={cn("px-1.5 py-0.5 rounded transition-all", language === 'es' ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white")}
+            >
+              ES
+            </button>
+          </div>
+
+          {canAccessKioskSettings && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowPrinterDialog(true)} 
+              className="h-6 px-1.5 text-[10px] font-bold border-blue-500/30 text-blue-400 bg-blue-950/30 hover:bg-blue-900/40"
+              title="Printer Setup"
+            >
+              <Printer className="h-3 w-3" />
+            </Button>
+          )}
+
+          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-6 w-6 text-slate-400 hover:text-white">
+            <Maximize className="h-3 w-3" />
+          </Button>
+        </div>
+      </header>
 
       {/* ─── Zero-Scroll Main Workspace (Directly Aligned Below Navigation) ─── */}
       <main className="flex-1 overflow-hidden px-4 py-2 sm:px-6 sm:py-3 flex flex-col items-center justify-start">
