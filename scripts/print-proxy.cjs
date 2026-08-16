@@ -232,77 +232,117 @@ function generateQrMatrix(text) {
     return matrix;
 }
 
+// ─── Complete Brother DK Roll Specifications Table ──────────────────
+const BROTHER_ROLL_SPECS = {
+    // Continuous Tape Rolls (Media Type: 0x0A, length = 0)
+    '62':     { id: '62',     name: 'DK-2205 (62mm Continuous Black/White)',        type: 0x0A, width: 62, length: 0,   isTwoColor: false, printableDots: 696, totalDots: 720, defaultHeight: 520 },
+    '62red':  { id: '62red',  name: 'DK-2251 / DK-22251 (62mm Black/Red Starter)',  type: 0x0A, width: 62, length: 0,   isTwoColor: true,  printableDots: 696, totalDots: 720, defaultHeight: 520 },
+    '29':     { id: '29',     name: 'DK-2210 (29mm Continuous Tape)',               type: 0x0A, width: 29, length: 0,   isTwoColor: false, printableDots: 306, totalDots: 720, defaultHeight: 520 },
+    '38':     { id: '38',     name: 'DK-2225 (38mm Continuous Tape)',               type: 0x0A, width: 38, length: 0,   isTwoColor: false, printableDots: 413, totalDots: 720, defaultHeight: 520 },
+    '54':     { id: '54',     name: 'DK-N55224 (54mm Continuous Non-Adhesive)',     type: 0x0A, width: 54, length: 0,   isTwoColor: false, printableDots: 590, totalDots: 720, defaultHeight: 520 },
+    '102':    { id: '102',    name: 'DK-2246 (102mm Continuous Tape)',              type: 0x0A, width: 102, length: 0,  isTwoColor: false, printableDots: 1164, totalDots: 1296, defaultHeight: 650 },
+
+    // Die-Cut / Pre-Sized Labels (Media Type: 0x0B, length = exact mm)
+    '62x100': { id: '62x100', name: 'DK-1202 (62mm x 100mm Large Shipping/Badge)',  type: 0x0B, width: 62, length: 100, isTwoColor: false, printableDots: 696, totalDots: 720, defaultHeight: 1134 },
+    '29x90':  { id: '29x90',  name: 'DK-1201 (29mm x 90mm Standard Address)',       type: 0x0B, width: 29, length: 90,  isTwoColor: false, printableDots: 306, totalDots: 720, defaultHeight: 1016 },
+    '62x29':  { id: '62x29',  name: 'DK-1204 (62mm x 29mm Multi-Purpose Labels)',   type: 0x0B, width: 62, length: 29,  isTwoColor: false, printableDots: 696, totalDots: 720, defaultHeight: 300 },
+    '38x90':  { id: '38x90',  name: 'DK-1208 (38mm x 90mm Large Address Labels)',   type: 0x0B, width: 38, length: 90,  isTwoColor: false, printableDots: 413, totalDots: 720, defaultHeight: 1016 },
+    '29x62':  { id: '29x62',  name: 'DK-1209 (29mm x 62mm Small Address Labels)',   type: 0x0B, width: 29, length: 62,  isTwoColor: false, printableDots: 306, totalDots: 720, defaultHeight: 686 },
+    '38x38':  { id: '38x38',  name: 'DK-1221 (38mm x 38mm Square Labels)',          type: 0x0B, width: 38, length: 38,  isTwoColor: false, printableDots: 413, totalDots: 720, defaultHeight: 400 },
+    '23x23':  { id: '23x23',  name: 'DK-1218 (24mm Round Labels)',                  type: 0x0B, width: 24, length: 24,  isTwoColor: false, printableDots: 236, totalDots: 720, defaultHeight: 236 },
+    '102x51': { id: '102x51', name: 'DK-1247 (102mm x 51mm Large Shipping)',       type: 0x0B, width: 102, length: 51, isTwoColor: false, printableDots: 1164, totalDots: 1296, defaultHeight: 560 },
+};
+
+function getBrotherRollSpec(labelSize = '62') {
+    const key = (labelSize || '62').trim().toLowerCase().replace(/^dk-?/i, '');
+    if (BROTHER_ROLL_SPECS[key]) return BROTHER_ROLL_SPECS[key];
+    if (key.includes('red') || key.includes('2251')) return BROTHER_ROLL_SPECS['62red'];
+    if (key.includes('1202') || key === '62x100') return BROTHER_ROLL_SPECS['62x100'];
+    if (key.includes('1201') || key === '29x90') return BROTHER_ROLL_SPECS['29x90'];
+    if (key.includes('1204') || key === '62x29') return BROTHER_ROLL_SPECS['62x29'];
+    if (key.includes('1208') || key === '38x90') return BROTHER_ROLL_SPECS['38x90'];
+    if (key.includes('1209') || key === '29x62') return BROTHER_ROLL_SPECS['29x62'];
+    if (key.includes('1221') || key === '38x38') return BROTHER_ROLL_SPECS['38x38'];
+    if (key.includes('29')) return BROTHER_ROLL_SPECS['29'];
+    if (key.includes('38')) return BROTHER_ROLL_SPECS['38'];
+    if (key.includes('54')) return BROTHER_ROLL_SPECS['54'];
+    if (key.includes('102')) return BROTHER_ROLL_SPECS['102'];
+    return BROTHER_ROLL_SPECS['62'];
+}
+
 // ─── Native 300-DPI Brother ESC/P Raster Bitmap Engine ────────────────
 class BrotherBitmapCanvas {
     constructor(width = 720, height = 520) {
         this.width = width;
         this.height = height;
-        // 0 = white, 1 = black, 2 = red (for DK-2251 two-color tape)
         this.pixels = new Uint8Array(width * height);
     }
 
+    setPixel(x, y, color = 1) {
+        if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+            this.pixels[y * this.width + x] = color;
+        }
+    }
+
     fillRect(x, y, w, h, color = 1) {
-        const x0 = Math.max(0, Math.floor(x));
-        const y0 = Math.max(0, Math.floor(y));
-        const x1 = Math.min(this.width, Math.floor(x + w));
-        const y1 = Math.min(this.height, Math.floor(y + h));
-        for (let py = y0; py < y1; py++) {
-            const rowOffset = py * this.width;
-            for (let px = x0; px < x1; px++) {
-                this.pixels[rowOffset + px] = color;
+        for (let dy = 0; dy < h; dy++) {
+            for (let dx = 0; dx < w; dx++) {
+                this.setPixel(x + dx, y + dy, color);
             }
         }
     }
 
-    drawRect(x, y, w, h, stroke = 2, color = 1) {
-        this.fillRect(x, y, w, stroke, color);
-        this.fillRect(x, y + h - stroke, w, stroke, color);
-        this.fillRect(x, y, stroke, h, color);
-        this.fillRect(x + w - stroke, y, stroke, h, color);
+    drawRect(x, y, w, h, thickness = 1, color = 1) {
+        this.fillRect(x, y, w, thickness, color);
+        this.fillRect(x, y + h - thickness, w, thickness, color);
+        this.fillRect(x, y, thickness, h, color);
+        this.fillRect(x + w - thickness, y, thickness, h, color);
     }
 
-    drawDashedRect(x, y, w, h, stroke = 3, dash = 14, gap = 8, color = 1) {
-        for (let px = x; px < x + w; px += dash + gap) {
-            this.fillRect(px, y, Math.min(dash, x + w - px), stroke, color);
-            this.fillRect(px, y + h - stroke, Math.min(dash, x + w - px), stroke, color);
+    drawDashedRect(x, y, w, h, thickness = 2, dash = 12, gap = 6, color = 1) {
+        for (let cx = x; cx < x + w; cx += dash + gap) {
+            const len = Math.min(dash, x + w - cx);
+            this.fillRect(cx, y, len, thickness, color);
+            this.fillRect(cx, y + h - thickness, len, thickness, color);
         }
-        for (let py = y; py < y + h; py += dash + gap) {
-            this.fillRect(x, py, stroke, Math.min(dash, y + h - py), color);
-            this.fillRect(x + w - stroke, py, stroke, Math.min(dash, y + h - py), color);
+        for (let cy = y; cy < y + h; cy += dash + gap) {
+            const len = Math.min(dash, y + h - cy);
+            this.fillRect(x, cy, thickness, len, color);
+            this.fillRect(x + w - thickness, cy, thickness, len, color);
         }
     }
 
-    drawText(text, x, y, scale = 3, color = 1) {
-        let cursorX = Math.floor(x);
-        let curY = Math.floor(y);
-        const str = String(text || '');
-        for (let i = 0; i < str.length; i++) {
-            const char = str[i];
-            if (char === '\n') {
-                cursorX = Math.floor(x);
-                curY += 9 * scale;
-                continue;
-            }
-            const glyph = FONT_5X7[char] || FONT_5X7[char.toUpperCase()] || FONT_5X7['?'] || [0,0,0,0,0];
-            for (let col = 0; col < 5; col++) {
-                const colBits = glyph[col];
-                for (let row = 0; row < 7; row++) {
-                    if ((colBits >> row) & 1) {
-                        this.fillRect(cursorX + col * scale, curY + row * scale, scale, scale, color);
-                    }
+    drawChar(char, x, y, scale = 2, color = 1) {
+        const glyph = FONT_5X7[char] || FONT_5X7['?'] || [0,0,0,0,0];
+        for (let col = 0; col < 5; col++) {
+            const byte = glyph[col];
+            for (let row = 0; row < 7; row++) {
+                if ((byte & (1 << row)) !== 0) {
+                    this.fillRect(x + col * scale, y + row * scale, scale, scale, color);
                 }
             }
-            cursorX += 6 * scale;
         }
-        return cursorX;
     }
 
-    drawTextCentered(text, y, scale = 3, color = 1, startX = 0, endX = null) {
-        const right = (endX === null ? this.width : endX);
-        const textWidth = String(text || '').length * 6 * scale;
-        const x = Math.floor(startX + (right - startX - textWidth) / 2);
+    drawText(text, x, y, scale = 2, color = 1) {
+        let curX = x;
+        for (let i = 0; i < text.length; i++) {
+            const c = text[i];
+            if (c === '\n') {
+                curX = x;
+                y += (7 + 3) * scale;
+                continue;
+            }
+            this.drawChar(c, curX, y, scale, color);
+            curX += (5 + 1) * scale;
+        }
+    }
+
+    drawTextCentered(text, y, scale = 2, color = 1, boxLeft = 0, boxRight = 720) {
+        const charWidth = (5 + 1) * scale;
+        const textWidth = text.length * charWidth;
+        const x = Math.max(0, Math.floor(boxLeft + ((boxRight - boxLeft) - textWidth) / 2));
         this.drawText(text, x, y, scale, color);
-        return x;
     }
 
     drawQrCode(matrix, x, y, moduleSize = 6) {
@@ -317,7 +357,10 @@ class BrotherBitmapCanvas {
     }
 
     toBrotherRasterBuffer(labelSize = '62', isTwoColor = false) {
+        const spec = getBrotherRollSpec(labelSize);
+        const useTwoColor = isTwoColor || spec.isTwoColor;
         const chunks = [];
+
         // 1. 200 null bytes for synchronization
         chunks.push(Buffer.alloc(200, 0));
 
@@ -328,31 +371,32 @@ class BrotherBitmapCanvas {
         chunks.push(Buffer.from([0x1B, 0x69, 0x61, 0x01]));
 
         // 4. Media specification: ESC i z
-        let mediaWidth = 62;
-        if (labelSize.includes('29')) mediaWidth = 29;
-        if (labelSize.includes('38')) mediaWidth = 38;
-        if (labelSize.includes('54')) mediaWidth = 54;
-        if (labelSize.includes('102')) mediaWidth = 102;
+        // Continuous: PI = 0x86 (bits 7, 2, 1 -> 0x80 | 0x04 | 0x02)
+        // Die-Cut:    PI = 0x8E (bits 7, 3, 2, 1 -> 0x80 | 0x08 | 0x04 | 0x02)
+        const isDieCut = spec.type === 0x0B;
+        const piFlags = isDieCut ? 0x8E : 0x86;
+        const mediaWidth = spec.width;
+        const mediaLength = isDieCut ? spec.length : 0x00;
 
         const mediaHeader = Buffer.from([
             0x1B, 0x69, 0x7A,
-            0x84,       // valid flags
-            0x0A,       // continuous roll media type
-            mediaWidth, // media width in mm
-            0x00,       // media length (0 for continuous)
+            piFlags,            // Valid flags: bit 7 (always 1), bit 2 (width), bit 1 (type), bit 3 (length if die-cut)
+            spec.type,          // 0x0A (Continuous roll) or 0x0B (Die-cut)
+            mediaWidth,         // Media width in mm
+            mediaLength,        // Media length in mm (0 for continuous, length for die-cut)
             this.height & 0xFF, (this.height >> 8) & 0xFF, (this.height >> 16) & 0xFF, (this.height >> 24) & 0xFF,
             0x00, 0x00
         ]);
         chunks.push(mediaHeader);
 
-        // 5. ESC i M 0x40 (Auto cut)
+        // 5. ESC i M 0x40 (Auto cut enable)
         chunks.push(Buffer.from([0x1B, 0x69, 0x4D, 0x40]));
 
         // 6. ESC i A 0x01 (Cut every 1 page)
         chunks.push(Buffer.from([0x1B, 0x69, 0x41, 0x01]));
 
-        // 7. ESC i K (Expanded mode: cut at end, two-color mode flag)
-        const extMode = isTwoColor ? (0x08 | 0x01) : 0x08;
+        // 7. ESC i K (Expanded mode: bit 3 = 0x08 cut at end, bit 0 = 0x01 two-color mode)
+        const extMode = useTwoColor ? (0x08 | 0x01) : 0x08;
         chunks.push(Buffer.from([0x1B, 0x69, 0x6B, extMode]));
 
         // 8. ESC i d (Feed margin: 35 dots)
@@ -377,7 +421,7 @@ class BrotherBitmapCanvas {
                 }
             }
 
-            if (isTwoColor) {
+            if (useTwoColor) {
                 // Red raster line: w 0x01 0x5A
                 chunks.push(Buffer.from([0x77, 0x01, BYTES_PER_LINE]));
                 chunks.push(redBytes);
@@ -400,7 +444,8 @@ class BrotherBitmapCanvas {
 
 // ─── Badge & Ticket Generators (Native Raster & SVG) ─────────────────
 function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
-    const isTwoColor = labelSize === '62red' || labelSize.includes('red');
+    const spec = getBrotherRollSpec(labelSize);
+    const isTwoColor = spec.isTwoColor || labelSize === '62red' || labelSize.includes('red');
     const nameParts = (labelData.name || 'CHILD NAME').trim().split(' ');
     const firstName = (nameParts[0] || '').toUpperCase();
     const lastName = (nameParts.slice(1).join(' ') || '').toUpperCase();
@@ -412,7 +457,8 @@ function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none' && allergies.length > 0;
 
-    const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || 520, 10);
+    const defaultH = spec.defaultHeight || 520;
+    const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || defaultH, 10);
     const canvas = new BrotherBitmapCanvas(720, height);
 
     // Outer badge frame
@@ -456,11 +502,13 @@ function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
 }
 
 function generateNativeBrotherGuardianTicket(labelData, labelSize = '62') {
-    const isTwoColor = labelSize === '62red' || labelSize.includes('red');
+    const spec = getBrotherRollSpec(labelSize);
+    const isTwoColor = spec.isTwoColor || labelSize === '62red' || labelSize.includes('red');
     const childName = (labelData.name || 'CHILD NAME').toUpperCase();
     const securityCode = labelData.securityCode || 'K984';
     const qrDataPayload = labelData.qrData || securityCode;
-    const height = parseInt(serverConfig.guardianTicketLength || labelData.guardianTicketLength || 380, 10);
+    const defaultH = spec.type === 0x0B ? spec.defaultHeight : 380;
+    const height = parseInt(serverConfig.guardianTicketLength || labelData.guardianTicketLength || defaultH, 10);
     const canvas = new BrotherBitmapCanvas(720, height);
 
     // Outer ticket frame
@@ -601,20 +649,101 @@ function printViaCups(labelData, printerName, callback) {
     });
 }
 
+// ─── Brother QL Status Interrogation (ESC i S) ─────────────────────
+function parseBrotherStatus(buf) {
+    if (!buf || buf.length < 32) return null;
+    let offset = 0;
+    while (offset < buf.length && buf[offset] !== 0x80) offset++;
+    if (offset + 32 > buf.length) return null;
+
+    const mediaTypeByte = buf[offset + 11]; // 0x00=none, 0x0A=continuous, 0x0B=die-cut
+    const mediaWidthMm   = buf[offset + 12]; // mm
+    const mediaLengthMm  = buf[offset + 13]; // mm (for die-cut)
+    const err1           = buf[offset + 19];
+    const err2           = buf[offset + 20];
+
+    const isDieCut = mediaTypeByte === 0x0B;
+    const mediaTypeStr = mediaTypeByte === 0x0A ? 'Continuous Roll' : isDieCut ? 'Die-Cut Labels' : 'No Media';
+    const errors = [];
+    if (err1 & 0x01) errors.push('No media loaded');
+    if (err1 & 0x02) errors.push('End of media roll');
+    if (err1 & 0x04) errors.push('Cutter jam');
+    if (err1 & 0x08) errors.push('Cover is open');
+    if (err1 & 0x10) errors.push('Wrong media / roll type');
+    if (err2 & 0x01) errors.push('Replace media error');
+    if (err2 & 0x04) errors.push('Communication error');
+
+    // Find closest matching roll spec ID
+    let matchingSpecKey = '62';
+    if (isDieCut) {
+        matchingSpecKey = `${mediaWidthMm}x${mediaLengthMm}`;
+        if (!BROTHER_ROLL_SPECS[matchingSpecKey]) matchingSpecKey = '62x100';
+    } else {
+        matchingSpecKey = `${mediaWidthMm}`;
+    }
+
+    return {
+        mediaType: mediaTypeByte,
+        mediaTypeStr,
+        mediaWidth: mediaWidthMm,
+        mediaLength: mediaLengthMm,
+        isDieCut,
+        matchingSpecKey,
+        isTwoColor: (buf[offset + 15] & 0x01) !== 0,
+        errors,
+        rawHex: buf.slice(offset, offset + 32).toString('hex')
+    };
+}
+
+function queryBrotherPrinterStatus(cleanIp, callback) {
+    if (!cleanIp || cleanIp.startsWith('/dev/')) return callback(null, null);
+
+    const socket = new net.Socket();
+    socket.setTimeout(2000);
+    let buffer = Buffer.alloc(0);
+    let called = false;
+
+    const done = (err, status) => {
+        if (called) return;
+        called = true;
+        socket.destroy();
+        callback(err, status);
+    };
+
+    socket.connect(9100, cleanIp, () => {
+        // Send 100 null bytes + ESC i S
+        const req = Buffer.concat([Buffer.alloc(100, 0), Buffer.from([0x1B, 0x69, 0x53])]);
+        socket.write(req);
+    });
+
+    socket.on('data', (chunk) => {
+        buffer = Buffer.concat([buffer, chunk]);
+        if (buffer.length >= 32) {
+            const status = parseBrotherStatus(buffer);
+            done(null, status);
+        }
+    });
+
+    socket.on('error', (err) => {
+        done(err, null);
+    });
+
+    socket.on('timeout', () => {
+        done(new Error('Status timeout'), null);
+    });
+}
+
 // ─── Brother QL Printing (Native Direct Socket + USB/CLI Fallback) ───
 function printViaBrotherQl(labelData, printerIp, callback) {
     const cleanIp = (printerIp || '').replace(/^tcp:\/\//i, '').replace(/:9100$/, '').trim();
-    const labelSize = (serverConfig.defaultLabelSize || '62').trim();
-
-    addLog('info', `Generating Native Brother ESC/P Raster for "${labelData.name}"...`, { targetIp: cleanIp });
-
-    const badgeBuffer = generateNativeBrotherChildBadge(labelData, labelSize);
-    const ticketBuffer = generateNativeBrotherGuardianTicket(labelData, labelSize);
-    const fullPayload = Buffer.concat([badgeBuffer, ticketBuffer]);
+    let labelSize = (labelData.labelSize || serverConfig.defaultLabelSize || '62').trim();
 
     // 1. If USB device path on Linux (e.g. /dev/usb/lp0)
     if (cleanIp.startsWith('/dev/')) {
         try {
+            const badgeBuffer = generateNativeBrotherChildBadge(labelData, labelSize);
+            const ticketBuffer = generateNativeBrotherGuardianTicket(labelData, labelSize);
+            const fullPayload = Buffer.concat([badgeBuffer, ticketBuffer]);
             fs.writeFileSync(cleanIp, fullPayload);
             addLog('success', `Brother QL: Printed 2 labels directly to USB port [${cleanIp}]!`);
             return callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_usb_direct' });
@@ -624,39 +753,66 @@ function printViaBrotherQl(labelData, printerIp, callback) {
         }
     }
 
-    // 2. Direct Raw TCP Port 9100 Socket Stream (Fastest, zero external python/cairo dependencies)
-    addLog('info', `Streaming native Brother ESC/P raster to tcp://${cleanIp}:9100...`, { targetIp: cleanIp });
-
-    const socket = new net.Socket();
-    socket.setTimeout(6000);
-
-    socket.connect(9100, cleanIp, () => {
-        socket.write(fullPayload, () => {
-            socket.end();
-            addLog('success', `Brother QL: 2 labels (Child Badge + Guardian Ticket) printed on ${cleanIp}!`, { targetIp: cleanIp });
-            callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_native_raster_tcp' });
-        });
-    });
-
-    socket.on('error', (sErr) => {
-        let userFriendlyErr = sErr.message;
-        if (sErr.code === 'ECONNREFUSED' || sErr.message.includes('ECONNREFUSED')) {
-            userFriendlyErr = `Printer at IP ${cleanIp} refused connection on Port 9100. Confirm IP is correct & printer is ON.`;
-        } else if (sErr.code === 'EHOSTUNREACH' || sErr.message.includes('EHOSTUNREACH')) {
-            userFriendlyErr = `Printer at IP ${cleanIp} is UNREACHABLE (No route to host). Check printer Wi-Fi connection.`;
-        } else if (sErr.code === 'ETIMEDOUT') {
-            userFriendlyErr = `Connection to printer at ${cleanIp}:9100 TIMED OUT. Printer may be sleeping or on different subnet.`;
+    // 2. Query hardware status to detect exact roll & clear roll mismatch
+    queryBrotherPrinterStatus(cleanIp, (statusErr, hwStatus) => {
+        if (hwStatus) {
+            if (hwStatus.errors && hwStatus.errors.length > 0) {
+                addLog('warn', `Printer hardware report: ${hwStatus.errors.join(', ')}`, { targetIp: cleanIp });
+            }
+            if (hwStatus.mediaWidth > 0) {
+                const detectedKey = hwStatus.matchingSpecKey;
+                addLog('info', `Printer detected roll: ${hwStatus.mediaTypeStr} (${hwStatus.mediaWidth}mm${hwStatus.mediaLength ? `x${hwStatus.mediaLength}mm` : ''})`, {
+                    targetIp: cleanIp,
+                    detectedRoll: detectedKey
+                });
+                // Auto-adapt labelSize if the user loaded a die-cut or different roll
+                if (hwStatus.isDieCut || hwStatus.mediaWidth !== 62) {
+                    labelSize = detectedKey;
+                }
+            }
         }
 
-        addLog('error', userFriendlyErr, { targetIp: cleanIp, error: sErr.message });
-        callback && callback(null, { success: false, error: userFriendlyErr, printer: cleanIp });
-    });
+        const spec = getBrotherRollSpec(labelSize);
+        addLog('info', `Generating Native Brother ESC/P Raster for "${labelData.name}" using [${spec.name}]...`, { targetIp: cleanIp, roll: spec.id });
 
-    socket.on('timeout', () => {
-        socket.destroy();
-        const timeoutMsg = `Printer at ${cleanIp}:9100 timed out after 6 seconds. Check printer Wi-Fi connection.`;
-        addLog('warn', timeoutMsg, { targetIp: cleanIp });
-        callback && callback(null, { success: false, error: timeoutMsg, printer: cleanIp });
+        const badgeBuffer = generateNativeBrotherChildBadge(labelData, labelSize);
+        const ticketBuffer = generateNativeBrotherGuardianTicket(labelData, labelSize);
+        const fullPayload = Buffer.concat([badgeBuffer, ticketBuffer]);
+
+        // Stream raster to printer Port 9100
+        addLog('info', `Streaming native Brother ESC/P raster to tcp://${cleanIp}:9100 (${fullPayload.length} bytes)...`, { targetIp: cleanIp });
+
+        const socket = new net.Socket();
+        socket.setTimeout(7000);
+
+        socket.connect(9100, cleanIp, () => {
+            socket.write(fullPayload, () => {
+                socket.end();
+                addLog('success', `Brother QL: 2 labels (Child Badge + Guardian Ticket) successfully printed on ${cleanIp} [${spec.name}]!`, { targetIp: cleanIp });
+                callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_native_raster_tcp', roll: spec.name });
+            });
+        });
+
+        socket.on('error', (sErr) => {
+            let userFriendlyErr = sErr.message;
+            if (sErr.code === 'ECONNREFUSED' || sErr.message.includes('ECONNREFUSED')) {
+                userFriendlyErr = `Printer at IP ${cleanIp} refused connection on Port 9100. Confirm IP is correct & printer is ON.`;
+            } else if (sErr.code === 'EHOSTUNREACH' || sErr.message.includes('EHOSTUNREACH')) {
+                userFriendlyErr = `Printer at IP ${cleanIp} is UNREACHABLE (No route to host). Check printer Wi-Fi connection.`;
+            } else if (sErr.code === 'ETIMEDOUT') {
+                userFriendlyErr = `Connection to printer at ${cleanIp}:9100 TIMED OUT. Printer may be sleeping or on different subnet.`;
+            }
+
+            addLog('error', userFriendlyErr, { targetIp: cleanIp, error: sErr.message });
+            callback && callback(null, { success: false, error: userFriendlyErr, printer: cleanIp });
+        });
+
+        socket.on('timeout', () => {
+            socket.destroy();
+            const timeoutMsg = `Printer at ${cleanIp}:9100 timed out after 7 seconds. Check printer Wi-Fi connection.`;
+            addLog('warn', timeoutMsg, { targetIp: cleanIp });
+            callback && callback(null, { success: false, error: timeoutMsg, printer: cleanIp });
+        });
     });
 }
 
