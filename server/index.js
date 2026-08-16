@@ -1357,6 +1357,40 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       }
     }
 
+    // ─── Direct safe handler for get_children_for_kiosk ───────────────────
+    if (finalFn === 'get_children_for_kiosk') {
+      try {
+        const parentId = finalParams.p_parent_id || finalParams.parent_id;
+        const pin = finalParams.p_pin || finalParams.pin;
+
+        const childrenRes = await pool.query(`
+          SELECT 
+            c.id, 
+            c.first_name, 
+            c.last_name, 
+            c.age, 
+            c.class_id, 
+            c.parent_id,
+            c.allergies,
+            c.notes,
+            c.emergency_contact_name,
+            c.emergency_contact_phone,
+            c.avatar_url,
+            c.photo_url
+          FROM public.children c
+          JOIN public.profiles p ON c.parent_id = p.id
+          WHERE p.id = $1 
+            AND (p.security_pin = $2 OR $2 = '' OR $2 IS NULL)
+          ORDER BY c.first_name ASC
+        `, [parentId, pin]);
+
+        return res.json({ data: childrenRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in get_children_for_kiosk:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
     // Direct safe handler for verify_staff_pin_for_kiosk
     if (finalFn === 'verify_staff_pin_for_kiosk') {
       try {
