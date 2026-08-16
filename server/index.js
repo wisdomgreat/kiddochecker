@@ -1375,8 +1375,8 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             c.notes,
             c.emergency_contact_name,
             c.emergency_contact_phone,
-            c.avatar_url,
-            c.photo_url
+            COALESCE(c.photo_url, '') as photo_url,
+            COALESCE(c.photo_url, '') as avatar_url
           FROM public.children c
           JOIN public.profiles p ON c.parent_id = p.id
           WHERE p.id = $1 
