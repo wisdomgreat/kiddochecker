@@ -1190,11 +1190,14 @@ const KioskCheckInSystem = () => {
                   <div className="mt-3">
                     {showParentScanner ? (
                       <div className="space-y-2">
-                        <div className="h-44 rounded-xl overflow-hidden border border-blue-200 bg-slate-900 shadow-inner flex items-center justify-center">
-                          <QRCodeScanner onScanComplete={(data) => {
-                             handleQRScan(data);
-                             setShowParentScanner(false);
-                          }} />
+                        <div className="h-44 rounded-xl overflow-hidden border border-blue-200 bg-slate-950 shadow-inner flex items-center justify-center p-1">
+                          <QRCodeScanner 
+                            compact={true}
+                            onScanComplete={(data) => {
+                              handleQRScan(data);
+                              setShowParentScanner(false);
+                            }} 
+                          />
                         </div>
                         <Button 
                           variant="ghost" 
