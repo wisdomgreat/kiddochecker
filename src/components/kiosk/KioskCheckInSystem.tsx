@@ -1315,10 +1315,10 @@ const KioskCheckInSystem = () => {
               PARENT CHECK-IN (Authenticated Children Roster)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && parentLoggedIn && (
-            <div className="h-full flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+            <div className="w-full max-w-2xl mx-auto flex flex-col p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
               
               {/* Header Bar */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
                 <div>
                   <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">
                     {isEs ? "Cuenta Familiar Verificada" : "Verified Family Account"}
@@ -1361,8 +1361,8 @@ const KioskCheckInSystem = () => {
                 </div>
               </div>
 
-              {/* Children Cards Grid (Zero-Scroll Responsive Grid) */}
-              <div className="flex-1 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto max-h-[390px]">
+              {/* Children List (Compact Horizontal Cards, max height, no awkward stretch) */}
+              <div className="py-3.5 space-y-2.5 overflow-y-auto max-h-[340px]">
                 {parentChildren.map(child => {
                   const checked = alreadyIn(child.id);
                   return (
@@ -1370,51 +1370,55 @@ const KioskCheckInSystem = () => {
                       key={child.id} 
                       onClick={() => handleParentCheckIn(child)}
                       className={cn(
-                        "p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-xs",
+                        "p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 group",
                         checked 
-                          ? "bg-rose-50/50 border-rose-200 hover:border-rose-300" 
-                          : "bg-white border-slate-200 hover:border-blue-400 hover:shadow-sm"
+                          ? "bg-rose-50/40 border-rose-200 hover:border-rose-300" 
+                          : "bg-slate-50/70 hover:bg-blue-50/40 border-slate-200 hover:border-blue-300 shadow-2xs"
                       )}
                     >
-                      <div className="flex items-start gap-3">
+                      {/* Left: Child Avatar + Details */}
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className={cn(
-                          "w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg shadow-inner",
+                          "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-xs shrink-0",
                           checked ? "bg-rose-600 text-white" : "bg-blue-600 text-white"
                         )}>
-                          {checked ? <CheckCircle className="w-6 h-6" /> : child.first_name[0]}
+                          {checked ? <CheckCircle className="w-5 h-5" /> : child.first_name[0]}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-black text-sm text-slate-900 truncate">{child.first_name} {child.last_name}</h3>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                            {child.age ? `Age ${child.age}` : 'Registered Child'}
-                          </p>
-                          {child.allergies && (
-                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[9px] font-black uppercase text-amber-800">
-                              ⚠️ {child.allergies}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-extrabold text-sm text-slate-900 truncate">{child.first_name} {child.last_name}</h3>
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-200/60 px-1.5 py-0.5 rounded-md">
+                              {child.age ? `Age ${child.age}` : 'Child'}
                             </span>
+                          </div>
+                          {child.allergies ? (
+                            <p className="text-[10px] font-bold text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded border border-amber-200 mt-1 inline-block truncate max-w-[280px]">
+                              ⚠️ {child.allergies}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] font-medium text-slate-400 mt-0.5">
+                              {checked ? "Currently present in classroom" : "Ready for check-in"}
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                        <span className={cn(
-                          "text-[10px] font-extrabold uppercase tracking-wider",
-                          checked ? "text-rose-600" : "text-emerald-600"
-                        )}>
-                          {checked ? (isEs ? "● Presente" : "● Checked In") : (isEs ? "○ Disponible" : "○ Ready")}
-                        </span>
+                      {/* Right: Instant Tap Action Button */}
+                      <div className="shrink-0">
                         <div className={cn(
-                          "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1",
-                          checked ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
+                          "px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs transition-transform group-hover:scale-105",
+                          checked 
+                            ? "bg-rose-600 text-white hover:bg-rose-700" 
+                            : "bg-emerald-600 text-white hover:bg-emerald-700"
                         )}>
                           {checked ? (
                             <>
-                              <LogOut className="w-3 h-3" />
+                              <LogOut className="w-3.5 h-3.5" />
                               <span>{isEs ? "Salida" : "Check Out"}</span>
                             </>
                           ) : (
                             <>
-                              <CheckCircle className="w-3 h-3" />
+                              <CheckCircle className="w-3.5 h-3.5" />
                               <span>{isEs ? "Entrada" : "Check In"}</span>
                             </>
                           )}
@@ -1426,14 +1430,14 @@ const KioskCheckInSystem = () => {
               </div>
 
               {/* Bottom Instructions / Done Bar */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between">
                 <p className="text-xs text-slate-500 font-medium">
-                  {isEs ? "Toque un niño para registrar entrada o salida" : "Tap any child card above to check in or out"}
+                  {isEs ? "Toque un niño para registrar entrada o salida" : "Tap any child row above to check in or out"}
                 </p>
                 <Button 
                   size="sm" 
                   onClick={handleParentLogout} 
-                  className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm"
+                  className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-xs"
                 >
                   {isEs ? "Listo / Finalizar" : "Done / Complete"}
                 </Button>
