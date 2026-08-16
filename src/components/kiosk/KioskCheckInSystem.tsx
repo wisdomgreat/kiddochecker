@@ -503,40 +503,74 @@ const KioskCheckInSystem = () => {
   };
 
   const handleParentLogin = async () => {
-    if (!parentPhone.trim() || !parentPin.trim()) {
-      setParentLoginError(t('loginError'));
+    const cleanPhone = parentPhone.replace(/\D/g, '');
+    const cleanPin = parentPin.trim();
+
+    if (!cleanPhone && !cleanPin) {
+      setParentLoginError(isEs ? "Por favor ingrese su teléfono o PIN" : "Please enter your phone number or security PIN");
       return;
     }
+
     setIsLoading(true);
     setParentLoginError('');
-    const cleanPhone = parentPhone.replace(/\D/g, '');
-    try {
-      const { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
-        p_search_val: cleanPhone || parentPhone.trim(),
-        p_pin: parentPin.trim(),
-        p_org_id: activeOrgId
-      });
 
-      if (error || !matched || (matched as any).length === 0) {
-        console.error('[Kiosk] Parent search failed:', error);
-        setParentLoginError(t('loginError'));
+    try {
+      let matched: any = null;
+
+      // 1. Primary RPC check with phone and PIN
+      if (cleanPhone) {
+        const { data: rpcMatched, error } = await safeRPC('get_parent_for_kiosk', {
+          p_search_val: cleanPhone,
+          p_pin: cleanPin || '0000',
+          p_org_id: activeOrgId
+        });
+        if (rpcMatched && (rpcMatched as any).length > 0) {
+          matched = rpcMatched;
+        }
+      }
+
+      // 2. Direct lookup fallback (matches phone, direct_pin, or pin)
+      if (!matched || (matched as any).length === 0) {
+        if (cleanPhone) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('phone', cleanPhone)
+            .limit(1);
+          if (profiles && profiles.length > 0) {
+            matched = profiles;
+          }
+        }
+        
+        if ((!matched || (matched as any).length === 0) && cleanPin) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('*')
+            .or(`direct_pin.eq.${cleanPin},pin.eq.${cleanPin}`)
+            .limit(1);
+          if (profiles && profiles.length > 0) {
+            matched = profiles;
+          }
+        }
+      }
+
+      if (!matched || (matched as any).length === 0) {
+        setParentLoginError(isEs ? "No se encontró cuenta con esos datos" : "Invalid phone number or PIN. Please try again.");
         setIsLoading(false);
         return;
       }
 
       const parent = (matched as any)[0];
-      let { data: kids, error: kidsError } = await safeRPC('get_children_for_kiosk', {
+      let { data: kids } = await safeRPC('get_children_for_kiosk', {
         p_parent_id: parent.id,
-        p_pin: parentPin,
+        p_pin: cleanPin || parent.pin || parent.direct_pin || '0000',
         p_org_id: activeOrgId
       });
-
-      if (kidsError) console.warn('[Kiosk] get_children_for_kiosk error:', kidsError);
 
       if (!kids || (kids as any).length === 0) {
         const { data: fallbackKids } = await supabase
           .from('children')
-          .select('id, first_name, last_name, age, allergies, notes, parent_id')
+          .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
           .eq('parent_id', parent.id)
           .eq('organization_id', activeOrgId);
         if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
@@ -544,7 +578,7 @@ const KioskCheckInSystem = () => {
       
       const kidsWithClasses = await Promise.all(((kids as any) || []).map(async (k: any) => {
         const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
-        return { ...k, class_id: c?.class_id };
+        return { ...k, class_id: c?.class_id || k.class_id };
       }));
       
       setParentName(`${parent.first_name} ${parent.last_name}`);
@@ -558,9 +592,11 @@ const KioskCheckInSystem = () => {
       await logActivity('parent_login', { parent_id: parent.id, parent_name: `${parent.first_name} ${parent.last_name}` });
       startAutoLogoutTimer(120);
     } catch (e: any) {
-      console.error('[Kiosk] handleParentLogin exception:', e);
+      console.error('[Kiosk] Login exception:', e);
       setParentLoginError(e.message || t('loginError'));
-    } finally { setIsLoading(false); }
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const handleQRScan = async (scannedData: string) => {
@@ -972,97 +1008,6 @@ const KioskCheckInSystem = () => {
     }
   };
 
-  const [kioskInput, setKioskInput] = useState('');
-
-  const formatSmartInput = (val: string) => {
-    const cleaned = val.replace(/\D/g, '');
-    if (cleaned.length <= 4) return cleaned; // 1-4 digit PIN or short code
-    if (cleaned.length <= 7) return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
-    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-  };
-
-  const handleSmartKeypadChange = (val: string) => {
-    const cleaned = val.replace(/\D/g, '');
-    if (cleaned.length <= 10) {
-      setKioskInput(cleaned);
-      setParentPhone(cleaned);
-      setParentPin(cleaned);
-    }
-  };
-
-  const handleUnifiedParentLogin = async () => {
-    const val = kioskInput.trim();
-    if (!val) {
-      setParentLoginError(isEs ? "Por favor ingrese su teléfono o PIN" : "Please enter your phone number or PIN");
-      return;
-    }
-    setIsLoading(true);
-    setParentLoginError('');
-    try {
-      // 1. Try search as phone number first
-      let { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
-        p_search_val: val,
-        p_pin: val,
-        p_org_id: activeOrgId
-      });
-
-      // 2. Fallback direct profile lookup if RPC didn't match
-      if (!matched || (matched as any).length === 0) {
-        const { data: directProfiles } = await supabase
-          .from('profiles')
-          .select('*')
-          .or(`phone.eq.${val},direct_pin.eq.${val},pin.eq.${val}`)
-          .limit(1);
-        if (directProfiles && directProfiles.length > 0) {
-          matched = directProfiles as any;
-        }
-      }
-
-      if (!matched || (matched as any).length === 0) {
-        setParentLoginError(isEs ? "No se encontró cuenta con ese teléfono o PIN" : "No family found with this phone number or PIN");
-        setIsLoading(false);
-        return;
-      }
-
-      const parent = (matched as any)[0];
-      let { data: kids } = await safeRPC('get_children_for_kiosk', {
-        p_parent_id: parent.id,
-        p_pin: parent.pin || parent.direct_pin || val,
-        p_org_id: activeOrgId
-      });
-
-      if (!kids || (kids as any).length === 0) {
-        const { data: fallbackKids } = await supabase
-          .from('children')
-          .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
-          .eq('parent_id', parent.id)
-          .eq('organization_id', activeOrgId);
-        if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
-      }
-      
-      const kidsWithClasses = await Promise.all(((kids as any) || []).map(async (k: any) => {
-        const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
-        return { ...k, class_id: c?.class_id || k.class_id };
-      }));
-      
-      setParentName(`${parent.first_name} ${parent.last_name}`);
-      setParentProfileId(parent.id);
-      setParentChildren(kidsWithClasses || []);
-      setParentLoggedIn(true);
-      
-      window.localStorage.setItem('kiosk_active_parent_id', parent.id);
-      window.localStorage.setItem('kiosk_active_parent_name', `${parent.first_name} ${parent.last_name}`);
-
-      await logActivity('parent_login', { parent_id: parent.id, parent_name: `${parent.first_name} ${parent.last_name}` });
-      startAutoLogoutTimer(120);
-    } catch (e: any) {
-      console.error('[Kiosk] Login exception:', e);
-      setParentLoginError(e.message || t('loginError'));
-    } finally { 
-      setIsLoading(false); 
-    }
-  };
-
   const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
   return (
@@ -1224,17 +1169,16 @@ const KioskCheckInSystem = () => {
                 </div>
               </div>
 
-              {/* Right Column: Phone Number vs Direct PIN Keypad (7 Cols) */}
+              {/* Right Column: Phone & PIN Dual Authentication & Touch Keypad (7 Cols) */}
               <div className="md:col-span-7 flex flex-col justify-between p-4 sm:p-5 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
                 
                 <div>
-                  {/* Phone vs Direct PIN Switcher Tabs */}
-                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 mb-2.5">
+                  {/* Field Focus Tabs (Phone / PIN) */}
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 mb-2">
                     <button
                       type="button"
                       onClick={() => {
                         setActiveInput('phone');
-                        setKioskInput('');
                         setParentLoginError('');
                       }}
                       className={cn(
@@ -1252,7 +1196,6 @@ const KioskCheckInSystem = () => {
                       type="button"
                       onClick={() => {
                         setActiveInput('pin');
-                        setKioskInput('');
                         setParentLoginError('');
                       }}
                       className={cn(
@@ -1263,28 +1206,59 @@ const KioskCheckInSystem = () => {
                       )}
                     >
                       <Shield className="w-3.5 h-3.5" />
-                      {isEs ? "PIN Directo" : "Direct PIN"}
+                      {isEs ? "PIN de Seguridad" : "Security PIN"}
                     </button>
                   </div>
 
-                  {/* Clean Formatted Display */}
-                  <div className="h-11 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
-                    <span className="text-xs font-bold uppercase text-slate-500">
-                      {activeInput === 'phone' ? 'Phone:' : 'PIN:'}
-                    </span>
-                    <span className="text-xl font-mono font-black tracking-wider text-blue-400">
-                      {activeInput === 'phone' ? (
-                        kioskInput ? formatSmartInput(kioskInput) : <span className="text-slate-600 text-base font-normal font-sans">(000) 000-0000</span>
-                      ) : (
-                        kioskInput ? '•'.repeat(kioskInput.length) : <span className="text-slate-600 text-base font-normal font-sans">••••</span>
+                  {/* Dual Display (Shows Both Phone and PIN) */}
+                  <div className="grid grid-cols-12 gap-2 mb-1">
+                    {/* Phone Input Box */}
+                    <div 
+                      onClick={() => setActiveInput('phone')}
+                      className={cn(
+                        "col-span-7 h-11 rounded-xl px-3 flex items-center justify-between cursor-pointer border transition-all shadow-inner",
+                        activeInput === 'phone' 
+                          ? "bg-slate-950 border-blue-500 ring-1 ring-blue-500/50" 
+                          : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
                       )}
-                    </span>
-                    <button 
-                      onClick={() => setKioskInput('')} 
-                      className="text-xs font-bold uppercase text-slate-500 hover:text-rose-400 px-2 py-1 rounded hover:bg-slate-900"
                     >
-                      Clear
-                    </button>
+                      <span className="text-[10px] font-extrabold uppercase text-slate-500">Phone</span>
+                      <span className="text-sm sm:text-base font-mono font-black text-blue-400">
+                        {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 font-sans text-xs">(000) 000-0000</span>}
+                      </span>
+                      {parentPhone && activeInput === 'phone' && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setParentPhone(''); }} 
+                          className="text-[10px] font-bold text-slate-500 hover:text-rose-400"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* PIN Input Box */}
+                    <div 
+                      onClick={() => setActiveInput('pin')}
+                      className={cn(
+                        "col-span-5 h-11 rounded-xl px-3 flex items-center justify-between cursor-pointer border transition-all shadow-inner",
+                        activeInput === 'pin' 
+                          ? "bg-slate-950 border-blue-500 ring-1 ring-blue-500/50" 
+                          : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                      )}
+                    >
+                      <span className="text-[10px] font-extrabold uppercase text-slate-500">PIN</span>
+                      <span className="text-sm sm:text-base font-mono font-black text-blue-400">
+                        {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-sans text-xs">••••</span>}
+                      </span>
+                      {parentPin && activeInput === 'pin' && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setParentPin(''); }} 
+                          className="text-[10px] font-bold text-slate-500 hover:text-rose-400"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {parentLoginError && (
@@ -1297,16 +1271,16 @@ const KioskCheckInSystem = () => {
                 {/* Tactile 3x4 Touch Keypad */}
                 <div className="my-1">
                   <NumericKeypad 
-                    value={kioskInput} 
-                    onChange={handleSmartKeypadChange} 
+                    value={activeInput === 'phone' ? parentPhone : parentPin} 
+                    onChange={handleKeypadChange} 
                     maxLength={activeInput === 'phone' ? 10 : 6}
                   />
                 </div>
 
                 {/* Primary Check-In Action Button */}
                 <Button 
-                  onClick={handleUnifiedParentLogin} 
-                  disabled={isLoading || kioskInput.length < 4}
+                  onClick={handleParentLogin} 
+                  disabled={isLoading || (parentPhone.length < 4 && parentPin.length < 4)}
                   className="w-full h-10 sm:h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
                 >
                   {isLoading ? (
@@ -1314,9 +1288,7 @@ const KioskCheckInSystem = () => {
                   ) : (
                     <ArrowRight className="w-4 h-4 mr-2" />
                   )}
-                  {activeInput === 'phone'
-                    ? (isEs ? "Buscar por Teléfono" : "Lookup & Check In")
-                    : (isEs ? "Verificar PIN de Seguridad" : "Verify Security PIN")}
+                  {isEs ? "Continuar con Check-In" : "Lookup & Check In"}
                 </Button>
               </div>
 
