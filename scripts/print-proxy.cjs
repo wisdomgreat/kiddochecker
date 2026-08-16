@@ -784,12 +784,19 @@ function printViaBrotherQl(labelData, printerIp, callback) {
 
         const socket = new net.Socket();
         socket.setTimeout(7000);
+        let called = false;
+        const done = (err, res) => {
+            if (called) return;
+            called = true;
+            try { socket.destroy(); } catch(e) {}
+            callback && callback(err, res);
+        };
 
         socket.connect(9100, cleanIp, () => {
             socket.write(fullPayload, () => {
-                socket.end();
+                try { socket.end(); } catch(e) {}
                 addLog('success', `Brother QL: 2 labels (Child Badge + Guardian Ticket) successfully printed on ${cleanIp} [${spec.name}]!`, { targetIp: cleanIp });
-                callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_native_raster_tcp', roll: spec.name });
+                done(null, { success: true, printer: cleanIp, mode: 'brother_native_raster_tcp', roll: spec.name });
             });
         });
 
@@ -804,14 +811,13 @@ function printViaBrotherQl(labelData, printerIp, callback) {
             }
 
             addLog('error', userFriendlyErr, { targetIp: cleanIp, error: sErr.message });
-            callback && callback(null, { success: false, error: userFriendlyErr, printer: cleanIp });
+            done(null, { success: false, error: userFriendlyErr, printer: cleanIp });
         });
 
         socket.on('timeout', () => {
-            socket.destroy();
             const timeoutMsg = `Printer at ${cleanIp}:9100 timed out after 7 seconds. Check printer Wi-Fi connection.`;
             addLog('warn', timeoutMsg, { targetIp: cleanIp });
-            callback && callback(null, { success: false, error: timeoutMsg, printer: cleanIp });
+            done(null, { success: false, error: timeoutMsg, printer: cleanIp });
         });
     });
 }
@@ -885,26 +891,33 @@ function dispatchPrintCommand(labelData, printerIp, printerName, callback) {
     addLog('info', `TCP Socket → ${targetIp}:9100 [${printerMeta.protocol.toUpperCase()}]...`, { jobId: jobRecord.id, targetIp });
     const socket = new net.Socket();
     socket.setTimeout(6000);
+    let called = false;
+    const done = (err, res) => {
+        if (called) return;
+        called = true;
+        try { socket.destroy(); } catch(e) {}
+        callback && callback(err, res);
+    };
+
     socket.connect(9100, targetIp, () => {
         socket.write(payload, () => {
-            socket.end();
+            try { socket.end(); } catch(e) {}
             jobRecord.status = 'success';
             addLog('success', `Label printed on ${targetIp} [${printerMeta.name}]!`, { jobId: jobRecord.id, targetIp });
-            callback && callback(null, { success: true, printer: targetIp, mode: printerMeta.protocol });
+            done(null, { success: true, printer: targetIp, mode: printerMeta.protocol });
         });
     });
     socket.on('error', (err) => {
         jobRecord.status = 'failed';
         jobRecord.error = err.message;
         addLog('error', `Socket error ${targetIp}:9100 — ${err.message}`, { jobId: jobRecord.id, targetIp, error: err.message });
-        callback && callback(null, { success: false, error: err.message, targetIp });
+        done(null, { success: false, error: err.message, targetIp });
     });
     socket.on('timeout', () => {
         jobRecord.status = 'failed';
         jobRecord.error = `Connection timeout to ${targetIp}`;
         addLog('warn', `Socket timeout ${targetIp}:9100`, { jobId: jobRecord.id, targetIp });
-        socket.destroy();
-        callback && callback(null, { success: false, error: `Connection timeout to ${targetIp}` });
+        done(null, { success: false, error: `Connection timeout to ${targetIp}` });
     });
 }
 
@@ -1063,6 +1076,7 @@ app.post('/api/config', (req, res) => {
 app.post('/print', (req, res) => {
     const { labelData, printerIp, printerName } = req.body || {};
     dispatchPrintCommand(labelData, printerIp, printerName, (err, result) => {
+        if (res.headersSent) return;
         if (err) return res.status(400).json({ success: false, error: err.message });
         res.json(result || { success: true });
     });
@@ -1072,7 +1086,8 @@ app.post('/api/test-print', (req, res) => {
     const { printerIp, childName, model, labelSize } = req.body || {};
     const targetIp = (printerIp || serverConfig.defaultPrinterIp || '').trim();
     if (!targetIp) {
-        return res.status(400).json({ success: false, error: 'Printer IP or Queue Name is required' });
+        if (!res.headersSent) res.status(400).json({ success: false, error: 'Printer IP or Queue Name is required' });
+        return;
     }
     const testData = {
         name: childName || 'SAMUEL OKONKWO',
@@ -1083,6 +1098,7 @@ app.post('/api/test-print', (req, res) => {
         printerModel: model || serverConfig.defaultPrinterModel || 'brother_ql_820'
     };
     dispatchPrintCommand(testData, targetIp, '', (err, result) => {
+        if (res.headersSent) return;
         if (err) return res.status(400).json({ success: false, error: err.message });
         res.json(result || { success: true });
     });
@@ -1090,23 +1106,31 @@ app.post('/api/test-print', (req, res) => {
 
 app.get('/api/ping-printer', (req, res) => {
     const targetIp = (req.query.ip || serverConfig.defaultPrinterIp || '').trim();
-    if (!targetIp) return res.json({ reachable: false, error: 'No IP provided' });
+    if (!targetIp) {
+        if (!res.headersSent) res.json({ reachable: false, error: 'No IP provided' });
+        return;
+    }
 
     const socket = new net.Socket();
     socket.setTimeout(1500);
+    let responded = false;
+    const respond = (data) => {
+        if (responded) return;
+        responded = true;
+        try { socket.destroy(); } catch(e) {}
+        if (!res.headersSent) res.json(data);
+    };
+
     socket.connect(9100, targetIp, () => {
-        socket.destroy();
         addLog('success', `Printer IP ${targetIp}:9100 is ONLINE and ready!`, { targetIp });
-        res.json({ reachable: true, ip: targetIp, port: 9100, message: `Printer is ONLINE on port 9100` });
+        respond({ reachable: true, ip: targetIp, port: 9100, message: `Printer is ONLINE on port 9100` });
     });
     socket.on('error', (err) => {
-        socket.destroy();
         addLog('warn', `Printer check ${targetIp}:9100 failed: ${err.message}`, { targetIp });
-        res.json({ reachable: false, ip: targetIp, error: err.message });
+        respond({ reachable: false, ip: targetIp, error: err.message });
     });
     socket.on('timeout', () => {
-        socket.destroy();
-        res.json({ reachable: false, ip: targetIp, error: 'Connection timed out after 1.5s' });
+        respond({ reachable: false, ip: targetIp, error: 'Connection timed out after 1.5s' });
     });
 });
 
