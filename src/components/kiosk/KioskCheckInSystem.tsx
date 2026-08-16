@@ -1953,16 +1953,39 @@ const NumericKeypad: React.FC<{
   maxLength?: number;
 }> = ({ value, onChange, onEnter, maxLength = 10 }) => {
   const handlePress = (num: string) => {
-    if (value.length < maxLength) onChange(value + num);
+    const rawVal = (value || '').replace(/\D/g, '');
+    if (rawVal.length < maxLength) onChange(rawVal + num);
   };
 
   const handleBackspace = () => {
-    onChange(value.slice(0, -1));
+    const rawVal = (value || '').replace(/\D/g, '');
+    onChange(rawVal.slice(0, -1));
   };
 
   const handleClear = () => {
     onChange('');
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If typing in a regular input/textarea, ignore
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        handlePress(e.key);
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      } else if (e.key === 'Enter' && onEnter) {
+        e.preventDefault();
+        onEnter();
+      } else if (e.key === 'Escape') {
+        handleClear();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [value, maxLength, onEnter]);
 
   const keypadKeys = [
     { num: '1', letters: '' },
