@@ -650,8 +650,6 @@ async function runMigrations() {
 })();
 
 // ─── TOTP & MFA Helpers ───────────────────────────────────────────────────
-const crypto = require('crypto');
-
 function generateSecret() {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const randomBytes = crypto.randomBytes(16);
