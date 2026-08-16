@@ -474,7 +474,7 @@ app.use(tenantResolver);
 // ─── Email & SMS Helpers (Azure Communication Services + Resend + Fallback) ──
 async function sendEmail({ to, subject, html }) {
   // 1. Azure Communication Services Email (Native Azure)
-  if (process.env.AZURE_COMMUNICATION_CONNECTION_STRING) {
+  if (process.env.AZURE_COMMUNICATION_CONNECTION_STRING && !process.env.AZURE_COMMUNICATION_CONNECTION_STRING.includes('placeholder')) {
     try {
       const { EmailClient } = require('@azure/communication-email');
       const emailClient = new EmailClient(process.env.AZURE_COMMUNICATION_CONNECTION_STRING);

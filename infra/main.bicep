@@ -28,7 +28,7 @@ param resendApiKey string = 're_placeholder_key_configured_in_azure'
 
 @description('Azure Communication Services Connection String.')
 @secure()
-param azureCommunicationConnectionString string = ''
+param azureCommunicationConnectionString string = 'endpoint=https://placeholder.communication.azure.com/;accesskey=placeholder'
 
 @description('Azure Communication Services Sender Address.')
 param azureCommunicationSenderAddress string = 'DoNotReply@kiddochecker.azurecomm.net'
