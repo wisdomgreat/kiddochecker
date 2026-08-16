@@ -972,88 +972,171 @@ const KioskCheckInSystem = () => {
     }
   };
 
+  const [kioskInput, setKioskInput] = useState('');
+
+  const formatSmartInput = (val: string) => {
+    const cleaned = val.replace(/\D/g, '');
+    if (cleaned.length <= 4) return cleaned; // 1-4 digit PIN or short code
+    if (cleaned.length <= 7) return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  };
+
+  const handleSmartKeypadChange = (val: string) => {
+    const cleaned = val.replace(/\D/g, '');
+    if (cleaned.length <= 10) {
+      setKioskInput(cleaned);
+      setParentPhone(cleaned);
+      setParentPin(cleaned);
+    }
+  };
+
+  const handleUnifiedParentLogin = async () => {
+    const val = kioskInput.trim();
+    if (!val) {
+      setParentLoginError(isEs ? "Por favor ingrese su teléfono o PIN" : "Please enter your phone number or PIN");
+      return;
+    }
+    setIsLoading(true);
+    setParentLoginError('');
+    try {
+      // 1. Try search as phone number first
+      let { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
+        p_search_val: val,
+        p_pin: val,
+        p_org_id: activeOrgId
+      });
+
+      // 2. Fallback direct profile lookup if RPC didn't match
+      if (!matched || (matched as any).length === 0) {
+        const { data: directProfiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`phone.eq.${val},direct_pin.eq.${val},pin.eq.${val}`)
+          .limit(1);
+        if (directProfiles && directProfiles.length > 0) {
+          matched = directProfiles as any;
+        }
+      }
+
+      if (!matched || (matched as any).length === 0) {
+        setParentLoginError(isEs ? "No se encontró cuenta con ese teléfono o PIN" : "No family found with this phone number or PIN");
+        setIsLoading(false);
+        return;
+      }
+
+      const parent = (matched as any)[0];
+      let { data: kids } = await safeRPC('get_children_for_kiosk', {
+        p_parent_id: parent.id,
+        p_pin: parent.pin || parent.direct_pin || val,
+        p_org_id: activeOrgId
+      });
+
+      if (!kids || (kids as any).length === 0) {
+        const { data: fallbackKids } = await supabase
+          .from('children')
+          .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+          .eq('parent_id', parent.id)
+          .eq('organization_id', activeOrgId);
+        if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
+      }
+      
+      const kidsWithClasses = await Promise.all(((kids as any) || []).map(async (k: any) => {
+        const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
+        return { ...k, class_id: c?.class_id || k.class_id };
+      }));
+      
+      setParentName(`${parent.first_name} ${parent.last_name}`);
+      setParentProfileId(parent.id);
+      setParentChildren(kidsWithClasses || []);
+      setParentLoggedIn(true);
+      
+      window.localStorage.setItem('kiosk_active_parent_id', parent.id);
+      window.localStorage.setItem('kiosk_active_parent_name', `${parent.first_name} ${parent.last_name}`);
+
+      await logActivity('parent_login', { parent_id: parent.id, parent_name: `${parent.first_name} ${parent.last_name}` });
+      startAutoLogoutTimer(120);
+    } catch (e: any) {
+      console.error('[Kiosk] Login exception:', e);
+      setParentLoginError(e.message || t('loginError'));
+    } finally { 
+      setIsLoading(false); 
+    }
+  };
+
   const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
   return (
-    <div className="fixed inset-0 h-screen max-h-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col select-none font-sans">
+    <div className="fixed inset-0 h-screen max-h-screen overflow-hidden bg-slate-50/95 text-slate-800 flex flex-col select-none font-sans">
       
-      {/* ─── Ultra-Compact Top Bar (Height: 42px) [Circled Area 1 Optimized] ─── */}
-      <header className="h-[42px] min-h-[42px] max-h-[42px] z-50 flex items-center justify-between px-3 sm:px-5 bg-slate-900/90 border-b border-slate-800/80 backdrop-blur-xl shadow-sm">
-        {/* Left: Organization Branding & Live Status (Single Line, No Awkward Wrapping) */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-950/70 border border-blue-500/30 text-blue-400 text-xs font-black tracking-wide whitespace-nowrap">
+      {/* ─── Clean Unified Top Header (Height: 52px, Bright & Crisp) ─── */}
+      <header className="h-[52px] min-h-[52px] max-h-[52px] z-50 flex items-center justify-between px-4 sm:px-6 bg-white border-b border-slate-200 shadow-sm">
+        
+        {/* Left: Organization Branding & Live Heartbeat */}
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-100 border border-slate-200/80 text-slate-800 text-xs font-bold shadow-xs">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="truncate max-w-[160px] sm:max-w-[220px]">{settings?.name || 'Green Valley Alliance'}</span>
+            <span className="font-extrabold tracking-tight">{settings?.name || 'Green Valley Alliance'}</span>
           </div>
 
-          {nfcSupported ? (
-            <Badge variant="outline" className="h-5 px-1.5 gap-1 text-[9px] font-bold border-emerald-500/40 text-emerald-400 bg-emerald-950/40 hidden sm:inline-flex">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          {nfcSupported && (
+            <Badge variant="outline" className="h-6 px-2 text-[10px] font-bold border-emerald-200 text-emerald-700 bg-emerald-50 hidden md:inline-flex">
               NFC Active
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="h-5 px-1.5 gap-1 text-[9px] font-bold border-slate-800 text-slate-400 bg-slate-900 hidden sm:inline-flex">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-              NFC Ready
             </Badge>
           )}
         </div>
         
-        {/* Center: Congregation / Language Switcher (Compact Rounded Pill) */}
-        <div className="flex items-center bg-slate-950/80 p-0.5 rounded-full border border-slate-800 shadow-inner">
-          {organizations.map((org) => {
-            const isActive = activeOrgId === org.id;
-            return (
-              <button
-                key={org.id}
-                onClick={() => {
-                  if (activeOrgId !== org.id) {
-                    setActiveOrgId(org.id);
-                    window.localStorage.setItem('kiosk_active_org_id', org.id);
-                    setLanguage(org.language_code || 'en');
-                    handleGlobalLogout();
-                    toast({
-                      title: `Switched to ${org.name}`,
-                      description: `Enforcing strict boundary isolation. All active sessions cleared.`,
-                    });
-                  }
-                }}
-                className={cn(
-                  "px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider transition-all duration-150",
-                  isActive
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
-                )}
-              >
-                {org.slug === 'english' ? '🇬🇧 EN' : org.slug === 'spanish' ? '🇪🇸 ES' : org.slug === 'combined' ? '🤝 Combined' : org.name}
-              </button>
-            );
-          })}
+        {/* Center: Integrated Clean Segmented Mode Selector */}
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+          {[
+            { id: 'parent', label: isEs ? 'Padres' : 'Family Check-In', icon: KeyRound },
+            { id: 'youth', label: isEs ? 'Jóvenes' : 'Youth Self-Check', icon: User },
+            { id: 'checkout', label: isEs ? 'Salida' : 'Check-Out', icon: LogOut },
+            { id: 'staff', label: isEs ? 'Personal' : 'Staff Portal', icon: UserCog },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id as KioskTab);
+                setParentLoginError('');
+                setYouthLoginError('');
+                setStaffPinError('');
+              }}
+              className={cn(
+                "flex items-center gap-1.5 py-1 px-3 rounded-lg text-xs font-extrabold transition-all duration-150",
+                activeTab === tab.id 
+                  ? "bg-blue-600 text-white shadow-sm" 
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              )}
+            >
+              <tab.icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Right: Real-time Stats & Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <div className="flex items-center gap-1.5 bg-slate-950/90 px-2 py-0.5 rounded-lg border border-slate-800 text-[10px] font-bold">
-            <span className="text-emerald-400 uppercase tracking-tight">{checkedInChildren.length} In</span>
-            <span className="w-px h-2.5 bg-slate-800" />
-            <span className="text-slate-400 uppercase tracking-tight">{todayCount} Total</span>
-            <span className="w-px h-2.5 bg-slate-800" />
-            <span className="text-slate-200 font-mono">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        {/* Right: Real-time Stats, Language & Fullscreen */}
+        <div className="flex items-center gap-2.5 min-w-[200px] justify-end">
+          <div className="flex items-center gap-2 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-700">
+            <span className="text-emerald-600 font-extrabold">{checkedInChildren.length} In</span>
+            <span className="w-px h-3 bg-slate-300" />
+            <span className="text-slate-500">{todayCount} Total</span>
+            <span className="w-px h-3 bg-slate-300" />
+            <span className="font-mono text-slate-800">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[9px] font-bold uppercase text-slate-300 hover:text-white hover:bg-slate-800">
-                <Globe className="h-3 w-3 mr-0.5" /> {language}
+              <Button variant="ghost" size="sm" className="h-8 px-2 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100">
+                <Globe className="h-3.5 w-3.5 mr-1 text-slate-500" /> {language.toUpperCase()}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200 rounded-xl">
-              <DropdownMenuItem onClick={() => setLanguage('en')} className="hover:bg-slate-800">English</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('fr')} className="hover:bg-slate-800">Français</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('es')} className="hover:bg-slate-800">Español</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="bg-white border-slate-200 text-slate-800 rounded-xl shadow-lg">
+              <DropdownMenuItem onClick={() => setLanguage('en')} className="font-medium hover:bg-slate-100">English</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLanguage('fr')} className="font-medium hover:bg-slate-100">Français</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLanguage('es')} className="font-medium hover:bg-slate-100">Español</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -1062,79 +1145,52 @@ const KioskCheckInSystem = () => {
               variant="outline" 
               size="sm" 
               onClick={() => setShowPrinterDialog(true)} 
-              className="h-6 px-2 text-[9px] font-bold gap-1 border-blue-500/30 text-blue-400 bg-blue-950/20 hover:bg-blue-900/30"
+              className="h-8 px-2.5 text-xs font-bold gap-1.5 border-blue-200 text-blue-600 bg-blue-50/50 hover:bg-blue-100"
               title="Printer Setup"
             >
-              <Printer className="h-3 w-3" />
-              <span className="hidden md:inline">Printer</span>
+              <Printer className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Printer</span>
             </Button>
           )}
 
-          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-6 w-6 text-slate-400 hover:text-white hover:bg-slate-800">
-            <Maximize className="h-3 w-3" />
+          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-8 w-8 text-slate-500 hover:text-slate-800 hover:bg-slate-100">
+            <Maximize className="h-3.5 w-3.5" />
           </Button>
         </div>
       </header>
 
-      {/* ─── Sleek Horizontal Navigation Tabs (Height: 38px) [Circled Area 2 Optimized] ─── */}
-      <nav className="h-[38px] min-h-[38px] max-h-[38px] px-3 sm:px-5 bg-slate-900/50 border-b border-slate-800/50 flex items-center justify-center">
-        <div className="flex bg-slate-950/90 border border-slate-800/80 rounded-xl p-0.5 shadow-inner max-w-xl w-full">
-          {[
-            { id: 'parent', label: t('parentAccess'), icon: KeyRound },
-            { id: 'youth', label: t('youthCheckIn'), icon: User },
-            { id: 'checkout', label: t('checkout'), icon: LogOut },
-            { id: 'staff', label: t('staffAccess'), icon: UserCog },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as KioskTab)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all duration-150",
-                activeTab === tab.id 
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-950" 
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
-              )}
-            >
-              <tab.icon className="w-3 h-3" />
-              <span className="truncate">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
-
-      {/* ─── Compact Zero-Scroll Main Workspace [Circled Areas 3 & 4 Optimized] ─── */}
-      <main className="flex-1 overflow-hidden p-2 sm:p-3 lg:p-4 flex items-center justify-center">
-        <div className="w-full max-w-4xl h-full max-h-[560px] flex flex-col justify-center">
+      {/* ─── Zero-Scroll Main Workspace (Crisp White Card Aesthetic) ─── */}
+      <main className="flex-1 overflow-hidden p-3 sm:p-4 lg:p-6 flex items-center justify-center">
+        <div className="w-full max-w-4xl h-full max-h-[580px] flex flex-col justify-center">
           
           {/* ══════════════════════════════════════════════════════════════
               PARENT CHECK-IN TAB (Unauthenticated)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && !parentLoggedIn && (
-            <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
+            <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
               
-              {/* Left Column: QR Fast Pass, NFC & Instructions (5 Cols) */}
-              <div className="md:col-span-5 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              {/* Left Column: QR Fast Pass & NFC Tap (5 Cols) */}
+              <div className="md:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                 <div>
-                  {/* [Circled Area 3 Optimized: Low-Profile Compact Header without oversized icon] */}
-                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-800">
-                    <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                      <LogIn className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                      <QrCode className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-sm font-black tracking-tight text-white">
-                        {isEs ? "Verificación Familiar" : "Parent Verification"}
+                      <h2 className="text-base font-bold tracking-tight text-slate-900">
+                        {isEs ? "Pase Rápido Familiar" : "Family Fast-Pass"}
                       </h2>
-                      <p className="text-[10px] text-slate-400">
-                        {isEs ? "Escanee QR o use su teléfono/PIN" : "Scan QR pass or enter phone/PIN"}
+                      <p className="text-xs text-slate-500">
+                        {isEs ? "Escanee su código QR móvil" : "Scan mobile QR or tap NFC"}
                       </p>
                     </div>
                   </div>
 
-                  {/* [Circled Area 4 Optimized: Sleek Scanner Area replacing huge 96px empty grey box] */}
-                  <div className="mt-2">
+                  {/* QR Scanner Area */}
+                  <div className="mt-3">
                     {showParentScanner ? (
-                      <div className="space-y-1.5">
-                        <div className="h-40 rounded-xl overflow-hidden border border-blue-500/40 bg-black/60 shadow-inner flex items-center justify-center">
+                      <div className="space-y-2">
+                        <div className="h-44 rounded-xl overflow-hidden border border-blue-200 bg-slate-900 shadow-inner flex items-center justify-center">
                           <QRCodeScanner onScanComplete={(data) => {
                              handleQRScan(data);
                              setShowParentScanner(false);
@@ -1144,25 +1200,25 @@ const KioskCheckInSystem = () => {
                           variant="ghost" 
                           size="sm" 
                           onClick={() => setShowParentScanner(false)} 
-                          className="w-full h-6 text-[9px] font-bold uppercase text-slate-400 hover:text-white"
+                          className="w-full h-7 text-xs font-bold text-slate-500 hover:text-slate-800"
                         >
-                          {isEs ? "Cerrar Escáner" : "Close Scanner"}
+                          {isEs ? "Cerrar Cámara" : "Close Scanner"}
                         </Button>
                       </div>
                     ) : (
                       <button
                         onClick={() => setShowParentScanner(true)}
-                        className="w-full h-28 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/50 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-1.5 group cursor-pointer"
+                        className="w-full h-32 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-500 bg-slate-50/60 hover:bg-blue-50/30 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer"
                       >
-                        <div className="w-8 h-8 rounded-full bg-blue-600/10 border border-blue-500/20 group-hover:border-blue-500 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                          <QrCode className="w-4 h-4" />
+                        <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 group-hover:border-blue-500 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform">
+                          <QrCode className="w-5 h-5" />
                         </div>
                         <div className="text-center">
-                          <p className="text-[11px] font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-300">
-                            {isEs ? "Escanear Pase Familiar" : "Scan Family QR Pass"}
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-800 group-hover:text-blue-600">
+                            {isEs ? "Abrir Escáner QR" : "Scan Mobile QR Pass"}
                           </p>
-                          <p className="text-[9px] text-slate-400">
-                            {isEs ? "Toque para abrir la cámara" : "Tap to activate camera"}
+                          <p className="text-[11px] text-slate-400">
+                            {isEs ? "Toque para activar la cámara" : "Tap to activate camera"}
                           </p>
                         </div>
                       </button>
@@ -1171,101 +1227,79 @@ const KioskCheckInSystem = () => {
                 </div>
 
                 {/* NFC Tap Card */}
-                <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
-                    <Smartphone className="w-3.5 h-3.5" />
+                <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+                    <Smartphone className="w-4 h-4" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[9px] font-bold uppercase text-emerald-400 tracking-wider">
-                      {isEs ? "Lector NFC Activo" : "NFC Reader Active"}
+                    <p className="text-[10px] font-extrabold uppercase text-emerald-700 tracking-wider">
+                      {isEs ? "Lector NFC Activo" : "NFC Tap Ready"}
                     </p>
-                    <p className="text-[10px] text-slate-300 font-medium">
+                    <p className="text-xs text-slate-600 font-medium">
                       {isEs ? "Acerque su pulsera o teléfono" : "Tap wristband or smart tag"}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Mode Display & Compact Touch Keypad (7 Cols) */}
-              <div className="md:col-span-7 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              {/* Right Column: Smart Frictionless Phone/PIN Entry (7 Cols) */}
+              <div className="md:col-span-7 flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm">
                 
-                {/* Mode Selector & Display Box */}
+                {/* Header & Clean Digit Display */}
                 <div>
-                  <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-800 mb-2">
-                    <button
-                      onClick={() => setActiveInput('phone')}
-                      className={cn(
-                        "flex-1 py-1 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-                        activeInput === 'phone'
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
-                      )}
-                    >
-                      <Phone className="w-3 h-3 inline mr-1" />
-                      {isEs ? "Teléfono" : "Phone Number"}
-                    </button>
-                    <button
-                      onClick={() => setActiveInput('pin')}
-                      className={cn(
-                        "flex-1 py-1 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-                        activeInput === 'pin'
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
-                      )}
-                    >
-                      <Shield className="w-3 h-3 inline mr-1" />
-                      {isEs ? "PIN Directo" : "Direct PIN"}
-                    </button>
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        {isEs ? "Ingreso por Teclado" : "Phone or PIN Check-In"}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {isEs ? "Escriba su número de teléfono o PIN" : "Type your 10-digit mobile number or security PIN"}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* High-Definition Input Display */}
-                  <div className="h-10 rounded-xl bg-slate-950 border border-slate-800 px-3.5 flex items-center justify-between shadow-inner">
-                    <span className="text-[11px] font-bold uppercase text-slate-500">
-                      {activeInput === 'phone' ? 'Phone:' : 'PIN:'}
+                  {/* Clean Formatted Display */}
+                  <div className="h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 mt-3 flex items-center justify-between shadow-inner">
+                    <span className="text-xs font-bold uppercase text-slate-400">
+                      {kioskInput.length > 4 ? 'Phone:' : 'Input:'}
                     </span>
-                    <span className="text-lg font-mono font-black tracking-widest text-blue-300">
-                      {activeInput === 'phone' 
-                        ? (parentPhone || <span className="text-slate-600 text-sm">(000) 000-0000</span>)
-                        : (parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 text-sm">••••</span>)
-                      }
+                    <span className="text-xl font-mono font-black tracking-wider text-blue-700">
+                      {kioskInput ? formatSmartInput(kioskInput) : <span className="text-slate-400 text-base font-normal font-sans">(000) 000-0000 or PIN</span>}
                     </span>
                     <button 
-                      onClick={() => {
-                        if (activeInput === 'phone') setParentPhone('');
-                        else setParentPin('');
-                      }} 
-                      className="text-[9px] font-bold uppercase text-slate-500 hover:text-rose-400 px-1 py-0.5 rounded"
+                      onClick={() => setKioskInput('')} 
+                      className="text-xs font-bold uppercase text-slate-400 hover:text-rose-600 px-2 py-1 rounded hover:bg-slate-200/50"
                     >
                       Clear
                     </button>
                   </div>
 
                   {parentLoginError && (
-                    <p className="text-rose-400 text-[11px] font-bold text-center mt-1 animate-in fade-in">
+                    <p className="text-rose-600 text-xs font-bold text-center mt-1.5 animate-in fade-in">
                       {parentLoginError}
                     </p>
                   )}
                 </div>
 
-                {/* Compact Ergonomic Touch Keypad */}
-                <div className="my-1">
+                {/* Tactile 3x4 Touch Keypad */}
+                <div className="my-1.5">
                   <NumericKeypad 
-                    value={activeInput === 'phone' ? parentPhone.replace(/\D/g, '') : parentPin} 
-                    onChange={handleKeypadChange} 
-                    maxLength={activeInput === 'phone' ? 10 : 8}
+                    value={kioskInput} 
+                    onChange={handleSmartKeypadChange} 
+                    maxLength={10}
                   />
                 </div>
 
-                {/* Primary Action Button */}
+                {/* Primary Check-In Action Button */}
                 <Button 
-                  onClick={handleParentLogin} 
-                  disabled={isLoading || (activeInput === 'phone' ? parentPhone.replace(/\D/g, '').length < 7 : parentPin.length < 4)}
-                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
+                  onClick={handleUnifiedParentLogin} 
+                  disabled={isLoading || kioskInput.length < 4}
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md active:scale-[0.98] transition-all"
                 >
                   {isLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   ) : (
-                    <ArrowRight className="w-3.5 h-3.5 mr-1.5" />
+                    <ArrowRight className="w-4 h-4 mr-2" />
                   )}
                   {isEs ? "Continuar con Check-In" : "Lookup & Check In"}
                 </Button>
@@ -1278,22 +1312,22 @@ const KioskCheckInSystem = () => {
               PARENT CHECK-IN (Authenticated Children Roster)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && parentLoggedIn && (
-            <div className="h-full flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+            <div className="h-full flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
               
               {/* Header Bar */}
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div>
-                  <p className="text-[9px] font-extrabold uppercase tracking-widest text-blue-400">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">
                     {isEs ? "Cuenta Familiar Verificada" : "Verified Family Account"}
                   </p>
-                  <h2 className="text-base font-black text-white">{parentName}</h2>
+                  <h2 className="text-lg font-black text-slate-900">{parentName}</h2>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="h-7 text-[11px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/20 hover:bg-emerald-900/40 rounded-xl"
+                    className="h-8 text-xs font-bold border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl"
                     onClick={() => {
                       const parentId = window.localStorage.getItem('kiosk_active_parent_id');
                       if (parentId) {
@@ -1306,7 +1340,7 @@ const KioskCheckInSystem = () => {
                       }
                     }}
                   >
-                    <Smartphone className="w-3 h-3 mr-1" />
+                    <Smartphone className="w-3.5 h-3.5 mr-1" />
                     {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') 
                       ? (isEs ? "Esperando..." : "Waiting...") 
                       : (isEs ? "Vincular NFC" : "Link NFC Tag")}
@@ -1316,16 +1350,16 @@ const KioskCheckInSystem = () => {
                     variant="ghost" 
                     size="sm" 
                     onClick={handleParentLogout} 
-                    className="h-7 text-[11px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl"
+                    className="h-8 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
                   >
-                    <LogOut className="w-3 h-3 mr-1 text-rose-400" /> 
+                    <LogOut className="w-3.5 h-3.5 mr-1 text-rose-500" /> 
                     {isEs ? "Cerrar" : "Sign Out"}
                   </Button>
                 </div>
               </div>
 
               {/* Children Cards Grid (Zero-Scroll Responsive Grid) */}
-              <div className="flex-1 py-2.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 overflow-y-auto max-h-[380px]">
+              <div className="flex-1 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto max-h-[390px]">
                 {parentChildren.map(child => {
                   const checked = alreadyIn(child.id);
                   return (
@@ -1333,51 +1367,51 @@ const KioskCheckInSystem = () => {
                       key={child.id} 
                       onClick={() => handleParentCheckIn(child)}
                       className={cn(
-                        "p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between",
+                        "p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-xs",
                         checked 
-                          ? "bg-rose-950/20 border-rose-500/40 hover:border-rose-400 hover:bg-rose-950/30" 
-                          : "bg-slate-900/60 border-slate-800 hover:border-blue-500 hover:bg-slate-900/90 shadow-md"
+                          ? "bg-rose-50/50 border-rose-200 hover:border-rose-300" 
+                          : "bg-white border-slate-200 hover:border-blue-400 hover:shadow-sm"
                       )}
                     >
-                      <div className="flex items-start gap-2.5">
+                      <div className="flex items-start gap-3">
                         <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-inner",
+                          "w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg shadow-inner",
                           checked ? "bg-rose-600 text-white" : "bg-blue-600 text-white"
                         )}>
-                          {checked ? <CheckCircle className="w-5 h-5" /> : child.first_name[0]}
+                          {checked ? <CheckCircle className="w-6 h-6" /> : child.first_name[0]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-black text-xs text-white truncate">{child.first_name} {child.last_name}</h3>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">
+                          <h3 className="font-black text-sm text-slate-900 truncate">{child.first_name} {child.last_name}</h3>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
                             {child.age ? `Age ${child.age}` : 'Registered Child'}
                           </p>
                           {child.allergies && (
-                            <span className="inline-block mt-0.5 px-1 py-0.2 rounded bg-amber-500/20 border border-amber-500/40 text-[8px] font-black uppercase text-amber-300">
+                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-100 border border-amber-300 text-[9px] font-black uppercase text-amber-800">
                               ⚠️ {child.allergies}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
                         <span className={cn(
-                          "text-[9px] font-extrabold uppercase tracking-wider",
-                          checked ? "text-rose-400" : "text-emerald-400"
+                          "text-[10px] font-extrabold uppercase tracking-wider",
+                          checked ? "text-rose-600" : "text-emerald-600"
                         )}>
                           {checked ? (isEs ? "● Presente" : "● Checked In") : (isEs ? "○ Disponible" : "○ Ready")}
                         </span>
                         <div className={cn(
-                          "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1",
+                          "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1",
                           checked ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
                         )}>
                           {checked ? (
                             <>
-                              <LogOut className="w-2.5 h-2.5" />
+                              <LogOut className="w-3 h-3" />
                               <span>{isEs ? "Salida" : "Check Out"}</span>
                             </>
                           ) : (
                             <>
-                              <CheckCircle className="w-2.5 h-2.5" />
+                              <CheckCircle className="w-3 h-3" />
                               <span>{isEs ? "Entrada" : "Check In"}</span>
                             </>
                           )}
@@ -1389,14 +1423,14 @@ const KioskCheckInSystem = () => {
               </div>
 
               {/* Bottom Instructions / Done Bar */}
-              <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-                <p className="text-[10px] text-slate-400 font-medium">
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <p className="text-xs text-slate-500 font-medium">
                   {isEs ? "Toque un niño para registrar entrada o salida" : "Tap any child card above to check in or out"}
                 </p>
                 <Button 
                   size="sm" 
                   onClick={handleParentLogout} 
-                  className="h-8 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] uppercase tracking-wider rounded-xl shadow-md"
+                  className="h-9 px-5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm"
                 >
                   {isEs ? "Listo / Finalizar" : "Done / Complete"}
                 </Button>
@@ -1409,60 +1443,60 @@ const KioskCheckInSystem = () => {
               YOUTH SELF-CHECK TAB
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'youth' && (
-            <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
+            <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
               
               {/* Left Column: Instructions */}
-              <div className="md:col-span-5 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              <div className="md:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
                 <div>
-                  <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-2">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-3">
                     <User className="w-5 h-5" />
                   </div>
-                  <h2 className="text-base font-black tracking-tight text-white">
+                  <h2 className="text-base font-black tracking-tight text-slate-900">
                     {isEs ? "Autoregistro de Jóvenes" : "Youth Self-Check"}
                   </h2>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                     {isEs 
                       ? "Ingrese su PIN personal de seguridad de 4 a 6 dígitos para registrar su entrada o salida del campamento." 
                       : "Enter your personal 4 to 6 digit security PIN to log your attendance entry or exit."}
                   </p>
                 </div>
 
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-                  <p className="text-[9px] font-bold uppercase text-blue-400 tracking-wider mb-0.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">
+                  <p className="text-[10px] font-bold uppercase text-blue-700 tracking-wider mb-1">
                     {isEs ? "Aviso de Seguridad" : "Security Notice"}
                   </p>
-                  <p className="text-[10px] text-slate-400 font-medium">
+                  <p className="text-xs font-medium">
                     {isEs ? "Las asistencias se registran en tiempo real con sello de hora." : "All check-ins and exits are timestamped in real-time."}
                   </p>
                 </div>
               </div>
 
               {/* Right Column: Keypad & Verification */}
-              <div className="md:col-span-7 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              <div className="md:col-span-7 flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
                 <div>
-                  <div className="h-10 rounded-xl bg-slate-950 border border-slate-800 px-3.5 flex items-center justify-between shadow-inner">
-                    <span className="text-[11px] font-bold uppercase text-slate-500">
+                  <div className="h-12 rounded-xl bg-slate-50 border border-slate-200 px-4 flex items-center justify-between shadow-inner">
+                    <span className="text-xs font-bold uppercase text-slate-400">
                       PIN:
                     </span>
-                    <span className="text-xl font-mono font-black tracking-widest text-blue-300">
-                      {youthPinInput ? '•'.repeat(youthPinInput.length) : <span className="text-slate-600 text-sm">••••</span>}
+                    <span className="text-xl font-mono font-black tracking-widest text-blue-700">
+                      {youthPinInput ? '•'.repeat(youthPinInput.length) : <span className="text-slate-400 text-base">••••</span>}
                     </span>
                     <button 
                       onClick={() => setYouthPinInput('')} 
-                      className="text-[9px] font-bold uppercase text-slate-500 hover:text-rose-400"
+                      className="text-xs font-bold uppercase text-slate-400 hover:text-rose-600"
                     >
                       Clear
                     </button>
                   </div>
 
                   {youthLoginError && (
-                    <p className="text-rose-400 text-[11px] font-bold text-center mt-1 animate-in fade-in">
+                    <p className="text-rose-600 text-xs font-bold text-center mt-1.5 animate-in fade-in">
                       {youthLoginError}
                     </p>
                   )}
                 </div>
 
-                <div className="my-1">
+                <div className="my-1.5">
                   <NumericKeypad 
                     value={youthPinInput} 
                     onChange={setYouthPinInput} 
@@ -1473,15 +1507,502 @@ const KioskCheckInSystem = () => {
                 <Button 
                   onClick={handleYouthLogin} 
                   disabled={isLoading || youthPinInput.length < 4}
-                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-md active:scale-[0.98] transition-all"
                 >
-                  {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowRight className="w-3.5 h-3.5 mr-1.5" />}
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
                   {isEs ? "Verificar Identidad" : "Verify & Check In"}
                 </Button>
               </div>
 
             </div>
           )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              CHECKOUT TAB
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'checkout' && (
+            <div className="h-full flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              {!(parentLoggedIn || staffAuthed) ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                  <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                    <Shield className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-tight text-slate-900">
+                      {isEs ? "Autorización de Seguridad Requerida" : "Security Verification Required"}
+                    </h3>
+                    <p className="text-xs text-slate-500 max-w-sm mt-1">
+                      {isEs 
+                        ? "Por favor inicie sesión en 'Padres' o 'Personal' para autorizar la salida." 
+                        : "Please identify via the 'Family Check-In' or 'Staff Portal' tab first to authorize child checkout."}
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => setActiveTab('parent')} 
+                    className="h-10 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md"
+                  >
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    {isEs ? "Ir a Verificación Familiar" : "Go to Family Verification"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col justify-between">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <Input 
+                        value={checkoutSearch} 
+                        onChange={e => setCheckoutSearch(e.target.value)} 
+                        placeholder={isEs ? "Filtrar por nombre..." : "Filter present children..."} 
+                        className="pl-9 h-9 bg-slate-50 border-slate-200 text-xs text-slate-900 rounded-xl" 
+                      />
+                    </div>
+                    <Badge variant="outline" className="h-7 text-xs font-bold border-emerald-200 text-emerald-700 bg-emerald-50">
+                      {checkoutFilteredChildren.length} Present
+                    </Badge>
+                  </div>
+
+                  <div className="flex-1 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto max-h-[390px]">
+                    {checkoutFilteredChildren.map(record => (
+                      <div key={record.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 shadow-xs">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                            {record.child?.first_name[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-black text-xs text-slate-900 truncate">{record.child?.first_name} {record.child?.last_name}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase">{record.class?.name || 'Classroom'}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => initiateCheckOut(record)} 
+                          className="h-8 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg"
+                        >
+                          <LogOut className="w-3 h-3 mr-1" />
+                          {isEs ? "Salida" : "Log Exit"}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 text-center">
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      {isEs ? "Las salidas se auditan con firma y confirmación de tutor autorizado." : "All checkouts are logged with authorized guardian verification."}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              STAFF TERMINAL TAB
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'staff' && (
+            <div className="h-full flex flex-col justify-between p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              {!staffAuthed ? (
+                <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+                  <div className="md:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-3">
+                        <UserCog className="w-5 h-5" />
+                      </div>
+                      <h2 className="text-base font-black tracking-tight text-slate-900">
+                        {isEs ? "Acceso de Personal" : "Staff Portal"}
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        {isEs 
+                          ? "Ingrese su PIN de personal para desbloquear la estación, registrar turnos y gestionar niños." 
+                          : "Enter authorized staff PIN to unlock station controls, manage shifts, and perform override check-ins."}
+                      </p>
+                    </div>
+
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowStaffKeyboard(!showStaffKeyboard)}
+                      className="text-xs font-bold uppercase text-slate-500 hover:text-slate-800"
+                    >
+                      <PenTool className="h-3.5 w-3.5 mr-1.5" />
+                      {showStaffKeyboard ? "Switch to Touch Keypad" : "Switch to Keyboard Input"}
+                    </Button>
+                  </div>
+
+                  <div className="md:col-span-7 flex flex-col justify-between p-5 rounded-2xl bg-slate-50 border border-slate-200">
+                    <div>
+                      <div className="h-12 rounded-xl bg-white border border-slate-200 px-4 flex items-center justify-between shadow-inner">
+                        <span className="text-xs font-bold uppercase text-slate-400">Staff PIN:</span>
+                        <span className="text-xl font-mono font-black tracking-widest text-blue-700">
+                          {staffPinInput ? '•'.repeat(staffPinInput.length) : <span className="text-slate-400 text-base">••••</span>}
+                        </span>
+                        <button onClick={() => setStaffPinInput('')} className="text-xs font-bold uppercase text-slate-400 hover:text-rose-600">Clear</button>
+                      </div>
+
+                      {staffPinError && (
+                        <p className="text-rose-600 text-xs font-bold text-center mt-1.5">{staffPinError}</p>
+                      )}
+                    </div>
+
+                    <div className="my-1.5">
+                      {!showStaffKeyboard ? (
+                        <NumericKeypad value={staffPinInput} onChange={setStaffPinInput} maxLength={8} />
+                      ) : (
+                        <Input 
+                          type="password"
+                          value={staffPinInput}
+                          onChange={e => setStaffPinInput(e.target.value.toUpperCase())}
+                          placeholder="TYPE PIN HERE"
+                          className="text-center font-mono text-lg h-11 bg-white border-slate-300 text-slate-900"
+                        />
+                      )}
+                    </div>
+
+                    <Button 
+                      onClick={handleStaffAuth} 
+                      className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-md active:scale-[0.98]"
+                    >
+                      {isEs ? "Desbloquear Estación" : "Unlock Station"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col justify-between">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-blue-600">
+                        {isEs ? "Personal Autenticado" : "Authenticated Staff"}
+                      </p>
+                      <h2 className="text-base font-black text-slate-900">{staffName}</h2>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {canAccessKioskSettings && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setShowPrinterDialog(true)} 
+                          className="h-8 text-xs font-bold border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl"
+                        >
+                          <Printer className="h-3.5 w-3.5 mr-1" />
+                          <span>{isEs ? "Impresora" : "Printer Setup"}</span>
+                        </Button>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => { setStaffAuthed(false); setStaffPinInput(''); }} 
+                        className="h-8 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
+                      >
+                        <LogOut className="w-3.5 h-3.5 mr-1 text-rose-500" />
+                        {isEs ? "Cerrar" : "Lock Terminal"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Tabs defaultValue="search" className="flex-1 flex flex-col justify-between pt-2">
+                    <TabsList className="grid w-full grid-cols-2 bg-slate-100 border border-slate-200 h-9 p-0.5 rounded-xl">
+                      <TabsTrigger value="search" className="text-xs font-bold">{isEs ? "Búsqueda Manual" : "Children Search"}</TabsTrigger>
+                      <TabsTrigger value="shifts" className="text-xs font-bold">{isEs ? "Turnos de Personal" : "Staff Shifts"}</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="search" className="flex-1 flex flex-col justify-between pt-2">
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                        <Input 
+                          value={staffSearchTerm} 
+                          onChange={e => setStaffSearchTerm(e.target.value)} 
+                          placeholder={isEs ? "Buscar niño por nombre..." : "Type child name to search..."} 
+                          className="pl-9 h-9 bg-slate-50 border-slate-200 text-xs text-slate-900 rounded-xl" 
+                        />
+                      </div>
+
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto max-h-[340px]">
+                        {staffSearchResults.map(child => (
+                          <div 
+                            key={child.id} 
+                            onClick={() => handleStaffCheckIn(child)}
+                            className="p-3 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 flex items-center justify-between cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 font-black flex items-center justify-center">
+                                {child.first_name[0]}
+                              </div>
+                              <div>
+                                <p className="font-black text-xs text-slate-900">{child.first_name} {child.last_name}</p>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">ID: {child.parent_id?.slice(0, 8)}</p>
+                              </div>
+                            </div>
+
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-7 text-[9px] font-bold border-emerald-200 text-emerald-700 bg-emerald-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsRegisteringNFC(child.parent_id);
+                                startNfc();
+                                toast({ title: isEs ? "Listo para NFC" : "Ready for NFC", description: isEs ? "Toque el teléfono o etiqueta del padre." : "Please tap the parent's device or sticker now." });
+                              }}
+                            >
+                              <Smartphone className="w-3 h-3 mr-1" />
+                              Link Tag
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="shifts" className="flex-1 overflow-y-auto max-h-[340px] pt-2 space-y-2">
+                      {isLoadingShifts ? (
+                        <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-600" /></div>
+                      ) : staffShifts.length > 0 ? (
+                        staffShifts.map(shift => (
+                          <div key={shift.shift_id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-xs text-slate-900">{shift.class_name || 'General Support'}</p>
+                              <p className="text-[10px] text-slate-500">
+                                {new Date(shift.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(shift.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            {!shift.actual_start_time ? (
+                              <Button size="sm" onClick={() => handleShiftAction(shift.shift_id, 'check_in')} className="h-8 bg-blue-600 text-xs font-bold text-white">
+                                Start Shift
+                              </Button>
+                            ) : !shift.actual_end_time ? (
+                              <Button size="sm" onClick={() => handleShiftAction(shift.shift_id, 'check_out')} className="h-8 bg-rose-600 text-xs font-bold text-white">
+                                End Shift
+                              </Button>
+                            ) : (
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Completed</Badge>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-center text-slate-400 py-8">No scheduled shifts for today.</p>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      </main>
+
+      {/* ─── Dialogs & Overlays ─── */}
+      <ClassSelectionDialog 
+        open={showClassDialog} 
+        onClose={() => setShowClassDialog(false)} 
+        onConfirm={handleClassSelected} 
+        childName={selectedChild?.first_name || ''} 
+        initialClassId={selectedChild?.class_id}
+        orgId={activeOrgId}
+      />
+      
+      {selectedChild && (
+        <NameTagPrintDialog 
+            open={showNameTagDialog} 
+            onClose={() => setShowNameTagDialog(false)} 
+            child={selectedChild} 
+            qrData={checkInQRData} 
+            className={selectedClassName} 
+            specialInstructions={currentSpecialInstructions} 
+        />
+      )}
+
+      {/* Signature Dialog */}
+      <Dialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
+        <DialogContent className="max-w-md p-0 overflow-hidden bg-white border-slate-200 text-slate-900 shadow-xl">
+          <DialogHeader className="p-5 bg-slate-50 border-b border-slate-200">
+            <DialogTitle className="text-slate-900">Verification Signature</DialogTitle>
+            <DialogDescription className="text-slate-500">Please provide a signature for {pendingCheckoutRecord?.child?.first_name}.</DialogDescription>
+          </DialogHeader>
+          <div className="p-5">
+              <div className="border border-slate-200 bg-white rounded-xl p-1 overflow-hidden shadow-inner">
+                <SignatureCanvas
+                  ref={signatureRef}
+                  penColor="black"
+                  canvasProps={{ width: 380, height: 180, className: 'w-full h-[180px]' }}
+                />
+              </div>
+              <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
+                <Button variant="ghost" size="sm" onClick={() => signatureRef.current?.clear()} className="text-slate-500 hover:text-slate-800">
+                  <Eraser className="w-4 h-4 mr-1" /> Reset
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowSignatureDialog(false)} className="border-slate-200 text-slate-700">Cancel</Button>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 font-bold text-white" onClick={() => {
+                    const dataUrl = signatureRef.current?.getTrimmedCanvas().toDataURL('image/png');
+                    if (signatureRef.current?.isEmpty()) {
+                      toast({ title: "Incomplete", description: "Signature is required.", variant: "destructive" });
+                      return;
+                    }
+                    handleCheckOut(pendingCheckoutRecord, dataUrl);
+                  }}>Authorize Exit</Button>
+                </div>
+              </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Kiosk Printer & Print Server Setup Dialog */}
+      <Dialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog}>
+        <DialogContent className="sm:max-w-md bg-white border-slate-200 text-slate-900 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-900">
+              <Printer className="h-5 w-5 text-blue-600" />
+              Kiosk Printer & Print Server Setup
+            </DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Configure the Print Server IP and Label Printer for this Kiosk terminal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-bold uppercase text-slate-600 block mb-1">
+                Print Server PC IP (Port 3003)
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  value={printServerIp}
+                  onChange={(e) => setPrintServerIp(e.target.value)}
+                  placeholder="e.g. 192.168.1.150"
+                  className="font-mono bg-slate-50 border-slate-200 text-slate-900"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={testPrinterConnection} 
+                  disabled={isTestingPrinter}
+                  className="border-slate-200 text-slate-700"
+                >
+                  {isTestingPrinter ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test IP'}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-slate-600 block mb-1">
+                Target Wireless Printer IP (Optional)
+              </label>
+              <Input
+                value={targetPrinterIp}
+                onChange={(e) => setTargetPrinterIp(e.target.value)}
+                placeholder="e.g. 192.168.2.169"
+                className="font-mono bg-slate-50 border-slate-200 text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-slate-600 block mb-1">
+                Printer Model / Name
+              </label>
+              <Input
+                value={targetPrinterName}
+                onChange={(e) => setTargetPrinterName(e.target.value)}
+                placeholder="e.g. Brother QL-820NWB"
+                className="bg-slate-50 border-slate-200 text-slate-900"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowPrinterDialog(false)} className="border-slate-200 text-slate-700">
+              Cancel
+            </Button>
+            <Button onClick={savePrinterSettings} className="bg-blue-600 hover:bg-blue-700 font-bold text-white gap-1.5">
+              <CheckCircle className="h-4 w-4" /> Save Printer Config
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+    </div>
+  );
+};
+
+export default KioskCheckInSystem;
+
+const cn = (...inputs: any[]) => inputs.filter(Boolean).join(' ');
+
+/**
+ * High-Definition Tactile Touch Keypad (Crisp Light Theme, Ergonomic 3x4 Grid)
+ */
+const NumericKeypad: React.FC<{ 
+  value: string; 
+  onChange: (val: string) => void; 
+  onEnter?: () => void;
+  maxLength?: number;
+}> = ({ value, onChange, onEnter, maxLength = 10 }) => {
+  const handlePress = (num: string) => {
+    if (value.length < maxLength) onChange(value + num);
+  };
+
+  const handleBackspace = () => {
+    onChange(value.slice(0, -1));
+  };
+
+  const handleClear = () => {
+    onChange('');
+  };
+
+  const keypadKeys = [
+    { num: '1', letters: '' },
+    { num: '2', letters: 'ABC' },
+    { num: '3', letters: 'DEF' },
+    { num: '4', letters: 'GHI' },
+    { num: '5', letters: 'JKL' },
+    { num: '6', letters: 'MNO' },
+    { num: '7', letters: 'PQRS' },
+    { num: '8', letters: 'TUV' },
+    { num: '9', letters: 'WXYZ' },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto">
+      {keypadKeys.map(({ num, letters }) => (
+        <button 
+          key={num} 
+          type="button"
+          className="h-10 sm:h-11 bg-slate-50 hover:bg-slate-100 active:bg-blue-600 text-slate-800 active:text-white border border-slate-200/90 active:border-blue-600 rounded-xl flex flex-col items-center justify-center active:scale-95 transition-all shadow-2xs group cursor-pointer"
+          onClick={() => handlePress(num)}
+        >
+          <span className="text-base sm:text-lg font-black leading-none group-active:text-white">{num}</span>
+          {letters && <span className="text-[8px] font-bold text-slate-400 group-hover:text-slate-500 group-active:text-blue-100 tracking-wider mt-0.5">{letters}</span>}
+        </button>
+      ))}
+      
+      <button 
+        type="button"
+        className="h-10 sm:h-11 bg-slate-100/70 hover:bg-slate-200/70 border border-slate-200 rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-slate-800 active:scale-95 transition-all cursor-pointer"
+        onClick={handleClear}
+      >
+        CLEAR
+      </button>
+
+      <button 
+        type="button"
+        className="h-10 sm:h-11 bg-slate-50 hover:bg-slate-100 active:bg-blue-600 text-slate-800 active:text-white border border-slate-200/90 active:border-blue-600 rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-2xs group cursor-pointer"
+        onClick={() => handlePress('0')}
+      >
+        <span className="text-base sm:text-lg font-black group-active:text-white">0</span>
+      </button>
+
+      <button 
+        type="button"
+        className="h-10 sm:h-11 bg-slate-100/70 hover:bg-slate-200/70 border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:text-rose-600 active:scale-95 transition-all cursor-pointer"
+        onClick={handleBackspace}
+        title="Backspace"
+      >
+        <Eraser className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
 
           {/* ══════════════════════════════════════════════════════════════
               CHECKOUT TAB
