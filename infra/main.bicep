@@ -26,6 +26,13 @@ param frontendUrl string = 'https://happy-glacier-0746a2210.7.azurestaticapps.ne
 @secure()
 param resendApiKey string = 're_placeholder_key_configured_in_azure'
 
+@description('Azure Communication Services Connection String.')
+@secure()
+param azureCommunicationConnectionString string = ''
+
+@description('Azure Communication Services Sender Address.')
+param azureCommunicationSenderAddress string = 'DoNotReply@kiddochecker.azurecomm.net'
+
 @description('Secret key for signing JWT tokens in the bridge API.')
 @secure()
 param bridgeSecret string = 'kiddochecker-jwt-secret-key-2026'
@@ -276,6 +283,10 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
           name: 'bridge-secret'
           value: bridgeSecret
         }
+        {
+          name: 'acs-connection-string'
+          value: azureCommunicationConnectionString
+        }
       ]
     }
     template: {
@@ -303,6 +314,14 @@ resource apiApp 'Microsoft.App/containerApps@2023-05-01' = {
             {
               name: 'RESEND_API_KEY'
               secretRef: 'resend-api-key'
+            }
+            {
+              name: 'AZURE_COMMUNICATION_CONNECTION_STRING'
+              secretRef: 'acs-connection-string'
+            }
+            {
+              name: 'AZURE_COMMUNICATION_SENDER_ADDRESS'
+              value: azureCommunicationSenderAddress
             }
             {
               name: 'BRIDGE_SECRET'
