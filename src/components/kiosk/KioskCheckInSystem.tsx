@@ -977,33 +977,33 @@ const KioskCheckInSystem = () => {
   return (
     <div className="fixed inset-0 h-screen max-h-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col select-none font-sans">
       
-      {/* ─── Compact Glassmorphic Top Bar (Height: 52px) ─── */}
-      <header className="h-[52px] min-h-[52px] max-h-[52px] z-50 flex items-center justify-between px-4 lg:px-6 bg-slate-900/80 border-b border-slate-800/70 backdrop-blur-xl shadow-md">
-        {/* Left: Organization Branding & Live Status */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-blue-950/60 border border-blue-500/30 text-blue-400 text-xs font-black tracking-wide">
+      {/* ─── Ultra-Compact Top Bar (Height: 42px) [Circled Area 1 Optimized] ─── */}
+      <header className="h-[42px] min-h-[42px] max-h-[42px] z-50 flex items-center justify-between px-3 sm:px-5 bg-slate-900/90 border-b border-slate-800/80 backdrop-blur-xl shadow-sm">
+        {/* Left: Organization Branding & Live Status (Single Line, No Awkward Wrapping) */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-950/70 border border-blue-500/30 text-blue-400 text-xs font-black tracking-wide whitespace-nowrap">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span>{settings?.name || 'Green Valley Alliance'}</span>
+            <span className="truncate max-w-[160px] sm:max-w-[220px]">{settings?.name || 'Green Valley Alliance'}</span>
           </div>
 
           {nfcSupported ? (
-            <Badge variant="outline" className="h-6 gap-1 text-[10px] font-bold border-emerald-500/40 text-emerald-400 bg-emerald-950/40 hidden sm:inline-flex">
+            <Badge variant="outline" className="h-5 px-1.5 gap-1 text-[9px] font-bold border-emerald-500/40 text-emerald-400 bg-emerald-950/40 hidden sm:inline-flex">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               NFC Active
             </Badge>
           ) : (
-            <Badge variant="outline" className="h-6 gap-1 text-[10px] font-bold border-slate-700 text-slate-400 bg-slate-900 hidden sm:inline-flex">
+            <Badge variant="outline" className="h-5 px-1.5 gap-1 text-[9px] font-bold border-slate-800 text-slate-400 bg-slate-900 hidden sm:inline-flex">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-              NFC Standby
+              NFC Ready
             </Badge>
           )}
         </div>
         
-        {/* Center: Language / Congregation Isolation Pill */}
-        <div className="flex items-center bg-slate-950/70 p-1 rounded-full border border-slate-800 shadow-inner">
+        {/* Center: Congregation / Language Switcher (Compact Rounded Pill) */}
+        <div className="flex items-center bg-slate-950/80 p-0.5 rounded-full border border-slate-800 shadow-inner">
           {organizations.map((org) => {
             const isActive = activeOrgId === org.id;
             return (
@@ -1022,9 +1022,9 @@ const KioskCheckInSystem = () => {
                   }
                 }}
                 className={cn(
-                  "px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider transition-all duration-200",
+                  "px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider transition-all duration-150",
                   isActive
-                    ? "bg-blue-600 text-white shadow-sm scale-105"
+                    ? "bg-blue-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-slate-200"
                 )}
               >
@@ -1034,20 +1034,20 @@ const KioskCheckInSystem = () => {
           })}
         </div>
 
-        {/* Right: Real-time Stats & Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800 text-[11px] font-bold">
+        {/* Right: Real-time Stats & Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 bg-slate-950/90 px-2 py-0.5 rounded-lg border border-slate-800 text-[10px] font-bold">
             <span className="text-emerald-400 uppercase tracking-tight">{checkedInChildren.length} In</span>
-            <span className="w-px h-3 bg-slate-800" />
+            <span className="w-px h-2.5 bg-slate-800" />
             <span className="text-slate-400 uppercase tracking-tight">{todayCount} Total</span>
-            <span className="w-px h-3 bg-slate-800" />
+            <span className="w-px h-2.5 bg-slate-800" />
             <span className="text-slate-200 font-mono">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px] font-bold uppercase text-slate-300 hover:text-white hover:bg-slate-800">
-                <Globe className="h-3 w-3 mr-1" /> {language}
+              <Button variant="ghost" size="sm" className="h-6 px-1.5 text-[9px] font-bold uppercase text-slate-300 hover:text-white hover:bg-slate-800">
+                <Globe className="h-3 w-3 mr-0.5" /> {language}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-200 rounded-xl">
@@ -1062,7 +1062,7 @@ const KioskCheckInSystem = () => {
               variant="outline" 
               size="sm" 
               onClick={() => setShowPrinterDialog(true)} 
-              className="h-7 px-2 text-[10px] font-bold gap-1 border-blue-500/30 text-blue-400 bg-blue-950/20 hover:bg-blue-900/30"
+              className="h-6 px-2 text-[9px] font-bold gap-1 border-blue-500/30 text-blue-400 bg-blue-950/20 hover:bg-blue-900/30"
               title="Printer Setup"
             >
               <Printer className="h-3 w-3" />
@@ -1070,15 +1070,15 @@ const KioskCheckInSystem = () => {
             </Button>
           )}
 
-          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-800">
-            <Maximize className="h-3.5 w-3.5" />
+          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-6 w-6 text-slate-400 hover:text-white hover:bg-slate-800">
+            <Maximize className="h-3 w-3" />
           </Button>
         </div>
       </header>
 
-      {/* ─── Seamless Mode Navigation (Height: 44px) ─── */}
-      <nav className="h-[44px] min-h-[44px] max-h-[44px] px-4 lg:px-6 bg-slate-900/40 border-b border-slate-800/40 flex items-center justify-center">
-        <div className="flex bg-slate-950/90 border border-slate-800 rounded-xl p-0.5 shadow-inner max-w-xl w-full">
+      {/* ─── Sleek Horizontal Navigation Tabs (Height: 38px) [Circled Area 2 Optimized] ─── */}
+      <nav className="h-[38px] min-h-[38px] max-h-[38px] px-3 sm:px-5 bg-slate-900/50 border-b border-slate-800/50 flex items-center justify-center">
+        <div className="flex bg-slate-950/90 border border-slate-800/80 rounded-xl p-0.5 shadow-inner max-w-xl w-full">
           {[
             { id: 'parent', label: t('parentAccess'), icon: KeyRound },
             { id: 'youth', label: t('youthCheckIn'), icon: User },
@@ -1089,51 +1089,52 @@ const KioskCheckInSystem = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as KioskTab)}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-xs font-extrabold uppercase tracking-wider transition-all duration-200",
+                "flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all duration-150",
                 activeTab === tab.id 
                   ? "bg-blue-600 text-white shadow-md shadow-blue-950" 
                   : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
               )}
             >
-              <tab.icon className="w-3.5 h-3.5" />
-              <span className="text-[10px]">{tab.label}</span>
+              <tab.icon className="w-3 h-3" />
+              <span className="truncate">{tab.label}</span>
             </button>
           ))}
         </div>
       </nav>
 
-      {/* ─── Interactive Zero-Scroll Main Viewport (calc(100vh - 96px)) ─── */}
-      <main className="flex-1 overflow-hidden p-3 sm:p-4 lg:p-5 flex items-center justify-center">
-        <div className="w-full max-w-5xl h-full max-h-[640px] flex flex-col justify-center">
+      {/* ─── Compact Zero-Scroll Main Workspace [Circled Areas 3 & 4 Optimized] ─── */}
+      <main className="flex-1 overflow-hidden p-2 sm:p-3 lg:p-4 flex items-center justify-center">
+        <div className="w-full max-w-4xl h-full max-h-[560px] flex flex-col justify-center">
           
           {/* ══════════════════════════════════════════════════════════════
               PARENT CHECK-IN TAB (Unauthenticated)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && !parentLoggedIn && (
-            <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+            <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
               
-              {/* Left Column: QR Fast Pass & Welcome (5 Cols) */}
-              <div className="lg:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              {/* Left Column: QR Fast Pass, NFC & Instructions (5 Cols) */}
+              <div className="md:col-span-5 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                      <LogIn className="w-4 h-4" />
+                  {/* [Circled Area 3 Optimized: Low-Profile Compact Header without oversized icon] */}
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-800">
+                    <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                      <LogIn className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <h2 className="text-base font-black tracking-tight text-white">
-                        {isEs ? "Verificación Familiar" : "Family Fast Pass"}
+                      <h2 className="text-sm font-black tracking-tight text-white">
+                        {isEs ? "Verificación Familiar" : "Parent Verification"}
                       </h2>
-                      <p className="text-[11px] text-slate-400">
-                        {isEs ? "Escanee QR o use el teclado numérico" : "Scan mobile pass or enter phone/PIN"}
+                      <p className="text-[10px] text-slate-400">
+                        {isEs ? "Escanee QR o use su teléfono/PIN" : "Scan QR pass or enter phone/PIN"}
                       </p>
                     </div>
                   </div>
 
-                  {/* QR Scanner Area */}
-                  <div className="mt-3">
+                  {/* [Circled Area 4 Optimized: Sleek Scanner Area replacing huge 96px empty grey box] */}
+                  <div className="mt-2">
                     {showParentScanner ? (
-                      <div className="space-y-2">
-                        <div className="h-44 rounded-xl overflow-hidden border border-blue-500/40 bg-black/60 shadow-inner flex items-center justify-center">
+                      <div className="space-y-1.5">
+                        <div className="h-40 rounded-xl overflow-hidden border border-blue-500/40 bg-black/60 shadow-inner flex items-center justify-center">
                           <QRCodeScanner onScanComplete={(data) => {
                              handleQRScan(data);
                              setShowParentScanner(false);
@@ -1143,7 +1144,7 @@ const KioskCheckInSystem = () => {
                           variant="ghost" 
                           size="sm" 
                           onClick={() => setShowParentScanner(false)} 
-                          className="w-full h-7 text-[10px] font-bold uppercase text-slate-400 hover:text-white"
+                          className="w-full h-6 text-[9px] font-bold uppercase text-slate-400 hover:text-white"
                         >
                           {isEs ? "Cerrar Escáner" : "Close Scanner"}
                         </Button>
@@ -1151,17 +1152,17 @@ const KioskCheckInSystem = () => {
                     ) : (
                       <button
                         onClick={() => setShowParentScanner(true)}
-                        className="w-full h-36 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/50 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer"
+                        className="w-full h-28 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/50 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-1.5 group cursor-pointer"
                       >
-                        <div className="w-10 h-10 rounded-full bg-blue-600/10 border border-blue-500/20 group-hover:border-blue-500 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                          <QrCode className="w-5 h-5" />
+                        <div className="w-8 h-8 rounded-full bg-blue-600/10 border border-blue-500/20 group-hover:border-blue-500 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                          <QrCode className="w-4 h-4" />
                         </div>
                         <div className="text-center">
-                          <p className="text-xs font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-300">
-                            {isEs ? "Escanear Pase Digital" : "Scan Fast-Pass QR"}
+                          <p className="text-[11px] font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-300">
+                            {isEs ? "Escanear Pase Familiar" : "Scan Family QR Pass"}
                           </p>
-                          <p className="text-[10px] text-slate-400">
-                            {isEs ? "Toque para abrir la cámara" : "Tap to activate kiosk camera"}
+                          <p className="text-[9px] text-slate-400">
+                            {isEs ? "Toque para abrir la cámara" : "Tap to activate camera"}
                           </p>
                         </div>
                       </button>
@@ -1169,32 +1170,32 @@ const KioskCheckInSystem = () => {
                   </div>
                 </div>
 
-                {/* NFC Tap Banner */}
-                <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
-                    <Smartphone className="w-4 h-4" />
+                {/* NFC Tap Card */}
+                <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
+                    <Smartphone className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[10px] font-bold uppercase text-emerald-400 tracking-wider">
-                      {isEs ? "Lector NFC Listo" : "NFC Tap Ready"}
+                    <p className="text-[9px] font-bold uppercase text-emerald-400 tracking-wider">
+                      {isEs ? "Lector NFC Activo" : "NFC Reader Active"}
                     </p>
-                    <p className="text-[11px] text-slate-300 font-medium">
+                    <p className="text-[10px] text-slate-300 font-medium">
                       {isEs ? "Acerque su pulsera o teléfono" : "Tap wristband or smart tag"}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Phone/PIN Input & Touch Keypad (7 Cols) */}
-              <div className="lg:col-span-7 flex flex-col justify-between p-5 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              {/* Right Column: Mode Display & Compact Touch Keypad (7 Cols) */}
+              <div className="md:col-span-7 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
                 
                 {/* Mode Selector & Display Box */}
                 <div>
-                  <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 mb-3">
+                  <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-800 mb-2">
                     <button
                       onClick={() => setActiveInput('phone')}
                       className={cn(
-                        "flex-1 py-1 px-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all",
+                        "flex-1 py-1 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
                         activeInput === 'phone'
                           ? "bg-blue-600 text-white shadow-sm"
                           : "text-slate-400 hover:text-slate-200"
@@ -1206,7 +1207,7 @@ const KioskCheckInSystem = () => {
                     <button
                       onClick={() => setActiveInput('pin')}
                       className={cn(
-                        "flex-1 py-1 px-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all",
+                        "flex-1 py-1 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
                         activeInput === 'pin'
                           ? "bg-blue-600 text-white shadow-sm"
                           : "text-slate-400 hover:text-slate-200"
@@ -1218,14 +1219,14 @@ const KioskCheckInSystem = () => {
                   </div>
 
                   {/* High-Definition Input Display */}
-                  <div className="h-12 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
-                    <span className="text-xs font-bold uppercase text-slate-500">
+                  <div className="h-10 rounded-xl bg-slate-950 border border-slate-800 px-3.5 flex items-center justify-between shadow-inner">
+                    <span className="text-[11px] font-bold uppercase text-slate-500">
                       {activeInput === 'phone' ? 'Phone:' : 'PIN:'}
                     </span>
-                    <span className="text-xl font-mono font-black tracking-widest text-blue-300">
+                    <span className="text-lg font-mono font-black tracking-widest text-blue-300">
                       {activeInput === 'phone' 
-                        ? (parentPhone || <span className="text-slate-600">(000) 000-0000</span>)
-                        : (parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600">••••</span>)
+                        ? (parentPhone || <span className="text-slate-600 text-sm">(000) 000-0000</span>)
+                        : (parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 text-sm">••••</span>)
                       }
                     </span>
                     <button 
@@ -1233,21 +1234,21 @@ const KioskCheckInSystem = () => {
                         if (activeInput === 'phone') setParentPhone('');
                         else setParentPin('');
                       }} 
-                      className="text-[10px] font-bold uppercase text-slate-500 hover:text-rose-400"
+                      className="text-[9px] font-bold uppercase text-slate-500 hover:text-rose-400 px-1 py-0.5 rounded"
                     >
                       Clear
                     </button>
                   </div>
 
                   {parentLoginError && (
-                    <p className="text-rose-400 text-xs font-bold text-center mt-1.5 animate-in fade-in">
+                    <p className="text-rose-400 text-[11px] font-bold text-center mt-1 animate-in fade-in">
                       {parentLoginError}
                     </p>
                   )}
                 </div>
 
                 {/* Compact Ergonomic Touch Keypad */}
-                <div className="my-2">
+                <div className="my-1">
                   <NumericKeypad 
                     value={activeInput === 'phone' ? parentPhone.replace(/\D/g, '') : parentPin} 
                     onChange={handleKeypadChange} 
@@ -1259,12 +1260,12 @@ const KioskCheckInSystem = () => {
                 <Button 
                   onClick={handleParentLogin} 
                   disabled={isLoading || (activeInput === 'phone' ? parentPhone.replace(/\D/g, '').length < 7 : parentPin.length < 4)}
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
+                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
                 >
                   {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
                   ) : (
-                    <ArrowRight className="w-4 h-4 mr-2" />
+                    <ArrowRight className="w-3.5 h-3.5 mr-1.5" />
                   )}
                   {isEs ? "Continuar con Check-In" : "Lookup & Check In"}
                 </Button>
@@ -1277,22 +1278,22 @@ const KioskCheckInSystem = () => {
               PARENT CHECK-IN (Authenticated Children Roster)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && parentLoggedIn && (
-            <div className="h-full flex flex-col justify-between p-5 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+            <div className="h-full flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
               
               {/* Header Bar */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-800">
                 <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">
+                  <p className="text-[9px] font-extrabold uppercase tracking-widest text-blue-400">
                     {isEs ? "Cuenta Familiar Verificada" : "Verified Family Account"}
                   </p>
-                  <h2 className="text-lg font-black text-white">{parentName}</h2>
+                  <h2 className="text-base font-black text-white">{parentName}</h2>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="h-8 text-xs font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/20 hover:bg-emerald-900/40 rounded-xl"
+                    className="h-7 text-[11px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/20 hover:bg-emerald-900/40 rounded-xl"
                     onClick={() => {
                       const parentId = window.localStorage.getItem('kiosk_active_parent_id');
                       if (parentId) {
@@ -1305,7 +1306,7 @@ const KioskCheckInSystem = () => {
                       }
                     }}
                   >
-                    <Smartphone className="w-3.5 h-3.5 mr-1" />
+                    <Smartphone className="w-3 h-3 mr-1" />
                     {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') 
                       ? (isEs ? "Esperando..." : "Waiting...") 
                       : (isEs ? "Vincular NFC" : "Link NFC Tag")}
@@ -1315,16 +1316,16 @@ const KioskCheckInSystem = () => {
                     variant="ghost" 
                     size="sm" 
                     onClick={handleParentLogout} 
-                    className="h-8 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl"
+                    className="h-7 text-[11px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl"
                   >
-                    <LogOut className="w-3.5 h-3.5 mr-1 text-rose-400" /> 
+                    <LogOut className="w-3 h-3 mr-1 text-rose-400" /> 
                     {isEs ? "Cerrar" : "Sign Out"}
                   </Button>
                 </div>
               </div>
 
               {/* Children Cards Grid (Zero-Scroll Responsive Grid) */}
-              <div className="flex-1 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto max-h-[440px]">
+              <div className="flex-1 py-2.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 overflow-y-auto max-h-[380px]">
                 {parentChildren.map(child => {
                   const checked = alreadyIn(child.id);
                   return (
@@ -1332,51 +1333,51 @@ const KioskCheckInSystem = () => {
                       key={child.id} 
                       onClick={() => handleParentCheckIn(child)}
                       className={cn(
-                        "p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between",
+                        "p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between",
                         checked 
                           ? "bg-rose-950/20 border-rose-500/40 hover:border-rose-400 hover:bg-rose-950/30" 
                           : "bg-slate-900/60 border-slate-800 hover:border-blue-500 hover:bg-slate-900/90 shadow-md"
                       )}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2.5">
                         <div className={cn(
-                          "w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg shadow-inner",
+                          "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-inner",
                           checked ? "bg-rose-600 text-white" : "bg-blue-600 text-white"
                         )}>
-                          {checked ? <CheckCircle className="w-6 h-6" /> : child.first_name[0]}
+                          {checked ? <CheckCircle className="w-5 h-5" /> : child.first_name[0]}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-black text-sm text-white truncate">{child.first_name} {child.last_name}</h3>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                          <h3 className="font-black text-xs text-white truncate">{child.first_name} {child.last_name}</h3>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">
                             {child.age ? `Age ${child.age}` : 'Registered Child'}
                           </p>
                           {child.allergies && (
-                            <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-[9px] font-black uppercase text-amber-300">
+                            <span className="inline-block mt-0.5 px-1 py-0.2 rounded bg-amber-500/20 border border-amber-500/40 text-[8px] font-black uppercase text-amber-300">
                               ⚠️ {child.allergies}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between">
+                      <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between">
                         <span className={cn(
-                          "text-[10px] font-extrabold uppercase tracking-wider",
+                          "text-[9px] font-extrabold uppercase tracking-wider",
                           checked ? "text-rose-400" : "text-emerald-400"
                         )}>
                           {checked ? (isEs ? "● Presente" : "● Checked In") : (isEs ? "○ Disponible" : "○ Ready")}
                         </span>
                         <div className={cn(
-                          "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1",
+                          "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1",
                           checked ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
                         )}>
                           {checked ? (
                             <>
-                              <LogOut className="w-3 h-3" />
+                              <LogOut className="w-2.5 h-2.5" />
                               <span>{isEs ? "Salida" : "Check Out"}</span>
                             </>
                           ) : (
                             <>
-                              <CheckCircle className="w-3 h-3" />
+                              <CheckCircle className="w-2.5 h-2.5" />
                               <span>{isEs ? "Entrada" : "Check In"}</span>
                             </>
                           )}
@@ -1388,14 +1389,14 @@ const KioskCheckInSystem = () => {
               </div>
 
               {/* Bottom Instructions / Done Bar */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                <p className="text-[11px] text-slate-400 font-medium">
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+                <p className="text-[10px] text-slate-400 font-medium">
                   {isEs ? "Toque un niño para registrar entrada o salida" : "Tap any child card above to check in or out"}
                 </p>
                 <Button 
                   size="sm" 
                   onClick={handleParentLogout} 
-                  className="h-9 px-5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md"
+                  className="h-8 px-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] uppercase tracking-wider rounded-xl shadow-md"
                 >
                   {isEs ? "Listo / Finalizar" : "Done / Complete"}
                 </Button>
@@ -1408,60 +1409,60 @@ const KioskCheckInSystem = () => {
               YOUTH SELF-CHECK TAB
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'youth' && (
-            <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+            <div className="h-full grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
               
               {/* Left Column: Instructions */}
-              <div className="lg:col-span-5 flex flex-col justify-between p-5 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              <div className="md:col-span-5 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/90 to-slate-950/90 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
                 <div>
-                  <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3">
-                    <User className="w-6 h-6" />
+                  <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-2">
+                    <User className="w-5 h-5" />
                   </div>
-                  <h2 className="text-lg font-black tracking-tight text-white">
+                  <h2 className="text-base font-black tracking-tight text-white">
                     {isEs ? "Autoregistro de Jóvenes" : "Youth Self-Check"}
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
                     {isEs 
                       ? "Ingrese su PIN personal de seguridad de 4 a 6 dígitos para registrar su entrada o salida del campamento." 
                       : "Enter your personal 4 to 6 digit security PIN to log your attendance entry or exit."}
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                  <p className="text-[10px] font-bold uppercase text-blue-400 tracking-wider mb-1">
+                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                  <p className="text-[9px] font-bold uppercase text-blue-400 tracking-wider mb-0.5">
                     {isEs ? "Aviso de Seguridad" : "Security Notice"}
                   </p>
-                  <p className="text-[11px] text-slate-400 font-medium">
+                  <p className="text-[10px] text-slate-400 font-medium">
                     {isEs ? "Las asistencias se registran en tiempo real con sello de hora." : "All check-ins and exits are timestamped in real-time."}
                   </p>
                 </div>
               </div>
 
               {/* Right Column: Keypad & Verification */}
-              <div className="lg:col-span-7 flex flex-col justify-between p-5 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
+              <div className="md:col-span-7 flex flex-col justify-between p-4 rounded-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-slate-800/80 shadow-2xl backdrop-blur-xl">
                 <div>
-                  <div className="h-12 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
-                    <span className="text-xs font-bold uppercase text-slate-500">
+                  <div className="h-10 rounded-xl bg-slate-950 border border-slate-800 px-3.5 flex items-center justify-between shadow-inner">
+                    <span className="text-[11px] font-bold uppercase text-slate-500">
                       PIN:
                     </span>
-                    <span className="text-2xl font-mono font-black tracking-widest text-blue-300">
-                      {youthPinInput ? '•'.repeat(youthPinInput.length) : <span className="text-slate-600">••••</span>}
+                    <span className="text-xl font-mono font-black tracking-widest text-blue-300">
+                      {youthPinInput ? '•'.repeat(youthPinInput.length) : <span className="text-slate-600 text-sm">••••</span>}
                     </span>
                     <button 
                       onClick={() => setYouthPinInput('')} 
-                      className="text-[10px] font-bold uppercase text-slate-500 hover:text-rose-400"
+                      className="text-[9px] font-bold uppercase text-slate-500 hover:text-rose-400"
                     >
                       Clear
                     </button>
                   </div>
 
                   {youthLoginError && (
-                    <p className="text-rose-400 text-xs font-bold text-center mt-1.5 animate-in fade-in">
+                    <p className="text-rose-400 text-[11px] font-bold text-center mt-1 animate-in fade-in">
                       {youthLoginError}
                     </p>
                   )}
                 </div>
 
-                <div className="my-2">
+                <div className="my-1">
                   <NumericKeypad 
                     value={youthPinInput} 
                     onChange={setYouthPinInput} 
@@ -1472,9 +1473,9 @@ const KioskCheckInSystem = () => {
                 <Button 
                   onClick={handleYouthLogin} 
                   disabled={isLoading || youthPinInput.length < 4}
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
+                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
                 >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+                  {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowRight className="w-3.5 h-3.5 mr-1.5" />}
                   {isEs ? "Verificar Identidad" : "Verify & Check In"}
                 </Button>
               </div>
