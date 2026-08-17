@@ -254,7 +254,8 @@ export const createBridgeProxy = (realClient: any) => {
       },
       signInWithPassword: async ({ email, password }: any) => {
         try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const res = await fetch(`${baseUrl}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
@@ -283,7 +284,8 @@ export const createBridgeProxy = (realClient: any) => {
       mfa: {
         listFactors: async () => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/list`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/list`, {
               headers: { 
                 'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
               }
@@ -297,7 +299,8 @@ export const createBridgeProxy = (realClient: any) => {
         },
         enroll: async ({ friendlyName, issuer }: any) => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/enroll`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/enroll`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -320,7 +323,8 @@ export const createBridgeProxy = (realClient: any) => {
         },
         verify: async ({ factorId, challengeId, code }: any) => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/verify`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/verify`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -340,7 +344,8 @@ export const createBridgeProxy = (realClient: any) => {
         },
         unenroll: async ({ factorId }: any) => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/unenroll`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/unenroll`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
