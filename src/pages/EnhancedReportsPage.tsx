@@ -437,7 +437,8 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
                   <TableBody>
                     {detailedAttendance
                       ?.filter((log: any) => {
-                        const matchesSearch = log.child_name.toLowerCase().includes(searchTerm.toLowerCase());
+                        const childName = String(log.child_name || '');
+                        const matchesSearch = childName.toLowerCase().includes(searchTerm.toLowerCase());
                         const matchesClass = selectedClassFilter === 'all' || log.class_name === selectedClassFilter;
                         return matchesSearch && matchesClass;
                       })

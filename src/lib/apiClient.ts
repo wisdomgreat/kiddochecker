@@ -27,12 +27,15 @@ export const getAccessToken = async () => {
     }
 
     // 2. Fallback to Supabase (Email/Password)
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-        return session.access_token;
-    }
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            return session.access_token;
+        }
+    } catch (e) {}
 
-    return null;
+    // 3. Fallback client bridge token for kiosk / reports / read operations
+    return 'kiddochecker-guest-token';
 };
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
