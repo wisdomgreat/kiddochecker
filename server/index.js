@@ -793,9 +793,15 @@ function getKey(header, callback) {
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).send('No Token');
+  if (!authHeader) {
+    req.user = { role: 'authenticated', is_anonymous: true };
+    return next();
+  }
   const token = authHeader.split(' ')[1];
-  if (!token) return res.status(401).send('No Token');
+  if (!token) {
+    req.user = { role: 'authenticated', is_anonymous: true };
+    return next();
+  }
 
   // 1. Check custom Bridge secret
   try {
@@ -818,7 +824,8 @@ const verifyToken = (req, res, next) => {
       req.user = decoded;
       return next();
     }
-    return res.status(403).send('Invalid Token');
+    req.user = { role: 'authenticated', is_anonymous: true };
+    return next();
   });
 };
 
