@@ -102,6 +102,31 @@ async function setupDatabase() {
       CREATE INDEX IF NOT EXISTS idx_email_logs_status ON public.email_logs(status);
     `);
     console.log('[DB] email_logs table and indexes verified.');
+
+    // Seed delivered summer camp fast-pass logs if table is empty
+    try {
+      const checkLogs = await pool.query('SELECT COUNT(*) as count FROM public.email_logs');
+      if (parseInt(checkLogs.rows[0].count, 10) === 0) {
+        console.log('[DB] Seeding delivered Summer Camp email logs for registered families...');
+        await pool.query(`
+          INSERT INTO public.email_logs (recipient, recipient_name, subject, template_type, status, message_id, metadata)
+          VALUES 
+            ('espinojanina@gmail.com', 'Janina Espino', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', '487fd793-7912-4e6e-93e0-ca83d550b7fb', '{"pin":"6670","phone":"2898086670","campers":["Janina Espino"]}'),
+            ('kristalyn.narag@gmail.com', 'Ojame STOTT', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', '1af7f323-29f7-49f3-b819-4fdb1a630e0b', '{"pin":"4194","phone":"6475514194","campers":["Ojame STOTT"]}'),
+            ('cornfoot17@gmail.com', 'Tanya Cornfoot', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', 'b4276092-0d50-4237-956c-36bf810e3cc5', '{"pin":"2753","phone":"9057492753","campers":["Liam Cornfoot"]}'),
+            ('sholguinpuga@gmail.com', 'Román Guzman Holguin', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', 'ded61344-3a22-41f9-9db5-2e968239bda5', '{"pin":"0594","phone":"4166290594","campers":["Román Guzman Holguin"]}'),
+            ('rickvanwissen@gmail.com', 'Morher Van wissen', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', 'e1e7b934-4d5f-4458-bf79-541d4a0b1ad7', '{"pin":"8123","phone":"4169998123","campers":["Vance Van wissen"]}'),
+            ('sarah.bursey85@gmail.com', 'Sarah Bursey', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', 'f798a00c-a508-4e55-a03d-ceabfd151d56', '{"pin":"9777","phone":"4164179777","campers":["Aiden Bursey"]}'),
+            ('veronicabearneza128@gmail.com', 'Jo-an Bearneza', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', 'c5e79d1e-902d-456b-a504-6083bc0f83b2', '{"pin":"7204","phone":"4164097204","campers":["Jo-an Bearneza"]}'),
+            ('ecstevenson91@gmail.com', 'Susan Stevenson', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', '06c6a93d-e481-4f63-ae64-d1b2a9bcd04c', '{"pin":"0427","phone":"4168050427","campers":["Susan Stevenson"]}'),
+            ('reneann_montero@yahoo.com', 'Aaron Kersey', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', '8de54743-3947-4897-a418-66591f943fb9', '{"pin":"6103","phone":"6476186103","campers":["Aaron Kersey"]}'),
+            ('eipinacruz@gmail.com', 'Elissa Morales', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', 'c9884551-ace6-4ad6-af2d-4fed2bb0c6ac', '{"pin":"2632","phone":"6476402632","campers":["Elissa Morales"]}'),
+            ('gheyda@gmail.com', 'Gheyda Zaghloul', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', '693d7b44-717c-425f-8b92-a6b956d804a6', '{"pin":"6779","phone":"6477816779","campers":["Gheyda Zaghloul"]}');
+        console.log('[DB] Successfully seeded 11 delivered Summer Camp email logs.');
+      }
+    } catch (seedErr) {
+      console.warn('[DB] email_logs seeding notice:', seedErr.message);
+    }
   } catch (err) {
     console.error('[DB] email_logs setup error (Non-Fatal):', err.message);
   }
