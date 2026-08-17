@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { apiFetch } from '@/lib/apiClient';
 import { 
   Mail, MailCheck, MailX, Send, RefreshCw, Search, CheckCircle2, 
   XCircle, Clock, AlertTriangle, Filter, Sparkles, ExternalLink, ShieldCheck, ChevronRight
@@ -16,6 +17,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -49,18 +51,16 @@ const EmailLogsPage: React.FC = () => {
   const [isBroadcastDialogOpen, setIsBroadcastDialogOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<EmailLog | null>(null);
 
-  // 1. Fetch Email Statistics
+  // 1. Fetch Email Statistics from Azure Container App
   const { data: stats } = useQuery<EmailStats>({
     queryKey: ['email-stats'],
     queryFn: async () => {
-      const res = await fetch('/api/emails/stats');
-      if (!res.ok) throw new Error('Failed to fetch stats');
-      return res.json();
+      return await apiFetch('/api/emails/stats');
     },
     refetchInterval: 8000,
   });
 
-  // 2. Fetch Email Delivery Logs
+  // 2. Fetch Email Delivery Logs from Azure Container App
   const { data: logsData, isLoading, refetch, isFetching } = useQuery<{
     logs: EmailLog[];
     total: number;
@@ -75,28 +75,20 @@ const EmailLogsPage: React.FC = () => {
         status: statusFilter,
         ...(searchTerm.trim() ? { search: searchTerm.trim() } : {})
       });
-      const res = await fetch(`/api/emails/logs?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch email logs');
-      return res.json();
+      return await apiFetch(`/api/emails/logs?${params.toString()}`);
     },
     refetchInterval: 8000,
   });
 
-  // 3. Trigger Summer Camp Pass Broadcast
+  // 3. Trigger Summer Camp Pass Broadcast via Azure Communication Services
   const broadcastMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/emails/broadcast-summer-camp', {
+      return await apiFetch('/api/emails/broadcast-summer-camp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           churchName: 'Green Valley Alliance'
         })
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to start broadcast');
-      }
-      return res.json();
     },
     onSuccess: (data) => {
       toast.success('Summer Camp Fast-Pass Broadcast Initiated!', {
