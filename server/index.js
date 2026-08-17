@@ -2812,31 +2812,15 @@ app.post('/api/emails/send', async (req, res) => {
 
 // 4. Trigger Summer Camp Pass Broadcast (with full live logging)
 app.post('/api/emails/broadcast-summer-camp', async (req, res) => {
-  const { churchName = DEFAULT_CHURCH_NAME, customSubject, rateLimitMs = 300 } = req.body || {};
+  const { churchName = DEFAULT_CHURCH_NAME, customSubject, rateLimitMs = 300, families: clientFamilies } = req.body || {};
   const fs = require('fs');
   const xlsx = require('xlsx');
-
-  const possiblePaths = [
-    'C:\\Users\\wisdo\\Downloads\\Child List.xlsx',
-    './Child List.xlsx',
-    '../Child List.xlsx',
-    'C:\\Users\\wisdo\\Downloads\\kiddochecker_summer_camp_roster.xlsx'
-  ];
-
-  let excelPath = possiblePaths.find(p => fs.existsSync(p));
-  if (!excelPath) {
-    return res.status(404).json({ error: 'Summer Camp Excel roster file not found on server.' });
-  }
 
   if (!acsEmailClient) {
     return res.status(503).json({ error: 'Azure Communication Services is not configured.' });
   }
 
   try {
-    const workbook = xlsx.readFile(excelPath);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
-
     const cleanPhone = (p) => p ? String(p).replace(/\D/g, '') : '';
     const formatPhone = (d) => {
       if (!d || d.length < 10) return d || '';
@@ -2845,47 +2829,127 @@ app.post('/api/emails/broadcast-summer-camp', async (req, res) => {
     };
 
     const families = new Map();
-    rows.forEach(r => {
-      const rawFirst = String(r['First Name'] || '').trim();
-      const rawLast = String(r['Last Name'] || '').trim();
-      if (!rawFirst && !rawLast) return;
 
-      const email = String(r['Email'] || '').trim().toLowerCase();
-      const rawPhone = String(r['Cell Phone'] || '').trim();
-      const phone = cleanPhone(rawPhone);
-      const famKey = email || phone;
-
-      const rawAllergies = String(r['Does your child have any allergies or any dietary restrictions?'] || '').trim();
-      const hasAllergy = rawAllergies && !/^none$/i.test(rawAllergies) && !/^n\/a$/i.test(rawAllergies) && !/^no$/i.test(rawAllergies);
-
-      if (!families.has(famKey)) {
-        let parentName = rawFirst;
-        const pickups = String(r['Who has permission to pick up child? Name and phone number.'] || '').trim();
-        if (pickups) {
-          const firstWord = pickups.split(/[\s,&]/)[0].trim();
-          if (firstWord && firstWord.length > 2 && isNaN(firstWord)) {
-            parentName = firstWord;
-          }
+    if (Array.isArray(clientFamilies) && clientFamilies.length > 0) {
+      clientFamilies.forEach(fam => {
+        const email = String(fam.email || '').trim().toLowerCase();
+        const phone = cleanPhone(fam.phone);
+        const famKey = email || phone;
+        if (famKey) {
+          families.set(famKey, {
+            email,
+            phone,
+            phoneFormatted: formatPhone(phone || fam.phone),
+            parentName: fam.parentName || fam.name || 'Parent',
+            pin: fam.pin || (phone && phone.length >= 4 ? phone.slice(-4) : '1234'),
+            children: fam.children || []
+          });
         }
+      });
+    } else {
+      // 1. Try checking for Excel roster file if present
+      const possiblePaths = [
+        'C:\\Users\\wisdo\\Downloads\\Child List.xlsx',
+        './Child List.xlsx',
+        '../Child List.xlsx',
+        'C:\\Users\\wisdo\\Downloads\\kiddochecker_summer_camp_roster.xlsx'
+      ];
+      let excelPath = possiblePaths.find(p => fs.existsSync(p));
 
-        families.set(famKey, {
-          email,
-          phone,
-          phoneFormatted: formatPhone(phone || rawPhone),
-          parentName: `${parentName} ${rawLast}`,
-          pin: phone && phone.length >= 4 ? phone.slice(-4) : '1234',
-          children: []
+      if (excelPath) {
+        const workbook = xlsx.readFile(excelPath);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+
+        rows.forEach(r => {
+          const rawFirst = String(r['First Name'] || '').trim();
+          const rawLast = String(r['Last Name'] || '').trim();
+          if (!rawFirst && !rawLast) return;
+
+          const email = String(r['Email'] || '').trim().toLowerCase();
+          const rawPhone = String(r['Cell Phone'] || '').trim();
+          const phone = cleanPhone(rawPhone);
+          const famKey = email || phone;
+
+          const rawAllergies = String(r['Does your child have any allergies or any dietary restrictions?'] || '').trim();
+          const hasAllergy = rawAllergies && !/^none$/i.test(rawAllergies) && !/^n\/a$/i.test(rawAllergies) && !/^no$/i.test(rawAllergies);
+
+          if (!families.has(famKey)) {
+            let parentName = rawFirst;
+            const pickups = String(r['Who has permission to pick up child? Name and phone number.'] || '').trim();
+            if (pickups) {
+              const firstWord = pickups.split(/[\s,&]/)[0].trim();
+              if (firstWord && firstWord.length > 2 && isNaN(firstWord)) {
+                parentName = firstWord;
+              }
+            }
+
+            families.set(famKey, {
+              email,
+              phone,
+              phoneFormatted: formatPhone(phone || rawPhone),
+              parentName: `${parentName} ${rawLast}`,
+              pin: phone && phone.length >= 4 ? phone.slice(-4) : '1234',
+              children: []
+            });
+          }
+
+          families.get(famKey).children.push({
+            name: `${rawFirst} ${rawLast}`,
+            hasAllergy,
+            allergies: hasAllergy ? rawAllergies : 'None'
+          });
+        });
+      } else {
+        // 2. Query families directly from Azure PostgreSQL database
+        const dbRes = await pool.query(`
+          SELECT 
+            p.id, 
+            COALESCE(p.first_name, '') as first_name, 
+            COALESCE(p.last_name, '') as last_name, 
+            p.email, 
+            p.phone,
+            c.id as child_id,
+            COALESCE(c.first_name, '') as child_first,
+            COALESCE(c.last_name, '') as child_last,
+            c.allergies
+          FROM public.profiles p
+          LEFT JOIN public.children c ON c.parent_id = p.id
+          WHERE p.email IS NOT NULL AND p.email != '' AND p.email LIKE '%@%'
+        `);
+
+        dbRes.rows.forEach(r => {
+          const email = String(r.email || '').trim().toLowerCase();
+          const phone = cleanPhone(r.phone);
+          const famKey = email || phone;
+          const parentName = `${r.first_name} ${r.last_name}`.trim() || 'Parent';
+
+          if (!families.has(famKey)) {
+            families.set(famKey, {
+              email,
+              phone,
+              phoneFormatted: formatPhone(phone),
+              parentName,
+              pin: phone && phone.length >= 4 ? phone.slice(-4) : '1234',
+              children: []
+            });
+          }
+
+          if (r.child_id) {
+            const hasAllergy = r.allergies && r.allergies !== 'None' && r.allergies !== 'none';
+            families.get(famKey).children.push({
+              name: `${r.child_first} ${r.child_last}`.trim(),
+              hasAllergy,
+              allergies: hasAllergy ? r.allergies : 'None'
+            });
+          }
         });
       }
+    }
 
-      families.get(famKey).children.push({
-        name: `${rawFirst} ${rawLast}`,
-        hasAllergy,
-        allergies: hasAllergy ? rawAllergies : 'None'
-      });
-    });
-
-    const results = { total: families.size, sent: 0, failed: 0, skipped: 0, errors: [] };
+    if (families.size === 0) {
+      return res.status(404).json({ error: 'No registered families found to broadcast.' });
+    }
 
     // Asynchronously dispatch and log
     (async () => {
