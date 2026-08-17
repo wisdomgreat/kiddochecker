@@ -361,10 +361,10 @@ class BrotherBitmapCanvas {
         const useTwoColor = isTwoColor || spec.isTwoColor;
         const chunks = [];
 
-        // 1. 200 null bytes for synchronization
-        chunks.push(Buffer.alloc(200, 0));
+        // 1. 400 null bytes for clean synchronization and flushing previous buffers
+        chunks.push(Buffer.alloc(400, 0));
 
-        // 2. ESC @ (Initialize)
+        // 2. ESC @ (Initialize Printer)
         chunks.push(Buffer.from([0x1B, 0x40]));
 
         // 3. Switch to Raster mode: ESC i a 1
@@ -399,7 +399,7 @@ class BrotherBitmapCanvas {
         const extMode = useTwoColor ? (0x08 | 0x01) : 0x08;
         chunks.push(Buffer.from([0x1B, 0x69, 0x6B, extMode]));
 
-        // 8. ESC i d (Feed margin: 35 dots)
+        // 8. ESC i d (Feed margin: 35 dots ~3mm)
         chunks.push(Buffer.from([0x1B, 0x69, 0x64, 0x23, 0x00]));
 
         // 9. Raster lines: 90 bytes per line (720 dots wide, 696 printable)
@@ -435,7 +435,8 @@ class BrotherBitmapCanvas {
             }
         }
 
-        // 10. Form Feed (0x0C) - Prints and cuts page
+        // 10. Print Trigger (0x1A: Print command with feed) + Form Feed & Page Cut (0x0C)
+        chunks.push(Buffer.from([0x1A]));
         chunks.push(Buffer.from([0x0C]));
 
         return Buffer.concat(chunks);
