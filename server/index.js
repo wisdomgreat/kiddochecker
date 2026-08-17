@@ -2677,6 +2677,24 @@ if (ACS_CONNECTION_STRING) {
 }
 
 // Helper to record email logs to PostgreSQL
+// ─── Azure Communication Services Setup ─────────────────────────────────────
+let acsEmailClient = null;
+const ACS_CONNECTION_STRING = process.env.AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING;
+const ACS_SENDER_ADDRESS = process.env.AZURE_EMAIL_SENDER || 'DoNotReply@6e4fe926-0f85-412b-afef-0fb9c4d89667.azurecomm.net';
+const DEFAULT_CHURCH_NAME = 'Green Valley Alliance';
+
+try {
+  if (ACS_CONNECTION_STRING) {
+    const { EmailClient } = require('@azure/communication-email');
+    acsEmailClient = new EmailClient(ACS_CONNECTION_STRING);
+    console.log('[ACS] Azure Communication Services Email Client initialized successfully.');
+  } else {
+    console.warn('[ACS] AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING is not set in environment.');
+  }
+} catch (err) {
+  console.error('[ACS Init Error]', err.message);
+}
+
 async function logEmailDelivery({ recipient, recipientName, subject, templateType, status, messageId, errorMessage, metadata }) {
   try {
     await pool.query(`
@@ -2854,6 +2872,7 @@ app.post('/api/emails/broadcast-summer-camp', async (req, res) => {
     };
 
     const families = new Map();
+    const results = { total: 0, sent: 0, failed: 0, skipped: 0, errors: [] };
 
     if (Array.isArray(clientFamilies) && clientFamilies.length > 0) {
       clientFamilies.forEach(fam => {
