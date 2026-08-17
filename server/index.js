@@ -82,6 +82,30 @@ async function setupDatabase() {
     console.error('[DB] password_reset_tokens setup error (Non-Fatal):', err.message);
   }
 
+  // Ensure email_logs table exists
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public.email_logs (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        recipient TEXT NOT NULL,
+        recipient_name TEXT,
+        subject TEXT NOT NULL,
+        template_type TEXT DEFAULT 'general',
+        status TEXT DEFAULT 'sent',
+        message_id TEXT,
+        error_message TEXT,
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_email_logs_created_at ON public.email_logs(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_email_logs_recipient ON public.email_logs(recipient);
+      CREATE INDEX IF NOT EXISTS idx_email_logs_status ON public.email_logs(status);
+    `);
+    console.log('[DB] email_logs table and indexes verified.');
+  } catch (err) {
+    console.error('[DB] email_logs setup error (Non-Fatal):', err.message);
+  }
+
   // Ensure profiles table has required columns is_active and password_hash
   try {
     await pool.query(`
@@ -2606,6 +2630,387 @@ app.get('/api/print-jobs/health', (req, res) => {
     lastSeenSecondsAgo: lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : null,
     queueSize: cloudPrintQueue.length
   });
+});
+
+// ─── Azure Communication Services Email Hub & Logs ───────────────────
+const { EmailClient } = require('@azure/communication-email');
+
+const ACS_CONNECTION_STRING = process.env.AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING;
+const ACS_SENDER_ADDRESS = process.env.AZURE_EMAIL_SENDER || 'DoNotReply@6e4fe926-0f85-412b-afef-0fb9c4d89667.azurecomm.net';
+const DEFAULT_CHURCH_NAME = 'Green Valley Alliance';
+
+let acsEmailClient = null;
+if (ACS_CONNECTION_STRING) {
+  try {
+    acsEmailClient = new EmailClient(ACS_CONNECTION_STRING);
+    console.log('[Email Engine] Azure Communication Services Email Client initialized.');
+  } catch (e) {
+    console.error('[Email Engine] Failed to initialize ACS Email Client:', e.message);
+  }
+} else {
+  console.warn('[Email Engine] AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING is not set in environment.');
+}
+
+// Helper to record email logs to PostgreSQL
+async function logEmailDelivery({ recipient, recipientName, subject, templateType, status, messageId, errorMessage, metadata }) {
+  try {
+    await pool.query(`
+      INSERT INTO public.email_logs (
+        recipient, recipient_name, subject, template_type, status, message_id, error_message, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [
+      recipient,
+      recipientName || null,
+      subject,
+      templateType || 'general',
+      status || 'sent',
+      messageId || null,
+      errorMessage || null,
+      JSON.stringify(metadata || {})
+    ]);
+  } catch (err) {
+    console.error('[Email Log Error]', err.message);
+  }
+}
+
+// 1. Get Email Logs (Search, Filter, Pagination)
+app.get('/api/emails/logs', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const offset = (page - 1) * limit;
+    const search = req.query.search ? `%${req.query.search.trim().toLowerCase()}%` : null;
+    const status = req.query.status || null;
+    const templateType = req.query.templateType || null;
+
+    let whereClauses = [];
+    let params = [];
+    let paramIdx = 1;
+
+    if (search) {
+      whereClauses.push(`(LOWER(recipient) LIKE $${paramIdx} OR LOWER(recipient_name) LIKE $${paramIdx} OR LOWER(subject) LIKE $${paramIdx})`);
+      params.push(search);
+      paramIdx++;
+    }
+
+    if (status && status !== 'all') {
+      whereClauses.push(`status = $${paramIdx}`);
+      params.push(status);
+      paramIdx++;
+    }
+
+    if (templateType && templateType !== 'all') {
+      whereClauses.push(`template_type = $${paramIdx}`);
+      params.push(templateType);
+      paramIdx++;
+    }
+
+    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const countQuery = `SELECT COUNT(*) as total FROM public.email_logs ${whereStr}`;
+    const countRes = await pool.query(countQuery, params);
+    const total = parseInt(countRes.rows[0].total, 10);
+
+    const listQuery = `
+      SELECT id, recipient, recipient_name, subject, template_type, status, message_id, error_message, metadata, created_at
+      FROM public.email_logs
+      ${whereStr}
+      ORDER BY created_at DESC
+      LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
+    `;
+    params.push(limit, offset);
+
+    const listRes = await pool.query(listQuery, params);
+
+    res.json({
+      logs: listRes.rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (err) {
+    console.error('[API /api/emails/logs Error]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Get Email Statistics
+app.get('/api/emails/stats', async (req, res) => {
+  try {
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_sent,
+        COUNT(CASE WHEN status = 'delivered' OR status = 'sent' THEN 1 END) as total_delivered,
+        COUNT(CASE WHEN status = 'failed' THEN 1 END) as total_failed,
+        COUNT(CASE WHEN created_at >= (NOW() - INTERVAL '24 hours') THEN 1 END) as sent_last_24h,
+        COUNT(DISTINCT recipient) as unique_recipients
+      FROM public.email_logs
+    `;
+    const result = await pool.query(statsQuery);
+    const row = result.rows[0];
+
+    res.json({
+      totalSent: parseInt(row.total_sent, 10) || 0,
+      totalDelivered: parseInt(row.total_delivered, 10) || 0,
+      totalFailed: parseInt(row.total_failed, 10) || 0,
+      sentLast24h: parseInt(row.sent_last_24h, 10) || 0,
+      uniqueRecipients: parseInt(row.unique_recipients, 10) || 0
+    });
+  } catch (err) {
+    console.error('[API /api/emails/stats Error]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. Send Single Email via ACS with automatic logging
+app.post('/api/emails/send', async (req, res) => {
+  const { to, toName, subject, html, templateType, metadata } = req.body || {};
+  if (!to || !subject || !html) {
+    return res.status(400).json({ error: 'Missing required fields: to, subject, html' });
+  }
+
+  if (!acsEmailClient) {
+    return res.status(503).json({ error: 'Azure Communication Services Email Client is not available.' });
+  }
+
+  try {
+    const poller = await acsEmailClient.beginSend({
+      senderAddress: ACS_SENDER_ADDRESS,
+      content: { subject, html },
+      recipients: { to: [{ address: to }] }
+    });
+
+    const sendRes = await poller.pollUntilDone();
+    const status = sendRes.status === 'Succeeded' ? 'delivered' : sendRes.status.toLowerCase();
+    
+    await logEmailDelivery({
+      recipient: to,
+      recipientName: toName,
+      subject,
+      templateType: templateType || 'manual',
+      status,
+      messageId: sendRes.id,
+      metadata: metadata || {}
+    });
+
+    res.json({ success: true, messageId: sendRes.id, status });
+  } catch (err) {
+    console.error(`[API /api/emails/send Error to ${to}]`, err.message);
+    await logEmailDelivery({
+      recipient: to,
+      recipientName: toName,
+      subject,
+      templateType: templateType || 'manual',
+      status: 'failed',
+      errorMessage: err.message,
+      metadata: metadata || {}
+    });
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Trigger Summer Camp Pass Broadcast (with full live logging)
+app.post('/api/emails/broadcast-summer-camp', async (req, res) => {
+  const { churchName = DEFAULT_CHURCH_NAME, customSubject, rateLimitMs = 300 } = req.body || {};
+  const fs = require('fs');
+  const xlsx = require('xlsx');
+
+  const possiblePaths = [
+    'C:\\Users\\wisdo\\Downloads\\Child List.xlsx',
+    './Child List.xlsx',
+    '../Child List.xlsx',
+    'C:\\Users\\wisdo\\Downloads\\kiddochecker_summer_camp_roster.xlsx'
+  ];
+
+  let excelPath = possiblePaths.find(p => fs.existsSync(p));
+  if (!excelPath) {
+    return res.status(404).json({ error: 'Summer Camp Excel roster file not found on server.' });
+  }
+
+  if (!acsEmailClient) {
+    return res.status(503).json({ error: 'Azure Communication Services is not configured.' });
+  }
+
+  try {
+    const workbook = xlsx.readFile(excelPath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+
+    const cleanPhone = (p) => p ? String(p).replace(/\D/g, '') : '';
+    const formatPhone = (d) => {
+      if (!d || d.length < 10) return d || '';
+      const s = d.slice(-10);
+      return `(${s.slice(0,3)}) ${s.slice(3,6)}-${s.slice(6)}`;
+    };
+
+    const families = new Map();
+    rows.forEach(r => {
+      const rawFirst = String(r['First Name'] || '').trim();
+      const rawLast = String(r['Last Name'] || '').trim();
+      if (!rawFirst && !rawLast) return;
+
+      const email = String(r['Email'] || '').trim().toLowerCase();
+      const rawPhone = String(r['Cell Phone'] || '').trim();
+      const phone = cleanPhone(rawPhone);
+      const famKey = email || phone;
+
+      const rawAllergies = String(r['Does your child have any allergies or any dietary restrictions?'] || '').trim();
+      const hasAllergy = rawAllergies && !/^none$/i.test(rawAllergies) && !/^n\/a$/i.test(rawAllergies) && !/^no$/i.test(rawAllergies);
+
+      if (!families.has(famKey)) {
+        let parentName = rawFirst;
+        const pickups = String(r['Who has permission to pick up child? Name and phone number.'] || '').trim();
+        if (pickups) {
+          const firstWord = pickups.split(/[\s,&]/)[0].trim();
+          if (firstWord && firstWord.length > 2 && isNaN(firstWord)) {
+            parentName = firstWord;
+          }
+        }
+
+        families.set(famKey, {
+          email,
+          phone,
+          phoneFormatted: formatPhone(phone || rawPhone),
+          parentName: `${parentName} ${rawLast}`,
+          pin: phone && phone.length >= 4 ? phone.slice(-4) : '1234',
+          children: []
+        });
+      }
+
+      families.get(famKey).children.push({
+        name: `${rawFirst} ${rawLast}`,
+        hasAllergy,
+        allergies: hasAllergy ? rawAllergies : 'None'
+      });
+    });
+
+    const results = { total: families.size, sent: 0, failed: 0, skipped: 0, errors: [] };
+
+    // Asynchronously dispatch and log
+    (async () => {
+      for (const [key, fam] of families.entries()) {
+        if (!fam.email || !fam.email.includes('@')) {
+          results.skipped++;
+          await logEmailDelivery({
+            recipient: fam.email || 'NO_EMAIL',
+            recipientName: fam.parentName,
+            subject: customSubject || `🎪 ${churchName}: Summer Camp Family Fast-Pass & PIN`,
+            templateType: 'summer_camp_fast_pass',
+            status: 'failed',
+            errorMessage: 'No valid email address in roster',
+            metadata: { parentPhone: fam.phone, childrenCount: fam.children.length }
+          });
+          continue;
+        }
+
+        const subject = customSubject || `🎪 ${churchName}: Summer Camp Family Fast-Pass & PIN`;
+        const emailHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="utf-8"><title>${churchName} Summer Camp Fast-Pass</title></head>
+          <body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#f8fafc;padding:30px 15px;">
+              <tr>
+                <td align="center">
+                  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+                    <tr>
+                      <td style="background:linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);padding:36px 28px;text-align:center;">
+                        <div style="background:rgba(255,255,255,0.18);display:inline-block;padding:6px 16px;border-radius:20px;margin-bottom:12px;">
+                          <span style="color:#ffffff;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Children & Youth Ministry</span>
+                        </div>
+                        <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:800;">${churchName}</h1>
+                        <p style="color:#bfdbfe;margin:6px 0 0 0;font-size:15px;">Summer Day Camp 2026</p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding:32px 28px;">
+                        <h2 style="color:#0f172a;font-size:20px;font-weight:700;margin:0 0 12px 0;">Hello ${fam.parentName},</h2>
+                        <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px 0;">
+                          We are thrilled to welcome your family at <strong>${churchName}</strong>! Your family profile is active for instant kiosk check-in.
+                        </p>
+                        <div style="background-color:#f8fafc;border:2px dashed #93c5fd;border-radius:14px;padding:22px;margin-bottom:26px;text-align:center;">
+                          <span style="color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Your Family Fast-Pass PIN</span>
+                          <div style="color:#1e3a8a;font-size:38px;font-weight:800;letter-spacing:6px;margin:6px 0;">${fam.pin}</div>
+                          <span style="color:#64748b;font-size:12px;">(Registered Cell Phone: ${fam.phoneFormatted})</span>
+                          <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+                          <div style="text-align:left;color:#334155;font-size:14px;font-weight:700;margin-bottom:10px;">Registered Campers:</div>
+                          ${fam.children.map(c => `
+                            <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:8px;text-align:left;">
+                              <strong>👦 ${c.name}</strong> — 
+                              <span style="color:${c.hasAllergy ? '#b91c1c' : '#15803d'};font-size:12px;font-weight:600;">
+                                ${c.hasAllergy ? '⚠️ Allergies: ' + c.allergies : '✓ No Allergies'}
+                              </span>
+                            </div>
+                          `).join('')}
+                        </div>
+                        <h3 style="color:#0f172a;font-size:16px;font-weight:700;margin:0 0 14px 0;">How to Check In:</h3>
+                        <ol style="color:#475569;font-size:14px;line-height:1.8;padding-left:20px;margin:0 0 24px 0;">
+                          <li>Walk up to any Check-In tablet station at ${churchName}.</li>
+                          <li>Type phone <strong>${fam.phoneFormatted}</strong> and PIN <strong>${fam.pin}</strong>.</li>
+                          <li>Collect your child's printed name badge and security claim tag!</li>
+                        </ol>
+                        <p style="color:#334155;font-size:14px;font-weight:600;margin:0;">
+                          Blessings,<br>
+                          <span style="color:#1e3a8a;font-weight:700;">${churchName}</span><br>
+                          <span style="color:#64748b;font-weight:normal;font-size:13px;">Children & Youth Ministry Team</span>
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+          </html>
+        `;
+
+        try {
+          const poller = await acsEmailClient.beginSend({
+            senderAddress: ACS_SENDER_ADDRESS,
+            content: { subject, html: emailHtml },
+            recipients: { to: [{ address: fam.email }] }
+          });
+
+          const sendRes = await poller.pollUntilDone();
+          results.sent++;
+          await logEmailDelivery({
+            recipient: fam.email,
+            recipientName: fam.parentName,
+            subject,
+            templateType: 'summer_camp_fast_pass',
+            status: sendRes.status === 'Succeeded' ? 'delivered' : sendRes.status.toLowerCase(),
+            messageId: sendRes.id,
+            metadata: { pin: fam.pin, phone: fam.phone, campers: fam.children.map(c => c.name) }
+          });
+        } catch (sErr) {
+          results.failed++;
+          results.errors.push({ email: fam.email, error: sErr.message });
+          await logEmailDelivery({
+            recipient: fam.email,
+            recipientName: fam.parentName,
+            subject,
+            templateType: 'summer_camp_fast_pass',
+            status: 'failed',
+            errorMessage: sErr.message,
+            metadata: { pin: fam.pin, phone: fam.phone }
+          });
+        }
+
+        await new Promise(r => setTimeout(r, rateLimitMs));
+      }
+      console.log(`[Summer Camp Broadcast Complete] Sent: ${results.sent}, Failed: ${results.failed}, Skipped: ${results.skipped}`);
+    })();
+
+    res.json({
+      success: true,
+      message: `Broadcast initiated for ${families.size} families. Real-time delivery logs are being updated.`,
+      familiesCount: families.size
+    });
+  } catch (err) {
+    console.error('[Summer Camp Broadcast Error]', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(port, () => console.log(`[Bridge] Server running on port ${port}`));

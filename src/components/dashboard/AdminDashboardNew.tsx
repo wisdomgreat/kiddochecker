@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import {
     Users, Baby, Calendar, Shield, MessageSquare,
     TrendingUp, Clock, Activity, UserCheck, ChevronRight,
-    Monitor, BarChart3, Settings, QrCode, Printer, LogOut
+    Monitor, BarChart3, Settings, QrCode, Printer, LogOut, MailCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +180,7 @@ const AdminDashboardNew = () => {
     const quickActions = [
         { title: "Kiosk", icon: QrCode, path: "/check-in" },
         { title: "QR Labels", icon: Printer, path: "/qr-management" },
+        { title: "Email Logs", icon: MailCheck, path: "/admin/email-logs" },
         { title: "Schedules", icon: Calendar, path: "/staff/schedules" },
         { title: "Users", icon: Users, path: "/users" },
         { title: "Devices", icon: Monitor, path: "/devices" },

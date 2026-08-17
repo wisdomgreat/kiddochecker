@@ -54,6 +54,7 @@ const ChildMedicalProfile = lazy(() => import("./pages/ChildMedicalProfile"));
 const QRManagementPage = lazy(() => import("./pages/QRManagementPage"));
 const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
 const EmailTemplatesPage = lazy(() => import("./pages/EmailTemplatesPage"));
+const EmailLogsPage = lazy(() => import("./pages/EmailLogsPage"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const AttendanceRewardsPage = lazy(() => import("./pages/AttendanceRewardsPage"));
 const SystemHealth = lazy(() => import("./pages/SystemHealth"));
@@ -177,6 +178,7 @@ function App() {
                       <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
                       <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
                       <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><EmailTemplatesPage /></RoleBasedRoute>} />
+                      <Route path="/admin/email-logs" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><EmailLogsPage /></RoleBasedRoute>} />
                       <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
                       <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><SystemHealth /></RoleBasedRoute>} />
                       <Route path="/help" element={<HelpDocumentation />} />

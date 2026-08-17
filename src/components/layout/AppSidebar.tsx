@@ -3,7 +3,7 @@ import {
   Calendar, Home, Users, Settings, BarChart3, Building, LogOut,
   Baby, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare,
   QrCode, Printer, Shield, ShieldCheck,
-  Trophy, HeartPulse, HelpCircle, Globe, Heart, Moon, Sun, Mail,
+  Trophy, HeartPulse, HelpCircle, Globe, Heart, Moon, Sun, Mail, MailCheck
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -82,6 +82,7 @@ export function AppSidebar() {
         { title: t("userManagement"), url: "/users", icon: Users, requiredPermission: "manage_users" },
         { title: t("qrManagement"), url: "/qr-management", icon: QrCode, requiredPermission: "manage_qr_codes" },
         { title: t("emailTemplates"), url: "/admin/email-templates", icon: Mail, requiredPermission: "manage_system" },
+        { title: "Email Delivery Logs", url: "/admin/email-logs", icon: MailCheck, requiredPermission: "manage_system" },
         { title: t("deviceEnrollment"), url: "/devices", icon: Monitor },
         { title: t("rolesPermissions"), url: "/roles", icon: ShieldCheck, requiredPermission: "manage_users" },
         { title: t("auditLog"), url: "/audit-log", icon: Shield, requiredPermission: "view_audit_logs" },
