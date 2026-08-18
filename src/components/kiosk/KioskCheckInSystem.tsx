@@ -693,7 +693,7 @@ const KioskCheckInSystem = () => {
     setParentLoginError('');
   };
 
-  const handleParentCheckIn = (child: Child) => {
+  const handleParentCheckIn = async (child: Child) => {
     if (checkedInChildIds.has(child.id)) {
       const record = checkedInChildren.find(r => r.child_id === child.id && !r.checked_out_at);
       if (record) {
@@ -720,8 +720,85 @@ const KioskCheckInSystem = () => {
       return;
     }
 
+    // Automatic Class Resolution for instant 1-tap check-in
+    let targetClassId = child.class_id;
+    if (!targetClassId) {
+      // Resolve class automatically by child age
+      const age = child.age != null ? Number(child.age) : 7;
+      if (age <= 3) targetClassId = 'bb19a29d-c707-4342-a080-5341ffe3eb45'; // Nursery Room
+      else if (age <= 5) targetClassId = '9acddbb3-2e32-4751-8186-4da289cfe384'; // Preschool & Kindergarten
+      else if (age <= 8) targetClassId = 'e433222d-d3a0-40ab-99f0-f3fe8256bd10'; // Primary Campers (6-8)
+      else if (age <= 12) targetClassId = 'bc202366-4987-4b03-baca-ece9afe6ad0b'; // Junior Campers (9-12)
+      else targetClassId = '0f1a089f-4818-46bd-b08a-761fcafd5a93'; // Teens Fellowship (13+)
+    }
+
     setSelectedChild(child);
-    setShowClassDialog(true);
+
+    // Instant 1-tap direct check-in! Parents never have to manually select a class!
+    setIsLoading(true);
+    try {
+      let className = 'Camp Class';
+      try {
+        const { data: classData } = await supabase.from('classes').select('name').eq('id', targetClassId).maybeSingle();
+        if (classData?.name) className = classData.name;
+      } catch (cErr) {}
+
+      let actorId = (user as any)?.id;
+      if (parentLoggedIn) actorId = parentProfileId || window.localStorage.getItem('kiosk_active_parent_id') || actorId;
+
+      const result = await AttendanceService.checkInChild({
+        childId: child.id,
+        classId: targetClassId,
+        checkedInBy: actorId,
+        method: 'kiosk',
+        station: 'Main Kiosk',
+        specialInstructions: '',
+        hasFever: false,
+        hasCough: false,
+        deviceId: (user as any)?.user_metadata?.device_id,
+        orgId: activeOrgId
+      });
+
+      if (result.success) {
+        await logActivity('check_in', {
+          child_id: child.id,
+          child_name: `${child.first_name} ${child.last_name}`,
+          class_name: className
+        });
+
+        const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', child.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        const fallbackQR = JSON.stringify({ type: 'CHILD_CHECKIN', id: child.id, name: `${child.first_name} ${child.last_name}`, v: 1 });
+        
+        setCheckInQRData(qrCodeData?.qr_data || fallbackQR);
+        setSelectedClassName(className);
+        setCurrentSpecialInstructions('');
+        setCheckedInChildIds(prev => new Set([...prev, child.id]));
+        
+        toast({
+          title: "Check-in Successful! ✓",
+          description: `${child.first_name} checked in to ${className}.`
+        });
+
+        await loadTodayData();
+        setShowNameTagDialog(true);
+        startAutoLogoutTimer(10);
+      } else {
+        toast({
+          title: "Check-in Error",
+          description: result.error || "Failed to complete check-in.",
+          variant: "destructive"
+        });
+      }
+    } catch (err: any) {
+      console.error('[Kiosk] Check-in exception:', err);
+      toast({
+        title: "Check-in Failed",
+        description: err.message || "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleStaffAuth = async () => {
@@ -1371,6 +1448,12 @@ const KioskCheckInSystem = () => {
                             <h3 className="font-extrabold text-sm text-white truncate">{child.first_name} {child.last_name}</h3>
                             <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md">
                               {child.age ? `Age ${child.age}` : 'Child'}
+                            </span>
+                            <span className="text-[10px] font-black text-blue-300 bg-blue-950/80 border border-blue-500/30 px-2 py-0.5 rounded-md">
+                              {child.age && Number(child.age) <= 3 ? "Nursery Room" :
+                               child.age && Number(child.age) <= 5 ? "Preschool & Kindergarten" :
+                               child.age && Number(child.age) <= 8 ? "Primary Campers (6-8)" :
+                               child.age && Number(child.age) <= 12 ? "Junior Campers (9-12)" : "Teens Fellowship (13+)"}
                             </span>
                           </div>
                           {child.allergies ? (
