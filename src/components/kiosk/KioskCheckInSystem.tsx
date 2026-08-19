@@ -150,7 +150,13 @@ const KioskCheckInSystem = () => {
   const handleKeypadChange = (val: string) => {
     const cleaned = val.replace(/\D/g, '');
     if (activeInput === 'phone') {
-      if (cleaned.length <= 10) setParentPhone(cleaned);
+      if (cleaned.length <= 10) {
+        setParentPhone(cleaned);
+        if (cleaned.length === 10) {
+          // Auto advance to PIN input field
+          setTimeout(() => setActiveInput('pin'), 250);
+        }
+      }
     } else {
       if (cleaned.length <= 6) setParentPin(cleaned);
     }
@@ -506,62 +512,52 @@ const KioskCheckInSystem = () => {
     setParentLoginError('');
 
     try {
+      const cleanPhone = parentPhone.replace(/\D/g, '');
+      const cleanPin = parentPin.trim();
+
+      if (!cleanPhone || cleanPhone.length < 10) {
+        setParentLoginError(isEs ? "Por favor ingrese su número de teléfono de 10 dígitos" : "Please enter your 10-digit phone number");
+        setActiveInput('phone');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!cleanPin || cleanPin.length < 4) {
+        setParentLoginError(isEs ? "Por favor ingrese su PIN de seguridad de 4 dígitos" : "Please enter your 4-digit security PIN");
+        setActiveInput('pin');
+        setIsLoading(false);
+        return;
+      }
+
       let matched: any = null;
 
-      if (activeInput === 'phone') {
-        const cleanPhone = parentPhone.replace(/\D/g, '');
-        if (!cleanPhone || cleanPhone.length < 7) {
-          setParentLoginError(isEs ? "Por favor ingrese un número de teléfono válido (10 dígitos)" : "Please enter a valid 10-digit phone number");
-          setIsLoading(false);
-          return;
-        }
+      // 1. Primary RPC search by phone + pin
+      const { data: rpcMatched, error } = await safeRPC('get_parent_for_kiosk', {
+        p_search_val: cleanPhone,
+        p_pin: cleanPin,
+        p_org_id: activeOrgId
+      });
 
-        // 1. Primary RPC search by phone
-        const { data: rpcMatched, error } = await safeRPC('get_parent_for_kiosk', {
-          p_search_val: cleanPhone,
-          p_pin: '0000',
-          p_org_id: activeOrgId
-        });
-
-        if (rpcMatched && (rpcMatched as any).length > 0) {
-          matched = rpcMatched;
-        } else {
-          // 2. Direct lookup fallback by phone
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('phone', cleanPhone)
-            .limit(1);
-          if (profiles && profiles.length > 0) matched = profiles;
-        }
-
-        if (!matched || matched.length === 0) {
-          setParentLoginError(isEs ? "No se encontró familia registrada con este número" : "No registered family found with this phone number");
-          setIsLoading(false);
-          return;
-        }
+      if (rpcMatched && (rpcMatched as any).length > 0) {
+        matched = rpcMatched;
       } else {
-        // Direct PIN mode
-        const cleanPin = parentPin.trim();
-        if (!cleanPin || cleanPin.length < 4) {
-          setParentLoginError(isEs ? "Por favor ingrese su PIN de seguridad de 4 dígitos" : "Please enter your 4-digit security PIN");
-          setIsLoading(false);
-          return;
-        }
-
+        // 2. Direct lookup in profiles matching BOTH phone and pin
         const { data: profiles } = await supabase
           .from('profiles')
           .select('*')
+          .eq('phone', cleanPhone)
           .or(`direct_pin.eq.${cleanPin},pin.eq.${cleanPin}`)
           .limit(1);
 
         if (profiles && profiles.length > 0) {
           matched = profiles;
-        } else {
-          setParentLoginError(isEs ? "PIN de seguridad no válido. Intente de nuevo." : "Invalid security PIN. Please try again.");
-          setIsLoading(false);
-          return;
         }
+      }
+
+      if (!matched || matched.length === 0) {
+        setParentLoginError(isEs ? "El teléfono o PIN ingresado no coinciden. Intente de nuevo." : "Phone number and PIN do not match. Please verify both.");
+        setIsLoading(false);
+        return;
       }
 
       const parent = matched[0];
@@ -720,10 +716,9 @@ const KioskCheckInSystem = () => {
       return;
     }
 
-    // Automatic Class Resolution for instant 1-tap check-in
+    // Automatic Class Resolution for preselection
     let targetClassId = child.class_id;
     if (!targetClassId) {
-      // Resolve class automatically by child age
       const age = child.age != null ? Number(child.age) : 7;
       if (age <= 3) targetClassId = 'bb19a29d-c707-4342-a080-5341ffe3eb45'; // Nursery Room
       else if (age <= 5) targetClassId = '9acddbb3-2e32-4751-8186-4da289cfe384'; // Preschool & Kindergarten
@@ -732,73 +727,8 @@ const KioskCheckInSystem = () => {
       else targetClassId = '0f1a089f-4818-46bd-b08a-761fcafd5a93'; // Teens Fellowship (13+)
     }
 
-    setSelectedChild(child);
-
-    // Instant 1-tap direct check-in! Parents never have to manually select a class!
-    setIsLoading(true);
-    try {
-      let className = 'Camp Class';
-      try {
-        const { data: classData } = await supabase.from('classes').select('name').eq('id', targetClassId).maybeSingle();
-        if (classData?.name) className = classData.name;
-      } catch (cErr) {}
-
-      let actorId = (user as any)?.id;
-      if (parentLoggedIn) actorId = parentProfileId || window.localStorage.getItem('kiosk_active_parent_id') || actorId;
-
-      const result = await AttendanceService.checkInChild({
-        childId: child.id,
-        classId: targetClassId,
-        checkedInBy: actorId,
-        method: 'kiosk',
-        station: 'Main Kiosk',
-        specialInstructions: '',
-        hasFever: false,
-        hasCough: false,
-        deviceId: (user as any)?.user_metadata?.device_id,
-        orgId: activeOrgId
-      });
-
-      if (result.success) {
-        await logActivity('check_in', {
-          child_id: child.id,
-          child_name: `${child.first_name} ${child.last_name}`,
-          class_name: className
-        });
-
-        const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', child.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        const fallbackQR = JSON.stringify({ type: 'CHILD_CHECKIN', id: child.id, name: `${child.first_name} ${child.last_name}`, v: 1 });
-        
-        setCheckInQRData(qrCodeData?.qr_data || fallbackQR);
-        setSelectedClassName(className);
-        setCurrentSpecialInstructions('');
-        setCheckedInChildIds(prev => new Set([...prev, child.id]));
-        
-        toast({
-          title: "Check-in Successful! ✓",
-          description: `${child.first_name} checked in to ${className}.`
-        });
-
-        await loadTodayData();
-        setShowNameTagDialog(true);
-        startAutoLogoutTimer(10);
-      } else {
-        toast({
-          title: "Check-in Error",
-          description: result.error || "Failed to complete check-in.",
-          variant: "destructive"
-        });
-      }
-    } catch (err: any) {
-      console.error('[Kiosk] Check-in exception:', err);
-      toast({
-        title: "Check-in Failed",
-        description: err.message || "An unexpected error occurred.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    setSelectedChild({ ...child, class_id: targetClassId });
+    setShowClassDialog(true);
   };
 
   const handleStaffAuth = async () => {
@@ -1274,64 +1204,85 @@ const KioskCheckInSystem = () => {
               <div className="md:col-span-7 flex flex-col justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
                 
                 <div className="space-y-3">
-                  {/* Selector Tabs: Phone vs Direct PIN */}
-                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
-                    <button
-                      type="button"
+                  {/* Dual-Factor Input Fields: Phone Number AND Security PIN */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Phone Number Field */}
+                    <div 
                       onClick={() => {
                         setActiveInput('phone');
                         setParentLoginError('');
                       }}
                       className={cn(
-                        "h-9 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer",
+                        "h-14 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
                         activeInput === 'phone'
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-900/40"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                          ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30"
+                          : "bg-slate-950 border-slate-800 hover:border-slate-700"
                       )}
                     >
-                      <Phone className="w-3.5 h-3.5" />
-                      {isEs ? "Número de Teléfono" : "Phone Number"}
-                    </button>
+                      <div className="flex items-center justify-between">
+                        <span className={cn(
+                          "text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1",
+                          activeInput === 'phone' ? "text-blue-400" : "text-slate-400"
+                        )}>
+                          <Phone className="w-3 h-3" />
+                          {isEs ? "Teléfono" : "Phone"}
+                        </span>
+                        {parentPhone && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setParentPhone('');
+                            }}
+                            className="text-[10px] font-bold text-slate-500 hover:text-rose-400"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-sm sm:text-base font-mono font-black text-white mt-0.5 truncate">
+                        {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 font-normal font-sans">(000) 000-0000</span>}
+                      </p>
+                    </div>
 
-                    <button
-                      type="button"
+                    {/* Security PIN Field */}
+                    <div 
                       onClick={() => {
                         setActiveInput('pin');
                         setParentLoginError('');
                       }}
                       className={cn(
-                        "h-9 rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer",
+                        "h-14 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
                         activeInput === 'pin'
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-900/40"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                          ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30"
+                          : "bg-slate-950 border-slate-800 hover:border-slate-700"
                       )}
                     >
-                      <Shield className="w-3.5 h-3.5" />
-                      {isEs ? "PIN Directo" : "Direct PIN"}
-                    </button>
-                  </div>
-
-                  {/* Single Clean Large Formatted Display Box (No Wrapping!) */}
-                  <div className="h-12 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
-                    <span className="text-xs font-bold uppercase text-slate-500">
-                      {activeInput === 'phone' ? 'Phone:' : 'PIN:'}
-                    </span>
-                    <span className="text-xl font-mono font-black tracking-wider text-blue-400">
-                      {activeInput === 'phone' ? (
-                        parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 text-base font-normal font-sans">(000) 000-0000</span>
-                      ) : (
-                        parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 text-base font-normal font-sans">••••</span>
-                      )}
-                    </span>
-                    <button 
-                      onClick={() => {
-                        if (activeInput === 'phone') setParentPhone('');
-                        else setParentPin('');
-                      }} 
-                      className="text-xs font-bold uppercase text-slate-500 hover:text-rose-400 px-2 py-1 rounded hover:bg-slate-900"
-                    >
-                      Clear
-                    </button>
+                      <div className="flex items-center justify-between">
+                        <span className={cn(
+                          "text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1",
+                          activeInput === 'pin' ? "text-blue-400" : "text-slate-400"
+                        )}>
+                          <Shield className="w-3 h-3" />
+                          {isEs ? "PIN Seguro" : "4-Digit PIN"}
+                        </span>
+                        {parentPin && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setParentPin('');
+                            }}
+                            className="text-[10px] font-bold text-slate-500 hover:text-rose-400"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-sm sm:text-base font-mono font-black text-white mt-0.5 tracking-widest">
+                        {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-normal font-sans tracking-normal">••••</span>}
+                      </p>
+                    </div>
                   </div>
 
                   {parentLoginError && (
@@ -1343,6 +1294,20 @@ const KioskCheckInSystem = () => {
 
                 {/* Tactile 3x4 Touch Keypad */}
                 <div className="py-1">
+                  <div className="flex items-center justify-between px-1 mb-1">
+                    <span className="text-[11px] font-bold uppercase text-slate-400">
+                      {activeInput === 'phone' 
+                        ? (isEs ? "👉 Ingrese Teléfono (Paso 1)" : "👉 Enter Phone (Step 1)") 
+                        : (isEs ? "👉 Ingrese PIN de 4 dígitos (Paso 2)" : "👉 Enter 4-digit PIN (Step 2)")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveInput(activeInput === 'phone' ? 'pin' : 'phone')}
+                      className="text-[10px] font-extrabold uppercase text-blue-400 hover:underline"
+                    >
+                      {activeInput === 'phone' ? "Switch to PIN ➔" : "Switch to Phone ➔"}
+                    </button>
+                  </div>
                   <NumericKeypad 
                     value={activeInput === 'phone' ? parentPhone : parentPin} 
                     onChange={handleKeypadChange} 
@@ -1353,7 +1318,7 @@ const KioskCheckInSystem = () => {
                 {/* Primary Check-In Action Button */}
                 <Button 
                   onClick={handleParentLogin} 
-                  disabled={isLoading || (activeInput === 'phone' ? parentPhone.length < 7 : parentPin.length < 4)}
+                  disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
                   className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
                 >
                   {isLoading ? (
@@ -1361,9 +1326,7 @@ const KioskCheckInSystem = () => {
                   ) : (
                     <ArrowRight className="w-4 h-4 mr-2" />
                   )}
-                  {activeInput === 'phone'
-                    ? (isEs ? "Buscar y Continuar" : "Lookup & Check In")
-                    : (isEs ? "Verificar PIN de Seguridad" : "Verify Security PIN")}
+                  {isEs ? "Verificar Teléfono + PIN" : "Verify Phone + PIN & Continue"}
                 </Button>
               </div>
 
