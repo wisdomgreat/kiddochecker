@@ -716,7 +716,7 @@ const KioskCheckInSystem = () => {
       return;
     }
 
-    // Automatic Class Resolution for preselection
+    // Automatic Class Resolution
     let targetClassId = child.class_id;
     if (!targetClassId) {
       const age = child.age != null ? Number(child.age) : 7;
@@ -727,8 +727,52 @@ const KioskCheckInSystem = () => {
       else targetClassId = '0f1a089f-4818-46bd-b08a-761fcafd5a93'; // Teens Fellowship (13+)
     }
 
-    setSelectedChild({ ...child, class_id: targetClassId });
-    setShowClassDialog(true);
+    const resolvedChild = { ...child, class_id: targetClassId };
+    setSelectedChild(resolvedChild);
+
+    // One-Tap Direct Auto Check-In for Parents (No manual class selection popup required)
+    setIsLoading(true);
+    try {
+      const { data: classData } = await supabase.from('classes').select('name').eq('id', targetClassId).single();
+      let actorId = (user as any)?.id;
+      if (parentLoggedIn) actorId = parentProfileId || window.localStorage.getItem('kiosk_active_parent_id') || actorId;
+
+      const result = await AttendanceService.checkInChild({
+        childId: child.id,
+        classId: targetClassId,
+        checkedInBy: actorId,
+        method: 'kiosk',
+        station: 'Main Kiosk',
+        specialInstructions: '',
+        hasFever: false,
+        hasCough: false,
+        deviceId: (user as any)?.user_metadata?.device_id,
+        orgId: activeOrgId
+      });
+
+      if (result.success) {
+        await logActivity('check_in', {
+          child_id: child.id,
+          child_name: `${child.first_name} ${child.last_name}`
+        });
+        const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', child.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        const fallbackQR = JSON.stringify({ type: 'CHILD_CHECKIN', id: child.id, name: `${child.first_name} ${child.last_name}`, v: 1 });
+        setCheckInQRData(qrCodeData?.qr_data || fallbackQR);
+        setSelectedClassName(classData?.name || '');
+        setCurrentSpecialInstructions('');
+        setCheckedInChildIds(prev => new Set([...prev, child.id]));
+        await loadTodayData();
+        setShowNameTagDialog(true);
+        startAutoLogoutTimer(7);
+      } else {
+        toast({ title: "Check-in Error", description: result.error || "Could not complete check-in.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error('[Kiosk] Auto check-in failed:', err);
+      toast({ title: "Check-in Failed", description: err.message || "Failed to check in", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleStaffAuth = async () => {
