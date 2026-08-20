@@ -75,12 +75,51 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
   const { data: detailedAttendance = [], isLoading: loadingDetailed } = useQuery({
     queryKey: ['detailed-attendance', dateRange],
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_liability_audit_report', {
-        start_date: format(dateRange.from, 'yyyy-MM-dd'),
-        end_date: format(dateRange.to, 'yyyy-MM-dd'),
-      });
+      // Fetch via supabase.from('attendance') with complete child/class joins
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*');
       if (error) throw error;
-      return data || [];
+      
+      const startStr = format(dateRange.from, 'yyyy-MM-dd');
+      const endStr = format(dateRange.to, 'yyyy-MM-dd');
+
+      return (data || [])
+        .filter((rec: any) => {
+          let dt = rec.attendance_date;
+          if (dt && typeof dt === 'string') dt = dt.split('T')[0];
+          else if (rec.checked_in_at) dt = String(rec.checked_in_at).split('T')[0];
+          if (!dt) return true;
+          return dt >= startStr && dt <= endStr;
+        })
+        .map((r: any) => {
+          const checkIn = r.checked_in_at ? new Date(r.checked_in_at).getTime() : 0;
+          const checkOut = r.checked_out_at ? new Date(r.checked_out_at).getTime() : 0;
+          const duration = (checkIn && checkOut) ? ((checkOut - checkIn) / (1000 * 3600)).toFixed(2) : null;
+          
+          return {
+            attendance_id: r.id,
+            attendance_date: r.attendance_date,
+            child_name: r.child ? `${r.child.first_name} ${r.child.last_name}` : 'Registered Child',
+            child_age: r.child?.age || null,
+            class_name: r.class?.name || 'General / Summer Camp',
+            checked_in_at: r.checked_in_at,
+            checked_in_by_name: 'Verified Kiosk',
+            checked_in_method: r.checked_in_method || 'kiosk',
+            checked_in_station: r.checked_in_station || 'Main Kiosk',
+            checked_out_at: r.checked_out_at,
+            checked_out_by_name: r.checked_out_at ? 'Staff / Parent' : null,
+            checked_out_method: r.checked_out_method,
+            signature_data: r.signature_data,
+            duration_hours: duration,
+            special_instructions: r.special_instructions
+          };
+        })
+        .sort((a: any, b: any) => {
+          const timeA = new Date(a.checked_in_at || a.attendance_date || 0).getTime();
+          const timeB = new Date(b.checked_in_at || b.attendance_date || 0).getTime();
+          return timeB - timeA;
+        });
     },
   });
 
@@ -105,12 +144,23 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
       const { data, error } = await supabase
         .from('attendance')
         .select('*')
-        .eq('child_id', selectedChildId)
-        .gte('attendance_date', format(dateRange.from, 'yyyy-MM-dd'))
-        .lte('attendance_date', format(dateRange.to, 'yyyy-MM-dd'))
-        .order('attendance_date', { ascending: false });
+        .eq('child_id', selectedChildId);
       if (error) throw error;
-      return data || [];
+      
+      const startStr = format(dateRange.from, 'yyyy-MM-dd');
+      const endStr = format(dateRange.to, 'yyyy-MM-dd');
+
+      return (data || []).filter((rec: any) => {
+        let dt = rec.attendance_date;
+        if (dt && typeof dt === 'string') dt = dt.split('T')[0];
+        else if (rec.checked_in_at) dt = String(rec.checked_in_at).split('T')[0];
+        if (!dt) return true;
+        return dt >= startStr && dt <= endStr;
+      }).sort((a: any, b: any) => {
+        const timeA = new Date(a.checked_in_at || a.attendance_date || 0).getTime();
+        const timeB = new Date(b.checked_in_at || b.attendance_date || 0).getTime();
+        return timeB - timeA;
+      });
     },
   });
 
@@ -144,12 +194,42 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
   const { data: staffPerformance = [], isLoading: loadingStaff } = useQuery({
     queryKey: ['staff-performance', dateRange],
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)('get_staff_performance_stats', {
-        start_date: format(dateRange.from, 'yyyy-MM-dd'),
-        end_date: format(dateRange.to, 'yyyy-MM-dd'),
+      // Direct query from profiles & attendance records for reliable staff stats
+      const { data: staffProfiles, error: pErr } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, role');
+      if (pErr) throw pErr;
+
+      const { data: allAtt, error: aErr } = await supabase
+        .from('attendance')
+        .select('id, attendance_date, checked_in_by, checked_out_by');
+      if (aErr) throw aErr;
+
+      const startStr = format(dateRange.from, 'yyyy-MM-dd');
+      const endStr = format(dateRange.to, 'yyyy-MM-dd');
+
+      const filteredAtt = (allAtt || []).filter((rec: any) => {
+        let dt = rec.attendance_date;
+        if (dt && typeof dt === 'string') dt = dt.split('T')[0];
+        if (!dt) return true;
+        return dt >= startStr && dt <= endStr;
       });
-      if (error) throw error;
-      return data || [];
+
+      return (staffProfiles || [])
+        .map((st: any) => {
+          const inCount = filteredAtt.filter((a: any) => a.checked_in_by === st.id).length;
+          const outCount = filteredAtt.filter((a: any) => a.checked_out_by === st.id).length;
+          return {
+            staff_id: st.id,
+            staff_name: `${st.first_name || ''} ${st.last_name || ''}`.trim() || 'Staff Member',
+            role: st.role || 'Staff',
+            checkin_count: inCount,
+            checkout_count: outCount,
+            total_actions: inCount + outCount
+          };
+        })
+        .filter((st: any) => st.total_actions > 0 || ['admin', 'super_admin', 'staff', 'teacher'].includes(st.role))
+        .sort((a: any, b: any) => b.total_actions - a.total_actions);
     },
   });
 

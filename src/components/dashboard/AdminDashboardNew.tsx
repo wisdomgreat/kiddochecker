@@ -71,51 +71,48 @@ const AdminDashboardNew = () => {
     });
 
     const { data: weeklyAttendance = [] } = useQuery({
-        queryKey: ["dashboard-weekly-attendance-v3"],
+        queryKey: ["dashboard-weekly-attendance-v4"],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("attendance")
                 .select("id, attendance_date, checked_in_at, created_at")
-                .order("created_at", { ascending: false })
-                .limit(300);
+                .order("attendance_date", { ascending: false })
+                .limit(500);
 
             if (error) {
                 console.error("Weekly attendance fetch error:", error);
             }
 
             const daysMap: Record<string, number> = {};
-            const daysOrder: string[] = [];
+            const daysOrder: { dayStr: string; dayName: string }[] = [];
             for (let i = 6; i >= 0; i--) {
                 const d = subDays(new Date(), i);
+                const dayStr = format(d, "yyyy-MM-dd");
                 const dayName = format(d, "EEE");
-                daysMap[dayName] = 0;
-                daysOrder.push(dayName);
+                daysMap[dayStr] = 0;
+                daysOrder.push({ dayStr, dayName });
             }
 
             if (data && data.length > 0) {
                 data.forEach((rec: any) => {
                     let dateStr = rec.attendance_date;
-                    if (!dateStr && rec.checked_in_at) {
+                    if (dateStr && typeof dateStr === "string") {
+                        dateStr = dateStr.split("T")[0];
+                    } else if (rec.checked_in_at) {
                         dateStr = String(rec.checked_in_at).split("T")[0];
                     }
-                    if (!dateStr && rec.created_at) {
-                        dateStr = String(rec.created_at).split("T")[0];
-                    }
 
-                    if (dateStr) {
-                        const parts = String(dateStr).split("-");
-                        if (parts.length === 3) {
-                            const recDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-                            const dayName = format(recDate, "EEE");
-                            if (daysMap[dayName] !== undefined) {
-                                daysMap[dayName] += 1;
-                            }
-                        }
+                    if (dateStr && daysMap[dateStr] !== undefined) {
+                        daysMap[dateStr] += 1;
                     }
                 });
             }
 
-            return daysOrder.map(day => ({ day, checkins: daysMap[day] }));
+            return daysOrder.map(({ dayStr, dayName }) => ({ 
+                day: dayName, 
+                dayStr,
+                checkins: daysMap[dayStr] || 0 
+            }));
         },
         refetchInterval: 15000,
     });
