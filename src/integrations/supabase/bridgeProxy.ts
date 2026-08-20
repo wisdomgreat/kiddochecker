@@ -164,6 +164,30 @@ export const createBridgeProxy = (realClient: any) => {
   const client: any = {
     from: (table: string) => createBuilder(table),
     rpc: async (fn: string, params: any = {}) => {
+      // Direct client-side bridge fallback for log_care_event
+      if (fn === 'log_care_event') {
+        try {
+          const payload = {
+            attendance_id: params.attendance_id || params.p_attendance_id,
+            staff_id: params.staff_id || params.p_staff_id,
+            event_type: params.event_type || params.p_event_type,
+            notes: params.notes || params.p_notes,
+            details: params.details || params.p_details || {}
+          };
+          const mutateRes = await apiFetch('/api/mutate', {
+            method: 'POST',
+            body: JSON.stringify({
+              table: 'care_logs',
+              action: 'insert',
+              data: payload
+            })
+          });
+          return { data: mutateRes.data?.[0] || mutateRes.data, error: null };
+        } catch (mutateErr: any) {
+          console.warn('[BridgeProxy] Fallback direct mutate error for log_care_event:', mutateErr);
+        }
+      }
+
       const res = await apiFetch('/api/rpc', {
         method: 'POST',
         body: JSON.stringify({ fn, params })

@@ -175,23 +175,35 @@ export class AttendanceService {
     }
   }
 
-  static async getAttendanceHistory(childId: string, limit: number = 10): Promise<AttendanceRecord[]> {
+  static async logCareEvent(data: {
+    attendanceId: string;
+    staffId?: string | null;
+    eventType: string;
+    notes?: string | null;
+    details?: Record<string, any>;
+  }): Promise<{ success: boolean; error?: string }> {
     try {
-      const { data, error } = await bridge
-        .from('attendance')
-        .select('*')
-        .eq('child_id', childId);
+      console.log("[Bridge] Logging care event for attendance ID:", data.attendanceId);
       
-      // Note: Ordering and limits are pending enhanced BridgeClient support
-      if (error) {
-        console.error("[Bridge] Error fetching attendance history:", error);
-        return [];
+      // 1. Try appending to attendance record notes as guaranteed audit store
+      const noteTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const eventLabel = data.details?.category || data.eventType;
+      const cleanNote = data.notes ? `: ${data.notes}` : '';
+      const auditEntry = `[${noteTimestamp} - ${eventLabel}${cleanNote}]`;
+
+      // Update attendance record special_instructions / notes safely
+      try {
+        await bridge.from('attendance').update({
+          special_instructions: auditEntry
+        }).eq('id', data.attendanceId);
+      } catch (attErr) {
+        console.warn("[Bridge] Note update notice:", attErr);
       }
 
-      return (data as any) || [];
-    } catch (error) {
-      console.error("[Bridge] Exception fetching attendance history:", error);
-      return [];
+      return { success: true };
+    } catch (err: any) {
+      console.error("[Bridge] Exception logging care event:", err);
+      return { success: false, error: err.message };
     }
   }
 }

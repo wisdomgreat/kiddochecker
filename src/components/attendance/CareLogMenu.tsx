@@ -27,6 +27,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { AttendanceService } from '@/services/attendanceService';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 
@@ -171,13 +172,17 @@ export const CareLogMenu: React.FC<CareLogMenuProps> = ({
         }
       };
 
-      // 1. Try dedicated RPC first for guaranteed table provisioning
-      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('log_care_event', payload);
-      
-      if (rpcError) {
-        console.warn('[CareLogMenu] RPC failed, falling back to direct table insert:', rpcError);
-        const { error: insertError } = await supabase.from('care_logs').insert(payload);
-        if (insertError) throw insertError;
+      // 1. Log through dedicated AttendanceService (writes to special_instructions audit trail)
+      const res = await AttendanceService.logCareEvent({
+        attendanceId,
+        staffId,
+        eventType: selectedEventType.id,
+        notes: notes.trim() || selectedQuickOption || null,
+        details: payload.details
+      });
+
+      if (!res.success) {
+        throw new Error(res.error || "Failed to record duty of care event.");
       }
 
       toast({ 
