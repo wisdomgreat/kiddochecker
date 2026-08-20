@@ -541,12 +541,12 @@ const KioskCheckInSystem = () => {
       if (rpcMatched && (rpcMatched as any).length > 0) {
         matched = rpcMatched;
       } else {
-        // 2. Direct lookup in profiles matching BOTH phone and pin
+        // 2. Direct lookup in profiles matching BOTH phone and pin (supporting security_pin, direct_pin, pin)
         const { data: profiles } = await supabase
           .from('profiles')
           .select('*')
           .eq('phone', cleanPhone)
-          .or(`direct_pin.eq.${cleanPin},pin.eq.${cleanPin}`)
+          .or(`security_pin.eq.${cleanPin},direct_pin.eq.${cleanPin},pin.eq.${cleanPin}`)
           .limit(1);
 
         if (profiles && profiles.length > 0) {
@@ -563,7 +563,7 @@ const KioskCheckInSystem = () => {
       const parent = matched[0];
       let { data: kids } = await safeRPC('get_children_for_kiosk', {
         p_parent_id: parent.id,
-        p_pin: parent.pin || parent.direct_pin || '0000',
+        p_pin: parent.security_pin || parent.pin || parent.direct_pin || '0000',
         p_org_id: activeOrgId
       });
 
