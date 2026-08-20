@@ -59,3 +59,9 @@ jobs:
             apiImage=${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}
             azureCommunicationConnectionString="${{ steps.acs-info.outputs.connection_string }}"
             azureCommunicationSenderAddress="DoNotReply@6e4fe926-0f85-412b-afef-0fb9c4d89667.azurecomm.net"
+
+      - name: Force Update Container App Revision
+        run: |
+          CA_NAME=$(az containerapp list --resource-group rg-kiddo --query "[0].name" -o tsv)
+          echo "Updating Container App: $CA_NAME with image ${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}"
+          az containerapp update --name $CA_NAME --resource-group rg-kiddo --image ${{ steps.acr-info.outputs.login_server }}/bridge-api:${{ github.sha }}
