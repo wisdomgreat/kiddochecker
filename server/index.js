@@ -1608,12 +1608,13 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             a.attendance_date, 
             c.id as class_id, 
             COALESCE(c.name, 'General / Summer Camp') as class_name, 
-            COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_in_at IS NOT NULL) as total_checked_in, 
-            COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_out_at IS NOT NULL) as total_checked_out 
+            COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_in_at IS NOT NULL)::bigint as total_checked_in, 
+            COUNT(DISTINCT a.child_id) FILTER (WHERE a.checked_out_at IS NOT NULL)::bigint as total_checked_out 
           FROM public.attendance a 
           LEFT JOIN public.classes c ON a.class_id = c.id 
           WHERE a.attendance_date BETWEEN $1::date AND $2::date
-          GROUP BY a.attendance_date, c.id, c.name;
+          GROUP BY a.attendance_date, c.id, c.name
+          ORDER BY a.attendance_date ASC;
         `, [startDate, endDate]);
         return res.json({ data: repRes.rows, error: null });
       } catch (err) {
@@ -1622,8 +1623,8 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       }
     }
 
-    // Direct safe handler for get_liability_audit_report
-    if (finalFn === 'get_liability_audit_report') {
+    // Direct safe handler for get_liability_audit_report & get_detailed_attendance_report
+    if (finalFn === 'get_liability_audit_report' || finalFn === 'get_detailed_attendance_report') {
       try {
         const startDate = finalParams.start_date || '2020-01-01';
         const endDate = finalParams.end_date || '2030-12-31';
@@ -1634,18 +1635,19 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             CONCAT(ch.first_name, ' ', ch.last_name) as child_name, 
             ch.age as child_age, 
             (ch.allergies IS NOT NULL AND ch.allergies <> '' AND ch.allergies <> 'None') as has_allergies, 
-            COALESCE(cl.name, 'Summer Camp Roster') as class_name, 
+            COALESCE(cl.name, 'General / Summer Camp') as class_name, 
             a.checked_in_at, 
             COALESCE(CONCAT(p_in.first_name, ' ', p_in.last_name), 'Parent / Self Kiosk') as checked_in_by_name, 
             COALESCE(ur_in.role::text, 'parent') as checked_in_by_role, 
-            a.checked_in_method, 
-            a.checked_in_station, 
+            COALESCE(a.checked_in_method, 'kiosk') as checked_in_method, 
+            COALESCE(a.checked_in_station, 'Main Station') as checked_in_station, 
             a.checked_out_at, 
-            COALESCE(CONCAT(p_out.first_name, ' ', p_out.last_name), 'On-Site') as checked_out_by_name, 
+            COALESCE(CONCAT(p_out.first_name, ' ', p_out.last_name), 'Staff / Parent') as checked_out_by_name, 
             COALESCE(ur_out.role::text, 'parent') as checked_out_by_role, 
             a.checked_out_method, 
             a.checked_out_station, 
-            CASE WHEN a.checked_out_at IS NOT NULL THEN EXTRACT(EPOCH FROM (a.checked_out_at - a.checked_in_at)) / 3600.0 ELSE NULL END as duration_hours, 
+            a.signature_data,
+            CASE WHEN a.checked_out_at IS NOT NULL THEN ROUND(EXTRACT(EPOCH FROM (a.checked_out_at - a.checked_in_at)) / 3600.0, 2) ELSE NULL END as duration_hours, 
             a.health_fever, 
             a.health_cough, 
             a.special_instructions, 
@@ -1663,6 +1665,56 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         return res.json({ data: liabRes.rows, error: null });
       } catch (err) {
         console.error('[Bridge] Error in get_liability_audit_report:', err.message);
+        return res.json({ data: [], error: null });
+      }
+    }
+
+    // Direct safe handler for get_staff_performance_stats
+    if (finalFn === 'get_staff_performance_stats') {
+      try {
+        const startDate = finalParams.start_date || '2020-01-01';
+        const endDate = finalParams.end_date || '2030-12-31';
+        const staffPerfRes = await pool.query(`
+          SELECT 
+            p.id as staff_id,
+            CONCAT(p.first_name, ' ', p.last_name) as staff_name,
+            COALESCE(ur.role::text, p.role::text, 'staff') as role,
+            COUNT(DISTINCT a_in.id)::bigint as checkin_count,
+            COUNT(DISTINCT a_out.id)::bigint as checkout_count,
+            (COUNT(DISTINCT a_in.id) + COUNT(DISTINCT a_out.id))::bigint as total_actions,
+            ROUND(AVG(CASE WHEN a_out.checked_out_at IS NOT NULL AND a_out.checked_in_at IS NOT NULL 
+              THEN EXTRACT(EPOCH FROM (a_out.checked_out_at - a_out.checked_in_at)) / 60.0 ELSE NULL END), 1) as avg_processing_time_min
+          FROM public.profiles p
+          LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+          LEFT JOIN public.attendance a_in ON a_in.checked_in_by = p.id AND a_in.attendance_date BETWEEN $1::date AND $2::date
+          LEFT JOIN public.attendance a_out ON a_out.checked_out_by = p.id AND a_out.attendance_date BETWEEN $1::date AND $2::date
+          WHERE COALESCE(ur.role::text, p.role::text) NOT IN ('child', 'kiosk')
+          GROUP BY p.id, p.first_name, p.last_name, ur.role, p.role
+          HAVING (COUNT(DISTINCT a_in.id) > 0 OR COUNT(DISTINCT a_out.id) > 0 OR COALESCE(ur.role::text, p.role::text) IN ('admin', 'super_admin', 'staff', 'teacher'))
+          ORDER BY total_actions DESC, staff_name ASC;
+        `, [startDate, endDate]);
+        return res.json({ data: staffPerfRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in get_staff_performance_stats:', err.message);
+        return res.json({ data: [], error: null });
+      }
+    }
+
+    // Direct safe handler for get_attendance_growth_stats
+    if (finalFn === 'get_attendance_growth_stats') {
+      try {
+        const growthRes = await pool.query(`
+          SELECT 
+            date_trunc('week', attendance_date)::date as week_start,
+            COUNT(DISTINCT child_id)::bigint as count
+          FROM public.attendance
+          GROUP BY 1
+          ORDER BY 1 DESC
+          LIMIT 12;
+        `);
+        return res.json({ data: growthRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in get_attendance_growth_stats:', err.message);
         return res.json({ data: [], error: null });
       }
     }
