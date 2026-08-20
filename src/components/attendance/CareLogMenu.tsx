@@ -171,10 +171,13 @@ export const CareLogMenu: React.FC<CareLogMenuProps> = ({
         }
       };
 
-      const { error } = await supabase.from('care_logs').insert(payload);
-
-      if (error) {
-        throw error;
+      // 1. Try dedicated RPC first for guaranteed table provisioning
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)('log_care_event', payload);
+      
+      if (rpcError) {
+        console.warn('[CareLogMenu] RPC failed, falling back to direct table insert:', rpcError);
+        const { error: insertError } = await supabase.from('care_logs').insert(payload);
+        if (insertError) throw insertError;
       }
 
       toast({ 

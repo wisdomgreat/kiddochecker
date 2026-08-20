@@ -1407,6 +1407,40 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       }
     }
 
+    // Direct bulletproof handler for log_care_event
+    if (finalFn === 'log_care_event') {
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS public.care_logs (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            attendance_id UUID,
+            staff_id UUID,
+            event_type TEXT NOT NULL,
+            notes TEXT,
+            details JSONB DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_care_logs_attendance ON public.care_logs(attendance_id);
+        `);
+        const attendanceId = finalParams.attendance_id || finalParams.p_attendance_id;
+        const staffId = finalParams.staff_id || finalParams.p_staff_id;
+        const eventType = finalParams.event_type || finalParams.p_event_type;
+        const notes = finalParams.notes || finalParams.p_notes || null;
+        const details = finalParams.details || finalParams.p_details || {};
+        
+        const insertRes = await pool.query(`
+          INSERT INTO public.care_logs (attendance_id, staff_id, event_type, notes, details, created_at)
+          VALUES ($1, $2, $3, $4, $5, NOW())
+          RETURNING *;
+        `, [attendanceId, staffId, eventType, notes, JSON.stringify(details)]);
+        
+        return res.json({ data: insertRes.rows[0], error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in log_care_event:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
     // ─── Direct safe handler for get_parent_for_kiosk ─────────────────────
     if (finalFn === 'get_parent_for_kiosk') {
       try {
