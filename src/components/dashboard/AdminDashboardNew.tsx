@@ -185,37 +185,40 @@ const AdminDashboardNew = () => {
         { title: "Settings", icon: Settings, path: "/settings" },
     ];
 
-    const todayDayName = format(new Date(), "EEE");
+    const todayStr = format(new Date(), "yyyy-MM-dd");
     const chartData = React.useMemo(() => {
         const daysMap: Record<string, number> = {};
-        const daysOrder: string[] = [];
+        const daysOrder: { dayStr: string; dayName: string }[] = [];
         for (let i = 6; i >= 0; i--) {
             const d = subDays(new Date(), i);
+            const dayStr = format(d, "yyyy-MM-dd");
             const dayName = format(d, "EEE");
-            daysMap[dayName] = 0;
-            daysOrder.push(dayName);
+            daysMap[dayStr] = 0;
+            daysOrder.push({ dayStr, dayName });
         }
 
         if (weeklyAttendance && weeklyAttendance.length > 0) {
             weeklyAttendance.forEach((item: any) => {
-                if (daysMap[item.day] !== undefined) {
-                    daysMap[item.day] = item.checkins;
+                if (item.dayStr && daysMap[item.dayStr] !== undefined) {
+                    daysMap[item.dayStr] = item.checkins;
                 }
             });
         }
 
-        if (attendance.length > (daysMap[todayDayName] || 0)) {
-            daysMap[todayDayName] = attendance.length;
+        // Ensure today's total is at least the live fetched count
+        if (attendance.length > (daysMap[todayStr] || 0)) {
+            daysMap[todayStr] = attendance.length;
         }
 
         const maxVal = Math.max(1, ...Object.values(daysMap));
 
-        return daysOrder.map(day => ({
-            day,
-            checkins: daysMap[day],
-            heightPct: Math.round((daysMap[day] / maxVal) * 100)
+        return daysOrder.map(({ dayStr, dayName }) => ({
+            day: dayName,
+            dayStr,
+            checkins: daysMap[dayStr] || 0,
+            heightPct: Math.round(((daysMap[dayStr] || 0) / maxVal) * 100)
         }));
-    }, [weeklyAttendance, attendance, todayDayName]);
+    }, [weeklyAttendance, attendance, todayStr]);
 
     return (
         <DashboardShell
