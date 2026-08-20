@@ -313,9 +313,16 @@ const AttendancePage = () => {
                                         {record.child ? `${record.child.first_name} ${record.child.last_name}` : 'Unknown'}
                                       </p>
                                       {record.special_instructions ? (
-                                        <p className="text-[10px] text-rose-500 font-bold mt-0.5 flex items-center gap-1">
-                                          <Bell className="h-3 w-3" /> {record.special_instructions}
-                                        </p>
+                                        <div className="mt-1 flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-1">
+                                            <Badge variant="outline" className="text-[9px] font-bold bg-indigo-50/80 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 px-1.5 py-0 h-4">
+                                              Care Log Note
+                                            </Badge>
+                                          </div>
+                                          <p className="text-[10px] text-indigo-900 dark:text-indigo-200 font-semibold max-w-[220px] truncate" title={record.special_instructions}>
+                                            {record.special_instructions}
+                                          </p>
+                                        </div>
                                       ) : (
                                         <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5 flex items-center gap-1">
                                           <Shield className="h-2.5 w-2.5 text-emerald-500" /> Verified Entry
