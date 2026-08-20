@@ -26,6 +26,23 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({ error, errorInfo });
+
+    const isChunkLoadError = 
+      error?.message?.includes('Failed to fetch dynamically imported module') ||
+      error?.message?.includes('Loading chunk') ||
+      error?.message?.includes('dynamically imported module') ||
+      error?.name === 'ChunkLoadError';
+
+    if (isChunkLoadError) {
+      const storageKey = 'kiddo_chunk_retry_timestamp';
+      const lastRetry = sessionStorage.getItem(storageKey);
+      const now = Date.now();
+      if (!lastRetry || now - parseInt(lastRetry, 10) > 15000) {
+        sessionStorage.setItem(storageKey, String(now));
+        window.location.reload();
+        return;
+      }
+    }
   }
 
   private handleRetry = () => {
