@@ -131,6 +131,26 @@ async function setupDatabase() {
     console.error('[DB] email_logs setup error (Non-Fatal):', err.message);
   }
 
+  // Ensure care_logs table exists for Duty of Care tracking
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS public.care_logs (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        attendance_id UUID,
+        staff_id UUID,
+        event_type TEXT NOT NULL,
+        notes TEXT,
+        details JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_care_logs_attendance_id ON public.care_logs(attendance_id);
+      CREATE INDEX IF NOT EXISTS idx_care_logs_created_at ON public.care_logs(created_at DESC);
+    `);
+    console.log('[DB] care_logs table and indexes verified.');
+  } catch (err) {
+    console.error('[DB] care_logs setup notice:', err.message);
+  }
+
   // Ensure profiles table has required columns is_active and password_hash
   try {
     await pool.query(`
@@ -612,7 +632,7 @@ async function runMigrations() {
     { name: 'col_health_fever', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_fever BOOLEAN DEFAULT false;' },
     { name: 'col_health_cough', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS health_cough BOOLEAN DEFAULT false;' },
     { name: 'col_device_metadata', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS device_metadata JSONB DEFAULT \'{}\'::jsonb;' },
-    { name: 'password_reset_tokens', sql: 'CREATE TABLE IF NOT EXISTS public.password_reset_tokens (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email TEXT NOT NULL, token TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ DEFAULT now());' },
+    { name: 'care_logs_table', sql: 'CREATE TABLE IF NOT EXISTS public.care_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), attendance_id UUID REFERENCES public.attendance(id) ON DELETE CASCADE, staff_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL, event_type TEXT NOT NULL, notes TEXT, details JSONB DEFAULT \'{}\'::jsonb, created_at TIMESTAMPTZ DEFAULT now()); CREATE INDEX IF NOT EXISTS idx_care_logs_attendance_id ON public.care_logs(attendance_id);' },
     { name: 'col_status', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS status TEXT DEFAULT \'present\';' },
     { name: 'col_checked_in_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_in_method TEXT;' },
     { name: 'col_checked_out_method', sql: 'ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS checked_out_method TEXT;' },

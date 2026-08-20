@@ -340,6 +340,7 @@ const AttendancePage = () => {
                                     <CareLogMenu 
                                       attendanceId={record.id} 
                                       staffId={user?.id || ''} 
+                                      childName={record.child ? `${record.child.first_name} ${record.child.last_name}` : 'Camper'}
                                       onLogAdded={() => refetch()} 
                                     />
                                     <Button 
