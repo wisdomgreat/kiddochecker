@@ -52,7 +52,7 @@ jobs:
         with:
           resourceGroupName: rg-kiddo
           template: ./infra/main.bicep
-          deploymentName: 'api-${{ github.sha }}'
+          deploymentName: 'api-${{ github.run_id }}-${{ github.run_attempt }}'
           failOnStdErr: false
           parameters: >
             administratorLoginPassword=${{ secrets.DB_PASSWORD }}
