@@ -257,15 +257,15 @@ const AdminDashboardNew = () => {
                             <p className="text-[12px] text-muted-foreground mt-0.5">Check-ins over the last 7 days</p>
                         </div>
                         <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20 font-bold">
-                            {chartData.find(d => d.day === todayDayName)?.checkins || 0} recorded today
+                            {chartData.find(d => d.dayStr === todayStr)?.checkins || 0} recorded today
                         </Badge>
                     </div>
                     <div className="p-5 flex-1 flex flex-col justify-between min-h-[220px]">
                         <div className="grid grid-cols-7 gap-2 items-end h-[160px] pt-4">
                             {chartData.map((d) => {
-                                const isToday = d.day === todayDayName;
+                                const isToday = d.dayStr === todayStr;
                                 return (
-                                    <div key={d.day} className="flex flex-col items-center gap-2 h-full justify-end group">
+                                    <div key={d.dayStr} className="flex flex-col items-center gap-2 h-full justify-end group">
                                         <span className={cn(
                                             "text-[11px] font-bold px-1.5 py-0.5 rounded transition-all",
                                             d.checkins > 0
