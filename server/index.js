@@ -2097,7 +2097,7 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Unsupported mutation method: undefined' });
     }
     
-    // Auto-ensure enrolled_devices schema if missing
+    // Auto-ensure enrolled_devices and care_logs schema if missing
     if (table === 'enrolled_devices' || table === 'device_activity_log') {
       try {
         await pool.query(`
@@ -2133,6 +2133,25 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
         `);
       } catch (tableErr) {
         console.warn('[Bridge] Auto-schema table creation notice:', tableErr.message);
+      }
+    }
+
+    if (table === 'care_logs') {
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS public.care_logs (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            attendance_id UUID,
+            staff_id UUID,
+            event_type TEXT NOT NULL,
+            notes TEXT,
+            details JSONB DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_care_logs_attendance ON public.care_logs(attendance_id);
+        `);
+      } catch (careErr) {
+        console.warn('[Bridge] care_logs auto-creation notice:', careErr.message);
       }
     }
 
