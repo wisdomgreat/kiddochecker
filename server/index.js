@@ -1398,8 +1398,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
           SELECT p.id, p.first_name, p.last_name, p.phone,
                  (
                    SELECT COUNT(*)::integer FROM public.children c 
-                   WHERE c.parent_id = p.id 
-                      OR EXISTS (SELECT 1 FROM public.parent_guardians pg WHERE pg.child_id = c.id AND pg.parent_id = p.id)
+                   WHERE c.parent_id = p.id
                  ) as kids_count
           FROM public.profiles p
           LEFT JOIN public.user_roles ur ON ur.user_id = p.id
@@ -1425,8 +1424,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
           ORDER BY 
             (
               SELECT COUNT(*)::integer FROM public.children c 
-              WHERE c.parent_id = p.id 
-                 OR EXISTS (SELECT 1 FROM public.parent_guardians pg WHERE pg.child_id = c.id AND pg.parent_id = p.id)
+              WHERE c.parent_id = p.id
             ) DESC,
             p.created_at DESC NULLS LAST
           LIMIT 5
@@ -1461,10 +1459,6 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             COALESCE(c.photo_url, '') as avatar_url
           FROM public.children c
           WHERE c.parent_id = $1
-             OR EXISTS (
-               SELECT 1 FROM public.parent_guardians pg 
-               WHERE pg.child_id = c.id AND pg.parent_id = $1
-             )
           ORDER BY c.first_name ASC
         `, [parentId]);
 

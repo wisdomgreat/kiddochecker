@@ -531,26 +531,25 @@ const KioskCheckInSystem = () => {
 
       let matched: any = null;
 
-      // 1. Primary RPC search by phone + pin
-      const { data: rpcMatched, error } = await safeRPC('get_parent_for_kiosk', {
-        p_search_val: cleanPhone,
-        p_pin: cleanPin,
-        p_org_id: activeOrgId
-      });
+      // 1. Direct lookup in profiles matching phone and security_pin
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .eq('security_pin', cleanPin)
+        .limit(1);
 
-      if (rpcMatched && (rpcMatched as any).length > 0) {
-        matched = rpcMatched;
+      if (profiles && profiles.length > 0) {
+        matched = profiles;
       } else {
-        // 2. Direct lookup in profiles matching BOTH phone and pin (supporting security_pin, direct_pin, pin)
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('phone', cleanPhone)
-          .or(`security_pin.eq.${cleanPin},direct_pin.eq.${cleanPin},pin.eq.${cleanPin}`)
-          .limit(1);
-
-        if (profiles && profiles.length > 0) {
-          matched = profiles;
+        // Fallback: Primary RPC search
+        const { data: rpcMatched } = await safeRPC('get_parent_for_kiosk', {
+          p_search_val: cleanPhone,
+          p_pin: cleanPin,
+          p_org_id: activeOrgId
+        });
+        if (rpcMatched && (rpcMatched as any).length > 0) {
+          matched = rpcMatched;
         }
       }
 
@@ -563,7 +562,7 @@ const KioskCheckInSystem = () => {
       const parent = matched[0];
       let { data: kids } = await safeRPC('get_children_for_kiosk', {
         p_parent_id: parent.id,
-        p_pin: parent.security_pin || parent.pin || parent.direct_pin || '0000',
+        p_pin: parent.security_pin || '0000',
         p_org_id: activeOrgId
       });
 
