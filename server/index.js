@@ -2484,19 +2484,6 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       return res.json({ data: result.rows, error: null });
     }
 
-    if (finalMethod === 'upsert') {
-      const keys = Object.keys(finalValues);
-      const vals = Object.values(finalValues);
-      const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-      const updateClause = keys.map((k, i) => `${k} = EXCLUDED.${k}`).join(', ');
-      
-      const result = await pool.query(
-        `INSERT INTO public.${table} (${keys.join(', ')}) VALUES (${placeholders}) 
-         ON CONFLICT (id) DO UPDATE SET ${updateClause} RETURNING *`,
-        vals
-      );
-      return res.json({ data: result.rows, error: null });
-    }
 
     if (finalMethod === 'delete') {
       const filterItems = (filters || []).filter(f => f && f.column);
