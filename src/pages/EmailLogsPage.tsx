@@ -55,7 +55,22 @@ const EmailLogsPage: React.FC = () => {
   const { data: stats } = useQuery<EmailStats>({
     queryKey: ['email-stats'],
     queryFn: async () => {
-      return await apiFetch('/api/emails/stats');
+      try {
+        return await apiFetch('/api/emails/stats');
+      } catch (e) {
+        // Fallback to table count
+        const { data } = await supabase.from('email_logs').select('*');
+        const rows = data || [];
+        const delivered = rows.filter((r: any) => r.status === 'delivered').length;
+        const failed = rows.filter((r: any) => r.status === 'failed').length;
+        return {
+          totalSent: rows.length,
+          totalDelivered: delivered,
+          totalFailed: failed,
+          sentLast24h: rows.length,
+          uniqueRecipients: new Set(rows.map((r: any) => r.recipient)).size
+        };
+      }
     },
     refetchInterval: 8000,
   });
@@ -69,13 +84,42 @@ const EmailLogsPage: React.FC = () => {
   }>({
     queryKey: ['email-logs', page, statusFilter, searchTerm],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: '25',
-        status: statusFilter,
-        ...(searchTerm.trim() ? { search: searchTerm.trim() } : {})
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: '25',
+          status: statusFilter,
+          ...(searchTerm.trim() ? { search: searchTerm.trim() } : {})
+        });
+        const res = await apiFetch(`/api/emails/logs?${params.toString()}`);
+        if (res && Array.isArray(res.logs)) return res;
+      } catch (e) {
+        console.warn("[EmailLogsPage] API endpoint fetch failed, falling back to database query:", e);
+      }
+
+      // Direct robust database query fallback
+      let query = supabase.from('email_logs').select('*');
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+      const { data } = await query;
+      const allRows = data || [];
+      const filtered = allRows.filter((r: any) => {
+        if (!searchTerm.trim()) return true;
+        const s = searchTerm.toLowerCase();
+        return (
+          (r.recipient && r.recipient.toLowerCase().includes(s)) ||
+          (r.recipient_name && r.recipient_name.toLowerCase().includes(s)) ||
+          (r.subject && r.subject.toLowerCase().includes(s))
+        );
       });
-      return await apiFetch(`/api/emails/logs?${params.toString()}`);
+
+      return {
+        logs: filtered,
+        total: filtered.length,
+        page: 1,
+        totalPages: 1
+      };
     },
     refetchInterval: 8000,
   });

@@ -2447,7 +2447,8 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
       const cols = keys.join(', ');
       const placeholders = keys.map((key, i) => {
         const val = vals[i];
-        if ((key.endsWith('_id') || key === 'id') && val !== null) return `$${i + 1}::uuid`;
+        const isUuidPattern = typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+        if ((key.endsWith('_id') || key === 'id') && val !== null && isUuidPattern) return `$${i + 1}::uuid`;
         return `$${i + 1}`;
       }).join(', ');
       
