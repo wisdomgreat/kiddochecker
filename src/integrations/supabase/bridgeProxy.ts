@@ -115,6 +115,11 @@ export const createBridgeProxy = (realClient: any) => {
         filters.push({ operator: 'limit', value: count });
         return proxy;
       },
+      range: (from: number, to: number) => {
+        filters.push({ operator: 'offset', value: from });
+        filters.push({ operator: 'limit', value: Math.max(1, to - from + 1) });
+        return proxy;
+      },
       order: (column: string, { ascending = true } = {}) => {
         filters.push({ operator: 'order', column, value: ascending ? 'ASC' : 'DESC' });
         return proxy;

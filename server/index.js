@@ -1909,10 +1909,10 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         const liabRes = await pool.query(`
           SELECT 
             a.id as attendance_id, 
-            a.attendance_date, 
-            CONCAT(ch.first_name, ' ', ch.last_name) as child_name, 
+            a.attendance_date::date as attendance_date, 
+            COALESCE(CONCAT(ch.first_name, ' ', ch.last_name), 'Registered Child') as child_name, 
             ch.age as child_age, 
-            (ch.allergies IS NOT NULL AND ch.allergies <> '' AND ch.allergies <> 'None') as has_allergies, 
+            COALESCE((ch.allergies IS NOT NULL AND ch.allergies <> '' AND ch.allergies <> 'None'), false) as has_allergies, 
             COALESCE(cl.name, 'General / Summer Camp') as class_name, 
             a.checked_in_at, 
             COALESCE(CONCAT(p_in.first_name, ' ', p_in.last_name), 'Parent / Self Kiosk') as checked_in_by_name, 
@@ -1926,18 +1926,18 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             a.checked_out_station, 
             a.signature_data,
             CASE WHEN a.checked_out_at IS NOT NULL THEN ROUND(EXTRACT(EPOCH FROM (a.checked_out_at - a.checked_in_at)) / 3600.0, 2) ELSE NULL END as duration_hours, 
-            a.health_fever, 
-            a.health_cough, 
+            COALESCE(a.health_fever, false) as health_fever, 
+            COALESCE(a.health_cough, false) as health_cough, 
             a.special_instructions, 
             a.device_metadata->>'userAgent' as device_ua 
           FROM public.attendance a 
-          JOIN public.children ch ON a.child_id = ch.id 
+          LEFT JOIN public.children ch ON a.child_id = ch.id 
           LEFT JOIN public.classes cl ON a.class_id = cl.id 
           LEFT JOIN public.profiles p_in ON a.checked_in_by = p_in.id 
           LEFT JOIN public.profiles p_out ON a.checked_out_by = p_out.id 
           LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_in_by LIMIT 1) ur_in ON TRUE 
           LEFT JOIN LATERAL (SELECT role FROM user_roles WHERE user_id = a.checked_out_by LIMIT 1) ur_out ON TRUE 
-          WHERE a.attendance_date BETWEEN $1::date AND $2::date 
+          WHERE a.attendance_date::date BETWEEN $1::date AND $2::date 
           ORDER BY a.attendance_date DESC, a.checked_in_at DESC;
         `, [startDate, endDate]);
         return res.json({ data: liabRes.rows, error: null });
@@ -2132,7 +2132,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
 });
 
 app.post('/api/query', verifyToken, async (req, res) => {
-  let { table, select = '*', filters = [], order, limit } = req.body;
+  let { table, select = '*', filters = [], order, limit, offset } = req.body;
   if (!table || typeof table !== 'string' || !/^[a-zA-Z0-9_]+$/.test(table)) {
     return res.status(400).json({ error: 'Invalid or missing table name' });
   }
@@ -2154,6 +2154,7 @@ app.post('/api/query', verifyToken, async (req, res) => {
     const actualFilters = filters.filter(f => {
       if (f.operator === 'order') { order = `${f.column}.${f.value.toLowerCase()}`; return false; }
       if (f.operator === 'limit') { limit = f.value; return false; }
+      if (f.operator === 'offset') { offset = f.value; return false; }
       if (f.operator === 'single' || f.operator === 'maybeSingle') return false;
       return true;
     });
@@ -2288,6 +2289,9 @@ app.post('/api/query', verifyToken, async (req, res) => {
     
     if (limit) {
       sql += ` LIMIT ${parseInt(limit)}`;
+    }
+    if (offset) {
+      sql += ` OFFSET ${parseInt(offset)}`;
     }
     
     console.log('[Bridge] Executing SQL:', sql);
