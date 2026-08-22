@@ -1952,19 +1952,19 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             a.special_instructions, 
             a.device_metadata->>'userAgent' as device_ua 
           FROM public.attendance a 
-          LEFT JOIN public.children ch ON a.child_id = ch.id 
-          LEFT JOIN public.classes cl ON a.class_id = cl.id 
-          LEFT JOIN public.profiles p_in ON a.checked_in_by = p_in.id 
-          LEFT JOIN public.profiles p_out ON a.checked_out_by = p_out.id 
-          LEFT JOIN public.user_roles ur_in ON a.checked_in_by = ur_in.user_id 
-          LEFT JOIN public.user_roles ur_out ON a.checked_out_by = ur_out.user_id 
+          LEFT JOIN public.children ch ON a.child_id::text = ch.id::text 
+          LEFT JOIN public.classes cl ON a.class_id::text = cl.id::text 
+          LEFT JOIN public.profiles p_in ON a.checked_in_by::text = p_in.id::text 
+          LEFT JOIN public.profiles p_out ON a.checked_out_by::text = p_out.id::text 
+          LEFT JOIN public.user_roles ur_in ON a.checked_in_by::text = ur_in.user_id::text 
+          LEFT JOIN public.user_roles ur_out ON a.checked_out_by::text = ur_out.user_id::text 
           WHERE COALESCE(a.attendance_date::date, a.checked_in_at::date, CURRENT_DATE) BETWEEN $1::date AND $2::date 
           ORDER BY a.attendance_date DESC, a.checked_in_at DESC;
         `, [startDate, endDate]);
         return res.json({ data: liabRes.rows, error: null });
       } catch (err) {
         console.error('[Bridge] Error in get_liability_audit_report:', err.message);
-        return res.status(500).json({ error: err.message, stack: err.stack });
+        return res.status(500).json({ error: err.message });
       }
     }
 
