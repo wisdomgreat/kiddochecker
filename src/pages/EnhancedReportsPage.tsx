@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { apiFetch } from '@/lib/apiClient';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -71,18 +72,46 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
     },
   });
 
-  // 2. Master Audit Trail (Detailed records with verified child identities & timestamps)
+  // 2. Master Audit Trail — uses get_liability_audit_report RPC for fully-joined child/class/staff data
   const { data: detailedAttendance = [], isLoading: loadingDetailed } = useQuery({
     queryKey: ['detailed-attendance', dateRange],
     queryFn: async () => {
-      // Fetch via supabase.from('attendance') with complete child/class joins
-      const { data, error } = await supabase
-        .from('attendance')
-        .select('*');
-      if (error) throw error;
-      
       const startStr = format(dateRange.from, 'yyyy-MM-dd');
       const endStr = format(dateRange.to, 'yyyy-MM-dd');
+
+      // Primary: use the proper RPC that LEFT JOINs children/classes/profiles
+      try {
+        const res = await apiFetch('/api/rpc', {
+          method: 'POST',
+          body: JSON.stringify({ fn: 'get_liability_audit_report', params: { start_date: startStr, end_date: endStr } })
+        });
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          return res.data.map((r: any) => ({
+            attendance_id: r.attendance_id,
+            attendance_date: r.attendance_date,
+            child_name: r.child_name || 'Registered Child',
+            child_age: r.child_age,
+            class_name: r.class_name || 'General / Summer Camp',
+            checked_in_at: r.checked_in_at,
+            checked_in_by_name: r.checked_in_by_name || 'Verified Kiosk',
+            checked_in_method: r.checked_in_method || 'kiosk',
+            checked_in_station: r.checked_in_station || 'Main Kiosk',
+            checked_out_at: r.checked_out_at,
+            checked_out_by_name: r.checked_out_by_name || (r.checked_out_at ? 'Staff / Parent' : null),
+            checked_out_method: r.checked_out_method,
+            signature_data: null,
+            duration_hours: r.duration_hours != null ? Number(r.duration_hours).toFixed(2) : null,
+            special_instructions: r.special_instructions,
+            has_allergies: r.has_allergies,
+          }));
+        }
+      } catch (rpcErr) {
+        console.warn('[Reports] RPC failed, falling back to direct query:', rpcErr);
+      }
+
+      // Fallback: use flat attendance query with bridge JOIN (returns child.first_name etc)
+      const { data, error } = await supabase.from('attendance').select('*');
+      if (error) throw error;
 
       return (data || [])
         .filter((rec: any) => {
@@ -93,16 +122,18 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
           return dt >= startStr && dt <= endStr;
         })
         .map((r: any) => {
+          const childObj = r.child || {};
+          const classObj = r.class || {};
           const checkIn = r.checked_in_at ? new Date(r.checked_in_at).getTime() : 0;
           const checkOut = r.checked_out_at ? new Date(r.checked_out_at).getTime() : 0;
           const duration = (checkIn && checkOut) ? ((checkOut - checkIn) / (1000 * 3600)).toFixed(2) : null;
-          
+          const childName = [childObj.first_name, childObj.last_name].filter(Boolean).join(' ') || 'Registered Child';
           return {
             attendance_id: r.id,
             attendance_date: r.attendance_date,
-            child_name: r.child ? `${r.child.first_name} ${r.child.last_name}` : 'Registered Child',
-            child_age: r.child?.age || null,
-            class_name: r.class?.name || 'General / Summer Camp',
+            child_name: childName,
+            child_age: childObj.age || null,
+            class_name: classObj.name || 'General / Summer Camp',
             checked_in_at: r.checked_in_at,
             checked_in_by_name: 'Verified Kiosk',
             checked_in_method: r.checked_in_method || 'kiosk',
@@ -112,7 +143,8 @@ const EnhancedReportsPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) =
             checked_out_method: r.checked_out_method,
             signature_data: r.signature_data,
             duration_hours: duration,
-            special_instructions: r.special_instructions
+            special_instructions: r.special_instructions,
+            has_allergies: false,
           };
         })
         .sort((a: any, b: any) => {

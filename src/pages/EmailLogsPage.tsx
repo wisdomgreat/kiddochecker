@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { apiFetch } from '@/lib/apiClient';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Mail, MailCheck, MailX, Send, RefreshCw, Search, CheckCircle2, 
   XCircle, Clock, AlertTriangle, Filter, Sparkles, ExternalLink, ShieldCheck, ChevronRight
