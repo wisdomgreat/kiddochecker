@@ -1964,7 +1964,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         return res.json({ data: liabRes.rows, error: null });
       } catch (err) {
         console.error('[Bridge] Error in get_liability_audit_report:', err.message);
-        return res.json({ data: [], error: null });
+        return res.status(500).json({ error: err.message, stack: err.stack });
       }
     }
 
