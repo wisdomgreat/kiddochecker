@@ -47,7 +47,9 @@ const AttendancePage = () => {
     const todayCheckins = attendance.filter(r => 
       new Date(r.attendance_date).toDateString() === today && r.checked_in_at
     ).length;
-    const currentlyPresent = attendance.filter(r => r.checked_in_at && !r.checked_out_at).length;
+    const currentlyPresent = attendance.filter(r => 
+      new Date(r.attendance_date).toDateString() === today && r.checked_in_at && !r.checked_out_at
+    ).length;
     const checkedOut = attendance.filter(r => 
       new Date(r.attendance_date).toDateString() === today && r.checked_out_at
     ).length;
@@ -64,7 +66,7 @@ const AttendancePage = () => {
     if (!attendance) return [];
     const today = new Date().toDateString();
     return attendance.filter(r =>
-      new Date(r.attendance_date).toDateString() === today || (r.checked_in_at && !r.checked_out_at)
+      new Date(r.attendance_date).toDateString() === today
     ).sort((a, b) => {
       const dateA = new Date(a.checked_in_at || 0);
       const dateB = new Date(b.checked_in_at || 0);

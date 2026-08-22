@@ -9,6 +9,7 @@ import { QrCode, Search, Clock, UserCheck, AlertCircle, CheckCircle } from 'luci
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import QRCodeScanner from '@/components/qr/QRCodeScanner';
+import { AttendanceService } from '@/services/attendanceService';
 
 interface Child {
   id: string;
@@ -97,30 +98,26 @@ const EnhancedCheckInSystem = () => {
     refetchInterval: 5000
   });
 
-  // Check-in mutation - simplified
+  // Check-in mutation with safety duplicate check and EOD cutoff
   const checkInMutation = useMutation({
     mutationFn: async ({ childId, classId }: { childId: string; classId?: string }) => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .insert({
-          child_id: childId,
-          class_id: classId || null,
-          checked_in_at: new Date().toISOString(),
-          attendance_date: new Date().toISOString().split('T')[0],
-          checked_in_by: (await supabase.auth.getUser()).data.user?.id,
-          checked_in_method: 'staff_dashboard'
-        })
-        .select()
-        .single();
+      const user = (await supabase.auth.getUser()).data.user;
+      const res = await AttendanceService.checkInChild({
+        childId,
+        classId: classId || undefined,
+        checkedInBy: user?.id,
+        method: 'staff_dashboard',
+        station: 'Staff Check-In Terminal'
+      });
       
-      if (error) throw error;
-      return data;
+      if (!res.success) throw new Error(res.error || "Failed to check in child");
+      return res;
     },
     onSuccess: (data, variables) => {
       const child = children.find(c => c.id === variables.childId);
       toast({
         title: "Check-in Successful",
-        description: `${child?.first_name} has been checked in successfully`,
+        description: `${child?.first_name || 'Child'} has been checked in successfully`,
       });
       queryClient.invalidateQueries({ queryKey: ['todays-attendance'] });
       setSelectedChild(null);
@@ -128,35 +125,32 @@ const EnhancedCheckInSystem = () => {
     },
     onError: (error: any) => {
       toast({
-        title: "Check-in Failed",
-        description: error.message || "Failed to check in child",
+        title: "Check-in Notice",
+        description: error.message || "Child is already checked in or could not be checked in",
         variant: "destructive",
       });
     }
   });
 
-  // Check-out mutation - simplified
+  // Check-out mutation
   const checkOutMutation = useMutation({
     mutationFn: async (attendanceId: string) => {
-      const { data, error } = await supabase
-        .from('attendance')
-        .update({
-          checked_out_at: new Date().toISOString(),
-          checked_out_by: (await supabase.auth.getUser()).data.user?.id,
-          checked_out_method: 'staff_dashboard'
-        })
-        .eq('id', attendanceId)
-        .select()
-        .single();
+      const user = (await supabase.auth.getUser()).data.user;
+      const res = await AttendanceService.checkOutChild({
+        attendanceId,
+        checkedOutBy: user?.id,
+        method: 'staff_dashboard',
+        station: 'Staff Check-Out Terminal'
+      });
       
-      if (error) throw error;
-      return data;
+      if (!res.success) throw new Error(res.error || "Failed to check out child");
+      return res;
     },
     onSuccess: (data, attendanceId) => {
       const record = todaysAttendance.find(r => r.id === attendanceId);
       toast({
         title: "Check-out Successful",
-        description: `${record?.children?.first_name} has been checked out successfully`,
+        description: `${record?.children?.first_name || 'Child'} has been checked out successfully`,
       });
       queryClient.invalidateQueries({ queryKey: ['todays-attendance'] });
     },

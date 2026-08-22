@@ -441,6 +441,33 @@ async function runComplianceHealthCheck() {
 runComplianceHealthCheck();
 setInterval(runComplianceHealthCheck, 60 * 60 * 1000);
 
+// ─── Automated Duty-of-Care & 24h Stale Check-in Safety Sweep ───────────────
+async function runSafetyAutoCheckoutSweep() {
+  console.log('[SAFETY] Running automated auto-checkout & stale session cutoff sweep...');
+  try {
+    const sweepRes = await pool.query(`
+      UPDATE public.attendance
+      SET checked_out_at = COALESCE(checked_in_at + INTERVAL '4 hours', (attendance_date + time '18:00:00')::timestamptz, NOW()),
+          checked_out_method = 'system_eod_autoclose',
+          checked_out_station = 'Auto-Safety Cutoff (24h)',
+          status = 'checked_out'
+      WHERE checked_out_at IS NULL
+        AND (attendance_date < CURRENT_DATE OR checked_in_at < (NOW() - INTERVAL '14 hours'))
+      RETURNING id;
+    `);
+    if (sweepRes.rowCount > 0) {
+      console.log(`[SAFETY] Successfully auto-closed ${sweepRes.rowCount} stale check-in record(s) (>14h or past calendar day).`);
+    } else {
+      console.log('[SAFETY] No stale check-in records found. All active check-ins are within valid daily operating window.');
+    }
+  } catch (err) {
+    console.error('[SAFETY] Error during automated auto-checkout sweep:', err.message);
+  }
+}
+
+runSafetyAutoCheckoutSweep();
+setInterval(runSafetyAutoCheckoutSweep, 30 * 60 * 1000); // Run safety sweep every 30 minutes
+
 // ─── Location IP Security Lockdown Verification Helpers ───────────────────
 function ipMatches(clientIp, allowedList) {
   let ip = clientIp.trim();
@@ -715,7 +742,7 @@ async function runMigrations() {
     { name: 'col_organization_id_devices', sql: 'ALTER TABLE public.devices ADD COLUMN IF NOT EXISTS organization_id UUID;' },
     { name: 'col_organization_id_events', sql: 'ALTER TABLE public.events ADD COLUMN IF NOT EXISTS organization_id UUID;' },
     { name: 'app_role_type', sql: `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN CREATE TYPE app_role AS ENUM ('admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'parent', 'kiosk'); END IF; END $$;` },
-    { name: 'checkin_child', sql: `CREATE OR REPLACE FUNCTION public.checkin_child(p_child_id UUID, p_class_id UUID DEFAULT NULL, p_checked_in_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_special_instructions TEXT DEFAULT NULL, p_health_fever BOOLEAN DEFAULT false, p_health_cough BOOLEAN DEFAULT false, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL, p_org_id UUID DEFAULT NULL) RETURNS UUID AS $$ DECLARE v_attendance_id UUID; BEGIN INSERT INTO public.attendance (child_id, class_id, checked_in_by, qr_token, checked_in_method, checked_in_station, special_instructions, health_fever, health_cough, device_metadata, device_id, checked_in_at, attendance_date, status, organization_id) VALUES (p_child_id, p_class_id, COALESCE(p_checked_in_by, p_user_id), p_qr_token, p_method, p_station, p_special_instructions, p_health_fever, p_health_cough, p_device_metadata, p_device_id, now(), CURRENT_DATE, 'present', COALESCE(p_org_id, (SELECT organization_id FROM public.children WHERE id = p_child_id LIMIT 1))) RETURNING id INTO v_attendance_id; RETURN v_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'checkin_child_v2', sql: `CREATE OR REPLACE FUNCTION public.checkin_child(p_child_id UUID, p_class_id UUID DEFAULT NULL, p_checked_in_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_special_instructions TEXT DEFAULT NULL, p_health_fever BOOLEAN DEFAULT false, p_health_cough BOOLEAN DEFAULT false, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL, p_org_id UUID DEFAULT NULL) RETURNS UUID AS $$ DECLARE v_attendance_id UUID; BEGIN UPDATE public.attendance SET checked_out_at = COALESCE(checked_in_at + INTERVAL '4 hours', (attendance_date + time '18:00:00')::timestamptz, now()), checked_out_method = 'system_eod_autoclose', checked_out_station = 'Auto-Safety Cutoff (24h)', status = 'checked_out' WHERE child_id = p_child_id AND checked_out_at IS NULL AND (attendance_date < CURRENT_DATE OR checked_in_at < (now() - INTERVAL '14 hours')); SELECT id INTO v_attendance_id FROM public.attendance WHERE child_id = p_child_id AND checked_out_at IS NULL AND attendance_date = CURRENT_DATE LIMIT 1; IF v_attendance_id IS NOT NULL THEN RETURN v_attendance_id; END IF; INSERT INTO public.attendance (child_id, class_id, checked_in_by, qr_token, checked_in_method, checked_in_station, special_instructions, health_fever, health_cough, device_metadata, device_id, checked_in_at, attendance_date, status, organization_id) VALUES (p_child_id, p_class_id, COALESCE(p_checked_in_by, p_user_id), p_qr_token, p_method, p_station, p_special_instructions, p_health_fever, p_health_cough, p_device_metadata, p_device_id, now(), CURRENT_DATE, 'present', COALESCE(p_org_id, (SELECT organization_id FROM public.children WHERE id = p_child_id LIMIT 1))) RETURNING id INTO v_attendance_id; RETURN v_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'checkout_child', sql: `CREATE OR REPLACE FUNCTION public.checkout_child(p_attendance_id UUID, p_checked_out_by UUID DEFAULT NULL, p_qr_token TEXT DEFAULT NULL, p_method TEXT DEFAULT 'app_dashboard', p_station TEXT DEFAULT NULL, p_signature_data TEXT DEFAULT NULL, p_override_reason TEXT DEFAULT NULL, p_pickup_snapshot JSONB DEFAULT '{}'::jsonb, p_device_metadata JSONB DEFAULT '{}'::jsonb, p_witness_id UUID DEFAULT NULL, p_device_id TEXT DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS VOID AS $$ BEGIN UPDATE public.attendance SET checked_out_at = now(), checked_out_by = COALESCE(p_checked_out_by, p_user_id), checked_out_method = p_method, checked_out_station = p_station, signature_data = p_signature_data, override_reason = p_override_reason, pickup_snapshot = p_pickup_snapshot, device_metadata = p_device_metadata, witness_id = p_witness_id, device_id = p_device_id, status = 'checked_out' WHERE id = p_attendance_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'youth_self_check_action', sql: `CREATE OR REPLACE FUNCTION public.youth_self_check_action(p_pin_code TEXT, p_kiosk_id TEXT) RETURNS JSONB AS $$ DECLARE v_child_id UUID; v_child_name TEXT; BEGIN SELECT id, first_name || ' ' || last_name INTO v_child_id, v_child_name FROM public.children WHERE youth_pin = p_pin_code LIMIT 1; IF v_child_id IS NULL THEN RETURN jsonb_build_object('success', false, 'error', 'Invalid PIN'); END IF; RETURN jsonb_build_object('success', true, 'child_id', v_child_id, 'child_name', v_child_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_for_kiosk_v2', sql: `DROP FUNCTION IF EXISTS public.get_parent_for_kiosk(TEXT, TEXT, UUID, UUID); DROP FUNCTION IF EXISTS public.get_parent_for_kiosk(TEXT, TEXT); DROP FUNCTION IF EXISTS public.get_parent_for_kiosk(TEXT); CREATE OR REPLACE FUNCTION public.get_parent_for_kiosk(p_search_val TEXT, p_pin TEXT, p_user_id UUID DEFAULT NULL, p_org_id UUID DEFAULT NULL) RETURNS TABLE (id UUID, first_name TEXT, last_name TEXT, phone TEXT) AS $$ BEGIN RETURN QUERY SELECT p.id, p.first_name, p.last_name, p.phone FROM public.profiles p WHERE (regexp_replace(p.phone, '\\D', '', 'g') ILIKE '%' || regexp_replace(p_search_val, '\\D', '', 'g') || '%' OR p.first_name ILIKE '%' || p_search_val || '%' OR p.last_name ILIKE '%' || p_search_val || '%') AND p.security_pin = p_pin AND (p_org_id IS NULL OR p.organization_id = p_org_id OR p.organization_id IS NULL) LIMIT 5; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
@@ -1635,6 +1662,104 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
     
     if (!finalFn || typeof finalFn !== 'string' || !/^[a-zA-Z0-9_]+$/.test(finalFn)) {
       return res.status(400).json({ error: 'Invalid or missing RPC function name' });
+    }
+
+    // Direct safe handler for checkin_child with auto-safety cutoff and duplicate prevention
+    if (finalFn === 'checkin_child') {
+      try {
+        const childId = finalParams.p_child_id || finalParams.child_id;
+        const classId = finalParams.p_class_id || finalParams.class_id || null;
+        const checkedInBy = finalParams.p_checked_in_by || finalParams.checked_in_by || finalParams.p_user_id || req.user?.id || null;
+        const qrToken = finalParams.p_qr_token || finalParams.qr_token || null;
+        const method = finalParams.p_method || finalParams.method || 'app_dashboard';
+        const station = finalParams.p_station || finalParams.station || 'Main Kiosk';
+        const specialInstructions = finalParams.p_special_instructions || finalParams.special_instructions || null;
+        const healthFever = finalParams.p_health_fever || false;
+        const healthCough = finalParams.p_health_cough || false;
+        const deviceMetadata = finalParams.p_device_metadata || {};
+        const deviceId = finalParams.p_device_id || null;
+        const orgId = finalParams.p_org_id || null;
+
+        // 1. Auto-close previous stale sessions for this child (>14h or past day)
+        await pool.query(`
+          UPDATE public.attendance
+          SET checked_out_at = COALESCE(checked_in_at + INTERVAL '4 hours', (attendance_date + time '18:00:00')::timestamptz, NOW()),
+              checked_out_method = 'system_eod_autoclose',
+              checked_out_station = 'Auto-Safety Cutoff (24h)',
+              status = 'checked_out'
+          WHERE child_id::text = $1::text
+            AND checked_out_at IS NULL
+            AND (attendance_date < CURRENT_DATE OR checked_in_at < (NOW() - INTERVAL '14 hours'));
+        `, [childId]);
+
+        // 2. Prevent Duplicate Active Check-In: If child is already checked in today, return existing record
+        const activeRes = await pool.query(`
+          SELECT id FROM public.attendance
+          WHERE child_id::text = $1::text
+            AND checked_out_at IS NULL
+            AND attendance_date = CURRENT_DATE
+          LIMIT 1;
+        `, [childId]);
+
+        if (activeRes.rows.length > 0) {
+          console.log(`[CheckIn Safety] Child ${childId} is already checked in today. Returning existing record:`, activeRes.rows[0].id);
+          return res.json({ data: activeRes.rows[0].id, alreadyCheckedIn: true, error: null });
+        }
+
+        // 3. Insert fresh check-in record
+        const insertRes = await pool.query(`
+          INSERT INTO public.attendance (
+            child_id, class_id, checked_in_by, qr_token, checked_in_method, checked_in_station,
+            special_instructions, health_fever, health_cough, device_metadata, device_id,
+            checked_in_at, attendance_date, status, organization_id
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), CURRENT_DATE, 'present',
+            COALESCE($12, (SELECT organization_id FROM public.children WHERE id::text = $1::text LIMIT 1))
+          ) RETURNING id;
+        `, [childId, classId, checkedInBy, qrToken, method, station, specialInstructions, healthFever, healthCough, JSON.stringify(deviceMetadata), deviceId, orgId]);
+
+        return res.json({ data: insertRes.rows[0].id, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in checkin_child:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+    // Direct safe handler for checkout_child
+    if (finalFn === 'checkout_child') {
+      try {
+        const attendanceId = finalParams.p_attendance_id || finalParams.attendance_id;
+        const checkedOutBy = finalParams.p_checked_out_by || finalParams.checked_out_by || req.user?.id || null;
+        const method = finalParams.p_method || finalParams.method || 'app_dashboard';
+        const station = finalParams.p_station || finalParams.station || 'Main Station';
+        const signatureData = finalParams.p_signature_data || finalParams.signature_data || null;
+        const overrideReason = finalParams.p_override_reason || finalParams.override_reason || null;
+        const pickupSnapshot = finalParams.p_pickup_snapshot || {};
+        const deviceMetadata = finalParams.p_device_metadata || {};
+        const witnessId = finalParams.p_witness_id || null;
+        const deviceId = finalParams.p_device_id || null;
+
+        await pool.query(`
+          UPDATE public.attendance
+          SET checked_out_at = NOW(),
+              checked_out_by = $2,
+              checked_out_method = $3,
+              checked_out_station = $4,
+              signature_data = $5,
+              override_reason = $6,
+              pickup_snapshot = $7,
+              device_metadata = $8,
+              witness_id = $9,
+              device_id = $10,
+              status = 'checked_out'
+          WHERE id::text = $1::text;
+        `, [attendanceId, checkedOutBy, method, station, signatureData, overrideReason, JSON.stringify(pickupSnapshot), JSON.stringify(deviceMetadata), witnessId, deviceId]);
+
+        return res.json({ data: { success: true }, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in checkout_child:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
     }
 
     // Direct bulletproof handler for get_users_with_roles

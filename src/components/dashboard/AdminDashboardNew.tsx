@@ -93,7 +93,7 @@ const AdminDashboardNew = () => {
                     method: 'POST',
                     body: JSON.stringify({
                         table: 'attendance',
-                        select: 'id, attendance_date, checked_in_at, created_at',
+                        select: 'id, attendance_date, checked_in_at',
                         filters: []
                     })
                 });
