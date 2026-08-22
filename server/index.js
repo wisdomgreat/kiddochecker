@@ -122,6 +122,7 @@ async function setupDatabase() {
             ('reneann_montero@yahoo.com', 'Aaron Kersey', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', '8de54743-3947-4897-a418-66591f943fb9', '{"pin":"6103","phone":"6476186103","campers":["Aaron Kersey"]}'),
             ('eipinacruz@gmail.com', 'Elissa Morales', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', 'c9884551-ace6-4ad6-af2d-4fed2bb0c6ac', '{"pin":"2632","phone":"6476402632","campers":["Elissa Morales"]}'),
             ('gheyda@gmail.com', 'Gheyda Zaghloul', '🎪 Green Valley Alliance: Summer Camp Family Fast-Pass & PIN', 'summer_camp_fast_pass', 'delivered', '693d7b44-717c-425f-8b92-a6b956d804a6', '{"pin":"6779","phone":"6477816779","campers":["Gheyda Zaghloul"]}');
+        `);
         console.log('[DB] Successfully seeded 11 delivered Summer Camp email logs.');
       }
     } catch (seedErr) {
@@ -3057,47 +3058,6 @@ if (ACS_CONNECTION_STRING) {
 } else {
   console.warn('[Email Engine] AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING is not set in environment.');
 }
-
-// Helper to record email logs to PostgreSQL
-// ─── Azure Communication Services Setup ─────────────────────────────────────
-let acsEmailClient = null;
-const ACS_CONNECTION_STRING = process.env.AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING;
-const ACS_SENDER_ADDRESS = process.env.AZURE_EMAIL_SENDER || 'DoNotReply@6e4fe926-0f85-412b-afef-0fb9c4d89667.azurecomm.net';
-const DEFAULT_CHURCH_NAME = 'Green Valley Alliance';
-
-try {
-  if (ACS_CONNECTION_STRING) {
-    const { EmailClient } = require('@azure/communication-email');
-    acsEmailClient = new EmailClient(ACS_CONNECTION_STRING);
-    console.log('[ACS] Azure Communication Services Email Client initialized successfully.');
-  } else {
-    console.warn('[ACS] AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING is not set in environment.');
-  }
-} catch (err) {
-  console.error('[ACS Init Error]', err.message);
-}
-
-async function logEmailDelivery({ recipient, recipientName, subject, templateType, status, messageId, errorMessage, metadata }) {
-  try {
-    await pool.query(`
-      INSERT INTO public.email_logs (
-        recipient, recipient_name, subject, template_type, status, message_id, error_message, metadata
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    `, [
-      recipient,
-      recipientName || null,
-      subject,
-      templateType || 'general',
-      status || 'sent',
-      messageId || null,
-      errorMessage || null,
-      JSON.stringify(metadata || {})
-    ]);
-  } catch (err) {
-    console.error('[Email Log Error]', err.message);
-  }
-}
-
 // 1. Get Email Logs (Search, Filter, Pagination)
 app.get('/api/emails/logs', async (req, res) => {
   try {
@@ -3186,4 +3146,6 @@ app.get('/api/emails/stats', async (req, res) => {
     console.error('[API /api/emails/stats Error]', err);
     res.status(500).json({ error: err.message });
   }
+});
+
 app.listen(port, () => console.log(`[Bridge] Server running on port ${port}`));
