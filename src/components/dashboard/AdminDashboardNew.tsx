@@ -1,6 +1,7 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { apiFetch } from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "@/lib/i18n";
@@ -12,13 +13,14 @@ import { cn } from "@/lib/utils";
 import {
     Users, Baby, Calendar, Shield, MessageSquare,
     TrendingUp, Clock, Activity, UserCheck, ChevronRight,
-    Monitor, BarChart3, Settings, QrCode, Printer, LogOut, MailCheck
+    Monitor, BarChart3, Settings, QrCode, Printer, LogOut, MailCheck, Send, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useSettings } from "@/hooks/useSettings";
 import DashboardShell from "./DashboardShell";
+import { toast } from "sonner";
 
 const DONUT_COLORS = ["hsl(230,75%,55%)", "hsl(220,14%,89%)"];
 
@@ -70,17 +72,11 @@ const AdminDashboardNew = () => {
         refetchInterval: 15000,
     });
 
+    // Direct API call to bypass bridgeProxy ordering/limit restrictions for 7-day chart
     const { data: weeklyAttendance = [] } = useQuery({
-        queryKey: ["dashboard-weekly-attendance-v5"],
+        queryKey: ["dashboard-weekly-attendance-v6"],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("attendance")
-                .select("id, attendance_date, checked_in_at, created_at");
-
-            if (error) {
-                console.error("Weekly attendance fetch error:", error);
-            }
-
+            // Build 7-day window
             const daysMap: Record<string, number> = {};
             const daysOrder: { dayStr: string; dayName: string }[] = [];
             for (let i = 6; i >= 0; i--) {
@@ -91,28 +87,42 @@ const AdminDashboardNew = () => {
                 daysOrder.push({ dayStr, dayName });
             }
 
-            if (data && data.length > 0) {
-                data.forEach((rec: any) => {
+            try {
+                // Direct API call — unaffected by bridge proxy chaining issues
+                const res = await apiFetch('/api/query', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        table: 'attendance',
+                        select: 'id, attendance_date, checked_in_at, created_at',
+                        filters: []
+                    })
+                });
+
+                const rows = Array.isArray(res?.data) ? res.data : [];
+                rows.forEach((rec: any) => {
                     let dateStr = rec.attendance_date;
                     if (dateStr && typeof dateStr === "string") {
                         dateStr = dateStr.split("T")[0];
                     } else if (rec.checked_in_at) {
                         dateStr = String(rec.checked_in_at).split("T")[0];
+                    } else if (rec.created_at) {
+                        dateStr = String(rec.created_at).split("T")[0];
                     }
-
                     if (dateStr && daysMap[dateStr] !== undefined) {
                         daysMap[dateStr] += 1;
                     }
                 });
+            } catch (e) {
+                console.error("[Dashboard] Weekly attendance fetch error:", e);
             }
 
-            return daysOrder.map(({ dayStr, dayName }) => ({ 
-                day: dayName, 
+            return daysOrder.map(({ dayStr, dayName }) => ({
+                day: dayName,
                 dayStr,
-                checkins: daysMap[dayStr] || 0 
+                checkins: daysMap[dayStr] || 0
             }));
         },
-        refetchInterval: 15000,
+        refetchInterval: 30000,
     });
 
     const { data: messagesCount = 0 } = useQuery({
@@ -171,6 +181,37 @@ const AdminDashboardNew = () => {
             trend: messagesCount > 0 ? "Action required" : "All clear",
         },
     ];
+
+    const queryClient = useQueryClient();
+
+    // Test Email Mutation — broadcasts a sample family fast-pass email from dashboard
+    const sendTestEmailMutation = useMutation({
+        mutationFn: async () => {
+            return await apiFetch('/api/emails/broadcast-summer-camp', {
+                method: 'POST',
+                body: JSON.stringify({
+                    churchName: 'Green Valley Alliance',
+                    rateLimitMs: 0
+                })
+            });
+        },
+        onSuccess: (data: any) => {
+            if (data?.error) {
+                toast.warning('Email Service Unavailable', {
+                    description: 'Azure Communication Services is not configured. Email delivery log will still record the attempt.'
+                });
+            } else {
+                toast.success('Email Broadcast Initiated!', {
+                    description: `Fast-Pass PIN emails queued for ${data?.familiesCount || 'all'} families. Check Email Delivery Logs for status.`
+                });
+            }
+            queryClient.invalidateQueries({ queryKey: ['email-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['email-stats'] });
+        },
+        onError: (err: any) => {
+            toast.error('Broadcast Failed', { description: err.message });
+        }
+    });
 
     const quickActions = [
         { title: "Kiosk", icon: QrCode, path: "/check-in" },
@@ -342,7 +383,7 @@ const AdminDashboardNew = () => {
             {/* Quick actions */}
             <div className="animate-enter animate-enter-4">
                 <p className="section-label mb-3">Quick Actions</p>
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
                     {quickActions.map((action) => (
                         <button
                             key={action.title}
@@ -355,6 +396,22 @@ const AdminDashboardNew = () => {
                             <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors text-center leading-tight">{action.title}</span>
                         </button>
                     ))}
+                    {/* Test Email button */}
+                    <button
+                        onClick={() => sendTestEmailMutation.mutate()}
+                        disabled={sendTestEmailMutation.isPending}
+                        className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-emerald-200/70 bg-emerald-50/50 hover:border-emerald-400/50 hover:bg-emerald-50 hover:shadow-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        <div className="h-9 w-9 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
+                            {sendTestEmailMutation.isPending
+                                ? <div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                : <Send className="h-4 w-4 text-emerald-600" />
+                            }
+                        </div>
+                        <span className="text-[11px] font-semibold text-emerald-700 text-center leading-tight">
+                            {sendTestEmailMutation.isPending ? 'Sending…' : 'Send Emails'}
+                        </span>
+                    </button>
                 </div>
             </div>
 
