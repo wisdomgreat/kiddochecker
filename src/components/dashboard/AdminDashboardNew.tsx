@@ -71,13 +71,11 @@ const AdminDashboardNew = () => {
     });
 
     const { data: weeklyAttendance = [] } = useQuery({
-        queryKey: ["dashboard-weekly-attendance-v4"],
+        queryKey: ["dashboard-weekly-attendance-v5"],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("attendance")
-                .select("id, attendance_date, checked_in_at, created_at")
-                .order("attendance_date", { ascending: false })
-                .limit(500);
+                .select("id, attendance_date, checked_in_at, created_at");
 
             if (error) {
                 console.error("Weekly attendance fetch error:", error);
