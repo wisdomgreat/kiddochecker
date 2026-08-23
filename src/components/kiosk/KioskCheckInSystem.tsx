@@ -1081,53 +1081,52 @@ const KioskCheckInSystem = () => {
   const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
   return (
-    <div className="fixed inset-0 h-screen max-h-screen overflow-hidden bg-[#070b14] text-slate-100 flex flex-col select-none font-sans">
+    <div className="fixed inset-0 h-screen overflow-y-auto md:overflow-hidden bg-[#070b14] text-slate-100 flex flex-col select-none font-sans">
       
-      {/* ─── Ultra-Compact Sleek Header (Single 44px Bar, Zero Bloat) ─── */}
-      {/* ─── Row 1: Top Bar with Org, Language, Stats & System Controls (38px) ─── */}
-      <div className="h-[38px] min-h-[38px] px-4 sm:px-6 bg-[#080d1a] border-b border-slate-800/80 flex items-center justify-between z-50">
+      {/* ─── Ultra-Compact Sleek Header (Responsive Top Bar) ─── */}
+      <div className="min-h-[42px] h-auto py-1 sm:py-0 px-3 sm:px-6 bg-[#080d1a] border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 z-50">
         
         {/* Left: Organization Branding & Live Heartbeat */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 px-2.5 py-0.5 rounded-lg bg-slate-900/90 border border-slate-800 text-white text-xs font-bold shadow-inner">
-            <span className="relative flex h-2 w-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-900/90 border border-slate-800 text-white text-xs font-bold shadow-inner max-w-[150px] sm:max-w-xs">
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="font-extrabold tracking-tight">{settings?.name || 'Green Valley Alliance'}</span>
+            <span className="font-extrabold tracking-tight truncate">{settings?.name || 'Green Valley Alliance'}</span>
           </div>
 
           {nfcSupported && (
-            <Badge variant="outline" className="h-5 px-2 text-[9px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/40 hidden sm:inline-flex">
-              ● NFC Ready
+            <Badge variant="outline" className="h-5 px-1.5 text-[9px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/40 hidden sm:inline-flex">
+              ● NFC
             </Badge>
           )}
         </div>
 
         {/* Center: Language Switcher Pill */}
-        <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px] font-extrabold">
+        <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px] sm:text-[11px] font-extrabold">
           <button 
             onClick={() => setLanguage('en')} 
-            className={cn("px-2.5 py-0.5 rounded-md transition-all cursor-pointer", language === 'en' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
+            className={cn("px-2 py-0.5 rounded-md transition-all cursor-pointer", language === 'en' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
           >
-            🇬🇧 EN
+            EN
           </button>
           <button 
             onClick={() => setLanguage('es')} 
-            className={cn("px-2.5 py-0.5 rounded-md transition-all cursor-pointer", language === 'es' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
+            className={cn("px-2 py-0.5 rounded-md transition-all cursor-pointer", language === 'es' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
           >
-            🇪🇸 ES
+            ES
           </button>
         </div>
 
         {/* Right: Stats Counter, Printer & Fullscreen */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-0.5 rounded-lg border border-slate-800 text-[11px] font-bold text-slate-300">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 text-[10px] sm:text-[11px] font-bold text-slate-300">
             <span className="text-emerald-400 font-black">{checkedInChildren.length} IN</span>
             <span className="w-px h-3 bg-slate-700" />
-            <span className="text-slate-400">{todayCount} TOTAL</span>
-            <span className="w-px h-3 bg-slate-700 hidden sm:inline" />
-            <span className="font-mono text-white hidden sm:inline">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="text-slate-400">{todayCount} TOT</span>
+            <span className="w-px h-3 bg-slate-700 hidden md:inline" />
+            <span className="font-mono text-white hidden md:inline">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
           {canAccessKioskSettings && (
@@ -1135,27 +1134,27 @@ const KioskCheckInSystem = () => {
               variant="outline" 
               size="sm" 
               onClick={() => setShowPrinterDialog(true)} 
-              className="h-7 px-2 text-[11px] font-bold border-blue-500/30 text-blue-400 bg-blue-950/30 hover:bg-blue-900/40"
+              className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-bold border-blue-500/30 text-blue-400 bg-blue-950/30 hover:bg-blue-900/40"
               title="Printer Setup"
             >
-              <Printer className="h-3 w-3 mr-1" /> Printer
+              <Printer className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Printer</span>
             </Button>
           )}
 
-          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-7 w-7 text-slate-400 hover:text-white hover:bg-slate-800">
+          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-6 w-6 sm:h-7 sm:w-7 text-slate-400 hover:text-white hover:bg-slate-800">
             <Maximize className="h-3 w-3" />
           </Button>
         </div>
       </div>
 
-      {/* ─── Row 2: Mode Navigation Capsule Bar (42px) ─── */}
-      <div className="h-[42px] min-h-[42px] px-4 sm:px-6 bg-[#0a0f1d]/90 border-b border-slate-800/90 flex items-center justify-center z-40 shadow-sm">
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner">
+      {/* ─── Row 2: Mode Navigation Capsule Bar (Responsive Tabs) ─── */}
+      <div className="min-h-[42px] h-auto py-1 px-2 sm:px-6 bg-[#0a0f1d]/90 border-b border-slate-800/90 flex items-center justify-center z-40 shadow-sm">
+        <div className="grid grid-cols-4 sm:flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner w-full max-w-lg sm:max-w-none sm:w-auto gap-0.5">
           {[
-            { id: 'parent', label: isEs ? 'PADRES' : 'PARENT DROP-OFF', icon: KeyRound },
-            { id: 'youth', label: isEs ? 'JÓVENES' : 'YOUTH CHECK-IN', icon: User },
-            { id: 'checkout', label: isEs ? 'SALIDA' : 'SELF CHECK-OUT', icon: LogOut },
-            { id: 'staff', label: isEs ? 'PERSONAL' : 'STAFF PORTAL', icon: UserCog },
+            { id: 'parent', label: isEs ? 'PADRES' : 'PARENT DROP-OFF', shortLabel: isEs ? 'PADRES' : 'PARENT', icon: KeyRound },
+            { id: 'youth', label: isEs ? 'JÓVENES' : 'YOUTH CHECK-IN', shortLabel: isEs ? 'JÓVENES' : 'YOUTH', icon: User },
+            { id: 'checkout', label: isEs ? 'SALIDA' : 'SELF CHECK-OUT', shortLabel: isEs ? 'SALIDA' : 'EXIT', icon: LogOut },
+            { id: 'staff', label: isEs ? 'PERSONAL' : 'STAFF PORTAL', shortLabel: isEs ? 'PERSONAL' : 'STAFF', icon: UserCog },
           ].map(tab => (
             <button
               key={tab.id}
@@ -1166,41 +1165,42 @@ const KioskCheckInSystem = () => {
                 setStaffPinError('');
               }}
               className={cn(
-                "flex items-center gap-1.5 py-1 px-3 sm:px-4 rounded-lg text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer",
+                "flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-2 sm:px-4 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer text-center",
                 activeTab === tab.id 
                   ? "bg-blue-600 text-white shadow-md shadow-blue-900/50" 
                   : "text-slate-400 hover:text-white hover:bg-slate-900/60"
               )}
             >
-              <tab.icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
+              <tab.icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="inline sm:hidden">{tab.shortLabel}</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* ─── Main Responsive Workspace (Centered Elegantly, Max 5XL) ─── */}
-      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 flex flex-col items-center justify-center">
-        <div className="w-full max-w-5xl my-auto">
+      <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-5xl my-auto py-2">
           
           {/* ══════════════════════════════════════════════════════════════
               PARENT CHECK-IN TAB (Unauthenticated)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && !parentLoggedIn && (
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5 items-stretch">
               
               {/* Left Column: QR Fast Pass & NFC Tap (5 Cols) */}
-              <div className="md:col-span-5 flex flex-col justify-between gap-4 p-5 sm:p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
-                    <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <div className="md:col-span-5 flex flex-col justify-between gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center gap-3 pb-2.5 sm:pb-3 border-b border-slate-800">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
                       <ArrowRight className="w-4 h-4" />
                     </div>
                     <div>
-                      <h2 className="text-base font-black tracking-tight text-white">
+                      <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
                         {isEs ? "Verificación Familiar" : "Parent Verification"}
                       </h2>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-[11px] sm:text-xs text-slate-400">
                         {isEs ? "Escanee pase QR o use teléfono/PIN" : "Scan QR pass or enter phone/PIN"}
                       </p>
                     </div>
@@ -1210,16 +1210,16 @@ const KioskCheckInSystem = () => {
                   <div>
                     <button
                       onClick={() => setShowParentScanner(true)}
-                      className="w-full h-36 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/70 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-2.5 group cursor-pointer shadow-inner"
+                      className="w-full h-24 sm:h-36 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/70 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 group cursor-pointer shadow-inner"
                     >
-                      <div className="w-12 h-12 rounded-full bg-blue-600/20 border border-blue-500/30 group-hover:border-blue-400 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
-                        <QrCode className="w-6 h-6" />
+                      <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-blue-600/20 border border-blue-500/30 group-hover:border-blue-400 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
+                        <QrCode className="w-4 h-4 sm:w-6 sm:h-6" />
                       </div>
                       <div className="text-center">
-                        <p className="text-xs font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-400">
+                        <p className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-400">
                           {isEs ? "Abrir Escáner QR" : "Scan Mobile QR Pass"}
                         </p>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-[10px] sm:text-[11px] text-slate-500">
                           {isEs ? "Toque para abrir la cámara" : "Tap to activate camera"}
                         </p>
                       </div>
@@ -1228,15 +1228,15 @@ const KioskCheckInSystem = () => {
                 </div>
 
                 {/* NFC Tap Card */}
-                <div className="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/20 flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400">
-                    <Smartphone className="w-5 h-5" />
+                <div className="p-2.5 sm:p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/20 flex items-center gap-3">
+                  <div className="p-2 sm:p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 shrink-0">
+                    <Smartphone className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[11px] font-extrabold uppercase text-emerald-400 tracking-wider">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] sm:text-[11px] font-extrabold uppercase text-emerald-400 tracking-wider truncate">
                       {isEs ? "Lector NFC Activo" : "NFC Reader Active"}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-[11px] sm:text-xs text-slate-400 truncate">
                       {isEs ? "Acerque su pulsera o teléfono" : "Tap wristband or smart tag"}
                     </p>
                   </div>
