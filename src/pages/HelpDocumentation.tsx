@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import ModernLayout from "@/components/layout/ModernLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   HelpCircle,
   Book,
-  Video,
-  MessageSquare,
   Search,
   Users,
   Clock,
@@ -17,761 +17,799 @@ import {
   Shield,
   Printer,
   QrCode,
-  CheckCircle,
+  CheckCircle2,
   AlertTriangle,
-  Phone,
-  LayoutDashboard,
-  Kanban,
-  UserCheck,
-  Cpu,
+  ChevronDown,
   Monitor,
   HeartPulse,
   ShieldCheck,
-  Layout
+  Baby,
+  Trophy,
+  Mail,
+  Smartphone,
+  Cpu,
+  FileSpreadsheet,
+  Lock,
+  ArrowRight,
+  Sparkles,
+  PhoneCall,
+  ExternalLink,
+  LifeBuoy,
+  Check,
+  UserCheck,
+  FileCheck
 } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import LandingNavigation from "@/components/layout/LandingNavigation";
-import LandingFooter from "@/components/layout/LandingFooter";
-import { useToast } from "@/hooks/useToast";
+
+// ─── Step-By-Step Interactive Guide Data ─────────────────────────────────────
+interface StepGuide {
+  id: string;
+  title: string;
+  targetRole: "parent" | "staff" | "volunteer" | "admin" | "all";
+  roleBadge: string;
+  roleBadgeColor: string;
+  category: string;
+  icon: any;
+  summary: string;
+  estimatedTime: string;
+  steps: {
+    number: number;
+    title: string;
+    description: string;
+    tip?: string;
+  }[];
+  actionLink?: {
+    text: string;
+    url: string;
+  };
+}
+
+const STEP_GUIDES: StepGuide[] = [
+  // ── PARENT GUIDES ──
+  {
+    id: "parent-kiosk-checkin",
+    title: "How to Check In Your Child at the Kiosk",
+    targetRole: "parent",
+    roleBadge: "For Parents",
+    roleBadgeColor: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
+    category: "Check-In & Attendance",
+    icon: Monitor,
+    summary: "Check in your children in under 10 seconds using your phone number, 6-digit PIN, QR code, or NFC tap.",
+    estimatedTime: "1 min",
+    actionLink: { text: "Open Kiosk Station", url: "/check-in" },
+    steps: [
+      {
+        number: 1,
+        title: "Locate Kiosk & Enter Phone Number or Tap NFC",
+        description: "On the terminal screen, enter the last 4 digits of your mobile number, type your full phone number, or simply hold your registered phone/key-tag to the NFC reader.",
+        tip: "If you received a Fast-Pass PIN in your email, you can select 'Fast-Pass PIN' to skip typing your phone number."
+      },
+      {
+        number: 2,
+        title: "Enter Your 6-Digit Security PIN",
+        description: "Enter your private 6-digit Security PIN (found on your Profile page) to confirm you are the authorized guardian.",
+        tip: "Keep your PIN confidential. It ensures only approved family members can access your family's profile."
+      },
+      {
+        number: 3,
+        title: "Select Children & Health Screening",
+        description: "Check the checkbox next to each child attending today. Confirm they are symptom-free (no fever or cough in the last 24h).",
+      },
+      {
+        number: 4,
+        title: "Collect Printed Name Tag & Claim Ticket",
+        description: "The kiosk automatically prints a Child Name Tag (stick to child's clothing) and a matching Parent Claim Ticket with a unique security code.",
+        tip: "Do NOT lose your Parent Claim Ticket — staff will match this security code before releasing your child during pick-up!"
+      }
+    ]
+  },
+  {
+    id: "parent-add-children",
+    title: "How to Register Children & Allergy Alerts",
+    targetRole: "parent",
+    roleBadge: "For Parents",
+    roleBadgeColor: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
+    category: "Family Profile",
+    icon: Baby,
+    summary: "Add your children to the registry, set emergency contacts, and record vital allergies or medical alerts.",
+    estimatedTime: "2 mins",
+    actionLink: { text: "Manage My Children", url: "/parent/children" },
+    steps: [
+      {
+        number: 1,
+        title: "Navigate to 'My Children'",
+        description: "Click on 'My Children' in your sidebar or parent dashboard menu.",
+      },
+      {
+        number: 2,
+        title: "Click 'Register Child' & Fill Details",
+        description: "Provide the child's full legal name, date of birth, age, and grade level.",
+      },
+      {
+        number: 3,
+        title: "Highlight Allergies and Special Needs",
+        description: "Enter any food allergies (peanuts, dairy, gluten), medical conditions, or EpiPen instructions. These will be highlighted in bold red on child name tags and teacher rosters.",
+        tip: "Always inform the lead classroom teacher of severe allergies during drop-off."
+      },
+      {
+        number: 4,
+        title: "Save Profile",
+        description: "Click 'Save Child'. Your child will immediately appear on all check-in kiosk terminals across the campus."
+      }
+    ]
+  },
+  {
+    id: "parent-rewards",
+    title: "How Kids Earn Points & Redeem Rewards",
+    targetRole: "parent",
+    roleBadge: "For Parents",
+    roleBadgeColor: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
+    category: "Gamification",
+    icon: Trophy,
+    summary: "Encourage consistent attendance and scripture memory with our automated points and prize store.",
+    estimatedTime: "1 min",
+    actionLink: { text: "View Rewards Store", url: "/parent/rewards" },
+    steps: [
+      {
+        number: 1,
+        title: "Automatic Check-In Points",
+        description: "Every time your child checks in on time on Sunday or during mid-week service, their account automatically earns attendance reward points.",
+      },
+      {
+        number: 2,
+        title: "Track Total Points on the Parent Portal",
+        description: "Check your Parent Dashboard or 'Rewards' tab to see point balances and active attendance streaks for each child.",
+      },
+      {
+        number: 3,
+        title: "Browse Prize Catalog & Request Redemption",
+        description: "Select available prizes from the store. Teachers and ministry leaders will present the gift at the end of class!"
+      }
+    ]
+  },
+
+  // ── STAFF & TEACHER GUIDES ──
+  {
+    id: "staff-admissions",
+    title: "How to Perform Manual Admissions & Health Checks",
+    targetRole: "staff",
+    roleBadge: "For Staff & Teachers",
+    roleBadgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+    category: "Classroom Management",
+    icon: UserCheck,
+    summary: "Manually admit children without physical tags, log health screenings, and assign classrooms.",
+    estimatedTime: "2 mins",
+    actionLink: { text: "Open Attendance Ledger", url: "/attendance" },
+    steps: [
+      {
+        number: 1,
+        title: "Open the Attendance Page or Kiosk Override",
+        description: "From the staff sidebar, click 'Attendance'. You will see the real-time headcount and active student list.",
+      },
+      {
+        number: 2,
+        title: "Click 'Manual Check-In'",
+        description: "Click the '+ Manual Check-In' button. Search for the child in the registered roster.",
+        tip: "Children who are already checked in today will be disabled with '(Already Present Today)' to prevent accidental duplicate entries."
+      },
+      {
+        number: 3,
+        title: "Assign Learning Environment & Room",
+        description: "Select the assigned classroom (e.g. Toddlers, Kindergarten, Elementary, Purity) and confirm health screening checklist.",
+      },
+      {
+        number: 4,
+        title: "Authorize Check-In",
+        description: "Click 'Check In'. The action is stamped into the Master Liability Audit Trail with your staff credentials."
+      }
+    ]
+  },
+  {
+    id: "staff-duty-of-care",
+    title: "How to Log Duty of Care Events (Feeding, Diapers, Incidents)",
+    targetRole: "staff",
+    roleBadge: "For Staff & Teachers",
+    roleBadgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+    category: "Duty of Care",
+    icon: HeartPulse,
+    summary: "Record diaper changes, bottle feedings, medication administrations, and minor incidents in real time.",
+    estimatedTime: "1 min",
+    actionLink: { text: "Go to Attendance", url: "/attendance" },
+    steps: [
+      {
+        number: 1,
+        title: "Find the Child on the Active Roster",
+        description: "On the Attendance page, locate the child in the currently present table.",
+      },
+      {
+        number: 2,
+        title: "Open the 'Care Log' Menu",
+        description: "Click the 3-dots action menu on the child's row and select 'Log Care Event'.",
+      },
+      {
+        number: 3,
+        title: "Select Event Type & Add Notes",
+        description: "Choose Diaper Change, Bottle / Snack, Medication Administered, Nap Time, or Incident. Enter relevant observations.",
+      },
+      {
+        number: 4,
+        title: "Submit Log",
+        description: "The note is permanently stored in the audit log and instantly viewable by parents and administrative supervisors."
+      }
+    ]
+  },
+  {
+    id: "staff-checkout",
+    title: "How to Execute Secure Check-Out & Guardian Verification",
+    targetRole: "staff",
+    roleBadge: "For Staff & Teachers",
+    roleBadgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+    category: "Child Safety",
+    icon: ShieldCheck,
+    summary: "Match the Parent Claim Ticket security code or capture a digital signature before dismissing any child.",
+    estimatedTime: "1 min",
+    actionLink: { text: "Open Check-Out Station", url: "/check-out" },
+    steps: [
+      {
+        number: 1,
+        title: "Scan Parent Claim Ticket or Search Name",
+        description: "At the dismissal desk, scan the QR code on the parent's claim ticket or search the child's name in the Check-Out Station.",
+      },
+      {
+        number: 2,
+        title: "Verify Security Match & Guardian ID",
+        description: "Confirm that the 4-character security code on the child's name tag matches the parent's ticket and that the photo matches the guardian profile.",
+      },
+      {
+        number: 3,
+        title: "Staff Override (If Ticket is Missing)",
+        description: "If a parent lost their physical ticket, ask for government photo ID, verify their name in the family directory, and enter an admin override reason.",
+        tip: "All manual overrides require entering an explicit reason which is logged in the permanent forensic liability ledger."
+      },
+      {
+        number: 4,
+        title: "Confirm Release",
+        description: "Click 'Complete Check-Out'. The child is safely checked out and the real-time headcount updates immediately."
+      }
+    ]
+  },
+
+  // ── VOLUNTEER GUIDES ──
+  {
+    id: "volunteer-kiosk-assistance",
+    title: "How to Assist First-Time Guests & Families",
+    targetRole: "volunteer",
+    roleBadge: "For Volunteers",
+    roleBadgeColor: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300",
+    category: "Guest Experience",
+    icon: Users,
+    summary: "Welcome families at the lobby kiosk, assist with printer tags, and guide children to classrooms.",
+    estimatedTime: "2 mins",
+    steps: [
+      {
+        number: 1,
+        title: "Greet Families with a Smile",
+        description: "Stand beside the kiosk station to welcome parents. Ask if they are registered or visiting for the first time.",
+      },
+      {
+        number: 2,
+        title: "Guide Returning Families",
+        description: "Instruct parents to enter their phone number or scan their mobile QR pass on the barcode reader.",
+      },
+      {
+        number: 3,
+        title: "Assist First-Time Guests",
+        description: "Guide new guests to tap 'New Family Registration' on the kiosk. Help them fill in basic contact details and child allergy flags in under 60 seconds.",
+      },
+      {
+        number: 4,
+        title: "Ensure Tags are Attached",
+        description: "Ensure the printed name tag is placed on the child's back or front shirt and remind the parent to keep their Parent Claim Ticket safe."
+      }
+    ]
+  },
+
+  // ── ADMIN & SUPER ADMIN GUIDES ──
+  {
+    id: "admin-hardware-printing",
+    title: "How to Configure Thermal Printers & Kiosks",
+    targetRole: "admin",
+    roleBadge: "For Administrators",
+    roleBadgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300",
+    category: "Hardware & Infrastructure",
+    icon: Printer,
+    summary: "Set up Brother, Zebra, DYMO, or network thermal label printers with direct IP printing.",
+    estimatedTime: "3 mins",
+    actionLink: { text: "Device Enrollment", url: "/devices" },
+    steps: [
+      {
+        number: 1,
+        title: "Enroll Station in 'Device Enrollment'",
+        description: "Navigate to 'Device Enrollment' in the admin sidebar. Click 'Enroll New Device' to generate an authorized hardware token.",
+      },
+      {
+        number: 2,
+        title: "Configure Printer Target IP & Model",
+        description: "In Kiosk Settings, enter the local IP address of your thermal printer (e.g. 192.168.1.150) or select System Dialog Printing.",
+        tip: "Ensure your printer is set to standard continuous or 2.25\" x 3.5\" thermal adhesive labels."
+      },
+      {
+        number: 3,
+        title: "Perform a Test Print",
+        description: "Click 'Test Print Label'. Confirm that a Child Badge and Parent Claim Ticket print separately with crisp QR codes and bold allergy banners.",
+      },
+      {
+        number: 4,
+        title: "Enable Network IP Lockdown",
+        description: "Lock the station to your church's physical Wi-Fi IP address range to prevent unauthorized external access."
+      }
+    ]
+  },
+  {
+    id: "admin-liability-reports",
+    title: "How to Generate Master Liability Audit Reports",
+    targetRole: "admin",
+    roleBadge: "For Administrators",
+    roleBadgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300",
+    category: "Compliance & Safety",
+    icon: FileSpreadsheet,
+    summary: "Inspect and export forensic check-in ledgers with timestamped guardian identities, station names, and durations.",
+    estimatedTime: "2 mins",
+    actionLink: { text: "View Reports & Analytics", url: "/reports" },
+    steps: [
+      {
+        number: 1,
+        title: "Open the Enhanced Reports & Analytics Suite",
+        description: "Navigate to 'Reports' in the sidebar menu.",
+      },
+      {
+        number: 2,
+        title: "Select 'Master Liability Audit Trail' Tab",
+        description: "This view presents all 60+ forensic attendance records including child ages, allergy flags, check-in actor name & role, check-out actor name & role, station name, and duration.",
+      },
+      {
+        number: 3,
+        title: "Filter by Date Range or Class",
+        description: "Select custom dates (e.g. Last 7 Days, Month to Date, or specific Sunday service).",
+      },
+      {
+        number: 4,
+        title: "Export to CSV / Excel",
+        description: "Click 'Export Audit Trail' to download a clean CSV file for compliance auditing, insurance verification, or pastoral records."
+      }
+    ]
+  },
+  {
+    id: "admin-email-fastpass",
+    title: "How to Broadcast Summer Camp Fast-Pass PINs",
+    targetRole: "admin",
+    roleBadge: "For Administrators",
+    roleBadgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300",
+    category: "Communication",
+    icon: Mail,
+    summary: "Deliver personalized Fast-Pass PINs to all registered church families in a single click with delivery tracking.",
+    estimatedTime: "2 mins",
+    actionLink: { text: "Email Delivery Logs", url: "/admin/email-logs" },
+    steps: [
+      {
+        number: 1,
+        title: "Open Email Delivery Logs",
+        description: "Navigate to 'Email Delivery Logs' in the admin configuration menu.",
+      },
+      {
+        number: 2,
+        title: "Click 'Broadcast Summer Camp Pass'",
+        description: "Click the purple 'Broadcast Summer Camp Pass' button. The Azure Communication Services engine generates unique PINs for every parent.",
+      },
+      {
+        number: 3,
+        title: "Monitor Real-Time Email Delivery",
+        description: "Inspect the live delivery table to verify that each parent's email status shows 'Delivered' with timestamp and recipient details.",
+      },
+      {
+        number: 4,
+        title: "Send Test Email (Optional)",
+        description: "Use the 'Send Test Email' button to verify your Azure Communication Services connection string and template formatting at any time."
+      }
+    ]
+  },
+  {
+    id: "admin-safety-cutoff",
+    title: "Understanding the 24-Hour Safety Cutoff & Stale Session Sweep",
+    targetRole: "admin",
+    roleBadge: "For Administrators",
+    roleBadgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300",
+    category: "System Safeguards",
+    icon: Shield,
+    summary: "How our autonomous background engine prevents children from being stranded in an open check-in state indefinitely.",
+    estimatedTime: "1 min",
+    steps: [
+      {
+        number: 1,
+        title: "Automatic Midnight & 14-Hour Cutoff",
+        description: "The backend server executes an automated safety sweep every 30 minutes. Any attendance record from a past calendar day or open for > 14 hours is automatically closed.",
+      },
+      {
+        number: 2,
+        title: "Safety Stamp in Audit Records",
+        description: "Auto-closed records are marked with method 'system_eod_autoclose' and station 'Auto-Safety Cutoff (24h)' for full transparency.",
+      },
+      {
+        number: 3,
+        title: "Duplicate Check-In Prevention",
+        description: "When a child checks in today, the system automatically resolves any prior stale sessions first and prevents creating duplicate active records for the same day."
+      }
+    ]
+  }
+];
+
+// ─── FAQ Accordion Data ───────────────────────────────────────────────────────
+interface FAQItem {
+  question: string;
+  answer: string;
+  category: string;
+  roles: ("parent" | "staff" | "volunteer" | "admin")[];
+}
+
+const FAQ_ITEMS: FAQItem[] = [
+  {
+    category: "Check-In & Kiosk",
+    question: "What should I do if a parent loses their Parent Claim Ticket?",
+    answer: "Staff and Admins can perform an authorized checkout by verifying the guardian's government photo ID against the registered parent profile in the system. When completing the checkout, enter an 'Override Reason' (e.g. 'Verified driver license — physical ticket lost'). This ensures safety while maintaining a 100% compliant audit log.",
+    roles: ["staff", "volunteer", "admin"]
+  },
+  {
+    category: "Check-In & Kiosk",
+    question: "Can a child be checked in more than once on the same day?",
+    answer: "No. KiddoChecker features built-in duplicate prevention. If a child is already checked in and present today, the kiosk and staff portal will show '(Already Present Today)' and prevent creating a duplicate record.",
+    roles: ["parent", "staff", "admin"]
+  },
+  {
+    category: "Check-In & Kiosk",
+    question: "How does the Fast-Pass PIN work for Summer Camp & Events?",
+    answer: "Every family receives a unique 6-digit Fast-Pass PIN via email prior to major events. When arriving at the kiosk, parents select 'Fast-Pass PIN', type their code, and all registered children are instantly loaded on screen for 1-tap admission.",
+    roles: ["parent", "staff", "admin"]
+  },
+  {
+    category: "Safety & Medical",
+    question: "How are severe allergies displayed on printed labels and rosters?",
+    answer: "Any child with registered allergies (e.g., Peanuts, Dairy, Penicillin) will have a prominent, bold red warning banner printed across their adhesive name badge. Classroom teachers also see a medical alert icon on their digital class rosters.",
+    roles: ["parent", "staff", "admin"]
+  },
+  {
+    category: "Printing & Hardware",
+    question: "Which label printers are supported?",
+    answer: "KiddoChecker supports Brother QL series (e.g. QL-800, QL-820NWB, QL-1100), Zebra ZD series, DYMO LabelWriter, and all standard desktop printers via local network IP or browser print dialog.",
+    roles: ["admin", "staff"]
+  },
+  {
+    category: "Printing & Hardware",
+    question: "How do I lock down kiosk terminals to church Wi-Fi only?",
+    answer: "In Kiosk Settings under Admin Configuration, enable 'Location IP Lockdown' and specify your church facility's public or subnet IP ranges. Any attempt to access kiosk check-in from unauthorized external networks will be blocked.",
+    roles: ["admin"]
+  },
+  {
+    category: "Family Profile",
+    question: "Can I add secondary emergency contacts or authorized pickup guardians?",
+    answer: "Yes. In 'My Profile' or 'My Children', you can list trusted family members, emergency contact names, and direct phone numbers. Staff will see these authorized individuals during checkout verification.",
+    roles: ["parent"]
+  },
+  {
+    category: "Reports & Compliance",
+    question: "How long are liability audit logs kept in the system?",
+    answer: "All check-in timestamps, check-out timestamps, guardian identities, station names, medical notes, and staff overrides are stored indefinitely in the secure Azure PostgreSQL database for historical auditing and compliance.",
+    roles: ["admin"]
+  }
+];
 
 const HelpDocumentation = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeCategory, setActiveCategory] = useState("getting-started");
-  const { isAdmin, isStaff, isTeacher, isParent, isVolunteer, isSuperAdmin, userRole, user } = useAuth();
-  const { toast } = useToast();
+  const [selectedRole, setSelectedRole] = useState<string>("all");
+  const { userRole, isAdmin, isSuperAdmin, isStaff, isTeacher, isParent, isVolunteer } = useAuth();
 
-  const faqData = [
-    {
-      category: "nfc-smart",
-      title: "NFC & Smart Check-In",
-      icon: Cpu,
-      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'guest'],
-      questions: [
-        {
-          question: "What is 'Smart Check-In'?",
-          answer: "Our system automatically blocks duplicate check-ins for the same child within a 2-hour window. This ensures that attendance records are accurate and prevents children from being accidentally checked in twice during the same service.",
-          roles: ['parent', 'staff', 'teacher']
-        },
-        {
-          question: "How do I use NFC to check in?",
-          answer: "If your phone or physical tag is registered, simply tap it against the Kiosk reader. The system will instantly identify you and log you in. No typing or scanning required!",
-          roles: ['parent', 'staff']
-        },
-        {
-          question: "How do I register my phone for NFC?",
-          answer: "If you have an Android device, you can register in 'My Profile'. For iPhone users, simply log in at any Kiosk terminal and click 'Link My Tag' to register your phone or physical tag directly using the Kiosk's reader.",
-          roles: ['parent']
-        }
-      ]
-    },
-    {
-      category: "printing",
-      title: "Printing & Labels",
-      icon: Printer,
-      authorizedRoles: ['admin', 'super_admin', 'staff'],
-      questions: [
-        {
-          question: "How does 'Auto-Printing' work?",
-          answer: "Once a child is checked in, the system automatically sends the label to the printer without requiring you to click anything. It prints a Child Tag and a Parent Claim Ticket separately.",
-          roles: ['staff', 'admin']
-        },
-        {
-          question: "The labels are printing on the same page.",
-          answer: "Ensure your printer is set to its native label size (e.g., 3.5x2.25). Our system uses 'page-break-after' to ensure they print on separate labels automatically.",
-          roles: ['admin', 'staff']
-        }
-      ]
-    },
-    {
-      category: "getting-started",
-      title: "Getting Started",
-      icon: Book,
-      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'guest'],
-      questions: [
-        {
-          question: "How do I check in a child?",
-          answer: "At the kiosk, you can search by phone number or scan your QR code. For a faster experience, use a registered NFC device to 'Tap & Go'.",
-          roles: ['parent', 'volunteer', 'staff', 'teacher']
-        },
-        {
-          question: "What if I lost my pick-up code?",
-          answer: "Don't worry! A staff member can check out your child by verifying your ID and using their admin override in the 'Staff Portal' tab of the kiosk.",
-          roles: ['parent']
-        }
-      ]
-    },
-    {
-      category: "attendance",
-      title: "Attendance & Reports",
-      icon: Clock,
-      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher'],
-      questions: [
-        {
-          question: "How do I view daily attendance?",
-          answer: "Go to the Dashboard and select 'Attendance Management'. You can filter by class, date, or status to see exactly who is on-site.",
-          roles: ['staff', 'teacher', 'admin']
-        },
-        {
-          question: "How do I generate attendance reports?",
-          answer: "In the Attendance section, set your desired date range and click 'Export Report'. This will download a detailed spreadsheet for your records.",
-          roles: ['staff', 'admin']
-        }
-      ]
-    },
-    {
-      category: "users",
-      title: "Organization Management",
-      icon: Users,
-      authorizedRoles: ['admin', 'super_admin', 'staff'],
-      questions: [
-        {
-          question: "How do I add a new staff member or teacher?",
-          answer: "Navigate to the 'Church Management' area or 'Users' page. Click 'Add User', fill in their details, and assign their specific role (Teacher, Staff, etc.).",
-          roles: ['admin', 'staff']
-        },
-        {
-          question: "How do I update a user's permissions?",
-          answer: "In the Users list, click 'Edit Permissions' on any staff member. You can check specific boxes for what they can access, such as CRM, Messaging, or Financials.",
-          roles: ['admin', 'super_admin']
-        }
-      ]
-    },
-    {
-      category: "security",
-      title: "Safety & Security",
-      icon: Shield,
-      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'guest'],
-      questions: [
-        {
-          question: "Who is authorized to pick up my child?",
-          answer: "Only the people you list as 'Authorized Pickups' in your family profile can check out your child. Our system cross-references these names at every pick-up.",
-          roles: ['parent']
-        },
-        {
-          question: "How do we handle unauthorized pick-up attempts?",
-          answer: "If an unauthorized person tries to pick up a child, do not release the child. Alert a staff member immediately and contact the parent for confirmation.",
-          roles: ['volunteer', 'staff', 'teacher']
-        },
-        {
-          question: "How is my data protected?",
-          answer: "We use banking-level encryption and strict access controls. Only authorized staff members with specific permissions can view sensitive family data.",
-          roles: ['parent', 'volunteer']
-        }
-      ]
-    },
-    {
-      category: "forensic-search",
-      title: "Forensic Search & Retrieval",
-      icon: Search,
-      authorizedRoles: ['admin', 'super_admin', 'staff', 'teacher'],
-      questions: [
-        {
-          question: "How do I find a child's check-in history?",
-          answer: "Use the universal search in the 'Attendance' page. Entering a name like 'John' will instantly surface every active and historical session for that child.",
-          roles: ['staff', 'admin', 'teacher']
-        },
-        {
-          question: "Can I search by guardian name?",
-          answer: "Yes! The forensic search engine index includes guardian names, allowing you to find a child even if you only know who picked them up.",
-          roles: ['admin', 'staff']
-        }
-      ]
-    },
-    {
-      category: "technical",
-      title: "Advanced System Settings",
-      icon: Settings,
-      authorizedRoles: ['admin', 'super_admin'],
-      questions: [
-        {
-          question: "The QR printer is not working.",
-          answer: "Check the local printer service connection in 'Settings > Devices'. Ensure the PrintNode or direct print agent is active and the printer is not out of paper.",
-          roles: ['admin']
-        },
-        {
-          question: "How are role permissions enforced?",
-          answer: "The platform uses granular RBAC (Role-Based Access Control) enforced at both the UI and database level (RLS), ensuring data isolation between different church perspectives.",
-          roles: ['admin']
-        }
-      ]
-    },
-    {
-      category: "guest-journey",
-      title: "Guest Journey & CRM",
-      icon: Users,
-      authorizedRoles: ['admin', 'super_admin', 'staff'],
-      questions: [
-        {
-          question: "How do I track a new visitor's progress?",
-          answer: "Navigate to 'Church Management' > 'Guest Journey'. Use the Funnel View to see overall retention, and the Stage Tracker to see exactly where each person is (First Visit, Contacted, etc.).",
-          roles: ['admin', 'staff']
-        },
-        {
-          question: "How do I log a pastoral note or email?",
-          answer: "Open the Guest Journey, click on a member's card to open their CRM profile. From there, you can click 'Log Note' or 'Send Email' to keep a history of every interaction.",
-          roles: ['admin', 'staff']
-        },
-        {
-          question: "Can I automate follow-up emails?",
-          answer: "Yes! The system tracks visitor status. If a visitor hasn't been contacted in 7 days, they appear in the 'Drop-off Prevention' alert on your dashboard.",
-          roles: ['admin']
-        }
-      ]
-    },
-    {
-      category: "compliance",
-      title: "Legal Compliance & Forensics",
-      icon: Shield,
-      authorizedRoles: ['admin', 'super_admin', 'staff'],
-      questions: [
-        {
-          question: "What is the 'Forensic Dossier'?",
-          answer: "The Forensic Dossier is a tamper-evident timeline of a child's entire session. It aggregates check-in metadata, care events, incident reports, and signatures into a single legal evidence record.",
-          roles: ['admin', 'staff']
-        },
-        {
-          question: "How is 'Device Telemetry' captured?",
-          answer: "The system automatically records hardware fingerprints, browser versions, and station IDs during every check-in and out. This creates a non-repudiable 'Black Box' of evidence for security audits.",
-          roles: ['admin', 'staff']
-        },
-        {
-          question: "What is a 'Witnessed Override'?",
-          answer: "For manual administrative sign-outs, you can select a second staff member as a witness. This creates a two-person chain of custody, ensuring that no child leaves without multi-person verification.",
-          roles: ['admin', 'staff']
-        }
-      ]
-    },
-    {
-      category: "devices",
-      title: "Device & Kiosk Setup",
-      icon: Monitor,
-      authorizedRoles: ['admin', 'super_admin', 'staff'],
-      questions: [
-        {
-          question: "How do I setup a new check-in kiosk?",
-          answer: "1. Enroll the device in 'Device Enrollment' to get a Reference Code. 2. On the kiosk tablet, go to /device-login. 3. Enter the Reference Code and Master PIN to activate the terminal.",
-          roles: ['admin', 'staff']
-        },
-        {
-          question: "What is the URL for kiosk activation?",
-          answer: "The direct activation URL is /device-login. This is where you enter the Reference Code to securely lock a device into Kiosk Mode for your organization.",
-          roles: ['admin', 'staff']
-        }
-      ]
-    }
-  ];
+  // Determine current user's default role tab
+  const defaultTab = useMemo(() => {
+    if (isAdmin || isSuperAdmin) return "admin";
+    if (isStaff || isTeacher) return "staff";
+    if (isVolunteer) return "volunteer";
+    if (isParent) return "parent";
+    return "all";
+  }, [isAdmin, isSuperAdmin, isStaff, isTeacher, isVolunteer, isParent]);
 
-  const quickGuides = [
-    {
-      title: "Daily Check-In Process",
-      icon: CheckCircle,
-      roles: ['parent', 'volunteer', 'staff', 'teacher', 'guest'],
-      steps: [
-        "Find a check-in kiosk tablet",
-        "Search for child by name",
-        "Confirm details and allergies",
-        "Pick up printed security label",
-        "Keep your secure pick-up QR code"
-      ]
-    },
-    {
-      title: "NFC Tag Registration",
-      icon: Cpu,
-      roles: ['parent', 'staff', 'admin'],
-      steps: [
-        "Ensure your device supports NFC (Android/Chrome)",
-        "Go to 'My Profile' in the KiddoChecker app",
-        "Scroll to 'NFC Registration' and click 'Link New Tag'",
-        "Tap your physical tag or sticker to the back of your phone",
-        "Wait for the 'Success' confirmation"
-      ]
-    },
-    {
-      title: "Using NFC at the Kiosk",
-      icon: QrCode,
-      roles: ['parent', 'staff', 'admin'],
-      steps: [
-        "Approach any KiddoChecker Kiosk",
-        "Tap your registered tag/phone to the NFC reader",
-        "The system identifies your family automatically",
-        "Select children and check in instantly"
-      ]
-    },
-    {
-      title: "Emergency Procedures",
-      icon: AlertTriangle,
-      roles: ['staff', 'teacher', 'admin', 'volunteer'],
-      steps: [
-        "Remain calm and assess situation",
-        "Call 911 if medical emergency",
-        "Notify facility administrator immediately",
-        "Contact child's emergency contacts from system dashboard",
-        "Document incident in the child's activity log"
-      ]
-    },
-    {
-      title: "Staff Opening Checklist",
-      icon: Clock,
-      roles: ['staff', 'admin'],
-      steps: [
-        "Verify Kiosk devices are charged and online",
-        "Check printer paper levels",
-        "Review expected attendance from registrations",
-        "Ensure all class teachers are checked in"
-      ]
-    },
-    {
-      title: "Visitor Onboarding Flow",
-      icon: UserCheck,
-      roles: ['admin', 'staff'],
-      steps: [
-        "Monitor New Arrivals in the 'Guest Journey' tab",
-        "Move visitors to 'Initial Contact' after first follow-up",
-        "Open the **Dual-Pane CRM profile** to see the full interaction history",
-        "Log pastoral observations using the **Rapid Insight Log**",
-        "Send an automated **Welcome Email** using one of the pre-built templates",
-        "Transition to 'Regular Attendee' once consistency is achieved"
-      ]
-    },
-    {
-      title: "Mastering Forensic Search",
-      icon: Search,
-      roles: ['admin', 'staff', 'teacher'],
-      steps: [
-        "Go to the 'Attendance' live log",
-        "Use the universal search to find child, class, or guardian",
-        "Click the child's name to open the Evidence Dossier",
-        "Verify check-in telemetry and station metadata"
-      ]
-    },
-    {
-      title: "Digital Security Seal",
-      icon: Shield,
-      roles: ['admin', 'staff'],
-      steps: [
-        "Open a child's session dossier",
-        "Scroll to the 'Digital Security Seal' footer",
-        "Confirm the cryptographic audit ID",
-        "Click 'Export for Counsel' to generate the signed PDF report"
-      ]
-    },
-    {
-      title: "Duty of Care Logging",
-      icon: HeartPulse,
-      roles: ['staff', 'teacher', 'admin'],
-      steps: [
-        "Find the child in the Real-time Check-in Log",
-        "Click the '+' icon in the 'Events' column",
-        "Select the activity (Feeding, Nap, Meds, etc.)",
-        "Confirm the timestamp and details",
-        "The event is now permanently 'stapled' to the child's forensic timeline"
-      ]
-    },
-    {
-      title: "Logging a Safety Incident",
-      icon: AlertTriangle,
-      roles: ['staff', 'teacher', 'admin'],
-      steps: [
-        "Click the 'Alert' icon next to a child's name",
-        "Select the incident type (Injury, Behavior, etc.)",
-        "Provide a detailed description and 'Action Taken'",
-        "Save to 'Seal & Log' the report forever",
-        "The report is instantly visible to administrators in the audit view"
-      ]
-    },
-    {
-      title: "Kiosk Terminal Activation",
-      icon: Monitor,
-      roles: ['admin', 'staff'],
-      steps: [
-        "Go to 'Device Enrollment' in your dashboard",
-        "Click 'Enroll Device' and copy the Reference Code",
-        "Open /device-login on the target kiosk/tablet",
-        "Enter the Reference Code and Master PIN",
-        "The device is now securely locked to the Check-In interface"
-      ]
-    }
-  ];
+  // Filter Step Guides
+  const filteredGuides = useMemo(() => {
+    return STEP_GUIDES.filter(guide => {
+      // Role matching
+      const roleMatch = selectedRole === "all" || guide.targetRole === selectedRole || guide.targetRole === "all";
+      if (!roleMatch) return false;
 
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const normalizedSearch = normalize(searchTerm);
+      // Search term matching
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      const titleMatch = guide.title.toLowerCase().includes(term);
+      const summaryMatch = guide.summary.toLowerCase().includes(term);
+      const stepMatch = guide.steps.some(s => s.title.toLowerCase().includes(term) || s.description.toLowerCase().includes(term));
+      const categoryMatch = guide.category.toLowerCase().includes(term);
+      return titleMatch || summaryMatch || stepMatch || categoryMatch;
+    });
+  }, [selectedRole, searchTerm]);
 
-  const filteredFAQ = faqData
-    .filter(category => category.authorizedRoles.includes((userRole || 'guest') as any))
-    .map(category => ({
-      ...category,
-      questions: category.questions.filter(q => q.roles.includes((userRole || 'guest') as any))
-    }))
-    .filter(category => 
-      category.questions.length > 0 && 
-      (searchTerm === "" || category.questions.some(q =>
-        normalize(q.question).includes(normalizedSearch) ||
-        normalize(q.answer).includes(normalizedSearch)
-      ))
-    );
+  // Filter FAQs
+  const filteredFaqs = useMemo(() => {
+    return FAQ_ITEMS.filter(faq => {
+      // Role matching
+      const roleMatch = selectedRole === "all" || faq.roles.includes(selectedRole as any);
+      if (!roleMatch) return false;
 
-  const Content = (
-      <div className="space-y-6">
-        <div className="text-center py-12 relative">
-          <div className="absolute inset-0 bg-indigo-50/50 rounded-[3rem] -z-10 blur-3xl opacity-50" />
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
-            <ShieldCheck className="h-3 w-3" /> Professional Support Terminal
-          </div>
-          <h1 className="text-5xl font-black flex items-center justify-center gap-4 text-foreground tracking-tighter leading-none">
-            <HelpCircle className="h-12 w-12 text-indigo-600" />
-            Platform Guide
-          </h1>
-          <p className="text-slate-500 mt-6 font-medium text-lg max-w-xl mx-auto leading-relaxed">
-            Welcome to the KiddoChecker Help Center. Your comprehensive resource for mastering the forensic safety and CRM tools.
-          </p>
-        </div>
-
-        <div className="max-w-md mx-auto">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search help articles..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-
-        <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
-            <TabsTrigger value="guides">Quick Guides</TabsTrigger>
-            <TabsTrigger value="walkthroughs">Walkthroughs</TabsTrigger>
-            <TabsTrigger value="faq">FAQ</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="getting-started" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <QrCode className="h-5 w-5" />
-                    Kiosk Check-In
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">
-                    {isParent 
-                      ? "Learn how to easily check your children in and out using the kiosk tablets located at the entrance."
-                      : "Instructions for managing the kiosk, printing labels, and helping families with check-in."}
-                  </p>
-                  <ul className="space-y-2 text-sm">
-                    <li>• {isParent ? "Search child by name" : "Helper mode activations"}</li>
-                    <li>• {isParent ? "Keep security QR code" : "Manual override codes"}</li>
-                    <li>• {isParent ? "Confirm allergy alerts" : "Printer troubleshooting"}</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {isAdmin && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Staff Management
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Administrative tools for adding staff, teachers, and managing organizational roles.
-                    </p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2"><Badge variant="outline">Staff</Badge><span>Full operations</span></div>
-                      <div className="flex items-center gap-2"><Badge variant="outline">Teacher</Badge><span>Class rosters</span></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    Safety Policy
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">
-                    Strict measures to ensure the protection and privacy of every child.
-                  </p>
-                  <ul className="space-y-2 text-sm">
-                    <li>• Always verify pickup authorization</li>
-                    <li>• {isParent ? "Update your authorized list regularly" : "Check photo ID for new faces"}</li>
-                    <li>• Report any security concerns to {isParent ? "staff" : "the director"}</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Phone className="h-5 w-5" />
-                    Support Contacts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">
-                    Who to call if you have questions or an emergency.
-                  </p>
-                  <div className="space-y-2 text-sm">
-                    <div><strong>Emergency:</strong> 911</div>
-                    {isAdmin || isStaff ? (
-                      <div><strong>Technical Support:</strong> (555) 123-4568</div>
-                    ) : (
-                      <div><strong>Main Office:</strong> (555) 123-4569</div>
-                    )}
-                    <div><strong>Ministry Director:</strong> (555) 123-4567</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="guides" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {quickGuides
-                .filter(guide => guide.roles.includes((userRole || 'guest') as any))
-                .map((guide, index) => (
-                <Card key={index}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <guide.icon className="h-5 w-5 text-indigo-600" />
-                      {guide.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ol className="space-y-3">
-                      {guide.steps.map((step, stepIndex) => (
-                        <li key={stepIndex} className="text-sm flex items-start gap-3">
-                          <span className="bg-indigo-50 text-indigo-800 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            {stepIndex + 1}
-                          </span>
-                          <span className="text-gray-700">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {isAdmin && (
-              <Card className="border-indigo-100 bg-indigo-50/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Video className="h-5 w-5" />
-                    Admin Training Videos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border bg-card rounded-lg shadow-sm">
-                      <h4 className="font-semibold mb-1">Permission Architectures</h4>
-                      <p className="text-xs text-muted-foreground mb-3">Understanding role-based access levels.</p>
-                      <Button variant="outline" size="sm" className="w-full">Watch Lesson</Button>
-                    </div>
-                    <div className="p-4 border bg-card rounded-lg shadow-sm">
-                      <h4 className="font-semibold mb-1">CRM Automation</h4>
-                      <p className="text-xs text-muted-foreground mb-3">Setting up visitor journey triggers.</p>
-                      <Button variant="outline" size="sm" className="w-full">Watch Lesson</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="walkthroughs" className="space-y-12">
-            <div className="space-y-4">
-               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[10px] font-bold uppercase tracking-widest">
-                  <Layout className="h-3 w-3" /> Simplified Premium Interface
-               </div>
-               <h2 className="text-3xl font-bold text-foreground tracking-tight">Mastering the Dashboard</h2>
-            </div>
-
-            <div className="space-y-20">
-               {/* Section 1 */}
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                  <div className="space-y-6">
-                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">1</div>
-                     <h3 className="text-2xl font-bold text-foreground">Guest Journey Analytics</h3>
-                     <p className="text-slate-600 leading-relaxed font-normal">
-                        The journey dashboard provides a clear, focused view of your community's growth. 
-                        Track visitors as they transition into members and ensure every guest feels seen and cared for through automated follow-up health metrics.
-                     </p>
-                     <div className="flex gap-4">
-                        <Badge className="bg-slate-100 text-slate-600 border-none px-3 py-1 font-bold">Funnel View</Badge>
-                        <Badge className="bg-slate-100 text-slate-600 border-none px-3 py-1 font-bold">Real-time Activity</Badge>
-                     </div>
-                  </div>
-                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
-                     <img src="/docs/images/guest_journey_dashboard.png" className="rounded-xl w-full h-auto" alt="Dashboard Walkthrough" />
-                  </div>
-               </div>
-
-               {/* Section 2 */}
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                  <div className="order-2 lg:order-1 rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
-                     <img src="/docs/images/visitor_stage_tracker.png" className="rounded-xl w-full h-auto" alt="Kanban Tracker" />
-                  </div>
-                  <div className="order-1 lg:order-2 space-y-6">
-                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">2</div>
-                     <h3 className="text-2xl font-bold text-foreground">The Stage Tracker</h3>
-                     <p className="text-slate-600 leading-relaxed font-normal">
-                        Visualize your newcomers as they move through onboarding stages in a simple list view. 
-                        Each card represents a person. Click any card to open the **Member CRM** for detailed notes and contact options.
-                     </p>
-                     <ul className="space-y-3">
-                        <li className="flex items-center gap-3 text-sm font-medium text-slate-700">
-                           <Kanban className="h-4 w-4 text-indigo-600" /> Simple Workflow Stages
-                        </li>
-                        <li className="flex items-center gap-3 text-sm font-medium text-slate-700">
-                           <Users className="h-4 w-4 text-indigo-600" /> Instant engagement history
-                        </li>
-                     </ul>
-                  </div>
-               </div>
-
-               {/* Section 3 */}
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                  <div className="space-y-6">
-                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">3</div>
-                     <h3 className="text-2xl font-bold text-foreground">Forensic Evidence Dossier</h3>
-                     <p className="text-slate-600 leading-relaxed font-normal">
-                        Every child has an immutable 'Forensic Timeline' for every session. 
-                        By clicking on a child's name in the dashboard, you can view the complete chain of custody, including telemetry, signatures, and duty-of-care logs.
-                     </p>
-                     <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-4">
-                        <h4 className="font-bold text-xs uppercase tracking-widest text-emerald-600">Legal Protection</h4>
-                        <p className="text-xs font-medium text-emerald-700 leading-relaxed">
-                           This dossier is designed to be audit-ready for insurance and legal purposes. Use the 'Export for Counsel' button to generate a signed PDF report.
-                        </p>
-                     </div>
-                  </div>
-                  <div className="rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
-                     <img src="/docs/images/forensic_dossier_view.png" className="rounded-xl w-full h-auto" alt="Forensic Timeline Walkthrough" />
-                  </div>
-               </div>
-
-               {/* Section 4 */}
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pb-12">
-                  <div className="order-2 lg:order-1 rounded-2xl overflow-hidden shadow-sm border border-slate-100 bg-card p-2">
-                     <img src="/docs/images/crm_profile_interaction.png" className="rounded-xl w-full h-auto" alt="CRM Overview" />
-                  </div>
-                  <div className="order-1 lg:order-2 space-y-6">
-                     <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">4</div>
-                     <h3 className="text-2xl font-bold text-foreground">Member CRM Profiles</h3>
-                     <p className="text-slate-600 leading-relaxed font-normal">
-                        Log pastoral notes, send automated follow-up emails, and track every interaction. 
-                        The **Interaction Timeline** ensures that every touchpoint is recorded for consistent, high-quality care.
-                     </p>
-                  </div>
-               </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="faq" className="space-y-6">
-            <div className="space-y-4">
-              {filteredFAQ.map((category) => (
-                <Card key={category.category} className="overflow-hidden border-none shadow-sm bg-gray-50/50">
-                  <div className="p-4 bg-card border-b flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 rounded-lg">
-                      <category.icon className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <h3 className="font-bold text-lg text-foreground">{category.title}</h3>
-                  </div>
-                  <CardContent className="p-0">
-                    <div className="divide-y">
-                      {category.questions.map((qa, index) => (
-                        <Collapsible key={index}>
-                          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 text-left hover:bg-gray-50 transition-colors group">
-                            <span className="font-medium text-gray-800 group-data-[state=open]:text-indigo-600 transition-colors">
-                              {qa.question}
-                            </span>
-                            <ChevronDown className="h-4 w-4 text-gray-400 group-data-[state=open]:rotate-180 transition-transform" />
-                          </CollapsibleTrigger>
-                          <CollapsibleContent className="px-4 pb-4 pt-1">
-                            <div className="p-4 bg-card rounded-xl border border-indigo-50 text-gray-600 leading-relaxed shadow-inner">
-                              {qa.answer}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {filteredFAQ.length === 0 && (
-                <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed">
-                  <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No help articles found matching "{searchTerm}"</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        <Card className="bg-indigo-600 text-white border-none shadow-xl">
-          <CardContent className="p-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="text-center md:text-left">
-                <h2 className="text-2xl font-bold mb-2">Still have questions?</h2>
-                <p className="opacity-90 font-medium">Our team is available to help you {isParent ? "during service hours" : "24/7 via private support lines"}.</p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-4">
-                <Button 
-                  variant="secondary" 
-                  className="bg-card text-indigo-700 hover:bg-indigo-50 font-bold px-6 shadow-sm"
-                  onClick={() => {
-                    toast({
-                      title: "Support Ticket Initiated",
-                      description: "A secure support channel has been opened. Our engineers have been notified.",
-                    });
-                  }}
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  {isParent ? "Message Office" : "Open System Ticket"}
-                </Button>
-                {isAdmin && (
-                  <Button variant="ghost" className="text-white hover:bg-card/10 border border-white/20">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Technical Docs
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-  );
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background">
-        <LandingNavigation />
-        <div className="pt-32 pb-24 px-6 max-w-7xl mx-auto">
-          {Content}
-        </div>
-        <LandingFooter />
-      </div>
-    );
-  }
+      // Search term matching
+      if (!searchTerm.trim()) return true;
+      const term = searchTerm.toLowerCase();
+      return faq.question.toLowerCase().includes(term) || faq.answer.toLowerCase().includes(term) || faq.category.toLowerCase().includes(term);
+    });
+  }, [selectedRole, searchTerm]);
 
   return (
     <ModernLayout>
-      {Content}
+      <div className="max-w-7xl mx-auto space-y-10 py-6 pb-24 px-4 sm:px-6">
+        
+        {/* ─── Hero Header Banner ────────────────────────────────────────── */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 p-8 sm:p-12 text-white shadow-2xl border border-indigo-500/20">
+          <div className="absolute top-0 right-0 -mt-16 -mr-16 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 -mb-16 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 max-w-3xl space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-indigo-200 text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
+              Comprehensive Knowledge Base & How-To Guides
+            </div>
+            
+            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+              How Can We Help You Today?
+            </h1>
+            
+            <p className="text-base sm:text-lg text-slate-300 font-medium leading-relaxed">
+              Step-by-step instructions, safety protocols, hardware setup, and best practices tailored specifically to your role.
+            </p>
+
+            {/* Live Search Bar */}
+            <div className="relative pt-4 max-w-2xl">
+              <Search className="absolute left-4 top-1/2 mt-2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search guides (e.g. 'check in child', 'print tag', 'allergies', 'reports', 'PIN')..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 pr-4 h-14 rounded-2xl bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:bg-white/20 focus:border-white/40 transition-all font-semibold text-base shadow-inner backdrop-blur-md"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-4 top-1/2 mt-2 -translate-y-1/2 text-xs text-slate-400 hover:text-white font-bold bg-white/10 px-2 py-1 rounded-md"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── Role Switcher Tabs ────────────────────────────────────────── */}
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+                <Book className="h-6 w-6 text-primary" />
+                Select Your Role
+              </h2>
+              <p className="text-sm text-muted-foreground font-medium">
+                Filter interactive guides and workflows based on your responsibilities.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border/60">
+              <Button
+                variant={selectedRole === "all" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setSelectedRole("all")}
+                className="rounded-xl font-bold text-xs"
+              >
+                All Roles
+              </Button>
+              <Button
+                variant={selectedRole === "parent" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setSelectedRole("parent")}
+                className="rounded-xl font-bold text-xs"
+              >
+                Parents & Families
+              </Button>
+              <Button
+                variant={selectedRole === "staff" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setSelectedRole("staff")}
+                className="rounded-xl font-bold text-xs"
+              >
+                Staff & Teachers
+              </Button>
+              <Button
+                variant={selectedRole === "volunteer" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setSelectedRole("volunteer")}
+                className="rounded-xl font-bold text-xs"
+              >
+                Volunteers
+              </Button>
+              <Button
+                variant={selectedRole === "admin" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setSelectedRole("admin")}
+                className="rounded-xl font-bold text-xs"
+              >
+                Administrators
+              </Button>
+            </div>
+          </div>
+
+          {/* ─── Step-By-Step Guides Grid ────────────────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {filteredGuides.length === 0 ? (
+              <div className="col-span-full py-16 text-center bg-card rounded-3xl border border-dashed border-border/60">
+                <HelpCircle className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-foreground">No Guides Match Your Search</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
+                  Try searching for keywords like "check in", "print", "safety", "PIN", or clear your filter.
+                </p>
+                <Button variant="outline" onClick={() => { setSearchTerm(""); setSelectedRole("all"); }} className="mt-4 rounded-xl font-bold">
+                  Reset Search & Filters
+                </Button>
+              </div>
+            ) : (
+              filteredGuides.map((guide) => {
+                const IconComponent = guide.icon;
+                return (
+                  <Card key={guide.id} className="overflow-hidden border border-border/60 shadow-sm hover:shadow-md transition-all rounded-3xl bg-card">
+                    <CardHeader className="p-6 pb-4 border-b bg-muted/10 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="outline" className={`font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border ${guide.roleBadgeColor}`}>
+                          {guide.roleBadge}
+                        </Badge>
+                        <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {guide.estimatedTime} read
+                        </span>
+                      </div>
+
+                      <div className="flex items-start gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                          <IconComponent className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <CardTitle className="text-xl font-black tracking-tight text-foreground">
+                            {guide.title}
+                          </CardTitle>
+                          <CardDescription className="text-xs font-medium leading-relaxed">
+                            {guide.summary}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="p-6 space-y-4">
+                      <div className="space-y-3">
+                        {guide.steps.map((step) => (
+                          <div key={step.number} className="flex items-start gap-3.5 group">
+                            <div className="h-6 w-6 rounded-full bg-primary/10 text-primary font-black text-xs flex items-center justify-center shrink-0 mt-0.5 border border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                              {step.number}
+                            </div>
+                            <div className="space-y-1 flex-1">
+                              <h4 className="text-sm font-bold text-foreground leading-tight">
+                                {step.title}
+                              </h4>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {step.description}
+                              </p>
+                              {step.tip && (
+                                <div className="mt-1.5 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-300 text-[11px] font-medium flex items-start gap-2">
+                                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                  <span><strong className="font-bold">Pro Tip:</strong> {step.tip}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {guide.actionLink && (
+                        <div className="pt-3 border-t border-border/40 flex justify-end">
+                          <Button asChild size="sm" className="rounded-xl font-bold gap-2 text-xs">
+                            <Link to={guide.actionLink.url}>
+                              {guide.actionLink.text}
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* ─── Frequently Asked Questions (Accordion) ────────────────────── */}
+        <div className="space-y-6 pt-6">
+          <div className="border-b border-border/40 pb-4">
+            <h2 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
+              <HelpCircle className="h-6 w-6 text-primary" />
+              Frequently Asked Questions
+            </h2>
+            <p className="text-sm text-muted-foreground font-medium">
+              Quick answers to the most common questions across check-in, printing, security, and child safety.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredFaqs.map((faq, index) => (
+              <Collapsible key={index} className="bg-card border border-border/60 rounded-2xl overflow-hidden shadow-sm hover:border-primary/40 transition-all">
+                <CollapsibleTrigger className="w-full p-5 text-left flex items-center justify-between gap-4 font-bold text-sm text-foreground hover:bg-muted/20 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                    <span>{faq.question}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-5 pb-5 pt-1 text-xs text-muted-foreground leading-relaxed border-t border-border/30 bg-muted/5 font-medium space-y-2">
+                  <p>{faq.answer}</p>
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Applies to:</span>
+                    {faq.roles.map(r => (
+                      <Badge key={r} variant="secondary" className="text-[9px] font-bold px-2 py-0.5 rounded-md uppercase">
+                        {r}
+                      </Badge>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            ))}
+          </div>
+        </div>
+
+        {/* ─── Direct Support / Safety Hotline Card ──────────────────────── */}
+        <Card className="rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-8 shadow-sm">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-5">
+              <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                <LifeBuoy className="h-8 w-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-black tracking-tight text-foreground">Need Immediate On-Site Support?</h3>
+                <p className="text-sm text-muted-foreground font-medium max-w-xl">
+                  If you experience printer hardware issues or require manual security overrides during Sunday service, notify the Lead Check-In Supervisor or Ministry Director immediately.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <Button asChild variant="outline" className="rounded-2xl font-bold h-12 px-6">
+                <Link to="/attendance">
+                  <UserCheck className="mr-2 h-4 w-4" />
+                  Live Attendance
+                </Link>
+              </Button>
+              <Button asChild className="rounded-2xl font-bold h-12 px-6 shadow-md">
+                <Link to="/check-in">
+                  <Monitor className="mr-2 h-4 w-4" />
+                  Launch Kiosk
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+      </div>
     </ModernLayout>
   );
 };
 
 export default HelpDocumentation;
-
-
