@@ -20,6 +20,12 @@ const profileSchema = z.object({
   last_name: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
   address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip_code: z.string().optional(),
+  occupation: z.string().optional(),
+  emergency_contact_name: z.string().optional(),
+  emergency_contact_phone: z.string().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -38,6 +44,12 @@ const UserProfile = () => {
       last_name: "",
       phone: "",
       address: "",
+      city: "",
+      state: "",
+      zip_code: "",
+      occupation: "",
+      emergency_contact_name: "",
+      emergency_contact_phone: "",
     },
   });
 
@@ -68,6 +80,12 @@ const UserProfile = () => {
           last_name: profile.last_name || "",
           phone: profile.phone || "",
           address: profile.address || "",
+          city: profile.city || "",
+          state: profile.state || "",
+          zip_code: profile.zip_code || profile.zip || "",
+          occupation: profile.occupation || "",
+          emergency_contact_name: profile.emergency_contact_name || "",
+          emergency_contact_phone: profile.emergency_contact_phone || "",
         });
       } else if (user) {
         // Create initial profile if it doesn't exist
@@ -227,12 +245,100 @@ const UserProfile = () => {
                         name="address"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Address</FormLabel>
+                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Street Address</FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <MapPin className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                                 <Input placeholder="123 Street Name..." {...field} className="pl-10 h-11" />
                               </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">City</FormLabel>
+                            <FormControl>
+                              <Input placeholder="City..." {...field} className="h-11" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="state"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">State / Province</FormLabel>
+                            <FormControl>
+                              <Input placeholder="State / Province..." {...field} className="h-11" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="zip_code"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Postal / Zip Code</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Zip Code..." {...field} className="h-11" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="occupation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Occupation</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Job Title / Profession" {...field} className="h-11" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="emergency_contact_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Emergency Contact Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Contact full name" {...field} className="h-11" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="emergency_contact_phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Emergency Phone</FormLabel>
+                            <FormControl>
+                              <Input placeholder="+1..." {...field} className="h-11" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

@@ -45,7 +45,7 @@ const GeneralSettings = () => {
       form.reset({
         churchName: orgSettings.name || "",
         timeZone: (orgSettings as any).timezone || "America/New_York",
-        address: "",
+        address: (orgSettings as any).address || "",
         checkInWindow: "15",
         allowLateCheckIn: true,
         allowEarlyCheckOut: false,
@@ -63,6 +63,7 @@ const GeneralSettings = () => {
         logo_url: values.logoUrl,
         show_center_finder: values.showCenterFinder,
         timezone: values.timeZone,
+        address: values.address,
       };
 
       if (orgSettings?.id) {

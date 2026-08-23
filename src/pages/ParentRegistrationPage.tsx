@@ -79,13 +79,16 @@ const ParentRegistrationPage = () => {
         // Update profile with additional information
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({
+          .upsert({
+            id: data.user.id,
             address: formData.address,
             first_name: formData.firstName,
             last_name: formData.lastName,
             phone: formData.phone,
-          })
-          .eq('id', data.user.id);
+            emergency_contact_name: formData.emergencyContact,
+            emergency_contact_phone: formData.emergencyPhone,
+            updated_at: new Date().toISOString(),
+          });
 
         if (profileError) {
           console.error('Profile update error:', profileError);
