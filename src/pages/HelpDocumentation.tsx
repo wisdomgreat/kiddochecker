@@ -946,121 +946,163 @@ const HelpDocumentation = () => {
 
   return (
     <ModernLayout>
-      <div className="max-w-7xl mx-auto space-y-12 py-6 pb-28 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto space-y-10 py-6 pb-28 px-4 sm:px-6">
         
-        {/* ─── Hero Header Banner ────────────────────────────────────────── */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 p-8 sm:p-14 text-white shadow-2xl border border-indigo-500/20">
-          <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-1/3 -mb-20 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 max-w-3xl space-y-5">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-indigo-200 text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="h-4 w-4 text-indigo-300" />
-              Comprehensive Knowledge Center & Interactive How-To Hub
-            </div>
-            
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-              Master Every Feature in KiddoChecker
-            </h1>
-            
-            <p className="text-base sm:text-lg text-slate-300 font-medium leading-relaxed">
-              Step-by-step interactive walkthroughs, child safety guidelines, hardware setups, and quick printable checklists for Parents, Staff, Volunteers, and Admins.
-            </p>
-
-            {/* Live Search Bar */}
-            <div className="relative pt-2 max-w-2xl">
-              <Search className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 h-5 w-5 text-slate-400" />
-              <Input
-                type="text"
-                placeholder="Search any guide or question (e.g. 'check in child', 'printer', 'allergies', 'reports', 'PIN')..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-12 pr-12 h-14 rounded-2xl bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:bg-white/20 focus:border-white/40 transition-all font-semibold text-base shadow-inner backdrop-blur-md"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-4 top-1/2 mt-1 -translate-y-1/2 text-xs text-slate-400 hover:text-white font-bold bg-white/10 px-2.5 py-1 rounded-lg"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ─── Role Filter Buttons & Category Pills ──────────────────────── */}
-        <div className="space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-5">
-            <div>
-              <h2 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2">
-                <Book className="h-6 w-6 text-primary" />
-                Select Your Role
-              </h2>
-              <p className="text-sm text-muted-foreground font-medium">
-                Choose your role to see only the instructions and tools relevant to you.
+        {/* ─── Clean & Professional Header ───────────────────────────────── */}
+        <div className="bg-card border border-border/70 rounded-3xl p-8 sm:p-10 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="space-y-2 max-w-3xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+                <Book className="h-3.5 w-3.5" />
+                Documentation & Knowledge Base
+              </div>
+              
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+                How-To Guides & Operations Manual
+              </h1>
+              
+              <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
+                Step-by-step instructions, child safety protocols, hardware setup, and best practices tailored for Parents, Staff, Volunteers, and Administrators.
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 bg-muted/40 p-1.5 rounded-2xl border border-border/60">
-              <Button
-                variant={selectedRole === "all" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedRole("all")}
-                className="rounded-xl font-bold text-xs"
-              >
-                All Roles
-              </Button>
-              <Button
-                variant={selectedRole === "parent" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedRole("parent")}
-                className="rounded-xl font-bold text-xs"
-              >
-                Parents & Families
-              </Button>
-              <Button
-                variant={selectedRole === "staff" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedRole("staff")}
-                className="rounded-xl font-bold text-xs"
-              >
-                Staff & Teachers
-              </Button>
-              <Button
-                variant={selectedRole === "volunteer" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedRole("volunteer")}
-                className="rounded-xl font-bold text-xs"
-              >
-                Volunteers
-              </Button>
-              <Button
-                variant={selectedRole === "admin" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedRole("admin")}
-                className="rounded-xl font-bold text-xs"
-              >
-                Administrators
-              </Button>
+            {/* Quick Stats Pill */}
+            <div className="flex items-center gap-3 self-start md:self-center shrink-0 bg-muted/40 p-3 rounded-2xl border border-border/60">
+              <div className="text-center px-3 border-r border-border/60">
+                <div className="text-lg font-black text-foreground">{STEP_GUIDES.length}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Guides</div>
+              </div>
+              <div className="text-center px-3 border-r border-border/60">
+                <div className="text-lg font-black text-foreground">{FAQ_ITEMS.length}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">FAQs</div>
+              </div>
+              <div className="text-center px-3">
+                <div className="text-lg font-black text-foreground">{CHEAT_SHEETS.length}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Checklists</div>
+              </div>
             </div>
           </div>
 
-          {/* Category Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-            {CATEGORIES.map(category => (
+          {/* Clean Integrated Search Bar */}
+          <div className="relative pt-2">
+            <Search className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by topic, feature, or keyword (e.g., 'check in child', 'printer', 'allergies', 'reports', 'PIN', 'checkout')..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 pr-12 h-13 rounded-2xl bg-muted/30 border-border text-foreground placeholder:text-muted-foreground focus:bg-background focus:border-primary transition-all font-medium text-sm shadow-sm"
+            />
+            {searchTerm && (
               <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
-                  selectedCategory === category
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-card text-muted-foreground border-border/60 hover:bg-muted/40 hover:text-foreground"
-                }`}
+                onClick={() => setSearchTerm("")}
+                className="absolute right-4 top-1/2 mt-1 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground font-bold bg-muted px-2.5 py-1 rounded-md transition-colors"
               >
-                {category}
+                Clear
               </button>
-            ))}
+            )}
+          </div>
+        </div>
+
+        {/* ─── Clean Streamlined Navigation & Filters ───────────────────── */}
+        <div className="space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card border border-border/70 p-4 sm:p-5 rounded-2xl shadow-sm">
+            {/* Role Filter Tabs */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden sm:inline mr-1">
+                Filter by Role:
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/50">
+                <Button
+                  variant={selectedRole === "all" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedRole("all")}
+                  className="rounded-lg font-bold text-xs h-8 px-3"
+                >
+                  All Roles
+                </Button>
+                <Button
+                  variant={selectedRole === "parent" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedRole("parent")}
+                  className="rounded-lg font-bold text-xs h-8 px-3"
+                >
+                  Parents & Families
+                </Button>
+                <Button
+                  variant={selectedRole === "staff" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedRole("staff")}
+                  className="rounded-lg font-bold text-xs h-8 px-3"
+                >
+                  Staff & Teachers
+                </Button>
+                <Button
+                  variant={selectedRole === "volunteer" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedRole("volunteer")}
+                  className="rounded-lg font-bold text-xs h-8 px-3"
+                >
+                  Volunteers
+                </Button>
+                <Button
+                  variant={selectedRole === "admin" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedRole("admin")}
+                  className="rounded-lg font-bold text-xs h-8 px-3"
+                >
+                  Administrators
+                </Button>
+              </div>
+            </div>
+
+            {/* Category Dropdown / Quick Select */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden sm:inline">
+                Category:
+              </span>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="h-9 rounded-xl bg-muted/50 border border-border/60 text-foreground font-semibold text-xs px-3 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {CATEGORIES.map(category => (
+                  <option key={category} value={category} className="bg-popover text-popover-foreground">
+                    {category}
+                  </option>
+                ))}
+              </select>
+
+              {(selectedRole !== "all" || selectedCategory !== "All Categories" || searchTerm) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedRole("all");
+                    setSelectedCategory("All Categories");
+                    setSearchTerm("");
+                  }}
+                  className="h-9 px-3 text-xs font-bold text-muted-foreground hover:text-foreground"
+                >
+                  Reset
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Active Filter Chips / Status Summary */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+            <span>
+              Showing <strong className="text-foreground">{filteredGuides.length}</strong> guides and <strong className="text-foreground">{filteredFaqs.length}</strong> FAQs
+              {selectedRole !== "all" && <span> for <strong className="text-primary capitalize">{selectedRole === "parent" ? "Parents & Families" : selectedRole === "staff" ? "Staff & Teachers" : selectedRole}</strong></span>}
+              {selectedCategory !== "All Categories" && <span> in <strong className="text-primary">{selectedCategory}</strong></span>}
+            </span>
+
+            {searchTerm && (
+              <span>
+                Search query: <strong className="text-primary">"{searchTerm}"</strong>
+              </span>
+            )}
           </div>
         </div>
 
