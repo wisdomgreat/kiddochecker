@@ -1,46 +1,44 @@
 const { Pool } = require('pg');
 const pool = new Pool({
   host: process.env.DB_HOST || '10.0.1.4',
-  port: process.env.DB_PORT || 5432,
+  port: parseInt(process.env.DB_PORT || '5432', 10),
   user: process.env.DB_USER || 'kiddomin',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'kiddochecker',
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
 });
 
 /**
  * Middleware that extracts the tenant (church) based on the request Host header.
- * It expects a `churches` lookup table with columns: id, domain, language, branding_json.
- * The resolved church id and language are attached to req.tenant and the PostgreSQL
- * session variables `app.church_id` and `app.language` are set for RLS.
+ * Attaches verified tenant metadata to req.tenant for request-scoped isolation.
  */
 async function tenantResolver(req, res, next) {
   try {
-    const host = (req.headers['x-forwarded-host'] || req.headers.host)?.toLowerCase();
-    if (!host) return next(); // fallback, no tenant
+    const rawHost = req.hostname || (req.headers['x-forwarded-host'] || req.headers.host || '');
+    const cleanHost = rawHost.split(':')[0].toLowerCase().trim();
+
+    if (!cleanHost) {
+      req.tenant = { churchId: 0, language: 'en' };
+      return next();
+    }
 
     const result = await pool.query(
       "SELECT id, language FROM public.churches WHERE LOWER(domain) = $1 LIMIT 1",
-      [host]
+      [cleanHost]
     );
     const tenant = result.rows[0];
     if (tenant) {
-      req.tenant = { churchId: tenant.id, language: tenant.language };
-      // Set session variables for RLS policies
-      await pool.query("SELECT set_config('app.church_id', $1, false)", [String(tenant.id)]);
-      if (tenant.language) {
-        await pool.query("SELECT set_config('app.language', $1, false)", [tenant.language]);
-      }
+      req.tenant = { churchId: tenant.id, language: tenant.language || 'en' };
     } else {
-      // No matching tenant – treat as public/joint (id=0)
-      req.tenant = { churchId: 0, language: null };
-      await pool.query("SELECT set_config('app.church_id', '0', false)");
+      req.tenant = { churchId: 0, language: 'en' };
     }
     next();
   } catch (err) {
     console.error('[TenantResolver] error:', err.message);
+    req.tenant = { churchId: 0, language: 'en' };
     next();
   }
 }
 
 module.exports = tenantResolver;
+

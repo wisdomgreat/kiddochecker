@@ -13,6 +13,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
 const tenantResolver = require('./middleware/tenantResolver');
 
 const app = express();
@@ -33,6 +34,31 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
   idleTimeoutMillis: 30000
 });
+
+// ─── Helper: Deep Cascade Delete for Profiles (module scope) ──────────────
+async function forceDeleteProfile(profileId) {
+  if (!profileId) return;
+  console.log(`[Bridge] Executing deep cascade deletion for profile ${profileId}...`);
+  const cleanups = [
+    'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
+    'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
+    'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
+    'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
+    'DELETE FROM public.staff_group_members WHERE profile_id = $1::uuid',
+    'DELETE FROM public.message_read_receipts WHERE user_id = $1::uuid',
+    'DELETE FROM public.parent_rewards WHERE parent_id = $1::uuid',
+    'DELETE FROM public.emergency_contacts WHERE parent_id = $1::uuid',
+    'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid',
+    'UPDATE public.attendance SET checked_in_by = NULL WHERE checked_in_by = $1::uuid',
+    'UPDATE public.attendance SET checked_out_by = NULL WHERE checked_out_by = $1::uuid',
+    'UPDATE public.device_activity_log SET performed_by = NULL WHERE performed_by = $1::uuid',
+    'UPDATE public.profiles SET supervisor_id = NULL WHERE supervisor_id = $1::uuid',
+    'DELETE FROM public.profiles WHERE id = $1::uuid'
+  ];
+  for (const sql of cleanups) {
+    try { await pool.query(sql, [profileId]); } catch (e) { console.warn(`[Cascade Notice] ${sql}:`, e.message); }
+  }
+}
 
 // Self-healing: Ensure schema and table exist
 async function setupDatabase() {
@@ -254,31 +280,6 @@ async function setupDatabase() {
     console.error('[DB] Error correcting email typo:', err.message);
   }
 
-  // ─── Helper: Deep Cascade Delete for Profiles ───────────────────────────
-  async function forceDeleteProfile(profileId) {
-    if (!profileId) return;
-    console.log(`[Bridge] Executing deep cascade deletion for profile ${profileId}...`);
-    const cleanups = [
-      'DELETE FROM public.user_roles WHERE user_id = $1::uuid',
-      'DELETE FROM public.user_security_groups WHERE user_id = $1::uuid',
-      'DELETE FROM public.staff_shifts WHERE staff_id = $1::uuid',
-      'DELETE FROM public.staff_verifications WHERE user_id = $1::uuid',
-      'DELETE FROM public.staff_group_members WHERE profile_id = $1::uuid',
-      'DELETE FROM public.message_read_receipts WHERE user_id = $1::uuid',
-      'DELETE FROM public.parent_rewards WHERE parent_id = $1::uuid',
-      'DELETE FROM public.emergency_contacts WHERE parent_id = $1::uuid',
-      'UPDATE public.children SET parent_id = NULL WHERE parent_id = $1::uuid',
-      'UPDATE public.attendance SET checked_in_by = NULL WHERE checked_in_by = $1::uuid',
-      'UPDATE public.attendance SET checked_out_by = NULL WHERE checked_out_by = $1::uuid',
-      'UPDATE public.device_activity_log SET performed_by = NULL WHERE performed_by = $1::uuid',
-      'UPDATE public.profiles SET supervisor_id = NULL WHERE supervisor_id = $1::uuid',
-      'DELETE FROM public.profiles WHERE id = $1::uuid'
-    ];
-    for (const sql of cleanups) {
-      try { await pool.query(sql, [profileId]); } catch (e) { console.warn(`[Cascade Notice] ${sql}:`, e.message); }
-    }
-  }
-
   // ─── Automated Self-Healing: Comprehensive Purge of Stale / Deleted Profiles ───
   try {
     // 1. Find all stale parent profiles with no children OR explicitly inactive profiles
@@ -363,38 +364,19 @@ async function setupDatabase() {
     console.error('[DB] Failed to update get_parent_for_kiosk function:', fnErr.message);
   }
 
-  // Temp full table dump for verification
+  // Execute Security Remediation & Compliance Issues Tracker migration
   try {
-    const client = await pool.connect();
-    try {
-      await client.query('SET row_security = off');
-      
-      const profilesRes = await client.query(`
-        SELECT p.id, p.first_name, p.last_name, p.email, p.phone, p.role AS profile_role, ur.role AS mapped_role 
-        FROM public.profiles p 
-        LEFT JOIN public.user_roles ur ON p.id = ur.user_id
-      `);
-      console.log(`[DB_PROFILES_DUMP_START] Total profiles: ${profilesRes.rows.length}`);
-      profilesRes.rows.forEach(row => {
-        console.log('[PROFILE_ROW]', JSON.stringify(row));
-      });
-
-      const childrenRes = await client.query(`
-        SELECT id, first_name, last_name, age, parent_id 
-        FROM public.children
-      `);
-      console.log(`[DB_CHILDREN_DUMP_START] Total children: ${childrenRes.rows.length}`);
-      childrenRes.rows.forEach(row => {
-        console.log('[CHILD_ROW]', JSON.stringify(row));
-      });
-      
-    } finally {
-      client.release();
+    const trackerSqlPath = path.join(__dirname, 'security_issues_tracker.sql');
+    if (fs.existsSync(trackerSqlPath)) {
+      const trackerSql = fs.readFileSync(trackerSqlPath, 'utf8');
+      await pool.query(trackerSql);
+      console.log('[Security Engine] Security Issues Tracker database initialized and synced.');
     }
-  } catch (err) {
-    console.error('[DB_DUMP_ERROR]', err.message);
+  } catch (secErr) {
+    console.warn('[Security Engine] Security Tracker table setup notice:', secErr.message);
   }
 }
+
 
 
 setupDatabase();
@@ -544,32 +526,33 @@ async function checkIpAuthorized(clientIp) {
       enableLockdown
     };
   } catch (err) {
-    console.error('[IP Verification] DB Query Failed (fail-open):', err.message);
-    return { authorized: true, error: err.message };
+    console.error('[IP Verification] DB Query Failed (fail-closed):', err.message);
+    return { authorized: false, error: err.message };
   }
 }
 
+const allowedOrigins = [
+  'https://happy-glacier-0746a2210.7.azurestaticapps.net',
+  'https://kiddochecker.com',
+  'https://kids.gvachurch.com',
+  'https://kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+  'https://es.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+  'https://joint.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
+];
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    const allowed = [
-      'https://happy-glacier-0746a2210.7.azurestaticapps.net',
-      'https://kiddochecker.com',
-      'https://kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
-      'https://es.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
-      'https://joint.kiddochecker-ep-efgwb5e6bccshbf8.z02.azurefd.net',
-    ];
     const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     const isAzureApp = /\.azurestaticapps\.net$/.test(origin);
-    if (allowed.includes(origin) || isLocalhost || isAzureApp) {
+    if (allowedOrigins.includes(origin) || isLocalhost || isAzureApp) {
       callback(null, true);
     } else {
-      callback(null, true);
+      callback(new Error('Blocked by CORS policy: Unauthorized Origin.'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bridge-Secret'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bridge-Secret', 'X-Bridge-Admin-Key'],
   credentials: true
 }));
 app.use(express.json());
@@ -929,40 +912,47 @@ function getKey(header, callback) {
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    req.user = { role: 'authenticated', is_anonymous: true };
-    return next();
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authentication required. Missing or malformed Bearer token.' });
   }
   const token = authHeader.split(' ')[1];
-  if (!token) {
-    req.user = { role: 'authenticated', is_anonymous: true };
-    return next();
+  if (!token || token === 'kiddochecker-guest-token') {
+    return res.status(401).json({ error: 'Authentication required. Invalid or guest token.' });
   }
 
   // 1. Check custom Bridge secret
   try {
-    req.user = jwt.verify(token, BRIDGE_SECRET);
+    const decoded = jwt.verify(token, BRIDGE_SECRET);
+    req.user = decoded;
     return next();
-  } catch (e) {}
+  } catch (e) {
+    // Continue to MSAL verification if bridge secret does not match
+  }
 
-  // 2. Decode valid session tokens (e.g. Supabase session JWTs or custom tokens)
-  try {
-    const decoded = jwt.decode(token);
-    if (decoded && typeof decoded === 'object' && (decoded.sub || decoded.email || decoded.uid || decoded.role || decoded.iss)) {
-      req.user = decoded;
-      return next();
-    }
-  } catch (e) {}
-
-  // 3. Fallback MSAL Entra ID verification
+  // 2. Verified MSAL Entra ID verification
   jwt.verify(token, getKey, { audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525', issuer: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0' }, (err, decoded) => {
     if (!err && decoded) {
       req.user = decoded;
       return next();
     }
-    req.user = { role: 'authenticated', is_anonymous: true };
-    return next();
+    return res.status(401).json({ error: 'Invalid or expired authentication token.' });
   });
+};
+
+const requireRole = (...allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthenticated: Valid session required.' });
+    }
+    const role = (req.user.role || 'parent').toLowerCase();
+    const isSuper = req.user.is_super_admin === true || role === 'super_admin';
+    const normAllowed = allowedRoles.map(r => r.toLowerCase());
+    if (isSuper || normAllowed.includes(role)) {
+      return next();
+    }
+    console.warn(`[Security Alert] Access denied for role '${role}' to protected route ${req.method} ${req.path}`);
+    return res.status(403).json({ error: 'Forbidden: Insufficient administrative privileges.' });
+  };
 };
 
 // ─── API Routes ────────────────────────────────────────────────────────────
@@ -1232,7 +1222,9 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
 
     // 2. Generate hash
     const newHash = bcrypt.hashSync(password, 10);
-    const finalRole = role || 'parent';
+    // Security: Public self-signup is strictly restricted to parent role.
+    // Staff/Admin roles must be provisioned by existing administrators.
+    const finalRole = 'parent';
 
     // 3. Perform a transactional insert
     await pool.query('BEGIN');
@@ -1429,9 +1421,13 @@ app.post('/api/auth/mfa/enroll', verifyToken, async (req, res) => {
   const email = req.user.email || req.user.preferred_username;
   const { friendlyName, issuer } = req.body;
   try {
+    const QRCode = require('qrcode');
     const secret = generateSecret();
-    const otpauthUri = `otpauth://totp/${encodeURIComponent(issuer || 'KiddoChecker')}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent(issuer || 'KiddoChecker')}`;
-    const qr_code = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUri)}`;
+    const cleanIssuer = issuer || 'KiddoChecker';
+    const otpauthUri = `otpauth://totp/${encodeURIComponent(cleanIssuer)}:${encodeURIComponent(email)}?secret=${secret}&issuer=${encodeURIComponent(cleanIssuer)}`;
+    
+    // Generate QR code locally in-memory as Base64 Data URL (no third-party HTTP call)
+    const qr_code = await QRCode.toDataURL(otpauthUri, { width: 220, margin: 1 });
     
     await pool.query('UPDATE public.profiles SET mfa_secret = $1, mfa_enabled = false WHERE LOWER(email) = LOWER($2)', [secret, email]);
     
@@ -2668,8 +2664,8 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   }
 });
 
-// Admin Password Reset Endpoint
-app.post('/api/admin/users/reset-password', verifyToken, async (req, res) => {
+// Admin Password Reset Endpoint (Protected with Admin/SuperAdmin Role)
+app.post('/api/admin/users/reset-password', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
   const { user_id, new_password } = req.body;
   if (!user_id || !new_password) {
     return res.status(400).json({ error: 'user_id and new_password are required' });
@@ -2681,16 +2677,16 @@ app.post('/api/admin/users/reset-password', verifyToken, async (req, res) => {
     const saltRounds = 10;
     const hash = await bcrypt.hash(new_password, saltRounds);
     await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE id = $2::uuid', [hash, user_id]);
-    console.log(`[Admin] Password successfully reset for user ${user_id}`);
+    console.log(`[Admin] Password successfully reset for user ${user_id} by ${req.user?.email || req.user?.id}`);
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
     console.error('[Admin] Reset password error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to reset password.' });
   }
 });
 
-// Admin Bulk User Management Endpoint
-app.post('/api/admin/users/bulk-action', verifyToken, async (req, res) => {
+// Admin Bulk User Management Endpoint (Protected with Admin/SuperAdmin Role)
+app.post('/api/admin/users/bulk-action', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
   const { action, user_ids, data } = req.body;
   if (!Array.isArray(user_ids) || user_ids.length === 0) {
     return res.status(400).json({ error: 'user_ids array is required' });
@@ -2706,24 +2702,196 @@ app.post('/api/admin/users/bulk-action', verifyToken, async (req, res) => {
         SELECT id, $1::text, $2::boolean FROM public.profiles WHERE id = ANY($3::uuid[])
         ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_super_admin = EXCLUDED.is_super_admin
       `, [newRole, isSuperAdmin, user_ids]);
-      console.log(`[Admin] Bulk role update to ${newRole} for ${user_ids.length} users`);
+      console.log(`[Admin] Bulk role update to ${newRole} for ${user_ids.length} users by ${req.user?.email || req.user?.id}`);
       return res.json({ success: true, count: user_ids.length });
     } else if (action === 'toggle_active') {
       const isActive = Boolean(data?.is_active);
       await pool.query('UPDATE public.profiles SET is_active = $1 WHERE id = ANY($2::uuid[])', [isActive, user_ids]);
-      console.log(`[Admin] Bulk active state set to ${isActive} for ${user_ids.length} users`);
+      console.log(`[Admin] Bulk active state set to ${isActive} for ${user_ids.length} users by ${req.user?.email || req.user?.id}`);
       return res.json({ success: true, count: user_ids.length });
     } else if (action === 'delete') {
       for (const uid of user_ids) {
         await forceDeleteProfile(uid);
       }
-      console.log(`[Admin] Bulk deleted ${user_ids.length} users with deep cascade cleanup`);
+      console.log(`[Admin] Bulk deleted ${user_ids.length} users with deep cascade cleanup by ${req.user?.email || req.user?.id}`);
       return res.json({ success: true, count: user_ids.length });
     }
     return res.status(400).json({ error: 'Invalid bulk action specified' });
   } catch (err) {
     console.error('[Admin] Bulk action error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to execute bulk user action.' });
+  }
+});
+
+// Edge Function Bridge Endpoint: admin-user-management
+// Mirrors supabase/functions/admin-user-management against the Postgres bridge.
+const STAFF_LIKE_ROLES = ['staff', 'teacher', 'teacher_assistant'];
+const VALID_APP_ROLES = ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'parent', 'kiosk'];
+
+async function resolveCallerRole(user) {
+  const email = (user?.email || user?.preferred_username || '').toLowerCase();
+  const id = user?.id || user?.sub || null;
+  try {
+    const r = await pool.query(
+      `SELECT ur.role, ur.is_super_admin FROM public.profiles p
+       LEFT JOIN public.user_roles ur ON ur.user_id = p.id
+       WHERE ($1::text <> '' AND LOWER(p.email) = $1) OR p.id::text = $2::text LIMIT 1`,
+      [email, id || '']
+    );
+    if (r.rows[0]?.role) return r.rows[0];
+  } catch (e) { console.warn('[admin-user-management] role lookup notice:', e.message); }
+  return { role: (user?.role || 'parent').toLowerCase(), is_super_admin: user?.is_super_admin === true };
+}
+
+async function tryQuery(sql, params, label) {
+  try { return await pool.query(sql, params); }
+  catch (e) { console.warn(`[admin-user-management] ${label} notice:`, e.message); return null; }
+}
+
+async function syncStaffGroups(userId, groups, replace) {
+  if (replace) await tryQuery('DELETE FROM public.staff_group_members WHERE profile_id = $1::uuid', [userId], 'group clear');
+  if (!Array.isArray(groups)) return;
+  for (const groupId of groups.filter(Boolean)) {
+    await tryQuery(
+      'INSERT INTO public.staff_group_members (group_id, profile_id) VALUES ($1::uuid, $2::uuid) ON CONFLICT DO NOTHING',
+      [groupId, userId], 'group insert'
+    );
+  }
+}
+
+app.post(['/api/functions/admin-user-management', '/functions/v1/admin-user-management', '/functions/admin-user-management'], verifyToken, async (req, res) => {
+  const { action, ...data } = req.body || {};
+  try {
+    const caller = await resolveCallerRole(req.user);
+    const isAdmin = caller.role === 'admin' || caller.role === 'super_admin' || caller.is_super_admin === true;
+    const isStaff = STAFF_LIKE_ROLES.includes(caller.role);
+    if (!isAdmin && !(isStaff && action === 'create_visitor')) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin access required' });
+    }
+
+    switch (action) {
+      case 'create_visitor':
+      case 'create_user': {
+        const { password, firstName, lastName, phone, staffGroups } = data;
+        const role = VALID_APP_ROLES.includes(data.role) ? data.role : 'staff';
+        if (role === 'super_admin' && !(caller.role === 'super_admin' || caller.is_super_admin)) {
+          return res.json({ success: false, error: 'Only Super-Admins can create Super-Admin accounts.' });
+        }
+        const email = (data.email || `guest_${crypto.randomUUID().substring(0, 8)}@kiddochecker.local`).trim().toLowerCase();
+
+        const existing = await pool.query('SELECT id FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [email]);
+        if (existing.rows.length > 0) {
+          return res.json({ success: false, error: 'Auth Error: A user with this email address has already been registered' });
+        }
+
+        const hash = bcrypt.hashSync(password || crypto.randomUUID(), 10);
+        const ins = await pool.query(
+          `INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role, is_active)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, true) RETURNING id`,
+          [email, hash, firstName || '', lastName || '', phone || null, role]
+        );
+        const userId = ins.rows[0].id;
+
+        // Optional staff columns — non-fatal if a column is missing in this schema
+        await tryQuery(
+          `UPDATE public.profiles SET staff_pin = $2, department = $3, specialties = $4, max_hours_per_week = $5, supervisor_id = $6::uuid WHERE id = $1::uuid`,
+          [userId, data.staffPin || null, data.department || null, data.specialties || [], data.maxHoursPerWeek || 40, data.supervisorId || null],
+          'profile staff fields'
+        );
+
+        try {
+          await pool.query(
+            `INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_super_admin = EXCLUDED.is_super_admin`,
+            [userId, role, role === 'super_admin']
+          );
+        } catch (roleErr) {
+          await forceDeleteProfile(userId);
+          return res.json({ success: false, error: `Failed to set role: ${roleErr.message}` });
+        }
+        await tryQuery(
+          'UPDATE public.user_roles SET is_volunteer = $2, verification_status = $3 WHERE user_id = $1::uuid',
+          [userId, data.isVolunteer ?? false, action === 'create_visitor' ? 'verified' : 'unverified'],
+          'role extra fields'
+        );
+
+        await syncStaffGroups(userId, staffGroups, false);
+
+        console.log(`[admin-user-management] Created ${role} ${email} (${userId}) by ${req.user?.email || 'unknown'}`);
+        return res.json({
+          success: true,
+          user: { id: userId, email, first_name: firstName, last_name: lastName, role, is_active: true },
+          message: 'User created successfully'
+        });
+      }
+
+      case 'update_user': {
+        const { userId, updates = {} } = data;
+        if (!userId) return res.json({ success: false, error: 'userId is required' });
+
+        const map = {
+          first_name: updates.firstName, last_name: updates.lastName, phone: updates.phone,
+          staff_pin: updates.staffPin, department: updates.department, specialties: updates.specialties,
+          max_hours_per_week: updates.maxHoursPerWeek, supervisor_id: updates.supervisorId, is_active: updates.isActive
+        };
+        const keys = Object.keys(map).filter(k => map[k] !== undefined);
+        if (keys.length > 0) {
+          const sets = keys.map((k, i) => `${k} = $${i + 2}${k === 'supervisor_id' ? '::uuid' : ''}`).join(', ');
+          await pool.query(`UPDATE public.profiles SET ${sets} WHERE id = $1::uuid`, [userId, ...keys.map(k => map[k] === '' && k === 'supervisor_id' ? null : map[k])]);
+        }
+
+        if (updates.staffGroups !== undefined) await syncStaffGroups(userId, updates.staffGroups, true);
+
+        if (updates.role !== undefined) {
+          if (!VALID_APP_ROLES.includes(updates.role)) return res.json({ success: false, error: `Invalid role: ${updates.role}` });
+          if (updates.role === 'super_admin' && !(caller.role === 'super_admin' || caller.is_super_admin)) {
+            return res.json({ success: false, error: 'Only Super-Admins can grant Super-Admin.' });
+          }
+          await pool.query(
+            `INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES ($1, $2, $3)
+             ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_super_admin = EXCLUDED.is_super_admin`,
+            [userId, updates.role, updates.role === 'super_admin']
+          );
+          await tryQuery('UPDATE public.profiles SET role = $2 WHERE id = $1::uuid', [userId, updates.role], 'profile role mirror');
+        }
+        if (updates.isVolunteer !== undefined) {
+          await tryQuery('UPDATE public.user_roles SET is_volunteer = $2 WHERE user_id = $1::uuid', [userId, updates.isVolunteer], 'volunteer flag');
+        }
+        return res.json({ success: true, message: 'User updated successfully' });
+      }
+
+      case 'delete_user': {
+        const { userId } = data;
+        if (!userId) return res.json({ success: false, error: 'userId is required' });
+        await forceDeleteProfile(userId);
+        return res.json({ success: true, message: 'User deleted successfully' });
+      }
+
+      case 'resend_welcome_email': {
+        const { userId } = data;
+        if (!userId) return res.json({ success: false, error: 'userId is required' });
+        const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
+        const tempPassword = Array.from(crypto.randomBytes(16), b => chars[b % chars.length]).join('');
+        await pool.query('UPDATE public.profiles SET password_hash = $1 WHERE id = $2::uuid', [bcrypt.hashSync(tempPassword, 10), userId]);
+        return res.json({ success: true, tempPassword, message: 'Password reset and ready for resend' });
+      }
+
+      case 'get_users': {
+        const r = await pool.query(
+          `SELECT p.id, p.email, p.first_name, p.last_name, p.phone, p.is_active, p.created_at,
+                  COALESCE(ur.role::text, p.role::text) AS role, COALESCE(ur.is_super_admin, false) AS is_super_admin
+           FROM public.profiles p LEFT JOIN public.user_roles ur ON ur.user_id = p.id
+           ORDER BY p.created_at DESC NULLS LAST`
+        );
+        return res.json({ success: true, users: r.rows });
+      }
+
+      default:
+        return res.json({ success: false, error: `Unknown action: ${action}` });
+    }
+  } catch (err) {
+    console.error('[admin-user-management] error:', err.message);
+    return res.json({ success: false, error: err.message || 'An unexpected error occurred' });
   }
 });
 
@@ -2838,8 +3006,8 @@ app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functio
   }
 });
 
-// Edge Function Bridge Endpoint: send-email
-app.post(['/api/functions/send-email', '/functions/v1/send-email', '/functions/send-email'], async (req, res) => {
+// Edge Function Bridge Endpoint: send-email (Protected with Auth & Role check)
+app.post(['/api/functions/send-email', '/functions/v1/send-email', '/functions/send-email'], verifyToken, requireRole('staff', 'admin', 'super_admin', 'kiosk'), async (req, res) => {
   try {
     const { to, subject, message, templateName, templateData = {}, type, childName, className, staffName, pin } = req.body || {};
 
@@ -2985,8 +3153,8 @@ app.post(['/api/functions/send-email', '/functions/v1/send-email', '/functions/s
   }
 });
 
-// Edge Function Bridge Endpoint: send-sms
-app.post(['/api/functions/send-sms', '/functions/v1/send-sms', '/functions/send-sms'], async (req, res) => {
+// Edge Function Bridge Endpoint: send-sms (Protected with Auth & Role check)
+app.post(['/api/functions/send-sms', '/functions/v1/send-sms', '/functions/send-sms'], verifyToken, requireRole('staff', 'admin', 'super_admin', 'kiosk'), async (req, res) => {
   try {
     const { to, message } = req.body || {};
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -3015,24 +3183,107 @@ app.post(['/api/functions/send-sms', '/functions/v1/send-sms', '/functions/send-
   }
 });
 
-app.post('/api/admin/run-sql', verifyToken, async (req, res) => {
-  // Secondary security check for admin operations: Allow super_admin or matching master admin key
-  const adminKey = req.headers['x-bridge-admin-key'];
-  const isSuper = req.user?.role === 'super_admin' || req.user?.is_super_admin === true;
-  const isKeyValid = adminKey && (adminKey === process.env.ADMIN_SECRET_KEY || adminKey === 'kiddochecker-master-admin-key-2026');
-
-  if (!isSuper && !isKeyValid) {
-    return res.status(403).json({ error: 'Unauthorized administrative operation' });
-  }
-
-  const { sql, values = [] } = req.body;
+// ─── Security Remediation & Compliance Issues Tracker Endpoints ──────────
+app.get('/api/admin/security/issues', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
   try {
-    console.log('[Bridge] Admin SQL Execution:', (sql || '').substring(0, 100) + '...');
-    const result = await pool.query(sql, values);
-    res.json({ data: result.rows, success: true });
+    const { status, severity, search } = req.query;
+    let sql = 'SELECT * FROM public.security_remediation_issues WHERE 1=1';
+    const params = [];
+
+    if (status && status !== 'all') {
+      params.push(status);
+      sql += ` AND status = $${params.length}`;
+    }
+    if (severity && severity !== 'all') {
+      params.push(severity);
+      sql += ` AND severity = $${params.length}`;
+    }
+    if (search && search.trim()) {
+      params.push(`%${search.trim().toLowerCase()}%`);
+      sql += ` AND (LOWER(title) LIKE $${params.length} OR LOWER(vuln_code) LIKE $${params.length} OR LOWER(category) LIKE $${params.length} OR LOWER(owasp_category) LIKE $${params.length} OR LOWER(nist_control) LIKE $${params.length})`;
+    }
+
+    sql += ' ORDER BY cvss_score DESC, created_at DESC';
+
+    const result = await pool.query(sql, params);
+    
+    // Compute summary stats
+    const statsRes = await pool.query(`
+      SELECT 
+        COUNT(*)::integer as total,
+        COUNT(*) FILTER (WHERE status = 'resolved' OR status = 'verified')::integer as resolved,
+        COUNT(*) FILTER (WHERE status = 'open')::integer as open,
+        COUNT(*) FILTER (WHERE status = 'in_progress')::integer as in_progress,
+        COUNT(*) FILTER (WHERE severity = 'critical')::integer as critical,
+        COUNT(*) FILTER (WHERE severity = 'high')::integer as high,
+        COUNT(*) FILTER (WHERE severity = 'medium')::integer as medium,
+        COUNT(*) FILTER (WHERE severity = 'low' OR severity = 'info')::integer as low,
+        ROUND(AVG(cvss_score), 1) as avg_cvss
+      FROM public.security_remediation_issues;
+    `);
+
+    res.json({
+      data: result.rows,
+      summary: statsRes.rows[0] || {}
+    });
   } catch (err) {
-    console.error('[Bridge] Admin SQL Error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[Security Tracker Error]:', err.message);
+    res.status(500).json({ error: 'Failed to fetch security issues tracker data.' });
+  }
+});
+
+app.patch('/api/admin/security/issues/:id', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
+  const { id } = req.params;
+  const { status, remediation_details, verification_test } = req.body;
+  try {
+    const validStatuses = ['open', 'in_progress', 'resolved', 'verified'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    const updates = [];
+    const params = [id];
+    let pIdx = 2;
+
+    if (status) {
+      updates.push(`status = $${pIdx}`);
+      params.push(status);
+      pIdx++;
+      if (status === 'resolved' || status === 'verified') {
+        updates.push(`resolved_at = NOW()`);
+      } else {
+        updates.push(`resolved_at = NULL`);
+      }
+    }
+    if (remediation_details !== undefined) {
+      updates.push(`remediation_details = $${pIdx}`);
+      params.push(remediation_details);
+      pIdx++;
+    }
+    if (verification_test !== undefined) {
+      updates.push(`verification_test = $${pIdx}`);
+      params.push(verification_test);
+      pIdx++;
+    }
+
+    updates.push(`updated_at = NOW()`);
+
+    const updateSql = `
+      UPDATE public.security_remediation_issues 
+      SET ${updates.join(', ')} 
+      WHERE id = $1::uuid OR vuln_code = $1 
+      RETURNING *;
+    `;
+
+    const result = await pool.query(updateSql, params);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Security issue not found' });
+    }
+
+    res.json({ data: result.rows[0], success: true });
+  } catch (err) {
+    console.error('[Security Tracker Patch Error]:', err.message);
+    res.status(500).json({ error: 'Failed to update security issue.' });
   }
 });
 
@@ -3089,12 +3340,12 @@ app.get('/api/profile', verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ─── Cloud Print Queue Endpoints ──────────────────────────────
+// ─── Cloud Print Queue Endpoints (Secured with verifyToken) ──────────
 const cloudPrintQueue = [];
 let lastAgentPollTime = 0;
 const lastAgentPollByOrg = {};
 
-app.post('/api/print-jobs', (req, res) => {
+app.post('/api/print-jobs', verifyToken, (req, res) => {
   const { labelData, printerIp, printerName, orgId } = req.body || {};
   if (!labelData || !labelData.name) {
     return res.status(400).json({ success: false, error: 'Invalid label data' });
@@ -3122,7 +3373,7 @@ app.post('/api/print-jobs', (req, res) => {
   res.json({ success: true, jobId: job.id, message: 'Print job queued in Azure Cloud Relay' });
 });
 
-app.get('/api/print-jobs/poll', (req, res) => {
+app.get('/api/print-jobs/poll', verifyToken, (req, res) => {
   const reqOrgId = req.query.orgId || 'default_org';
   const now = Date.now();
   lastAgentPollTime = now;
@@ -3168,112 +3419,5 @@ app.get('/api/print-jobs/health', (req, res) => {
   });
 });
 
-// ─── Azure Communication Services Email Hub & Logs ───────────────────
-const { EmailClient } = require('@azure/communication-email');
+app.listen(port, () => console.log(`[Bridge] Server running securely on port ${port}`));
 
-const ACS_CONNECTION_STRING = process.env.AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING;
-const ACS_SENDER_ADDRESS = process.env.AZURE_EMAIL_SENDER || 'DoNotReply@6e4fe926-0f85-412b-afef-0fb9c4d89667.azurecomm.net';
-const DEFAULT_CHURCH_NAME = 'Green Valley Alliance';
-
-let acsEmailClient = null;
-if (ACS_CONNECTION_STRING) {
-  try {
-    acsEmailClient = new EmailClient(ACS_CONNECTION_STRING);
-    console.log('[Email Engine] Azure Communication Services Email Client initialized.');
-  } catch (e) {
-    console.error('[Email Engine] Failed to initialize ACS Email Client:', e.message);
-  }
-} else {
-  console.warn('[Email Engine] AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING is not set in environment.');
-}
-// 1. Get Email Logs (Search, Filter, Pagination)
-app.get('/api/emails/logs', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 50;
-    const offset = (page - 1) * limit;
-    const search = req.query.search ? `%${req.query.search.trim().toLowerCase()}%` : null;
-    const status = req.query.status || null;
-    const templateType = req.query.templateType || null;
-
-    let whereClauses = [];
-    let params = [];
-    let paramIdx = 1;
-
-    if (search) {
-      whereClauses.push(`(LOWER(recipient) LIKE $${paramIdx} OR LOWER(recipient_name) LIKE $${paramIdx} OR LOWER(subject) LIKE $${paramIdx})`);
-      params.push(search);
-      paramIdx++;
-    }
-
-    if (status && status !== 'all') {
-      whereClauses.push(`status = $${paramIdx}`);
-      params.push(status);
-      paramIdx++;
-    }
-
-    if (templateType && templateType !== 'all') {
-      whereClauses.push(`template_type = $${paramIdx}`);
-      params.push(templateType);
-      paramIdx++;
-    }
-
-    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-    const countQuery = `SELECT COUNT(*) as total FROM public.email_logs ${whereStr}`;
-    const countRes = await pool.query(countQuery, params);
-    const total = parseInt(countRes.rows[0].total, 10);
-
-    const listQuery = `
-      SELECT id, recipient, recipient_name, subject, template_type, status, message_id, error_message, metadata, created_at
-      FROM public.email_logs
-      ${whereStr}
-      ORDER BY created_at DESC
-      LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
-    `;
-    params.push(limit, offset);
-
-    const listRes = await pool.query(listQuery, params);
-
-    res.json({
-      logs: listRes.rows,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
-    });
-  } catch (err) {
-    console.error('[API /api/emails/logs Error]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 2. Get Email Statistics
-app.get('/api/emails/stats', async (req, res) => {
-  try {
-    const statsQuery = `
-      SELECT 
-        COUNT(*) as total_sent,
-        COUNT(CASE WHEN status = 'delivered' OR status = 'sent' THEN 1 END) as total_delivered,
-        COUNT(CASE WHEN status = 'failed' THEN 1 END) as total_failed,
-        COUNT(CASE WHEN created_at >= (NOW() - INTERVAL '24 hours') THEN 1 END) as sent_last_24h,
-        COUNT(DISTINCT recipient) as unique_recipients
-      FROM public.email_logs
-    `;
-    const result = await pool.query(statsQuery);
-    const row = result.rows[0];
-
-    res.json({
-      totalSent: parseInt(row.total_sent, 10) || 0,
-      totalDelivered: parseInt(row.total_delivered, 10) || 0,
-      totalFailed: parseInt(row.total_failed, 10) || 0,
-      sentLast24h: parseInt(row.sent_last_24h, 10) || 0,
-      uniqueRecipients: parseInt(row.unique_recipients, 10) || 0
-    });
-  } catch (err) {
-    console.error('[API /api/emails/stats Error]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.listen(port, () => console.log(`[Bridge] Server running on port ${port}`));

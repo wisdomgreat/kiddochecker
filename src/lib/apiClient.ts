@@ -34,8 +34,8 @@ export const getAccessToken = async () => {
         }
     } catch (e) {}
 
-    // 3. Fallback client bridge token for kiosk / reports / read operations
-    return 'kiddochecker-guest-token';
+    // No active session token
+    return null;
 };
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {

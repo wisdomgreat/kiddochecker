@@ -215,13 +215,13 @@ const AdminDashboardNew = () => {
 
     const quickActions = [
         { title: "Kiosk", icon: QrCode, path: "/check-in" },
+        { title: "Security", icon: Shield, path: "/admin/security" },
         { title: "QR Labels", icon: Printer, path: "/qr-management" },
         { title: "Email Logs", icon: MailCheck, path: "/admin/email-logs" },
         { title: "Schedules", icon: Calendar, path: "/staff/schedules" },
         { title: "Users", icon: Users, path: "/users" },
         { title: "Devices", icon: Monitor, path: "/devices" },
         { title: "Reports", icon: BarChart3, path: "/reports" },
-        { title: "Settings", icon: Settings, path: "/settings" },
     ];
 
     const todayStr = format(new Date(), "yyyy-MM-dd");

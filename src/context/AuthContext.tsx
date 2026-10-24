@@ -13,6 +13,10 @@ export interface AuthContextType {
   user: any | null;
   session: any | null;
   userRole: AppRole | null;
+  realUserRole: AppRole | null;
+  isRealSuperAdmin: boolean;
+  simulatedRole: AppRole | null;
+  setSimulatedRole: (role: AppRole | null) => void;
   loading: boolean;
   mfaLevel: 'aal1' | 'aal2';
   isMfaPending: boolean;
@@ -49,7 +53,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<AppRole | null>(null);
+  const [realUserRole, setRealUserRole] = useState<AppRole | null>(null);
+  const [simulatedRole, setSimulatedRoleState] = useState<AppRole | null>(() => {
+    const saved = localStorage.getItem('qa_simulate_role');
+    return (saved && saved !== 'super_admin' && saved !== 'reset') ? (saved as AppRole) : null;
+  });
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setSession({ access_token: data.token });
           const userObj = data.profile || { id: data.profile?.id, email };
           setUser(userObj);
-          setUserRole(data.profile?.role || (data.profile?.is_super_admin ? 'super_admin' : 'parent'));
+          setRealUserRole(data.profile?.role || (data.profile?.is_super_admin ? 'super_admin' : 'parent'));
           return { data, error: null };
         }
       }
@@ -142,7 +150,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 1. Clear Local State IMMEDIATELY
       setUser(null);
       setSession(null);
-      setUserRole(null);
+      setRealUserRole(null);
+      setSimulatedRoleState(null);
+      localStorage.removeItem('qa_simulate_role');
       localStorage.removeItem('bridge_token');
 
       // 2. Try to clear Supabase
@@ -158,8 +168,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await instance.logoutPopup({
             postLogoutRedirectUri: "/",
             mainWindowRedirectUri: "/",
-            // Use 'none' to avoid interaction if possible during tests
-            // but for production popup is safer
           });
         } catch (msalErr) {
           console.warn("[Auth] MSAL logout error:", msalErr);
@@ -188,7 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!data) {
         console.warn("[Auth] No profile returned from Bridge");
-        setUserRole('parent');
+        setRealUserRole('parent');
         return;
       }
 
@@ -198,13 +206,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let finalRole = data.role || 'parent';
       if (data.is_super_admin) finalRole = 'super_admin';
       
-      setUserRole(finalRole as AppRole);
+      setRealUserRole(finalRole as AppRole);
       setVerificationStatus(data.verification_status || 'unverified');
       setUserPermissions(data.permissions || []);
 
     } catch (err) {
       console.error("[Auth] Data Bridge sync error:", err);
-      setUserRole('parent');
+      setRealUserRole('parent');
     }
   }, []);
 
@@ -285,7 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.log('[Auth] No active session found');
             setUser(null);
             setSession(null);
-            setUserRole(null);
+            setRealUserRole(null);
           }
         }
       } catch (err) {
@@ -309,18 +317,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, [isAuthenticated, accounts, inProgress, fetchRoleForUser]);
 
-  // ─── Idle Timeout ───────────────────────────────────────────────────────────
-  const idleTime = (userRole === 'admin' || userRole === 'super_admin' || userRole === 'staff' || userRole === 'teacher') 
-    ? 30 * 60 * 1000 : 4 * 60 * 60 * 1000;
-
-  useIdleTimeout(() => {
-    if (user) {
-      toast({ title: "Session Expired", description: "Signed out due to inactivity.", variant: "destructive" });
-      signOut();
+  // ─── Role Simulation Controller ─────────────────────────────────────────────
+  const setSimulatedRole = useCallback((role: AppRole | null) => {
+    if (!role || role === 'super_admin' || (role as string) === 'reset') {
+      localStorage.removeItem('qa_simulate_role');
+      setSimulatedRoleState(null);
+      toast({
+        title: "Role Simulator: Default Mode",
+        description: "Viewing system with full Super Admin privileges.",
+      });
+    } else {
+      localStorage.setItem('qa_simulate_role', role);
+      setSimulatedRoleState(role);
+      toast({
+        title: `Role Simulator: ${role.toUpperCase()}`,
+        description: `Now previewing UI and permissions as ${role}.`,
+      });
     }
-  }, idleTime, !!user && userRole !== 'kiosk');
+  }, [toast]);
 
   // ─── Derived State ──────────────────────────────────────────────────────────
+  const isRealSuperAdmin = realUserRole === 'super_admin' || Boolean(user?.is_super_admin) || (user?.role === 'super_admin');
+  const userRole: AppRole | null = (isRealSuperAdmin && simulatedRole) ? simulatedRole : realUserRole;
+
   const isSuperAdmin = userRole === 'super_admin';
   const isAdmin = userRole === 'admin' || isSuperAdmin;
   const isParent = userRole === 'parent';
@@ -333,10 +352,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const isVerifiedStaff = (isStaff || isTeacher || isTeacherAssistant || isAdmin) && verificationStatus === 'verified';
 
+  // ─── Idle Timeout ───────────────────────────────────────────────────────────
+  const idleTime = (userRole === 'admin' || userRole === 'super_admin' || userRole === 'staff' || userRole === 'teacher') 
+    ? 30 * 60 * 1000 : 4 * 60 * 60 * 1000;
+
+  useIdleTimeout(() => {
+    if (user) {
+      toast({ title: "Session Expired", description: "Signed out due to inactivity.", variant: "destructive" });
+      signOut();
+    }
+  }, idleTime, !!user && userRole !== 'kiosk');
+
   const value = {
     user,
     session,
     userRole,
+    realUserRole,
+    isRealSuperAdmin,
+    simulatedRole,
+    setSimulatedRole,
     loading,
     mfaLevel,
     isMfaPending,

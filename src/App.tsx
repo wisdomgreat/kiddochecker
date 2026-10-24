@@ -80,6 +80,7 @@ const CentersPage = lazyWithRetry(() => import("./pages/CentersPage"));
 
 const ShiftManagementPage = lazyWithRetry(() => import("./pages/ShiftManagementPage"));
 const ChurchManagementPage = lazyWithRetry(() => import("./pages/ChurchManagementPage"));
+const SecurityTrackerPage = lazyWithRetry(() => import("./pages/SecurityTrackerPage"));
 const InstallPWABanner = lazyWithRetry(() => import("./components/mobile/InstallPWABanner"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
@@ -197,6 +198,8 @@ function App() {
                       <Route path="/admin/email-logs" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><EmailLogsPage /></RoleBasedRoute>} />
                       <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
                       <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><SystemHealth /></RoleBasedRoute>} />
+                      <Route path="/admin/security" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SecurityTrackerPage /></RoleBasedRoute>} />
+                      <Route path="/admin/security-tracker" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SecurityTrackerPage /></RoleBasedRoute>} />
                       <Route path="/help" element={<HelpDocumentation />} />
                       <Route path="/faq" element={<HelpDocumentation />} />
                       <Route path="/about" element={<AboutUsPage />} />

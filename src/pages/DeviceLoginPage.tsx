@@ -169,7 +169,7 @@ const DeviceLogin = () => {
                 throw new Error(errMsg);
             }
 
-            if (!data.success || !data.email || !data.password) {
+            if (!data.success || !data.token) {
                 throw new Error("Invalid response from authorization server");
             }
 
@@ -177,10 +177,12 @@ const DeviceLogin = () => {
                 localStorage.setItem('bridge_token', data.token);
             }
 
-            try {
-                await signInWithPassword(data.email, data.password);
-            } catch (aErr) {
-                console.warn("[DeviceLogin] Supabase auth fallback notice (non-fatal):", aErr);
+            if (data.email && data.password) {
+                try {
+                    await signInWithPassword(data.email, data.password);
+                } catch (aErr) {
+                    console.warn("[DeviceLogin] Supabase auth fallback notice (non-fatal):", aErr);
+                }
             }
 
             toast({

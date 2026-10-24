@@ -33,7 +33,7 @@ interface MenuGroup {
 }
 
 export function AppSidebar() {
-  const { user, userRole, isAdmin, isSuperAdmin, isParent, isStaff, isTeacher, isTeacherAssistant, isVerifiedStaff, signOut, hasPermission } = useAuth();
+  const { user, userRole, realUserRole, isAdmin, isSuperAdmin, isRealSuperAdmin, simulatedRole, setSimulatedRole, isParent, isStaff, isTeacher, isTeacherAssistant, isVerifiedStaff, signOut, hasPermission } = useAuth();
   const { language, setLanguage } = useLanguage();
   const { t } = useTranslation();
   const { settings } = useSettings();
@@ -266,8 +266,8 @@ export function AppSidebar() {
             );
           })}
 
-          {/* Super-admin dev & tenant panel */}
-          {isSuperAdmin && (
+          {/* Super-admin dev & tenant panel (remains visible even when simulating other roles) */}
+          {(isRealSuperAdmin || isSuperAdmin || Boolean(simulatedRole)) && (
             <div className="mx-3 mt-4 pt-4 border-t border-dashed border-border/40 space-y-2.5">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-primary px-2 mb-1">Super Admin Tenant Access</p>
@@ -291,30 +291,45 @@ export function AppSidebar() {
               </div>
 
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2 mb-1">Role Simulator</p>
+                <div className="flex items-center justify-between px-2 mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Role Simulator</p>
+                  {simulatedRole && (
+                    <span className="text-[9px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-950/50 px-1.5 py-0.2 rounded border border-amber-300 dark:border-amber-700">
+                      ACTIVE
+                    </span>
+                  )}
+                </div>
                 <Select
-                  value={userRole || ""}
-                  onValueChange={(val: any) => {
-                    if (val === "reset") {
-                      localStorage.removeItem("qa_simulate_role");
-                    } else {
-                      localStorage.setItem("qa_simulate_role", val);
-                    }
-                    window.location.reload();
+                  value={simulatedRole || "super_admin"}
+                  onValueChange={(val: string) => {
+                    setSimulatedRole(val === "super_admin" ? null : (val as any));
+                    navigate("/");
                   }}
                 >
-                  <SelectTrigger className="h-8 text-[11px] bg-amber-50 dark:bg-amber-900/15 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
-                    <SelectValue placeholder="Simulate role…" />
+                  <SelectTrigger className="h-8 text-[11px] bg-amber-50 dark:bg-amber-900/15 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-medium">
+                    <SelectValue placeholder="Select role to simulate…" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="reset">Super Admin (Default)</SelectItem>
-                    <SelectItem value="admin">View as Organization Admin</SelectItem>
-                    <SelectItem value="staff">View as Staff</SelectItem>
-                    <SelectItem value="teacher">View as Teacher</SelectItem>
-                    <SelectItem value="parent">View as Parent</SelectItem>
-                    <SelectItem value="volunteer">View as Volunteer</SelectItem>
+                    <SelectItem value="super_admin">👑 Super Admin (Real Account)</SelectItem>
+                    <SelectItem value="admin">🏢 Organization Admin</SelectItem>
+                    <SelectItem value="staff">🛡️ Staff Member</SelectItem>
+                    <SelectItem value="teacher">👩‍🏫 Teacher</SelectItem>
+                    <SelectItem value="volunteer">🤝 Volunteer</SelectItem>
+                    <SelectItem value="parent">👨‍👩‍👧 Parent / Guardian</SelectItem>
+                    <SelectItem value="kiosk">📱 Kiosk Terminal</SelectItem>
                   </SelectContent>
                 </Select>
+                {simulatedRole && (
+                  <button
+                    onClick={() => {
+                      setSimulatedRole(null);
+                      navigate("/");
+                    }}
+                    className="w-full mt-1.5 text-[10px] text-center font-bold text-amber-600 hover:text-amber-700 dark:text-amber-400 underline transition-colors"
+                  >
+                    Reset to Super Admin View
+                  </button>
+                )}
               </div>
             </div>
           )}
