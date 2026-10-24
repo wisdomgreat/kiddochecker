@@ -1069,68 +1069,41 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
       [normalizedEmail, token, expiresAt]
     );
 
+    let originHost = req.headers['x-forwarded-host'] || req.headers.host;
+    if (originHost && !originHost.startsWith('http://') && !originHost.startsWith('https://')) {
+      originHost = `https://${originHost}`;
+    }
     const frontendBase = process.env.FRONTEND_URL
-      || req.headers['x-forwarded-host']
-      || 'https://happy-glacier-0746a2210.7.azurestaticapps.net';
+      || originHost
+      || 'https://kids.gvachurch.com';
     const resetLink = `${frontendBase.replace(/\/$/, '')}/reset-password?token=${token}`;
     
     // Always log the reset link so it's visible in Azure Container logs for debugging
     console.log(`[AUTH] Reset link generated for ${normalizedEmail}: ${resetLink}`);
 
     try {
-      const { Resend } = require('resend');
-      let resendKey = process.env.RESEND_API_KEY;
-      // Use RESEND_FROM_EMAIL env var if set; otherwise fall back to Resend's shared
-      // onboarding address which works without domain verification.
-      let fromAddress = process.env.RESEND_FROM_EMAIL || 'KiddoChecker <onboarding@resend.dev>';
-      try {
-        const settingsRes = await client.query(
-          'SELECT resend_api_key, resend_domain FROM public.communication_settings LIMIT 1'
-        );
-        if (settingsRes.rows.length > 0) {
-          if (settingsRes.rows[0].resend_api_key) resendKey = settingsRes.rows[0].resend_api_key;
-          if (settingsRes.rows[0].resend_domain) {
-            fromAddress = `KiddoChecker <updates@${settingsRes.rows[0].resend_domain}>`;
-          }
-        }
-      } catch (dbErr) {
-        console.error('[Auth] Error fetching communication_settings (non-fatal):', dbErr.message);
-      }
-
-      if (!resendKey) {
-        console.log(`[AUTH] No Resend API key configured – email not sent. Reset link logged above.`);
-      } else {
-        const resend = new Resend(resendKey);
-        console.log(`[AUTH] Sending password reset email to ${normalizedEmail} from ${fromAddress}...`);
-        const emailResult = await resend.emails.send({
-          from: fromAddress,
-          to: normalizedEmail,
-          subject: 'Reset Your KiddoChecker Password',
-          html: `
-            <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:480px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
-              <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:28px 32px">
-                <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700">🔒 KiddoChecker</h1>
-              </div>
-              <div style="padding:32px">
-                <h2 style="margin:0 0 12px;font-size:18px;color:#111827">Reset Your Password</h2>
-                <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6">We received a request to reset your KiddoChecker account password. Click the button below — this link expires in <strong>1 hour</strong>.</p>
-                <a href="${resetLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px">Reset Password</a>
-                <p style="margin:24px 0 0;font-size:12px;color:#9ca3af">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
-              </div>
-            </div>`
-        });
-        if (emailResult.error) {
-          console.error('[AUTH] Resend API error:', JSON.stringify(emailResult.error));
-          return res.status(500).json({
-            error: 'Email delivery failed',
-            detail: emailResult.error.message || emailResult.error.name
-          });
-        }
-        console.log(`[AUTH] Password reset email delivered ✓ to ${normalizedEmail} | Resend ID: ${emailResult.data?.id}`);
-      }
+      const emailResult = await sendEmail({
+        to: normalizedEmail,
+        recipientName: profileRes.rows[0]?.first_name || 'User',
+        subject: 'Reset Your KiddoChecker Password',
+        templateType: 'password_reset',
+        html: `
+          <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:480px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:28px 32px">
+              <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700">🔒 KiddoChecker</h1>
+            </div>
+            <div style="padding:32px">
+              <h2 style="margin:0 0 12px;font-size:18px;color:#111827">Reset Your Password</h2>
+              <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6">We received a request to reset your KiddoChecker account password. Click the button below — this link expires in <strong>1 hour</strong>.</p>
+              <a href="${resetLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 28px;border-radius:8px">Reset Password</a>
+              <p style="margin:24px 0 0;font-size:12px;color:#9ca3af">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+            </div>
+          </div>`,
+        metadata: { token }
+      });
+      console.log(`[AUTH] Password reset email result for ${normalizedEmail}:`, emailResult?.success ? 'delivered' : 'dispatched');
     } catch (mailErr) {
-      console.error('[Auth] Unexpected error sending email:', mailErr.message);
-      return res.status(500).json({ error: 'Email delivery failed due to an unexpected error' });
+      console.error('[Auth] Error sending password reset email:', mailErr.message);
     }
 
     res.json({ success: true, message: 'If the email exists, a reset link was sent.' });

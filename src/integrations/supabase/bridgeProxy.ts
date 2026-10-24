@@ -392,6 +392,108 @@ export const createBridgeProxy = (realClient: any) => {
             return { data: null, error: e };
           }
         }
+      },
+      resetPasswordForEmail: async (email: string, options?: { redirectTo?: string }) => {
+        try {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const res = await fetch(`${baseUrl}/api/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim() })
+          });
+          if (!res.ok) {
+            let errorMsg = 'Failed to trigger password reset';
+            try {
+              const errorObj = await res.json();
+              errorMsg = errorObj.error || errorObj.message || errorMsg;
+            } catch {
+              const text = await res.text().catch(() => '');
+              errorMsg = text || `Server error (${res.status})`;
+            }
+            return { data: null, error: new Error(errorMsg) };
+          }
+          const data = await res.json();
+          return { data, error: null };
+        } catch (e: any) {
+          return { data: null, error: e };
+        }
+      },
+      updateUser: async (attributes: any) => {
+        try {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const token = localStorage.getItem('bridge_token');
+          const bodyPayload = attributes?.password ? { password: attributes.password } : (attributes?.data || attributes);
+          const res = await fetch(`${baseUrl}/api/profile`, {
+            method: 'PATCH',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(bodyPayload)
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            return { data: null, error: new Error(err.error || 'Failed to update user profile') };
+          }
+          return { data: { user: await res.json() }, error: null };
+        } catch (e: any) {
+          return { data: null, error: e };
+        }
+      },
+      admin: {
+        createUser: async ({ email, password, user_metadata }: any) => {
+          try {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const token = localStorage.getItem('bridge_token');
+            const res = await fetch(`${baseUrl}/api/functions/admin-user-management`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                action: 'create_user',
+                email,
+                password,
+                firstName: user_metadata?.first_name || '',
+                lastName: user_metadata?.last_name || '',
+                phone: user_metadata?.phone || '',
+                role: user_metadata?.role || 'parent'
+              })
+            });
+            const data = await res.json();
+            if (!res.ok || data.success === false) {
+              return { data: null, error: new Error(data.error || 'User creation failed') };
+            }
+            return { data: { user: { id: data.userId || data.id, email } }, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        },
+        deleteUser: async (userId: string) => {
+          try {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const token = localStorage.getItem('bridge_token');
+            const res = await fetch(`${baseUrl}/api/admin/users/bulk-action`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                action: 'delete',
+                user_ids: [userId]
+              })
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+              return { data: null, error: new Error(data.error || 'Failed to delete user') };
+            }
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        }
       }
     },
     // Realistic mock for realtime channels
