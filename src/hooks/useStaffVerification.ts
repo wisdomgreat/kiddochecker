@@ -301,25 +301,29 @@ export const useStaffVerification = () => {
             });
             if (error) throw error;
             const res = data as any;
-            if (!res?.success) throw new Error(res?.error || 'Verification failed');
+            if (res !== true && !res?.success) throw new Error(res?.error || 'Verification failed');
             
-            // Send email notification dynamically based on action
-            const subject = action === 'approve' 
-              ? "KiddoChecker - Staff Account Approved" 
-              : "KiddoChecker - Staff Account Verification Issue";
-            
-            const message = action === 'approve'
-              ? `Hello ${name},<br/><br/>Good news! Your staff documentation has been approved by an administrator. You now have full access to your staff portal and features.<br/><br/>You can log in to your dashboard anytime to begin.`
-              : `Hello ${name},<br/><br/>There is an issue with your staff verification documents.<br/><br/><strong>Administrator Feedback:</strong><br/>${notes || "Please log in to review your specific document notifications and upload a new copy."}<br/><br/>Please rectify this as soon as possible.`;
+            // Send email notification dynamically based on action (non-blocking)
+            try {
+              const subject = action === 'approve' 
+                ? "KiddoChecker - Staff Account Approved" 
+                : "KiddoChecker - Staff Account Verification Issue";
+              
+              const message = action === 'approve'
+                ? `Hello ${name},<br/><br/>Good news! Your staff documentation has been approved by an administrator. You now have full access to your staff portal and features.<br/><br/>You can log in to your dashboard anytime to begin.`
+                : `Hello ${name},<br/><br/>There is an issue with your staff verification documents.<br/><br/><strong>Administrator Feedback:</strong><br/>${notes || "Please log in to review your specific document notifications and upload a new copy."}<br/><br/>Please rectify this as soon as possible.`;
 
-            await supabase.functions.invoke('send-email', {
-              body: {
-                to: email,
-                subject,
-                message,
-                type: 'general',
-              }
-            });
+              await supabase.functions.invoke('send-email', {
+                body: {
+                  to: email,
+                  subject,
+                  message,
+                  type: 'general',
+                }
+              });
+            } catch (emailErr) {
+              console.warn('[StaffVerification] Non-fatal notification error:', emailErr);
+            }
 
             return res;
         },

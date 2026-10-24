@@ -756,7 +756,56 @@ async function runMigrations() {
     { name: 'get_parent_children_unique_signature', sql: `DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID); DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID, UUID); CREATE OR REPLACE FUNCTION public.get_parent_children_with_classes(parent_user_id UUID DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, medical_info TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, notes TEXT, current_class_name TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id as child_id, c.first_name, c.last_name, c.age, c.allergies, c.medical_info, c.emergency_contact_name, c.emergency_contact_phone, c.notes, COALESCE(cl.name, 'General / Summer Camp') as current_class_name FROM public.children c LEFT JOIN public.classes cl ON c.class_id = cl.id WHERE c.parent_id = COALESCE(parent_user_id, p_user_id); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_staff_verification_status_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_staff_verification_status(p_user_id UUID) RETURNS TABLE (user_id UUID, is_verified BOOLEAN, verification_status TEXT, verified_at TIMESTAMPTZ, verified_by UUID, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(ur.role IN ('admin', 'super_admin', 'staff', 'teacher'), false) as is_verified, COALESCE(ur.role, 'pending')::TEXT as verification_status, p.created_at as verified_at, p.id as verified_by, (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id = p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_pending_staff_verifications_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_pending_staff_verifications() RETURNS TABLE (user_id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT, created_at TIMESTAMPTZ, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.email, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(p.created_at, NOW()), (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) IN ('staff', 'teacher', 'volunteer', 'pending') ORDER BY p.created_at DESC; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'admin_verify_staff_rpc', sql: `CREATE OR REPLACE FUNCTION public.admin_verify_staff(p_user_id UUID, p_action TEXT DEFAULT 'approved', p_notes TEXT DEFAULT NULL, p_admin_id UUID DEFAULT NULL) RETURNS BOOLEAN AS $$ BEGIN IF p_action = 'approved' THEN INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES (p_user_id, 'staff', false) ON CONFLICT (user_id) DO UPDATE SET role = 'staff'; END IF; INSERT INTO public.activity_logs (user_id, action, resource, resource_id, details) VALUES (COALESCE(p_admin_id, p_user_id), 'verify_staff', 'user_roles', p_user_id::text, jsonb_build_object('action', p_action, 'notes', p_notes)); RETURN TRUE; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'col_activity_logs_resource_id_text', sql: `ALTER TABLE public.activity_logs ALTER COLUMN resource_id TYPE TEXT USING resource_id::TEXT;` },
+    { name: 'admin_verify_staff_rpc', sql: `
+      DROP FUNCTION IF EXISTS public.admin_verify_staff(UUID, TEXT, TEXT, UUID);
+      DROP FUNCTION IF EXISTS public.admin_verify_staff(UUID, TEXT, TEXT);
+      DROP FUNCTION IF EXISTS public.admin_verify_staff(UUID, TEXT);
+      DROP FUNCTION IF EXISTS public.admin_verify_staff(UUID);
+      CREATE OR REPLACE FUNCTION public.admin_verify_staff(p_user_id UUID, p_action TEXT DEFAULT 'approved', p_notes TEXT DEFAULT NULL, p_admin_id UUID DEFAULT NULL) 
+      RETURNS JSONB AS $$ 
+      DECLARE
+        v_admin UUID := COALESCE(p_admin_id, auth.uid());
+      BEGIN 
+        IF p_action IN ('approve', 'approved') THEN 
+          INSERT INTO public.user_roles (user_id, role, is_super_admin, verification_status, verified_at, verified_by, verification_notes) 
+          VALUES (p_user_id, 'staff', false, 'verified', NOW(), v_admin, COALESCE(p_notes, 'Approved by administrator')) 
+          ON CONFLICT (user_id) DO UPDATE SET 
+            role = 'staff', 
+            verification_status = 'verified', 
+            verified_at = NOW(), 
+            verified_by = v_admin, 
+            verification_notes = COALESCE(p_notes, EXCLUDED.verification_notes);
+            
+          UPDATE public.profiles 
+          SET role = 'staff', verification_status = 'verified' 
+          WHERE id = p_user_id;
+
+          INSERT INTO public.activity_logs (user_id, action, resource, resource_id, details) 
+          VALUES (COALESCE(v_admin, p_user_id), 'verify_staff', 'user_roles', p_user_id::TEXT, jsonb_build_object('action', 'approved', 'notes', p_notes)); 
+
+          RETURN jsonb_build_object('success', true, 'status', 'verified');
+        ELSIF p_action IN ('reject', 'rejected') THEN 
+          UPDATE public.user_roles 
+          SET verification_status = 'rejected', 
+              verified_by = v_admin, 
+              verification_notes = COALESCE(p_notes, 'Rejected by administrator') 
+          WHERE user_id = p_user_id;
+
+          UPDATE public.profiles 
+          SET verification_status = 'rejected' 
+          WHERE id = p_user_id;
+
+          INSERT INTO public.activity_logs (user_id, action, resource, resource_id, details) 
+          VALUES (COALESCE(v_admin, p_user_id), 'reject_staff', 'user_roles', p_user_id::TEXT, jsonb_build_object('action', 'rejected', 'notes', p_notes)); 
+
+          RETURN jsonb_build_object('success', true, 'status', 'rejected');
+        ELSE 
+          RETURN jsonb_build_object('success', false, 'error', 'Invalid action');
+        END IF; 
+      END; 
+      $$ LANGUAGE plpgsql SECURITY DEFINER;` 
+    },
     { name: 'get_event_volunteer_stats_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_event_volunteer_stats(p_event_id UUID DEFAULT NULL) RETURNS TABLE (total_volunteers INTEGER, confirmed_volunteers INTEGER, pending_volunteers INTEGER, roles_covered INTEGER) AS $$ BEGIN RETURN QUERY SELECT (SELECT COUNT(*)::INTEGER FROM public.user_roles WHERE role = 'volunteer'), (SELECT COUNT(*)::INTEGER FROM public.user_roles WHERE role = 'volunteer'), 0::INTEGER, (SELECT COUNT(*)::INTEGER FROM public.volunteer_roles); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'generate_staff_pin_rpc', sql: `CREATE OR REPLACE FUNCTION public.generate_staff_pin_rpc(p_user_id UUID) RETURNS TEXT AS $$ DECLARE v_pin TEXT; BEGIN v_pin := LPAD(FLOOR(RANDOM() * 9000 + 1000)::TEXT, 4, '0'); UPDATE public.profiles SET staff_pin = v_pin, security_pin = v_pin WHERE id = p_user_id; RETURN v_pin; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'generate_roster_from_template_rpc', sql: `CREATE OR REPLACE FUNCTION public.generate_roster_from_template(p_template_id UUID DEFAULT NULL, p_date DATE DEFAULT CURRENT_DATE) RETURNS INTEGER AS $$ DECLARE v_count INTEGER := 0; BEGIN INSERT INTO public.shifts (staff_id, start_time, end_time, status, role_type) SELECT p.id, (p_date || ' 09:00:00')::TIMESTAMPTZ, (p_date || ' 12:30:00')::TIMESTAMPTZ, 'confirmed', 'leader' FROM public.profiles p JOIN public.user_roles ur ON p.id = ur.user_id WHERE ur.role IN ('staff', 'teacher') LIMIT 5; GET DIAGNOSTICS v_count = ROW_COUNT; RETURN v_count; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
@@ -1799,6 +1848,74 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         return res.json({ data: insertRes.rows[0], error: null });
       } catch (err) {
         console.error('[Bridge] Error in log_care_event:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+    // ─── Direct safe handler for admin_verify_staff ─────────────────────
+    if (finalFn === 'admin_verify_staff') {
+      try {
+        const userId = finalParams.p_user_id || finalParams.user_id;
+        const action = (finalParams.p_action || finalParams.action || 'approved').toLowerCase();
+        const notes = finalParams.p_notes || finalParams.notes || null;
+        const adminId = req.user?.id || req.user?.sub || finalParams.p_admin_id || null;
+
+        if (!userId) {
+          return res.status(400).json({ error: 'User ID is required for verification' });
+        }
+
+        const isApprove = action === 'approve' || action === 'approved';
+        const newStatus = isApprove ? 'verified' : 'rejected';
+
+        // 1. Update user_roles table
+        await pool.query(`
+          INSERT INTO public.user_roles (user_id, role, is_super_admin, verification_status, verified_at, verified_by, verification_notes)
+          VALUES ($1::uuid, 'staff', false, $2, NOW(), $3::uuid, $4)
+          ON CONFLICT (user_id) DO UPDATE SET
+            role = CASE WHEN $2 = 'verified' THEN 'staff' ELSE public.user_roles.role END,
+            verification_status = $2,
+            verified_at = NOW(),
+            verified_by = $3::uuid,
+            verification_notes = COALESCE($4, public.user_roles.verification_notes);
+        `, [userId, newStatus, adminId, notes]);
+
+        // 2. Update profiles table
+        await pool.query(`
+          UPDATE public.profiles
+          SET verification_status = $2,
+              role = CASE WHEN $2 = 'verified' AND (role IS NULL OR role = 'parent' OR role = 'pending') THEN 'staff' ELSE role END
+          WHERE id::text = $1::text;
+        `, [userId, newStatus]);
+
+        // 3. Log to activity_logs (safe with uuid cast or text fallback)
+        try {
+          await pool.query(`
+            INSERT INTO public.activity_logs (user_id, action, resource, resource_id, details)
+            VALUES ($1::uuid, $2, 'user_roles', $3::uuid, $4::jsonb);
+          `, [
+            adminId || userId,
+            isApprove ? 'verify_staff' : 'reject_staff',
+            userId,
+            JSON.stringify({ action: newStatus, notes })
+          ]);
+        } catch (logErr) {
+          try {
+            await pool.query(`
+              INSERT INTO public.activity_logs (user_id, action, resource, resource_id, details)
+              VALUES ($1::uuid, $2, 'user_roles', $3::text, $4::jsonb);
+            `, [adminId || userId, isApprove ? 'verify_staff' : 'reject_staff', String(userId), JSON.stringify({ action: newStatus, notes })]);
+          } catch (innerErr) {
+            console.warn('[Bridge] Non-critical activity log notice:', innerErr.message);
+          }
+        }
+
+        console.log(`[Bridge] Staff verification complete: user=${userId}, action=${action}, status=${newStatus}`);
+        return res.json({
+          data: { success: true, status: newStatus },
+          error: null
+        });
+      } catch (err) {
+        console.error('[Bridge] Error in admin_verify_staff:', err.message);
         return res.status(500).json({ error: err.message });
       }
     }
