@@ -76,6 +76,8 @@ const AttendanceRewardsPage = lazyWithRetry(() => import("./pages/AttendanceRewa
 const SystemHealth = lazyWithRetry(() => import("./pages/SystemHealth"));
 const HelpDocumentation = lazyWithRetry(() => import("./pages/HelpDocumentation"));
 const AboutUsPage = lazyWithRetry(() => import("./pages/AboutUsPage"));
+const PrivacyPolicyPage = lazyWithRetry(() => import("./pages/PrivacyPolicyPage"));
+const TermsOfServicePage = lazyWithRetry(() => import("./pages/TermsOfServicePage"));
 const CentersPage = lazyWithRetry(() => import("./pages/CentersPage"));
 
 const ShiftManagementPage = lazyWithRetry(() => import("./pages/ShiftManagementPage"));
@@ -85,7 +87,6 @@ const InstallPWABanner = lazyWithRetry(() => import("./components/mobile/Install
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => {
-  const { t } = useTranslation();
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="flex flex-col items-center gap-6">
@@ -96,8 +97,8 @@ const PageLoader = () => {
           </div>
         </div>
         <div className="space-y-1 text-center">
-          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-foreground">{t('syncingEnvironment')}</p>
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{t('authorizingModules')}</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-foreground">Secure Childcare System</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Connecting Secure Terminal</p>
         </div>
       </div>
     </div>
@@ -136,6 +137,12 @@ function App() {
                       <Route path="/device-login" element={<DeviceLoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
                       <Route path="/parent-registration" element={<ParentRegistration />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                      <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+                      <Route path="/terms" element={<TermsOfServicePage />} />
+                      <Route path="/about-us" element={<AboutUsPage />} />
+                      <Route path="/about" element={<AboutUsPage />} />
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/landing" element={<LandingPage />} />

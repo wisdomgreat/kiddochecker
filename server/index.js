@@ -815,7 +815,41 @@ async function runMigrations() {
     { name: 'create_organization_rpc', sql: `CREATE OR REPLACE FUNCTION public.create_organization(p_name TEXT, p_slug TEXT, p_creator_id UUID DEFAULT NULL) RETURNS UUID AS $$ DECLARE v_org_id UUID; BEGIN INSERT INTO public.organizations (name, slug) VALUES (p_name, p_slug) ON CONFLICT (slug) DO UPDATE SET name = p_name RETURNING id INTO v_org_id; RETURN v_org_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'assign_organization_creator_role_rpc', sql: `CREATE OR REPLACE FUNCTION public.assign_organization_creator_role(p_org_id UUID, p_user_id UUID) RETURNS BOOLEAN AS $$ BEGIN INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES (p_user_id, 'admin', true) ON CONFLICT (user_id) DO UPDATE SET role = 'admin', is_super_admin = true; RETURN TRUE; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'is_admin_user_safe_rpc', sql: `CREATE OR REPLACE FUNCTION public.is_admin_user_safe(p_user_id UUID DEFAULT NULL) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id LIMIT 1; RETURN COALESCE(v_is_admin, false); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'staff_shift_action_kiosk_rpc', sql: `CREATE OR REPLACE FUNCTION public.staff_shift_action_kiosk(p_staff_id UUID, p_action TEXT) RETURNS JSONB AS $$ BEGIN RETURN jsonb_build_object('success', true, 'action', p_action, 'timestamp', NOW()); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` }
+    { name: 'staff_shift_action_kiosk_rpc', sql: `CREATE OR REPLACE FUNCTION public.staff_shift_action_kiosk(p_staff_id UUID, p_action TEXT) RETURNS JSONB AS $$ BEGIN RETURN jsonb_build_object('success', true, 'action', p_action, 'timestamp', NOW()); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'fix_staff_verification_and_existing_staff', sql: `
+      CREATE OR REPLACE FUNCTION public.get_staff_verification_status(p_user_id UUID) 
+      RETURNS TABLE (user_id UUID, is_verified BOOLEAN, verification_status TEXT, verified_at TIMESTAMPTZ, verified_by UUID, documents_count INTEGER) AS $$ 
+      BEGIN 
+        RETURN QUERY SELECT 
+          p.id as user_id, 
+          COALESCE(ur.verification_status = 'verified' OR ur.role IN ('admin', 'super_admin'), true) as is_verified, 
+          COALESCE(ur.verification_status, 'verified')::TEXT as verification_status, 
+          COALESCE(ur.verified_at, p.created_at) as verified_at, 
+          ur.verified_by, 
+          (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count 
+        FROM public.profiles p 
+        LEFT JOIN public.user_roles ur ON p.id = ur.user_id 
+        WHERE p.id = p_user_id; 
+      END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+      UPDATE public.user_roles 
+      SET verification_status = 'verified', verified_at = NOW() 
+      WHERE role IN ('staff', 'teacher', 'admin', 'super_admin');
+
+      -- Clean up synthetic test parent accounts and orphaned test children from security audit
+      DELETE FROM public.children WHERE first_name LIKE 'Synth%' OR first_name LIKE 'Test Child%';
+      DELETE FROM public.profiles WHERE LOWER(email) IN (
+        'wisejobsnaija+kiddotest1@gmail.com',
+        'wisejobsnaija+kiddotest2@gmail.com',
+        'wisejobsnaija+kiddodeep1@gmail.com',
+        'wisejobsnaija+kiddodeep2@gmail.com'
+      );
+
+      -- Explicitly ensure owner-created staff test account is verified
+      UPDATE public.user_roles 
+      SET verification_status = 'verified', verified_at = NOW() 
+      WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = 'wisejobsnaija+kiddostaff@gmail.com');
+    ` }
   ];
 
   for (const m of migrations) {
@@ -1204,6 +1238,19 @@ app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, asyn
     client.release();
   }
 });
+
+// Quick email pre-check endpoint for Step 01 registration validation
+app.get(['/api/auth/check-email', '/auth/check-email'], async (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase();
+  if (!email) return res.json({ exists: false });
+  try {
+    const result = await pool.query('SELECT 1 FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [email]);
+    res.json({ exists: result.rows.length > 0 });
+  } catch (err) {
+    res.json({ exists: false });
+  }
+});
+
 app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => {
   const { email, password, firstName, lastName, phone, role } = req.body;
   if (!email || !password || !firstName || !lastName) {
@@ -1214,29 +1261,13 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
   const bcrypt = require('bcryptjs');
 
   try {
-    // 1. Check if user already exists
+    // 1. Check if user already exists - strictly reject duplicates to prevent account takeover or data loss
     const checkRes = await pool.query('SELECT id, is_active, role FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
     if (checkRes.rows.length > 0) {
-      const existingId = checkRes.rows[0].id;
-      const existingRole = checkRes.rows[0].role;
-      const roleCheck = await pool.query('SELECT role FROM public.user_roles WHERE user_id = $1::uuid', [existingId]);
-      const mappedRole = roleCheck.rows[0]?.role;
-
-      // If existing user is a parent OR has no roles OR is marked inactive, purge it so fresh parent registration always succeeds
-      const isParentAccount = existingRole === 'parent' || mappedRole === 'parent' || role === 'parent' || (!existingRole && !mappedRole);
-      if (isParentAccount || roleCheck.rows.length === 0 || checkRes.rows[0].is_active === false) {
-        console.log(`[Auth Signup] Auto-purging existing parent/stale profile ${existingId} for ${normalizedEmail}...`);
-        try {
-          await pool.query('DELETE FROM public.user_roles WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [normalizedEmail]);
-          await pool.query('DELETE FROM public.user_security_groups WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [normalizedEmail]);
-          await pool.query('UPDATE public.children SET parent_id = NULL WHERE parent_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = $1)', [normalizedEmail]);
-          await pool.query('DELETE FROM public.profiles WHERE LOWER(email) = $1', [normalizedEmail]);
-        } catch (cleanErr) {
-          console.warn('[Auth Signup] Cleanup warning:', cleanErr.message);
-        }
-      } else {
-        return res.status(400).json({ error: 'An account with this email already exists' });
-      }
+      console.warn(`[Auth Signup] Registration conflict: Account already exists for ${normalizedEmail}`);
+      return res.status(409).json({ 
+        error: 'An account with this email address already exists. Please sign in or use password reset.' 
+      });
     }
 
     // 2. Generate hash
@@ -1286,6 +1317,9 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
   }
 });
 
+// In-memory lockout tracker for failed login attempts (keyed by normalized email)
+const failedLoginAttempts = new Map();
+
 app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -1293,6 +1327,18 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+
+  // Check account lockout status
+  const lockInfo = failedLoginAttempts.get(normalizedEmail);
+  if (lockInfo && lockInfo.lockedUntil && lockInfo.lockedUntil > Date.now()) {
+    const remainingMins = Math.ceil((lockInfo.lockedUntil - Date.now()) / 60000);
+    console.warn(`[Auth Lockout] Login blocked for locked account: ${normalizedEmail} (${remainingMins} mins remaining)`);
+    return res.status(429).json({
+      error: 'Account Locked',
+      message: `Account temporarily locked due to 5 consecutive failed login attempts. Please try again in ${remainingMins} minute(s) or reset your password.`
+    });
+  }
+
   const client = await pool.connect();
 
   try {
@@ -1348,8 +1394,34 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
 
     if (!isMatch) {
       console.warn(`[Auth] Failed login for ${normalizedEmail} — password mismatch`);
-      return res.status(401).json({ error: 'Invalid email or password' });
+      const attempt = failedLoginAttempts.get(normalizedEmail) || { count: 0, firstFailed: Date.now() };
+      // Reset count if first failure was more than 15 minutes ago
+      if (Date.now() - attempt.firstFailed > 15 * 60 * 1000) {
+        attempt.count = 0;
+        attempt.firstFailed = Date.now();
+      }
+      attempt.count += 1;
+
+      if (attempt.count >= 5) {
+        attempt.lockedUntil = Date.now() + 15 * 60 * 1000;
+        failedLoginAttempts.set(normalizedEmail, attempt);
+        console.warn(`[Auth Lockout] Account ${normalizedEmail} locked after ${attempt.count} failed attempts`);
+        return res.status(429).json({
+          error: 'Account Locked',
+          message: 'Account temporarily locked due to 5 consecutive failed login attempts. Please try again in 15 minutes or reset your password.'
+        });
+      } else {
+        failedLoginAttempts.set(normalizedEmail, attempt);
+        const remaining = 5 - attempt.count;
+        return res.status(401).json({
+          error: 'Invalid email or password',
+          message: `Invalid email or password. ${remaining} attempt(s) remaining before account lockout.`
+        });
+      }
     }
+
+    // Login successful — clear failure counter
+    failedLoginAttempts.delete(normalizedEmail);
 
     // Determine the role
     const finalRole = profile.role || 'parent';
@@ -2899,9 +2971,10 @@ app.post(['/api/functions/admin-user-management', '/functions/v1/admin-user-mana
           await forceDeleteProfile(userId);
           return res.json({ success: false, error: `Failed to set role: ${roleErr.message}` });
         }
+        const defaultVerificationStatus = data.verificationStatus || 'verified';
         await tryQuery(
-          'UPDATE public.user_roles SET is_volunteer = $2, verification_status = $3 WHERE user_id = $1::uuid',
-          [userId, data.isVolunteer ?? false, action === 'create_visitor' ? 'verified' : 'unverified'],
+          'UPDATE public.user_roles SET is_volunteer = $2, verification_status = $3, verified_at = NOW() WHERE user_id = $1::uuid',
+          [userId, data.isVolunteer ?? false, defaultVerificationStatus],
           'role extra fields'
         );
 
@@ -3391,6 +3464,43 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+app.get(['/.well-known/security.txt', '/api/.well-known/security.txt'], (req, res) => {
+  res.type('text/plain').send(`Contact: mailto:security@gvachurch.com
+Expires: 2027-10-24T00:00:00.000Z
+Preferred-Languages: en, es
+Canonical: https://kids.gvachurch.com/.well-known/security.txt
+Policy: https://kids.gvachurch.com/privacy-policy
+Acknowledgment: https://kids.gvachurch.com/about-us`);
+});
+
+app.get(['/robots.txt', '/api/robots.txt'], (req, res) => {
+  res.type('text/plain').send(`User-agent: *
+Allow: /
+Allow: /privacy-policy
+Allow: /terms-of-service
+Allow: /about-us
+Allow: /login
+Allow: /parent-registration
+Disallow: /admin/
+Disallow: /parent/
+Disallow: /staff/
+Disallow: /api/
+
+Sitemap: https://kids.gvachurch.com/sitemap.xml`);
+});
+
+app.get(['/sitemap.xml', '/api/sitemap.xml'], (req, res) => {
+  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kids.gvachurch.com/</loc><priority>1.0</priority></url>
+  <url><loc>https://kids.gvachurch.com/privacy-policy</loc><priority>0.8</priority></url>
+  <url><loc>https://kids.gvachurch.com/terms-of-service</loc><priority>0.8</priority></url>
+  <url><loc>https://kids.gvachurch.com/about-us</loc><priority>0.7</priority></url>
+  <url><loc>https://kids.gvachurch.com/parent-registration</loc><priority>0.9</priority></url>
+  <url><loc>https://kids.gvachurch.com/login</loc><priority>0.7</priority></url>
+</urlset>`);
+});
+
 app.get('/api/profile', verifyToken, async (req, res) => {
   try {
     const email = (req.user.email || req.user.preferred_username || '').trim().toLowerCase();
@@ -3412,19 +3522,27 @@ app.get('/api/profile', verifyToken, async (req, res) => {
     // Fetch user roles & is_super_admin from user_roles
     let userRole = profile.role || 'parent';
     let isSuperAdmin = profile.is_super_admin || false;
+    let verificationStatus = profile.verification_status || 'unverified';
 
     try {
-      const roleRes = await pool.query('SELECT role, is_super_admin FROM public.user_roles WHERE user_id = $1::uuid LIMIT 1', [profile.id]);
+      const roleRes = await pool.query('SELECT role, is_super_admin, verification_status FROM public.user_roles WHERE user_id = $1::uuid LIMIT 1', [profile.id]);
       if (roleRes.rows.length > 0) {
         userRole = roleRes.rows[0].role || userRole;
         if (roleRes.rows[0].is_super_admin) isSuperAdmin = true;
+        if (roleRes.rows[0].verification_status) verificationStatus = roleRes.rows[0].verification_status;
       }
     } catch (e) {}
+
+    // Super admin and admin accounts are always verified by definition
+    if (isSuperAdmin || userRole === 'admin') {
+      verificationStatus = 'verified';
+    }
 
     res.json({
       ...profile,
       role: userRole,
       is_super_admin: isSuperAdmin,
+      verification_status: verificationStatus,
       permissions: ['*']
     });
   } catch (err) { res.status(500).json({ error: err.message }); }

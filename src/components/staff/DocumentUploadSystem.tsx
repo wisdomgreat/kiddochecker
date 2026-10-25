@@ -40,13 +40,30 @@ const DocumentUploadSystem = () => {
     getDocumentUrl,
   } = useStaffVerification();
 
+  const [fileError, setFileError] = useState<string | null>(null);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 1. Windows-Server Style Screening (FSRM)
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      const allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+
+      if (!allowedExts.includes(ext) && (!file.type || !allowedTypes.includes(file.type))) {
+        const errMsg = "Invalid file type. Please select a PDF, JPG, or PNG document.";
+        setFileError(errMsg);
+        toast({
+           title: "Invalid Type",
+           description: errMsg,
+           variant: "destructive"
+        });
+        return;
+      }
+
+      // 1. Organization Screening (FSRM)
       const screening = screenFileUpload(file, settings);
-      
       if (!screening.isValid) {
+        setFileError(screening.error || "File violates security policy or size limits.");
         toast({
           title: "Policy Violation",
           description: screening.error,
@@ -62,15 +79,7 @@ const DocumentUploadSystem = () => {
         });
       }
 
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-      if (!allowedTypes.includes(file.type)) {
-        toast({
-           title: "Invalid Type",
-           description: "Please select a PDF, JPG, or PNG file.",
-           variant: "destructive"
-        });
-        return;
-      }
+      setFileError(null);
       setSelectedFile(file);
     }
   };
@@ -229,6 +238,11 @@ const DocumentUploadSystem = () => {
                   <p className="text-xs text-slate-500 mt-1">
                     PDF, JPG, PNG files only. Max 200KB.
                   </p>
+                  {fileError && (
+                    <p className="text-xs text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> {fileError}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -247,7 +261,7 @@ const DocumentUploadSystem = () => {
                 <Alert className="bg-indigo-50 border-indigo-200">
                   <FileText className="h-4 w-4 text-indigo-600" />
                   <AlertDescription className="text-indigo-800">
-                    Selected: <strong>{selectedFile.name}</strong> ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    Selected: <strong>{selectedFile.name}</strong> ({(selectedFile.size / 1024).toFixed(1)} KB)
                   </AlertDescription>
                 </Alert>
               )}
@@ -255,10 +269,14 @@ const DocumentUploadSystem = () => {
               <Button
                 onClick={handleUpload}
                 disabled={isUploading || !selectedFile || !documentType}
-                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
               >
                 {isUploading ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...</>
+                ) : !documentType && selectedFile ? (
+                  <><AlertCircle className="h-4 w-4 mr-2" /> Please Select Document Type Above</>
+                ) : !selectedFile && documentType ? (
+                  <><Upload className="h-4 w-4 mr-2" /> Please Attach Document File</>
                 ) : (
                   <><Upload className="h-4 w-4 mr-2" /> Submit Document for Review</>
                 )}

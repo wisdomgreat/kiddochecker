@@ -32,6 +32,7 @@ export const ParentRegistrationFlow = () => {
   const isEs = language === 'es';
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [consentAgreed, setConsentAgreed] = useState(false);
   
   const [parentData, setParentData] = useState<ParentData>({
     firstName: "",
@@ -69,27 +70,60 @@ export const ParentRegistrationFlow = () => {
     switch (step) {
       case 1:
         return !!(parentData.firstName && parentData.lastName && parentData.email && parentData.phone);
-      case 2:
-        return !!(parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 6 && parentData.securityPin && parentData.securityPin.length >= 4);
+      case 2: {
+        const hasValidPwd = parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 8;
+        const trivialPins = ['1234', '0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '123456', '000000'];
+        const hasValidPin = parentData.securityPin && parentData.securityPin.length >= 4 && !trivialPins.includes(parentData.securityPin);
+        return Boolean(hasValidPwd && hasValidPin);
+      }
       case 3:
-        return children.every(child => child.firstName && child.lastName && child.birthdate);
+        return children.length > 0 && children.every(child => child.firstName && child.lastName && child.birthdate);
       case 4:
-        return true;
+        return consentAgreed;
       default:
         return false;
     }
   };
 
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 4));
-    } else {
+  const handleNext = async () => {
+    if (!validateStep(currentStep)) {
+      if (currentStep === 2) {
+        toast({
+          title: "Password or PIN Requirement Not Met",
+          description: "Password must be at least 8 characters. PIN must be 4-6 digits and non-trivial (e.g. not 1234).",
+          variant: "destructive"
+        });
+        return;
+      }
       toast({
         title: isEs ? "Complete los campos requeridos" : "Please complete required fields",
         description: isEs ? "Complete toda la información requerida antes de continuar." : "Fill in all required information before proceeding to the next step.",
         variant: "destructive"
       });
+      return;
     }
+
+    if (currentStep === 1) {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        const res = await fetch(`${baseUrl}/api/auth/check-email?email=${encodeURIComponent(parentData.email.trim().toLowerCase())}`);
+        if (res.ok) {
+          const { exists } = await res.json();
+          if (exists) {
+            toast({
+              title: "Account Already Exists",
+              description: "An account with this email address already exists. Please sign in or use password reset.",
+              variant: "destructive"
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("[Registration] Email check notice:", e);
+      }
+    }
+
+    setCurrentStep(prev => Math.min(prev + 1, 4));
   };
 
   const handleBack = () => {
@@ -163,6 +197,12 @@ export const ParentRegistrationFlow = () => {
       for (const child of children) {
         const childAge = calculateAge(child.birthdate);
         
+        // Combine notes with structured authorized pickup information
+        const combinedNotes = [
+          child.authorizedPickups ? `[Authorized Pickups]: ${child.authorizedPickups}` : null,
+          child.notes ? `[Notes]: ${child.notes}` : null
+        ].filter(Boolean).join('\n');
+
         const { data: insertedChild, error: childError } = await supabase
           .from('children')
           .insert({
@@ -172,7 +212,7 @@ export const ParentRegistrationFlow = () => {
             age: childAge,
             allergies: child.allergies || null,
             medical_info: child.medicalInfo || null,
-            notes: child.notes || null,
+            notes: combinedNotes || null,
             emergency_contact_name: child.emergencyContactName || parentData.emergencyContact,
             emergency_contact_phone: child.emergencyContactPhone || parentData.emergencyPhone
           })
@@ -208,16 +248,19 @@ export const ParentRegistrationFlow = () => {
 
       toast({
         title: "Registration Complete!",
-        description: "Your account has been created. You can now log in.",
+        description: "Your account and family profiles have been created. You can now log in.",
       });
 
       navigate('/login');
 
     } catch (error: any) {
       console.error('Registration error:', error);
+      const isDuplicate = error.message?.toLowerCase().includes('already exists') || error.status === 409;
       toast({
-        title: "Registration Failed",
-        description: error.message || "An error occurred during registration. Please try again.",
+        title: isDuplicate ? "Account Already Exists" : "Registration Failed",
+        description: isDuplicate
+          ? "An account with this email address already exists. Please log in or use password reset."
+          : (error.message || "An error occurred during registration. Please try again."),
         variant: "destructive"
       });
     } finally {
@@ -234,7 +277,14 @@ export const ParentRegistrationFlow = () => {
       case 3:
         return <ChildrenRegistrationStep children={children} onChange={setChildren} />;
       case 4:
-        return <ReviewStep parentData={parentData} children={children} />;
+        return (
+          <ReviewStep 
+            parentData={parentData} 
+            children={children} 
+            consentAgreed={consentAgreed} 
+            onConsentChange={setConsentAgreed} 
+          />
+        );
       default:
         return null;
     }

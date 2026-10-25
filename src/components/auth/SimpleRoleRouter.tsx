@@ -12,7 +12,15 @@ export const SimpleRoleRouter = () => {
     if (loading) return;
 
     const currentPath = location.pathname;
-    const isPublicRoute = ['/landing', '/login', '/parent-registration', '/checkin', '/checkout'].includes(currentPath);
+    const isPublicRoute = [
+      '/landing', '/login', '/parent-registration', '/register',
+      '/privacy-policy', '/privacy',
+      '/terms-of-service', '/terms',
+      '/about-us', '/about',
+      '/forgot-password', '/reset-password',
+      '/help', '/faq',
+      '/checkin', '/checkout'
+    ].includes(currentPath);
     const isRootRoute = currentPath === '/';
 
     console.log('SimpleRoleRouter - User:', user?.id, 'Role:', userRole, 'Current path:', currentPath);

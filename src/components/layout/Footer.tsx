@@ -12,7 +12,7 @@ const Footer = () => {
               <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center">
                 <span className="text-white font-bold text-sm">K</span>
               </div>
-              <span className="ml-2 font-bold text-xl text-white">KidCheck</span>
+              <span className="ml-2 font-bold text-xl text-white">KiddoChecker</span>
             </div>
             <p className="mt-4 text-sm text-gray-400">
               Secure, simple, and reliable check-in/check-out system for children's programs.
@@ -108,8 +108,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-white text-sm">
-                  Licensing
+                <a href="/.well-known/security.txt" className="text-gray-400 hover:text-white text-sm">
+                  Security Disclosure
                 </a>
               </li>
             </ul>
@@ -118,10 +118,10 @@ const Footer = () => {
         
         <div className="mt-8 border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-gray-400">
-            &copy; 2025 KidCheck. All rights reserved.
+            &copy; 2026 KiddoChecker. All rights reserved. Green Valley Alliance Church.
           </p>
           <div className="mt-4 md:mt-0">
-            <a href="#" className="text-sm text-gray-400 hover:text-white">
+            <a href="/sitemap.xml" className="text-sm text-gray-400 hover:text-white">
               Sitemap
             </a>
           </div>

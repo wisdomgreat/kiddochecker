@@ -29,6 +29,7 @@ export interface ChildData {
   notes: string;
   emergencyContactName: string;
   emergencyContactPhone: string;
+  authorizedPickups?: string;
   // Structured Medical Fields
   bloodType?: string;
   doctorName?: string;
@@ -70,6 +71,7 @@ export const ChildrenRegistrationStep: React.FC<ChildrenRegistrationStepProps> =
       notes: "",
       emergencyContactName: "",
       emergencyContactPhone: "",
+      authorizedPickups: "",
       bloodType: "",
       doctorName: "",
       doctorPhone: "",
@@ -537,13 +539,29 @@ export const ChildrenRegistrationStep: React.FC<ChildrenRegistrationStepProps> =
               )}
             </div>
 
+            {/* Authorized Pickup Persons */}
+            <div className="space-y-1.5 p-3.5 rounded-xl border border-indigo-200/70 dark:border-indigo-900/50 bg-indigo-50/20 dark:bg-indigo-950/10">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
+                <ShieldAlert className="h-4 w-4" /> Authorized Pickup Person(s)
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Designate adults permitted to check out this child in addition to parents (e.g. "Jane Doe (Aunt) - 555-0192").
+              </p>
+              <Input
+                value={child.authorizedPickups || ""}
+                onChange={(e) => updateChild(index, "authorizedPickups", e.target.value)}
+                placeholder="Full name, relationship, and contact phone"
+                className="h-9 text-xs rounded-xl"
+              />
+            </div>
+
             {/* General Care Notes */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">General Care & Behavioral Notes (Optional)</Label>
               <Textarea
                 value={child.notes}
                 onChange={(e) => updateChild(index, "notes", e.target.value)}
-                placeholder="Comfort items, favorite activities, or pickup instructions..."
+                placeholder="Comfort items, favorite activities, sensory preferences..."
                 rows={2}
                 className="rounded-xl resize-none text-xs"
               />
