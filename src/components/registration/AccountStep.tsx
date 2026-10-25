@@ -64,7 +64,7 @@ const AccountStep = ({
         
         <div>
           <div className="flex justify-between items-center mb-1">
-            <Label htmlFor="pin">{isPinMode ? "6-Digit PIN" : "Password"}</Label>
+            <Label htmlFor="pin">{isPinMode ? "4 to 6-Digit PIN" : "Password"}</Label>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">PIN</span>
               <Switch
@@ -80,7 +80,7 @@ const AccountStep = ({
               type={showPin ? "text" : "password"}
               value={pin}
               onChange={(e) => handlePinChange(e, setPin)}
-              placeholder={isPinMode ? "Create a 6-digit PIN" : "Create a password"}
+              placeholder={isPinMode ? "Create a 4 to 6-digit PIN" : "Create a password"}
               className="mt-1 pr-10"
               maxLength={10}
             />

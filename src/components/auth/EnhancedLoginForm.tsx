@@ -16,8 +16,9 @@ const EnhancedLoginForm = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [step, setStep] = useState<'login' | 'mfa'>('login');
+  const [step, setStep] = useState<'login' | 'mfa' | 'verify_email'>('login');
   const [mfaCode, setMfaCode] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,6 +28,16 @@ const EnhancedLoginForm = () => {
   const { user, loading, signInWithPassword, signIn } = useAuth();
   
   const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const unverified = params.get('unverified');
+    const paramEmail = params.get('email');
+    if (paramEmail) setEmail(paramEmail);
+    if (unverified === 'true') {
+      setStep('verify_email');
+    }
+  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -59,7 +70,49 @@ const EnhancedLoginForm = () => {
       });
       window.location.href = '/';
     } catch (err: any) {
+      if (err.requiresVerification || err.message?.includes('Verification') || err.message?.includes('verification')) {
+        setStep('verify_email');
+        setError(err.message || (isEs ? "Verifique su correo electrónico antes de ingresar." : "Please verify your email before signing in."));
+        toast({
+          title: isEs ? "Verificación de Correo Requerida" : "Email Verification Required",
+          description: isEs ? "Por favor ingrese el código de 6 dígitos enviado a su correo." : "Please enter the 6-digit verification code sent to your email."
+        });
+        return;
+      }
       setError(err.message || (isEs ? "Correo o contraseña no válidos" : "Invalid email or password"));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyEmailCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyCode) return;
+
+    setIsLoading(true);
+    setError('');
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io';
+      const res = await fetch(`${apiUrl}/api/auth/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verifyCode })
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || (isEs ? 'Código no válido o caducado' : 'Invalid or expired verification code'));
+      }
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem('bridge_token', data.token);
+      }
+      toast({
+        title: isEs ? "¡Correo Verificado!" : "Email Verified!",
+        description: isEs ? "Su cuenta está activa. ¡Bienvenido a KiddoChecker!" : "Your account is now active. Welcome to KiddoChecker!"
+      });
+      window.location.href = '/';
+    } catch (err: any) {
+      setError(err.message || (isEs ? 'Error al verificar el código.' : 'Failed to verify code. Please check and try again.'));
     } finally {
       setIsLoading(false);
     }
@@ -250,6 +303,75 @@ const EnhancedLoginForm = () => {
                     </button>
                   </p>
                 </div>
+
+                {error && (
+                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
+              </form>
+            ) : step === 'verify_email' ? (
+              <form onSubmit={handleVerifyEmailCode} className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full mb-1">
+                    <Mail className="h-3.5 w-3.5" />
+                    {isEs ? "Verificación de Correo" : "Email Verification"}
+                  </div>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                    {isEs ? "Ingrese su Código" : "Enter Verification Code"}
+                  </h2>
+                  <p className="text-slate-500 font-medium text-sm">
+                    {isEs 
+                      ? `Hemos enviado un código de 6 dígitos a ${email || 'su correo'}. Ingréselo para activar su portal.` 
+                      : `We sent a 6-digit verification code to ${email || 'your email'}. Enter it below to activate your account.`}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="verifyCode" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">
+                      {isEs ? "Código de 6 Dígitos" : "6-Digit Security Code"}
+                    </Label>
+                    <div className="relative group">
+                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                      <Input 
+                        id="verifyCode"
+                        placeholder="000000"
+                        type="text"
+                        maxLength={6}
+                        value={verifyCode}
+                        onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
+                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-center text-2xl font-mono tracking-[0.4em] font-black"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={isLoading || verifyCode.length < 6} 
+                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
+                >
+                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+                    <>{isEs ? "Verificar y Entrar" : "Verify & Access Portal"} <ArrowRight className="h-5 w-5" /></>
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setStep('login');
+                    setVerifyCode('');
+                    setError('');
+                  }}
+                  className="w-full h-12 rounded-xl text-slate-500 font-semibold"
+                >
+                  {isEs ? "Volver a Iniciar Sesión" : "Back to Sign In"}
+                </Button>
 
                 {error && (
                   <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">

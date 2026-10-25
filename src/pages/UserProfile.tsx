@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +15,7 @@ import { User, Mail, Phone, MapPin, Save, Loader2, Key, QrCode, ShieldCheck, Bad
 import { Badge } from "@/components/ui/badge";
 import { QRCodeSVG } from "qrcode.react";
 import MfaEnrollment from "@/components/auth/MfaEnrollment";
+import { useStaffVerification } from "@/hooks/useStaffVerification";
 
 const profileSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
@@ -32,7 +34,13 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 const UserProfile = () => {
   const { user, userRole, isVerifiedStaff } = useAuth();
+  const { completedMandatory, mandatoryRequirements } = useStaffVerification();
   const { toast } = useToast();
+
+  if (userRole === 'parent') {
+    return <Navigate to="/parent/profile" replace />;
+  }
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -170,7 +178,7 @@ const UserProfile = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {isVerifiedStaff || userRole === 'admin' || userRole === 'super_admin' ? (
+            {(userRole === 'admin' || userRole === 'super_admin') || (isVerifiedStaff && mandatoryRequirements.length > 0 && completedMandatory.length === mandatoryRequirements.length) ? (
               <div className="bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-500/20 flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
                 <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Verified Identity</span>

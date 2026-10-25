@@ -196,6 +196,7 @@ export const useStaffVerification = () => {
                     file_size: file.size,
                     description: description || null,
                     status: 'pending',
+                    uploaded_at: new Date().toISOString(),
                 } as any)
                 .select()
                 .single();

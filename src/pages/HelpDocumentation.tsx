@@ -106,14 +106,14 @@ const STEP_GUIDES: StepGuide[] = [
     roleBadgeColor: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
     category: "Check-In & Kiosk",
     icon: Monitor,
-    summary: "Check in your children in under 10 seconds using your phone number, 6-digit PIN, QR code, or NFC tap.",
+    summary: "Check in your children in under 10 seconds using your phone number, 4 to 6-digit PIN, QR code, or NFC tap.",
     estimatedTime: "1 min",
     difficulty: "Beginner",
     actionLink: { text: "Open Kiosk Station", url: "/check-in" },
     cheatSheetSummary: [
       "1. Approach the kiosk terminal in the church lobby",
       "2. Enter last 4 digits of phone or scan mobile QR",
-      "3. Enter 6-digit Security PIN to confirm authorized access",
+      "3. Enter 4 to 6-digit Security PIN to confirm authorized access",
       "4. Check each child attending and confirm health screening",
       "5. Collect printed child name tag and Parent Claim Ticket"
     ],
@@ -127,10 +127,10 @@ const STEP_GUIDES: StepGuide[] = [
       },
       {
         number: 2,
-        title: "Enter Your 6-Digit Security PIN",
-        description: "Enter your private 6-digit Security PIN (found on your Profile page) to confirm you are the authorized guardian.",
+        title: "Enter Your 4 to 6-Digit Security PIN",
+        description: "Enter your private 4 to 6-digit Security PIN (found on your Profile page) to confirm you are the authorized guardian.",
         tip: "Keep your PIN confidential. It ensures only approved family members can access your family's check-in profile.",
-        keyAction: "Enter 6-digit PIN"
+        keyAction: "Enter 4 to 6-digit PIN"
       },
       {
         number: 3,

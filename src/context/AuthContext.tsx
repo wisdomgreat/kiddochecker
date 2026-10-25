@@ -106,9 +106,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (res.status === 401) {
           throw new Error(errorData.message || errorData.error || 'Invalid email or password.');
         }
+        if (res.status === 403) {
+          const err: any = new Error(errorData.message || errorData.error || 'Email verification required.');
+          err.requiresVerification = Boolean(errorData.requiresVerification);
+          err.email = errorData.email || email;
+          throw err;
+        }
       }
     } catch (bridgeErr: any) {
-      if (bridgeErr.message && (bridgeErr.message.includes('locked') || bridgeErr.message.includes('Invalid email') || bridgeErr.message.includes('attempt(s) remaining'))) {
+      if (bridgeErr.requiresVerification || (bridgeErr.message && (
+        bridgeErr.message.includes('locked') ||
+        bridgeErr.message.includes('Invalid email') ||
+        bridgeErr.message.includes('Verification') ||
+        bridgeErr.message.includes('verification') ||
+        bridgeErr.message.includes('attempt(s) remaining')
+      ))) {
         throw bridgeErr;
       }
       console.warn('[Auth] Azure Bridge login attempt notice, falling back to Supabase:', bridgeErr.message);

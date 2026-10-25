@@ -132,6 +132,23 @@ const DocumentUploadSystem = () => {
     }
   };
 
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatUploadDate = (dateVal?: string | Date) => {
+    if (!dateVal) return format(new Date(), 'MMM dd, yyyy');
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime()) || d.getFullYear() <= 1970) {
+      return format(new Date(), 'MMM dd, yyyy');
+    }
+    return format(d, 'MMM dd, yyyy');
+  };
+
   // Calculate checklist progress
   const mandatoryRequirements = requirements.filter(r => r.is_mandatory);
   const submittedMandatory = mandatoryRequirements.filter(req =>
@@ -332,8 +349,8 @@ const DocumentUploadSystem = () => {
                             <p className="text-xs text-slate-500">
                               {requirements.find(r => r.document_type === doc.document_type)?.display_name || doc.document_type}
                               {' • '}
-                              Uploaded {format(new Date(doc.uploaded_at), 'MMM dd, yyyy')}
-                              {doc.file_size && ` • ${(doc.file_size / 1024 / 1024).toFixed(1)} MB`}
+                              Uploaded {formatUploadDate(doc.uploaded_at)}
+                              {doc.file_size ? ` • ${formatFileSize(doc.file_size)}` : ''}
                             </p>
                             {doc.status === 'rejected' && doc.rejection_reason && (
                               <p className="text-xs text-red-600 mt-1 bg-red-50 rounded px-2 py-1">

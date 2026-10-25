@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { AppRole } from '@/types/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { ShieldX, Loader2 } from 'lucide-react';
+import { ShieldX, ShieldAlert, Loader2 } from 'lucide-react';
 
 interface RoleBasedRouteProps {
   children: ReactNode;
@@ -56,7 +56,6 @@ const RoleBasedRoute = ({ children, allowedRoles, requiredPermission, redirectTo
     );
   }
 
-
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -93,7 +92,29 @@ const RoleBasedRoute = ({ children, allowedRoles, requiredPermission, redirectTo
     const isAllowedUnverifiedPath = ['/', '/staff-dashboard', '/dashboard', '/parent-dashboard', '/staff/documents', '/profile'].includes(location.pathname);
     
     if (isStaffType && !isVerifiedStaff && !isAllowedUnverifiedPath) {
-      return <Navigate to="/" replace />;
+      return (
+        <div className="flex items-center justify-center min-h-[60vh] p-6 font-['Outfit']">
+          <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm text-center space-y-4">
+            <div className="mx-auto w-12 h-12 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 rounded-xl flex items-center justify-center">
+              <ShieldAlert className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Staff Verification Required</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                Access to this section is restricted until your staff documents are submitted and verified by an administrator.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center pt-2">
+              <Button variant="outline" onClick={() => window.location.href = '/'}>
+                Dashboard
+              </Button>
+              <Button onClick={() => window.location.href = '/staff/documents'}>
+                Submit Documents
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
     }
 
     return <>{children}</>;
@@ -104,9 +125,28 @@ const RoleBasedRoute = ({ children, allowedRoles, requiredPermission, redirectTo
     return <Navigate to={redirectTo} replace />;
   }
 
-  // If the user is authenticated but lacks access, send them home
-  if (userRole && ROLE_HOME[userRole]) {
-    return <Navigate to={ROLE_HOME[userRole]} replace />;
+  // If authenticated user lacks access, provide informative feedback instead of silent bounce
+  if (userRole) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] p-6 font-['Outfit']">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm text-center space-y-4">
+          <div className="mx-auto w-12 h-12 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-xl flex items-center justify-center">
+            <ShieldX className="h-6 w-6 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Access Denied</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              You do not have administrative permissions to view this page. This action has been logged for security.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Button onClick={() => window.location.href = ROLE_HOME[userRole] || '/'}>
+              Return to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Role not yet determined — show error with actions instead of dead-end

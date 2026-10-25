@@ -523,7 +523,7 @@ const KioskCheckInSystem = () => {
       }
 
       if (!cleanPin || cleanPin.length < 4) {
-        setParentLoginError(isEs ? "Por favor ingrese su PIN de seguridad de 4 dígitos" : "Please enter your 4-digit security PIN");
+        setParentLoginError(isEs ? "Por favor ingrese su PIN de seguridad de 4 a 6 dígitos" : "Please enter your 4 to 6-digit security PIN");
         setActiveInput('pin');
         setIsLoading(false);
         return;
@@ -1279,7 +1279,7 @@ const KioskCheckInSystem = () => {
                       >
                         <div className="flex items-center justify-between">
                           <span className={cn("text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
-                            <Shield className="w-3 h-3" /> {isEs ? "PIN Seguro" : "4-Digit PIN"}
+                            <Shield className="w-3 h-3" /> {isEs ? "PIN Seguro" : "4 to 6-Digit PIN"}
                           </span>
                           {parentPin && (
                             <button type="button" onClick={(e) => { e.stopPropagation(); setParentPin(''); }} className="text-[10px] font-bold text-slate-500 hover:text-rose-400">✕</button>
@@ -1302,7 +1302,7 @@ const KioskCheckInSystem = () => {
                       <span className="text-[11px] font-bold uppercase text-slate-400">
                         {activeInput === 'phone' 
                           ? (isEs ? "👉 Ingrese Teléfono (Paso 1)" : "👉 Enter Phone (Step 1)") 
-                          : (isEs ? "👉 Ingrese PIN de 4 dígitos (Paso 2)" : "👉 Enter 4-digit PIN (Step 2)")}
+                          : (isEs ? "👉 Ingrese PIN de 4 a 6 dígitos (Paso 2)" : "👉 Enter 4 to 6-digit PIN (Step 2)")}
                       </span>
                       <button
                         type="button"
@@ -1358,7 +1358,7 @@ const KioskCheckInSystem = () => {
                     )}
                   >
                     <span className={cn("text-[9px] font-extrabold uppercase flex items-center gap-1", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
-                      <Shield className="w-2.5 h-2.5" /> 4-Digit PIN
+                      <Shield className="w-2.5 h-2.5" /> 4 to 6-Digit PIN
                     </span>
                     <p className="text-xs font-mono font-black text-white mt-0.5 tracking-widest">
                       {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-normal">••••</span>}
@@ -1373,7 +1373,7 @@ const KioskCheckInSystem = () => {
                 {/* Step Instruction & Quick Switch */}
                 <div className="flex items-center justify-between px-1 text-[10px]">
                   <span className="font-bold text-slate-400">
-                    {activeInput === 'phone' ? "Step 1: Phone" : "Step 2: 4-digit PIN"}
+                    {activeInput === 'phone' ? "Step 1: Phone" : "Step 2: 4 to 6-digit PIN"}
                   </span>
                   <button
                     type="button"

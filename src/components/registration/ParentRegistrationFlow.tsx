@@ -229,11 +229,11 @@ export const ParentRegistrationFlow = () => {
       }
 
       toast({
-        title: "Registration Complete!",
-        description: "Your account and family profiles have been created. You can now log in.",
+        title: "Registration Successful! Verification Required",
+        description: "A 6-digit verification code has been sent to your email. Please verify your email before logging in.",
       });
 
-      navigate('/login');
+      navigate(`/login?unverified=true&email=${encodeURIComponent(parentData.email)}`);
 
     } catch (error: any) {
       console.error('Registration error:', error);

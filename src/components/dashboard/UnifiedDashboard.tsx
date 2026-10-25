@@ -7,6 +7,7 @@ import StaffTeacherDashboard from "./StaffTeacherDashboard";
 import ParentDashboardNew from "./ParentDashboardNew";
 import VolunteerDashboardNew from "./VolunteerDashboardNew";
 import DocumentUploadSystem from "@/components/staff/DocumentUploadSystem";
+import MfaEnrollment from "@/components/auth/MfaEnrollment";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -30,18 +31,51 @@ const UnifiedDashboard = () => {
     return <Navigate to="/check-in" replace />;
   }
 
-  // Non-blocking MFA enrollment reminder for admin/staff who haven't set up MFA
-  const showMfaBanner = (isAdmin || isSuperAdmin || isStaff) && !isMfaEnrolled && userRole !== 'kiosk' && !mfaBannerDismissed;
+  // Non-blocking MFA enrollment reminder for parents or roles not covered by mandatory gate
+  const showMfaBanner = isParent && !isMfaEnrolled && !mfaBannerDismissed;
 
   // Determine the dashboard content based on role
   const renderDashboard = () => {
-    // Super admin or admin
+    // Super admin or admin - require 2FA
     if (isSuperAdmin || isAdmin) {
+      if (!isMfaEnrolled) {
+        return (
+          <div className="space-y-6 max-w-3xl mx-auto py-8 font-['Outfit']">
+            <Alert className="border-amber-500/50 bg-amber-500/10">
+              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <AlertTitle className="font-bold text-amber-900 dark:text-amber-200">
+                Security Policy: Mandatory Two-Factor Authentication (2FA) Required
+              </AlertTitle>
+              <AlertDescription className="text-amber-800 dark:text-amber-300">
+                Administrative security policy requires two-factor authentication to be configured before accessing administrative controls.
+              </AlertDescription>
+            </Alert>
+            <MfaEnrollment />
+          </div>
+        );
+      }
       return <AdminDashboardNew />;
     }
 
-    // Staff and teachers
+    // Staff and teachers - require 2FA
     if (isStaff || userRole === "staff" || userRole === "teacher" || userRole === "teacher_assistant") {
+      if (!isMfaEnrolled) {
+        return (
+          <div className="space-y-6 max-w-3xl mx-auto py-8 font-['Outfit']">
+            <Alert className="border-amber-500/50 bg-amber-500/10">
+              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <AlertTitle className="font-bold text-amber-900 dark:text-amber-200">
+                Staff Security Requirement: Two-Factor Authentication (2FA) Required
+              </AlertTitle>
+              <AlertDescription className="text-amber-800 dark:text-amber-300">
+                To protect child records and church security, all staff accounts must configure two-factor authentication before accessing operational features.
+              </AlertDescription>
+            </Alert>
+            <MfaEnrollment />
+          </div>
+        );
+      }
+
       // If not verified and they are a staff role, show Document Upload (Onboarding)
       if (!isVerifiedStaff && userRole !== 'volunteer') {
         return (

@@ -37,22 +37,49 @@ const ParentDashboardNew = () => {
         queryKey: ["parent-my-children", user?.id],
         queryFn: async () => {
             if (!user?.id) return [];
-            const { data, error } = await supabase.rpc("get_parent_children_with_classes", {
-                parent_user_id: user.id,
-            });
-            if (error) {
-                console.error("Error fetching children for dashboard:", error);
-                return [];
+            try {
+                const { data, error } = await supabase.rpc("get_parent_children_with_classes", {
+                    parent_user_id: user.id,
+                });
+                if (!error && Array.isArray(data) && data.length > 0) {
+                    return data.map((child: any) => ({
+                        id: child.child_id || child.id,
+                        first_name: child.first_name,
+                        last_name: child.last_name,
+                        age: child.age,
+                        allergies: child.allergies,
+                        points_balance: child.points_balance || 0,
+                        current_class_name: child.current_class_name || 'General / Summer Camp',
+                    }));
+                }
+            } catch (rpcErr) {
+                console.warn("Notice in get_parent_children_with_classes RPC, attempting direct query:", rpcErr);
             }
-            return (data || []).map((child: any) => ({
-                id: child.child_id,
-                first_name: child.first_name,
-                last_name: child.last_name,
-                age: child.age,
-                allergies: child.allergies,
-                points_balance: child.points_balance || 0,
-                current_class_name: child.current_class_name,
-            }));
+
+            // Resilient direct query fallback
+            try {
+                const { data: directData } = await supabase
+                    .from('children')
+                    .select('*')
+                    .eq('parent_id', user.id)
+                    .order('first_name');
+
+                if (Array.isArray(directData) && directData.length > 0) {
+                    return directData.map((child: any) => ({
+                        id: child.id,
+                        first_name: child.first_name,
+                        last_name: child.last_name,
+                        age: child.age,
+                        allergies: child.allergies,
+                        points_balance: child.points_balance || 0,
+                        current_class_name: child.current_class_name || child.class_name || 'General / Summer Camp',
+                    }));
+                }
+            } catch (directErr) {
+                console.error("Error fetching children via direct query:", directErr);
+            }
+
+            return [];
         },
         enabled: !!user?.id,
     });

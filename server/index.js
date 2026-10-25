@@ -168,13 +168,18 @@ async function setupDatabase() {
     console.error('[DB] care_logs setup notice:', err.message);
   }
 
-  // Ensure profiles table has required columns is_active and password_hash
+  // Ensure profiles table has required columns is_active, password_hash, and email_verified
   try {
     await pool.query(`
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT TRUE;
+      ALTER TABLE public.staff_documents ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE public.staff_documents ALTER COLUMN uploaded_at SET DEFAULT NOW();
+      UPDATE public.staff_documents SET uploaded_at = NOW() WHERE uploaded_at IS NULL;
+      UPDATE public.user_roles SET verification_status = 'pending' WHERE user_id IN (SELECT id FROM public.profiles WHERE email ILIKE '%kiddostaff%');
     `);
-    console.log('[DB] Profiles table schema columns (is_active, password_hash) verified.');
+    console.log('[DB] Profiles table schema columns and staff verification pending status verified.');
   } catch (err) {
     console.error('[DB] Profiles column migration notice:', err.message);
   }
@@ -268,6 +273,36 @@ async function setupDatabase() {
     }
   } catch (err) {
     console.error('[DB] Error correcting email typo:', err.message);
+  }
+
+  // ─── Automated Cleanup of Retest Synthetic Accounts and Documents ───────────
+  try {
+    const syntheticEmails = [
+      'wisejobsnaija+kiddoretest2a@gmail.com',
+      'wisejobsnaija+kiddoretest2b@gmail.com',
+      'wisejobsnaija+kiddofapi2@gmail.com',
+      'kiddofapi3@gmail.com',
+      'wisejobsnaija+kiddofapi3@gmail.com',
+      'kiddofapi4@gmail.com',
+      'wisejobsnaija+kiddofapi4@gmail.com'
+    ];
+    for (const email of syntheticEmails) {
+      const pRes = await pool.query('SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($1)', [email]);
+      for (const row of pRes.rows) {
+        await pool.query('DELETE FROM public.children WHERE parent_id::uuid = $1::uuid', [row.id]);
+        await forceDeleteProfile(row.id);
+      }
+    }
+    await pool.query(`
+      DELETE FROM public.staff_documents 
+      WHERE file_name ILIKE '%TEST%Police%' 
+         OR file_name ILIKE '%TEST-ONLY%'
+         OR (profile_id IN (SELECT id FROM public.profiles WHERE LOWER(email) ILIKE '%kiddostaff%') 
+             AND document_type = 'police_check');
+    `);
+    console.log('[DB Self-Healing] Cleaned up retest synthetic accounts and test documents.');
+  } catch (cleanErr) {
+    console.warn('[DB Self-Healing] Notice during synthetic cleanup:', cleanErr.message);
   }
 
   // ─── Automated Self-Healing: Comprehensive Purge of Stale / Deleted Profiles ───
@@ -1132,8 +1167,9 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req
       return res.status(401).json({ error: 'Profile not found. Please contact an administrator.' });
     }
 
-    // Invalidate code upon successful verification (single-use)
+    // Invalidate code upon successful verification (single-use) and mark email as verified
     await client.query('DELETE FROM auth.verification_codes WHERE LOWER(email) = $1', [normalizedEmail]);
+    await client.query('UPDATE public.profiles SET email_verified = TRUE WHERE LOWER(email) = $1', [normalizedEmail]);
 
     const profile = profileRes.rows[0];
     const finalRole = profile.resolved_role || 'parent';
@@ -1314,8 +1350,8 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
 
     // Insert profile using gen_random_uuid()
     const insertProfileSql = `
-      INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role, security_pin, address) 
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8) 
+      INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role, security_pin, address, email_verified) 
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, FALSE) 
       RETURNING *
     `;
     const profileRes = await pool.query(insertProfileSql, [
@@ -1339,16 +1375,45 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
       [newUserId, finalRole, false]
     );
 
+    // Generate 6-digit email verification code
+    const vCode = Math.floor(100000 + Math.random() * 900000).toString();
+    await pool.query(
+      `INSERT INTO auth.verification_codes (email, code, created_at, expires_at) 
+       VALUES ($1, $2, NOW(), NOW() + INTERVAL '24 hours')
+       ON CONFLICT (email) DO UPDATE SET code = $2, created_at = NOW(), expires_at = NOW() + INTERVAL '24 hours'`,
+      [normalizedEmail, vCode]
+    );
+
     await pool.query('COMMIT');
 
-    // 4. Issue Bridge JWT
+    // Send verification email
+    try {
+      await sendEmail({
+        to: normalizedEmail,
+        recipientName: firstName.trim(),
+        subject: 'Verify Your KiddoChecker Account',
+        html: `<div style="font-family:sans-serif;padding:24px;background:#f9f9f9;border-radius:12px;border:1px solid #e5e7eb;">
+                <h2 style="color:#2563eb;margin-top:0;">Welcome to KiddoChecker!</h2>
+                <p style="color:#374151;">Please enter the verification code below to verify your email address and activate your family portal:</p>
+                <div style="background:#eff6ff;border:1px dashed #3b82f6;padding:16px;text-align:center;border-radius:8px;margin:20px 0;">
+                  <span style="font-size:32px;font-weight:900;letter-spacing:6px;color:#1d4ed8;font-family:monospace;">${vCode}</span>
+                </div>
+                <p style="color:#6b7280;font-size:12px;">This code will expire in 24 hours.</p>
+               </div>`
+      });
+      console.log(`[Auth Signup] Verification code dispatched to ${normalizedEmail}`);
+    } catch (mailErr) {
+      console.warn('[Auth Signup] Notice dispatching verification email:', mailErr.message);
+    }
+
+    // Issue Bridge JWT with unverified status
     const token = jwt.sign(
-      { id: newUserId, email: normalizedEmail, role: finalRole, is_super_admin: false },
+      { id: newUserId, email: normalizedEmail, role: finalRole, is_super_admin: false, email_verified: false },
       BRIDGE_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.json({ token, profile: sanitizeProfile(profile) });
+    res.json({ token, profile: sanitizeProfile(profile), email_verified: false, requires_verification: true });
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error('[Bridge] signup error:', err.message);
@@ -1467,6 +1532,17 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
 
     const finalRole = profile.resolved_role || 'parent';
     const isSuper = Boolean(profile.is_super);
+
+    // Check if parent account has verified their email address
+    if (finalRole === 'parent' && profile.email_verified === false) {
+      console.warn(`[Auth] Blocked login for unverified parent email: ${normalizedEmail}`);
+      return res.status(403).json({
+        error: 'Email Verification Required',
+        requiresVerification: true,
+        email: normalizedEmail,
+        message: 'Please verify your email address before signing in. A verification code was sent to your email.'
+      });
+    }
 
     // Check if MFA is enabled
     if (profile.mfa_enabled) {
@@ -1863,14 +1939,49 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       // Enforce parent ownership on get_parent_children_with_classes
       if (finalFn === 'get_parent_children_with_classes') {
         finalParams.parent_user_id = req.user.id;
-        finalParams.p_parent_id = req.user.id;
-        finalParams.parent_id = req.user.id;
       }
 
       // Enforce parent ownership on get_children_for_kiosk
       if (finalFn === 'get_children_for_kiosk') {
         finalParams.p_parent_id = req.user.id;
         finalParams.parent_id = req.user.id;
+      }
+    }
+
+    // Direct bulletproof handler for get_parent_children_with_classes
+    if (finalFn === 'get_parent_children_with_classes') {
+      try {
+        const parentId = (callerRole === 'parent' || !isAdmin)
+          ? req.user.id
+          : (finalParams.parent_user_id || finalParams.p_parent_id || finalParams.parent_id || req.user.id);
+        const parentEmail = (req.user?.email || '').trim().toLowerCase();
+
+        const childrenRes = await pool.query(`
+          SELECT 
+            c.id as child_id, 
+            c.first_name, 
+            c.last_name, 
+            c.age, 
+            c.allergies, 
+            c.medical_info, 
+            c.emergency_contact_name, 
+            c.emergency_contact_phone, 
+            c.notes, 
+            COALESCE(cl.name, 'General / Summer Camp') as current_class_name,
+            COALESCE(c.points_balance, 0) as points_balance,
+            c.photo_url
+          FROM public.children c 
+          LEFT JOIN public.classes cl ON c.class_id = cl.id 
+          WHERE c.parent_id::text = $1::text
+             OR c.parent_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($2))
+          ORDER BY c.first_name ASC
+        `, [parentId, parentEmail]);
+
+        console.log(`[Bridge RPC] get_parent_children_with_classes: parentId=${parentId} email=${parentEmail} → ${childrenRes.rows.length} children`);
+        return res.json({ data: childrenRes.rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in get_parent_children_with_classes:', err.message);
+        return res.status(500).json({ error: err.message });
       }
     }
 
@@ -2732,7 +2843,8 @@ app.post('/api/query', verifyToken, async (req, res) => {
     if (callerRole === 'parent') {
       if (table === 'children') {
         const pIdx = values.push(req.user.id);
-        mandatoryClauses.push(`t.parent_id::text = $${pIdx}::text`);
+        const eIdx = values.push((req.user.email || '').trim().toLowerCase());
+        mandatoryClauses.push(`(t.parent_id::text = $${pIdx}::text OR t.parent_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($${eIdx})))`);
       } else if (table === 'profiles') {
         const pIdx = values.push(req.user.id);
         mandatoryClauses.push(`(t.id::text = $${pIdx}::text OR (t.role IN ('staff', 'teacher', 'admin', 'super_admin') AND t.role IS NOT NULL))`);
@@ -2965,7 +3077,13 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
 
     if (table === 'children') {
       if (finalMethod === 'insert') {
+        const attemptedParentId = finalValues.parent_id || (rawValues && rawValues.parent_id);
+        if (attemptedParentId && attemptedParentId.toString() !== req.user.id.toString()) {
+          console.warn(`[Security Alert] Cross-parent child insertion blocked: caller ${req.user.id} tried to insert child for parent ${attemptedParentId}`);
+          return res.status(403).json({ error: 'Access denied: You cannot insert children for another parent account.' });
+        }
         finalValues.parent_id = req.user.id;
+
         // Check for duplicate child in this family
         if (finalValues.first_name && finalValues.last_name) {
           const dupRes = await pool.query(
@@ -2980,9 +3098,40 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
           if (dupRes.rows.length > 0) {
             return res.status(409).json({ error: `Duplicate child: A child named ${finalValues.first_name} ${finalValues.last_name} is already registered in your family.` });
           }
+
+          // Global cross-family duplicate prevention
+          const crossFamilyDup = await pool.query(
+            `SELECT id FROM public.children
+             WHERE LOWER(TRIM(first_name)) = LOWER(TRIM($1))
+               AND LOWER(TRIM(last_name)) = LOWER(TRIM($2))
+               AND (age = $3 OR ($3::int IS NULL AND age IS NULL))
+               AND parent_id::text != $4::text
+             LIMIT 1`,
+            [finalValues.first_name, finalValues.last_name, finalValues.age || null, req.user.id]
+          );
+          if (crossFamilyDup.rows.length > 0) {
+            return res.status(409).json({
+              error: `Duplicate child detected: A child named ${finalValues.first_name} ${finalValues.last_name} (Age ${finalValues.age || 'N/A'}) is already registered under another family. Please contact church staff or administration if you share custody.`
+            });
+          }
         }
       } else {
-        // For update or delete on children by parent, force parent_id check
+        // For update or delete on children by parent: verify child exists and belongs to caller
+        const targetChildId = (filters && filters.find(f => f.column === 'id')?.value);
+        if (targetChildId) {
+          const childOwnerCheck = await pool.query(
+            'SELECT id, parent_id FROM public.children WHERE id::text = $1::text LIMIT 1',
+            [targetChildId]
+          );
+          if (childOwnerCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Child not found.' });
+          }
+          const childRow = childOwnerCheck.rows[0];
+          if (!childRow.parent_id || childRow.parent_id.toString() !== req.user.id.toString()) {
+            console.warn(`[Security Alert] Cross-parent child ${finalMethod} blocked: caller ${req.user.id} tried to mutate child ${targetChildId} owned by ${childRow.parent_id}`);
+            return res.status(403).json({ error: 'Access denied: You do not have permission to modify or delete this child.' });
+          }
+        }
         filters = (filters || []).filter(f => f.column !== 'parent_id');
         filters.push({ column: 'parent_id', value: req.user.id });
       }
@@ -3164,6 +3313,9 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
         ? filterKeys.map((k, i) => `${k}::text = $${i + 1}::text`).join(' AND ')
         : 'FALSE';
       const result = await pool.query(`DELETE FROM public.${table} WHERE ${filterClause} RETURNING *`, filterVals);
+      if (result.rows.length === 0 && !isAdmin) {
+        return res.status(404).json({ error: 'No matching records found or you do not have permission to delete this record.' });
+      }
       return res.json({ data: result.rows, error: null });
     }
 

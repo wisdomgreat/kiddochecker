@@ -347,7 +347,7 @@ const ParentProfile = () => {
 
           {/* Security PIN */}
           <div className="space-y-2">
-            <Label htmlFor="securityPin">Kiosk Security PIN</Label>
+            <Label htmlFor="securityPin">Kiosk Security PIN (4 to 6 Digits)</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Input
@@ -359,7 +359,7 @@ const ParentProfile = () => {
                     setSecurityPin(val);
                   }}
                   disabled={!isEditing}
-                  placeholder="6-digit PIN"
+                  placeholder="4 to 6-Digit PIN"
                   className="font-mono tracking-widest text-lg"
                 />
                 <Button
@@ -378,7 +378,7 @@ const ParentProfile = () => {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              This 6-digit PIN will be used to check in your children at the kiosk station.
+              This 4 to 6-digit PIN will be used to check in your children at the kiosk station.
             </p>
           </div>
 
