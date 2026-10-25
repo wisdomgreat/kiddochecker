@@ -1258,6 +1258,12 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
     return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
   }
 
+  if (password.length < 8 || !/[\d!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    return res.status(400).json({ 
+      error: 'Password must be at least 8 characters long and contain at least one number or symbol.' 
+    });
+  }
+
   const normalizedEmail = email.trim().toLowerCase();
   const bcrypt = require('bcryptjs');
 

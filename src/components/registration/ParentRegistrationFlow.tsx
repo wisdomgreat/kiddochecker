@@ -72,7 +72,8 @@ export const ParentRegistrationFlow = () => {
       case 1:
         return !!(parentData.firstName && parentData.lastName && parentData.email && parentData.phone);
       case 2: {
-        const hasValidPwd = parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 8;
+        const hasNumberOrSymbol = /[\d!@#$%^&*(),.?":{}|<>]/.test(parentData.password);
+        const hasValidPwd = parentData.password && parentData.confirmPassword && parentData.password === parentData.confirmPassword && parentData.password.length >= 8 && hasNumberOrSymbol;
         const trivialPins = ['1234', '0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '123456', '000000'];
         const hasValidPin = parentData.securityPin && parentData.securityPin.length >= 4 && !trivialPins.includes(parentData.securityPin);
         return Boolean(hasValidPwd && hasValidPin);
@@ -91,7 +92,7 @@ export const ParentRegistrationFlow = () => {
       if (currentStep === 2) {
         toast({
           title: "Password or PIN Requirement Not Met",
-          description: "Password must be at least 8 characters. PIN must be 4-6 digits and non-trivial (e.g. not 1234).",
+          description: "Password must be at least 8 characters and include at least one number or symbol. PIN must be 4-6 digits and non-trivial (e.g. not 1234).",
           variant: "destructive"
         });
         return;
