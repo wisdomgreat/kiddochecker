@@ -11,6 +11,7 @@ import { ReviewStep } from "./ReviewStep";
 import { User, Lock, Baby, CheckCircle2, ArrowLeft, ArrowRight, ShieldCheck, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/context/LanguageContext";
+import { API_BASE_URL } from "@/lib/apiClient";
 
 interface ParentData {
   firstName: string;
@@ -105,8 +106,7 @@ export const ParentRegistrationFlow = () => {
 
     if (currentStep === 1) {
       try {
-        const baseUrl = import.meta.env.VITE_API_URL || '';
-        const res = await fetch(`${baseUrl}/api/auth/check-email?email=${encodeURIComponent(parentData.email.trim().toLowerCase())}`);
+        const res = await fetch(`${API_BASE_URL}/api/auth/check-email?email=${encodeURIComponent(parentData.email.trim().toLowerCase())}`);
         if (res.ok) {
           const { exists } = await res.json();
           if (exists) {

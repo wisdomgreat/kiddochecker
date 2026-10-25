@@ -38,9 +38,13 @@ export const getAccessToken = async () => {
     return null;
 };
 
+export const API_BASE_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.length > 0)
+    ? import.meta.env.VITE_API_URL
+    : "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const token = await getAccessToken();
-    const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+    const baseUrl = API_BASE_URL;
     
     const headers = {
         ...options.headers,
