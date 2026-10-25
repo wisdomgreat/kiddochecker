@@ -39,7 +39,14 @@ export const AuthRedirectHandler = ({ children }: AuthRedirectHandlerProps) => {
     } else {
       console.log('User not authenticated or no role');
       
-      const publicRoutes = ['/landing', '/login', '/parent-registration'];
+      const publicRoutes = [
+        '/landing', '/login', '/parent-registration', '/register',
+        '/privacy-policy', '/privacy',
+        '/terms-of-service', '/terms',
+        '/about-us', '/about',
+        '/forgot-password', '/reset-password',
+        '/help', '/faq'
+      ];
       
       if (isOnRootPage) {
         console.log('Redirecting to landing page from root');

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/useToast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { validation } from '@/utils/validation';
+import { API_BASE_URL } from '@/lib/apiClient';
 
 const ResetPasswordPage = () => {
   const [password, setPassword] = useState('');
@@ -24,11 +25,10 @@ const ResetPasswordPage = () => {
   useEffect(() => {
     if (loading) return;
     
-    const isAzure = !!import.meta.env.VITE_API_URL;
     const urlParams = new URLSearchParams(window.location.search);
     const hasToken = urlParams.has('token');
     
-    if (!session && (!isAzure || !hasToken)) {
+    if (!session && !hasToken) {
       toast({ 
         title: "Session Invalid", 
         description: "Password reset link is missing, expired, or invalid.", 
@@ -78,12 +78,12 @@ const ResetPasswordPage = () => {
 
   const performPasswordReset = async () => {
     try {
-      const isAzure = !!import.meta.env.VITE_API_URL;
+      const isAzure = !!API_BASE_URL;
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get('token');
 
       if (isAzure && token) {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/reset-password`, {
+        const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, newPassword: password })

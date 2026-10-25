@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/useToast';
 import { Settings, Save, Monitor, Printer, Wifi } from 'lucide-react';
+import { PrintService } from '@/services/printService';
 
 const CheckInSetupPage = () => {
   const { toast } = useToast();
@@ -39,56 +40,38 @@ const CheckInSetupPage = () => {
     setTestingConnection(true);
     try {
       // 1. Check Azure Cloud Relay status
-      const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
-      const cRes = await fetch(`${baseUrl}/api/print-jobs/health`);
-      if (cRes.ok) {
-        const cData = await cRes.json();
-        if (cData.agentActive) {
-          toast({
-            title: "Print Server Active! ✅",
-            description: `Linux Print Server is connected to Azure Cloud Relay (Last seen ${cData.lastSeenSecondsAgo || 0}s ago). Print jobs will print automatically!`,
-          });
-          setTestingConnection(false);
-          return;
-        }
-      }
+      const cloudStatus = await PrintService.checkCloudRelayHealth();
+      
+      // 2. Check Local Print Proxy status
+      const localStatus = await PrintService.checkLocalProxyHealth();
 
-      // 2. Fallback to direct local IP test
-      let target = settings.printServerUrl.trim();
-      if (!target) {
+      if (localStatus.ok) {
         toast({
-          title: "Cloud Relay Active ☁️",
-          description: "Print server is listening for jobs via Azure Cloud Relay.",
+          title: "Local Print Proxy Online! ✅",
+          description: `Connected to print server (${localStatus.data?.server || 'KiddoChecker Proxy'}). Active Model: ${localStatus.data?.serverConfig?.defaultPrinterModel || 'Default'}`,
         });
-        setTestingConnection(false);
-        return;
-      }
-
-      if (!target.startsWith('http://') && !target.startsWith('https://')) {
-        target = `http://${target}`;
-      }
-      if (!target.includes(':3003') && !target.endsWith('/health')) {
-        target = `${target}:3003/health`;
-      } else if (!target.endsWith('/health')) {
-        target = `${target}/health`;
-      }
-
-      const res = await fetch(target, { method: 'GET' });
-      if (res.ok) {
+      } else if (cloudStatus.ok && cloudStatus.data?.agentActive) {
         toast({
-          title: "Print Server Online! ✅",
-          description: `Connected to Print Server at ${target}`,
+          title: "Azure Cloud Relay Active! ☁️✅",
+          description: `Print agent connected via Azure Cloud Relay (Last seen ${cloudStatus.data?.lastSeenSecondsAgo || 0}s ago). Jobs will print automatically!`,
+        });
+      } else if (cloudStatus.ok) {
+        toast({
+          title: "Cloud Relay Ready (Waiting for Print Agent) ☁️",
+          description: "Azure Cloud Relay is online. Start your local print-proxy script (npm run print-server) to process queued jobs.",
         });
       } else {
         toast({
-          title: "Cloud Relay Ready",
-          description: "Print server daemon is active and processing via Azure Cloud Relay.",
+          title: "Print Server Offline ⚠️",
+          description: `Local proxy unreachable (${localStatus.error}) and Cloud Relay unavailable. Ensure 'npm run print-server' is running on port 3003.`,
+          variant: "destructive",
         });
       }
     } catch (err: any) {
       toast({
-        title: "Cloud Relay Online ☁️",
-        description: "Azure Cloud Relay is active. Print jobs will be delivered automatically to your Linux print server.",
+        title: "Connection Check Failed",
+        description: err.message || "Failed to verify printer server status",
+        variant: "destructive",
       });
     } finally {
       setTestingConnection(false);

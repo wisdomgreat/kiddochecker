@@ -75,64 +75,41 @@ const ClassSelectionDialog: React.FC<ClassSelectionDialogProps> = ({
           </p>
           <DialogTitle className="text-2xl font-bold tracking-tight">{childName}</DialogTitle>
           <DialogDescription>
-            {isEs ? "Confirme la clase de destino y el estado de salud" : "Confirm destination class and wellness status"}
+            {isEs ? "Confirme el estado de salud antes de registrar entrada" : "Confirm wellness status before completing check-in"}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {isLoading ? (
             <div className="text-center py-10 text-muted-foreground text-sm font-bold uppercase">
-              {isEs ? "Actualizando clases..." : "Updating classes..."}
+              {isEs ? "Actualizando..." : "Loading..."}
             </div>
           ) : (
-            <div className="space-y-8">
-              {/* Class Selection */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase text-muted-foreground">
+            <div className="space-y-6">
+              {/* Assigned Class Banner */}
+              <div className="p-4 rounded-xl bg-blue-950/40 border border-blue-500/30 flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-blue-400">
                     <Users className="w-3.5 h-3.5" />
-                    {isEs ? "Clase de Destino" : "Target Class"}
-                </div>
-                <RadioGroup value={selectedClass} onValueChange={setSelectedClass} className="grid grid-cols-1 gap-2">
-                  {classes?.filter(cls => !initialClassId || cls.id === initialClassId).map((cls) => (
-                    <div
-                      key={cls.id}
-                      onClick={() => {
-                        if (!initialClassId) setSelectedClass(cls.id);
-                      }}
-                      className={cn(
-                        "relative flex items-center gap-4 p-4 rounded-lg border transition-all",
-                        !initialClassId && "cursor-pointer hover:bg-muted/30",
-                        selectedClass === cls.id ? "border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-900" : "border-slate-200"
-                      )}
-                    >
-                      <RadioGroupItem value={cls.id} id={cls.id} className="sr-only" />
-                      <div className="flex-1 space-y-1">
-                          <Label htmlFor={cls.id} className={cn("font-bold text-sm block", !initialClassId && "cursor-pointer")}>{cls.name}</Label>
-                          {cls.age_range && (
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {cls.age_range}
-                            </p>
-                          )}
-                      </div>
-                      {selectedClass === cls.id && (
-                        <div className="flex items-center gap-2">
-                           {initialClassId && <Badge variant="outline" className="text-[9px] font-bold uppercase text-emerald-600 border-emerald-200 bg-emerald-50">{isEs ? "Asignado" : "Assigned"}</Badge>}
-                           <Check className="w-4 h-4" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {initialClassId && classes?.length && classes.length > 1 && (
-                    <p className="text-[10px] text-center text-muted-foreground font-medium italic mt-2">
-                      {isEs ? "Clase bloqueada según el registro asignado al niño." : "Class locked based on child's assigned registry."}
+                    {isEs ? "Clase Asignada Automáticamente" : "Assigned Classroom"}
+                  </div>
+                  <h4 className="text-base font-extrabold text-white">
+                    {classes?.find(c => c.id === selectedClass)?.name || "Primary Campers"}
+                  </h4>
+                  {classes?.find(c => c.id === selectedClass)?.age_range && (
+                    <p className="text-xs text-slate-400 font-medium">
+                      {classes.find(c => c.id === selectedClass)?.age_range}
                     </p>
                   )}
-                </RadioGroup>
+                </div>
+                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-400/30 text-xs font-black px-3 py-1 uppercase">
+                  {isEs ? "✓ Auto-Asignada" : "✓ Auto-Assigned"}
+                </Badge>
               </div>
 
               {/* Wellness Check */}
               {showWellnessCheck && (
-                <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-4 pt-2">
                   <div className="flex items-center gap-2 text-xs font-bold uppercase text-muted-foreground">
                       <ActivitySquare className="w-3.5 h-3.5" />
                       {t('wellnessSurvey')}

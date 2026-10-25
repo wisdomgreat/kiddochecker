@@ -107,6 +107,20 @@ const ForensicTimeline: React.FC<ForensicTimelineProps> = ({ record }) => {
               </div>
             </div>
 
+            {/* Duty of Care Notes & Special Instructions */}
+            {record.special_instructions && (
+              <div className="space-y-2 pt-4 border-t border-border/50">
+                <span className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-[0.2em] flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3 w-3" /> Duty of Care / Staff Notes
+                </span>
+                <div className="p-3.5 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200/60 dark:border-indigo-900/40">
+                  <p className="text-xs font-bold text-indigo-950 dark:text-indigo-100 leading-relaxed font-mono">
+                    {record.special_instructions}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Care Activity Log Integration */}
             {record.care_logs && record.care_logs.length > 0 && (
               <div className="space-y-3 pt-4 border-t border-border/50">

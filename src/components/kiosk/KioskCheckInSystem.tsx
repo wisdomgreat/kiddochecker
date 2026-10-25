@@ -148,12 +148,17 @@ const KioskCheckInSystem = () => {
   };
 
   const handleKeypadChange = (val: string) => {
+    const cleaned = val.replace(/\D/g, '');
     if (activeInput === 'phone') {
-      const cleaned = val.replace(/\D/g, '');
-      if (cleaned.length <= 10) setParentPhone(formatPhoneNumber(cleaned));
-      if (cleaned.length === 10) setActiveInput('pin');
+      if (cleaned.length <= 10) {
+        setParentPhone(cleaned);
+        if (cleaned.length === 10) {
+          // Auto advance to PIN input field
+          setTimeout(() => setActiveInput('pin'), 250);
+        }
+      }
     } else {
-      setParentPin(val);
+      if (cleaned.length <= 6) setParentPin(cleaned);
     }
   };
   const [checkedInChildIds, setCheckedInChildIds] = useState<Set<string>>(new Set());
@@ -503,48 +508,92 @@ const KioskCheckInSystem = () => {
   };
 
   const handleParentLogin = async () => {
-    if (!parentPhone.trim() || !parentPin.trim()) {
-      setParentLoginError(t('loginError'));
-      return;
-    }
     setIsLoading(true);
     setParentLoginError('');
-    const cleanPhone = parentPhone.replace(/\D/g, '');
-    try {
-      const { data: matched, error } = await safeRPC('get_parent_for_kiosk', {
-        p_search_val: cleanPhone || parentPhone.trim(),
-        p_pin: parentPin.trim(),
-        p_org_id: activeOrgId
-      });
 
-      if (error || !matched || (matched as any).length === 0) {
-        console.error('[Kiosk] Parent search failed:', error);
-        setParentLoginError(t('loginError'));
+    try {
+      const cleanPhone = parentPhone.replace(/\D/g, '');
+      const cleanPin = parentPin.trim();
+
+      if (!cleanPhone || cleanPhone.length < 10) {
+        setParentLoginError(isEs ? "Por favor ingrese su número de teléfono de 10 dígitos" : "Please enter your 10-digit phone number");
+        setActiveInput('phone');
         setIsLoading(false);
         return;
       }
 
-      const parent = (matched as any)[0];
-      let { data: kids, error: kidsError } = await safeRPC('get_children_for_kiosk', {
+      if (!cleanPin || cleanPin.length < 4) {
+        setParentLoginError(isEs ? "Por favor ingrese su PIN de seguridad de 4 dígitos" : "Please enter your 4-digit security PIN");
+        setActiveInput('pin');
+        setIsLoading(false);
+        return;
+      }
+
+      let matched: any = null;
+
+      // 1. Direct lookup in profiles matching phone and security_pin
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .eq('security_pin', cleanPin)
+        .limit(1);
+
+      if (profiles && profiles.length > 0) {
+        matched = profiles;
+      } else {
+        // Fallback: Primary RPC search
+        const { data: rpcMatched } = await safeRPC('get_parent_for_kiosk', {
+          p_search_val: cleanPhone,
+          p_pin: cleanPin,
+          p_org_id: activeOrgId
+        });
+        if (rpcMatched && (rpcMatched as any).length > 0) {
+          matched = rpcMatched;
+        }
+      }
+
+      if (!matched || matched.length === 0) {
+        setParentLoginError(isEs ? "El teléfono o PIN ingresado no coinciden. Intente de nuevo." : "Phone number and PIN do not match. Please verify both.");
+        setIsLoading(false);
+        return;
+      }
+
+      const parent = matched[0];
+      let { data: kids } = await safeRPC('get_children_for_kiosk', {
         p_parent_id: parent.id,
-        p_pin: parentPin,
+        p_pin: parent.security_pin || '0000',
         p_org_id: activeOrgId
       });
 
-      if (kidsError) console.warn('[Kiosk] get_children_for_kiosk error:', kidsError);
-
       if (!kids || (kids as any).length === 0) {
-        const { data: fallbackKids } = await supabase
+        // Fallback 1: Direct parent_id in children table
+        const { data: directKids } = await supabase
           .from('children')
-          .select('id, first_name, last_name, age, allergies, notes, parent_id')
-          .eq('parent_id', parent.id)
-          .eq('organization_id', activeOrgId);
-        if (fallbackKids && fallbackKids.length > 0) kids = fallbackKids;
+          .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+          .eq('parent_id', parent.id);
+        if (directKids && directKids.length > 0) {
+          kids = directKids;
+        } else {
+          // Fallback 2: Check parent_guardians junction table
+          const { data: guardianRels } = await supabase
+            .from('parent_guardians')
+            .select('child_id')
+            .eq('parent_id', parent.id);
+          if (guardianRels && (guardianRels as any).length > 0) {
+            const childIds = (guardianRels as any).map((g: any) => g.child_id);
+            const { data: guardianKids } = await supabase
+              .from('children')
+              .select('id, first_name, last_name, age, allergies, notes, parent_id, class_id')
+              .in('id', childIds);
+            if (guardianKids && (guardianKids as any).length > 0) kids = guardianKids;
+          }
+        }
       }
       
       const kidsWithClasses = await Promise.all(((kids as any) || []).map(async (k: any) => {
         const { data: c } = await supabase.from('children').select('class_id').eq('id', k.id).maybeSingle();
-        return { ...k, class_id: c?.class_id };
+        return { ...k, class_id: c?.class_id || k.class_id };
       }));
       
       setParentName(`${parent.first_name} ${parent.last_name}`);
@@ -558,9 +607,11 @@ const KioskCheckInSystem = () => {
       await logActivity('parent_login', { parent_id: parent.id, parent_name: `${parent.first_name} ${parent.last_name}` });
       startAutoLogoutTimer(120);
     } catch (e: any) {
-      console.error('[Kiosk] handleParentLogin exception:', e);
+      console.error('[Kiosk] Login exception:', e);
       setParentLoginError(e.message || t('loginError'));
-    } finally { setIsLoading(false); }
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const handleQRScan = async (scannedData: string) => {
@@ -637,7 +688,7 @@ const KioskCheckInSystem = () => {
     setParentLoginError('');
   };
 
-  const handleParentCheckIn = (child: Child) => {
+  const handleParentCheckIn = async (child: Child) => {
     if (checkedInChildIds.has(child.id)) {
       const record = checkedInChildren.find(r => r.child_id === child.id && !r.checked_out_at);
       if (record) {
@@ -664,8 +715,63 @@ const KioskCheckInSystem = () => {
       return;
     }
 
-    setSelectedChild(child);
-    setShowClassDialog(true);
+    // Automatic Class Resolution
+    let targetClassId = child.class_id;
+    if (!targetClassId) {
+      const age = child.age != null ? Number(child.age) : 7;
+      if (age <= 3) targetClassId = 'bb19a29d-c707-4342-a080-5341ffe3eb45'; // Nursery Room
+      else if (age <= 5) targetClassId = '9acddbb3-2e32-4751-8186-4da289cfe384'; // Preschool & Kindergarten
+      else if (age <= 8) targetClassId = 'e433222d-d3a0-40ab-99f0-f3fe8256bd10'; // Primary Campers (6-8)
+      else if (age <= 12) targetClassId = 'bc202366-4987-4b03-baca-ece9afe6ad0b'; // Junior Campers (9-12)
+      else targetClassId = '0f1a089f-4818-46bd-b08a-761fcafd5a93'; // Teens Fellowship (13+)
+    }
+
+    const resolvedChild = { ...child, class_id: targetClassId };
+    setSelectedChild(resolvedChild);
+
+    // One-Tap Direct Auto Check-In for Parents (No manual class selection popup required)
+    setIsLoading(true);
+    try {
+      const { data: classData } = await supabase.from('classes').select('name').eq('id', targetClassId).single();
+      let actorId = (user as any)?.id;
+      if (parentLoggedIn) actorId = parentProfileId || window.localStorage.getItem('kiosk_active_parent_id') || actorId;
+
+      const result = await AttendanceService.checkInChild({
+        childId: child.id,
+        classId: targetClassId,
+        checkedInBy: actorId,
+        method: 'kiosk',
+        station: 'Main Kiosk',
+        specialInstructions: '',
+        hasFever: false,
+        hasCough: false,
+        deviceId: (user as any)?.user_metadata?.device_id,
+        orgId: activeOrgId
+      });
+
+      if (result.success) {
+        await logActivity('check_in', {
+          child_id: child.id,
+          child_name: `${child.first_name} ${child.last_name}`
+        });
+        const { data: qrCodeData } = await supabase.from('qr_codes').select('qr_data').eq('child_id', child.id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        const fallbackQR = JSON.stringify({ type: 'CHILD_CHECKIN', id: child.id, name: `${child.first_name} ${child.last_name}`, v: 1 });
+        setCheckInQRData(qrCodeData?.qr_data || fallbackQR);
+        setSelectedClassName(classData?.name || '');
+        setCurrentSpecialInstructions('');
+        setCheckedInChildIds(prev => new Set([...prev, child.id]));
+        await loadTodayData();
+        setShowNameTagDialog(true);
+        startAutoLogoutTimer(7);
+      } else {
+        toast({ title: "Check-in Error", description: result.error || "Could not complete check-in.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error('[Kiosk] Auto check-in failed:', err);
+      toast({ title: "Check-in Failed", description: err.message || "Failed to check in", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleStaffAuth = async () => {
@@ -816,7 +922,7 @@ const KioskCheckInSystem = () => {
     setShowClassDialog(true);
   };
 
-  const handleQRScan = async (rawQRData: string) => {
+  const handleDirectQRScan = async (rawQRData: string) => {
     setIsLoading(true);
     try {
       const result = await QRService.parseAndVerify(rawQRData);
@@ -975,82 +1081,52 @@ const KioskCheckInSystem = () => {
   const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
   return (
-    <div className="fixed inset-0 bg-background flex flex-col overflow-hidden text-foreground font-sans">
+    <div className="fixed inset-0 h-screen overflow-y-auto md:overflow-hidden bg-[#070b14] text-slate-100 flex flex-col select-none font-sans">
       
-      {/* Header */}
-      <header className="relative z-50 flex items-center justify-between px-6 py-4 bg-card border-b shadow-sm">
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="h-6 gap-1.5 font-bold">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            {settings?.name || 'KiddoChecker'}
-          </Badge>
-          {nfcSupported ? (
-            <Badge variant="outline" className="h-6 gap-1.5 font-bold border-emerald-500/30 text-emerald-700 bg-emerald-50/50">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              NFC Active
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="h-6 gap-1.5 font-bold border-slate-500/30 text-slate-700 bg-slate-50/50">
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-slate-400" />
-              NFC Standby
+      {/* ─── Ultra-Compact Sleek Header (Responsive Top Bar) ─── */}
+      <div className="min-h-[42px] h-auto py-1 sm:py-0 px-3 sm:px-6 bg-[#080d1a] border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 z-50">
+        
+        {/* Left: Organization Branding & Live Heartbeat */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-900/90 border border-slate-800 text-white text-xs font-bold shadow-inner max-w-[150px] sm:max-w-xs">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="font-extrabold tracking-tight truncate">{settings?.name || 'Green Valley Alliance'}</span>
+          </div>
+
+          {nfcSupported && (
+            <Badge variant="outline" className="h-5 px-1.5 text-[9px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/40 hidden sm:inline-flex">
+              ● NFC
             </Badge>
           )}
         </div>
-        
-        {/* Premium Glassmorphic Congregation Switcher */}
-        <div className="relative flex items-center bg-muted/70 p-1.5 rounded-full border border-border/40 shadow-inner max-w-sm backdrop-blur-md">
-          {organizations.map((org) => {
-            const isActive = activeOrgId === org.id;
-            return (
-              <button
-                key={org.id}
-                onClick={() => {
-                  if (activeOrgId !== org.id) {
-                    setActiveOrgId(org.id);
-                    window.localStorage.setItem('kiosk_active_org_id', org.id);
-                    setLanguage(org.language_code || 'en');
-                    handleGlobalLogout();
-                    toast({
-                      title: `Switched to ${org.name}`,
-                      description: `Enforcing strict boundary isolation. All active sessions cleared.`,
-                    });
-                  }
-                }}
-                className={`relative px-4 py-1.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider transition-all duration-300 ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-md scale-105'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {org.slug === 'english' ? '🇬🇧 EN' : org.slug === 'spanish' ? '🇪🇸 ES' : org.slug === 'combined' ? '🤝 COMBINED / COMBINADO' : org.name}
-              </button>
-            );
-          })}
+
+        {/* Center: Language Switcher Pill */}
+        <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px] sm:text-[11px] font-extrabold">
+          <button 
+            onClick={() => setLanguage('en')} 
+            className={cn("px-2 py-0.5 rounded-md transition-all cursor-pointer", language === 'en' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
+          >
+            EN
+          </button>
+          <button 
+            onClick={() => setLanguage('es')} 
+            className={cn("px-2 py-0.5 rounded-md transition-all cursor-pointer", language === 'es' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
+          >
+            ES
+          </button>
         </div>
 
-        <div className="flex items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 gap-2 uppercase tracking-tight text-[10px] font-bold">
-                <Globe className="h-3.5 w-3.5" /> {language}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-lg">
-              <DropdownMenuItem onClick={() => setLanguage('en')}>English</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('fr')}>Français</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('es')}>Español</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="flex items-center gap-3 bg-muted px-3 py-1.5 rounded-xl text-xs font-bold">
-             <span className="text-emerald-600 uppercase tracking-tight">{checkedInChildren.length} Present</span>
-             <span className="w-px h-3 bg-border" />
-             <span className="text-muted-foreground uppercase tracking-tight">{todayCount} Total</span>
-             <span className="w-px h-3 bg-border" />
-             <span className="text-foreground">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        {/* Right: Stats Counter, Printer & Fullscreen */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800 text-[10px] sm:text-[11px] font-bold text-slate-300">
+            <span className="text-emerald-400 font-black">{checkedInChildren.length} IN</span>
+            <span className="w-px h-3 bg-slate-700" />
+            <span className="text-slate-400">{todayCount} TOT</span>
+            <span className="w-px h-3 bg-slate-700 hidden md:inline" />
+            <span className="font-mono text-white hidden md:inline">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
 
           {canAccessKioskSettings && (
@@ -1058,547 +1134,844 @@ const KioskCheckInSystem = () => {
               variant="outline" 
               size="sm" 
               onClick={() => setShowPrinterDialog(true)} 
-              className="h-8 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10 animate-in fade-in"
-              title="Printer & Print Server Setup"
+              className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-bold border-blue-500/30 text-blue-400 bg-blue-950/30 hover:bg-blue-900/40"
+              title="Printer Setup"
             >
-              <Printer className="h-4 w-4" />
-              <span className="hidden sm:inline">Printer Setup</span>
+              <Printer className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Printer</span>
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-8 w-8"><Maximize className="h-4 w-4" /></Button>
-        </div>
-      </header>
 
-      {isRegisteringNFC && (
-        <div className="fixed inset-0 z-[100] bg-primary/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center animate-in fade-in zoom-in duration-300">
-           <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
-              <KeyRound className="w-12 h-12 text-white" />
-           </div>
-           <h2 className="text-3xl font-bold mb-2">Ready to Link</h2>
-           <p className="text-lg opacity-90 max-w-md mb-8">Please tap the physical tag or phone against the reader now to link it to this account.</p>
-           <Button variant="outline" className="border-white text-white hover:bg-white/10" onClick={() => setIsRegisteringNFC(null)}>Cancel Registration</Button>
+          <Button variant="ghost" size="icon" onClick={toggleFs} className="h-6 w-6 sm:h-7 sm:w-7 text-slate-400 hover:text-white hover:bg-slate-800">
+            <Maximize className="h-3 w-3" />
+          </Button>
         </div>
-      )}
+      </div>
 
-      {successMsg && (
-        <div className="mx-6 mt-4 p-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-          <CheckCircle className="w-5 h-5" />
-          <p className="font-bold text-sm">{successMsg}</p>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <nav className="p-6">
-        <div className="flex bg-card border rounded-2xl p-1.5 shadow-sm max-w-2xl mx-auto">
+      {/* ─── Row 2: Mode Navigation Capsule Bar (Responsive Tabs) ─── */}
+      <div className="min-h-[42px] h-auto py-1 px-2 sm:px-6 bg-[#0a0f1d]/90 border-b border-slate-800/90 flex items-center justify-center z-40 shadow-sm">
+        <div className="grid grid-cols-4 sm:flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner w-full max-w-lg sm:max-w-none sm:w-auto gap-0.5">
           {[
-            { id: 'parent', label: t('parentAccess'), icon: KeyRound },
-            { id: 'youth', label: t('youthCheckIn'), icon: User },
-            { id: 'checkout', label: t('checkout'), icon: LogOut },
-            { id: 'staff', label: t('staffAccess'), icon: UserCog },
+            { id: 'parent', label: isEs ? 'PADRES' : 'PARENT DROP-OFF', shortLabel: isEs ? 'PADRES' : 'PARENT', icon: KeyRound },
+            { id: 'youth', label: isEs ? 'JÓVENES' : 'YOUTH CHECK-IN', shortLabel: isEs ? 'JÓVENES' : 'YOUTH', icon: User },
+            { id: 'checkout', label: isEs ? 'SALIDA' : 'SELF CHECK-OUT', shortLabel: isEs ? 'SALIDA' : 'EXIT', icon: LogOut },
+            { id: 'staff', label: isEs ? 'PERSONAL' : 'STAFF PORTAL', shortLabel: isEs ? 'PERSONAL' : 'STAFF', icon: UserCog },
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as KioskTab)}
+              onClick={() => {
+                setActiveTab(tab.id as KioskTab);
+                setParentLoginError('');
+                setYouthLoginError('');
+                setStaffPinError('');
+              }}
               className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-1.5 py-3.5 px-2 rounded-xl transition-all",
+                "flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-2 sm:px-4 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer text-center",
                 activeTab === tab.id 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-900/50" 
+                  : "text-slate-400 hover:text-white hover:bg-slate-900/60"
               )}
             >
-              <tab.icon className="w-4 h-4" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">{tab.label}</span>
+              <tab.icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="inline sm:hidden">{tab.shortLabel}</span>
             </button>
           ))}
         </div>
-      </nav>
+      </div>
 
-      <main className="flex-1 overflow-y-auto px-6 pb-12">
-        <div className="max-w-xl mx-auto">
+      {/* ─── Main Responsive Workspace (Zero-Scroll Adaptive Layout) ─── */}
+      <main className="flex-1 overflow-y-auto md:overflow-hidden px-3 sm:px-6 py-2 sm:py-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-5xl my-auto">
+          
+          {/* ══════════════════════════════════════════════════════════════
+              PARENT CHECK-IN TAB (Unauthenticated)
+             ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && !parentLoggedIn && (
-            <Card className="shadow-sm border-slate-200">
-              <CardContent className="p-8 space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="w-12 h-12 mx-auto bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
-                    <LogIn className="w-6 h-6 text-slate-500" />
-                  </div>
-                  <h2 className="text-xl font-bold tracking-tight">
-                    {isEs ? "Verificación de Padres" : "Parent Verification"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {isEs ? "Inicie sesión con su teléfono o escanee el QR familiar" : "Sign in with phone or scan QR profile"}
-                  </p>
-                </div>
-
-                <div className="space-y-4 pt-2">
-                  {showParentScanner ? (
-                    <div className="space-y-4">
-                      <div className="aspect-square rounded-2xl overflow-hidden border bg-muted">
-                        <QRCodeScanner onScanComplete={(data) => {
-                           handleQRScan(data);
-                           setShowParentScanner(false);
-                        }} />
-                      </div>
-                      <Button variant="ghost" onClick={() => setShowParentScanner(false)} className="w-full text-xs font-bold uppercase tracking-wider">
-                        {isEs ? "Cancelar Escaneo" : "Cancel Scan"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowParentScanner(true)} 
-                      className="w-full h-24 flex flex-col gap-2 rounded-2xl border-dashed border-2 hover:bg-muted/50"
-                    >
-                      <QrCode className="h-6 w-6 text-primary" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider">
-                        {isEs ? "Escanear Código QR Familiar" : "Scan Family QR Code"}
-                      </span>
-                    </Button>
-                  )}
-                  
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Phone className={cn("absolute left-3 top-3 h-4 w-4", activeInput === 'phone' ? "text-primary" : "text-muted-foreground")} />
-                      <Input 
-                        value={parentPhone} 
-                        onFocus={() => setActiveInput('phone')}
-                        onChange={e => setParentPhone(formatPhoneNumber(e.target.value))} 
-                        placeholder={isEs ? "Número de Teléfono" : "Phone Number"} 
-                        inputMode="none"
-                        className={cn("h-10 pl-10 transition-all", activeInput === 'phone' && "ring-2 ring-primary/20 border-primary")} 
-                      />
-                    </div>
-                    <div className="relative">
-                      <Shield className={cn("absolute left-3 top-3 h-4 w-4", activeInput === 'pin' ? "text-primary" : "text-muted-foreground")} />
-                      <Input 
-                        type="password" 
-                        value={parentPin} 
-                        onFocus={() => setActiveInput('pin')}
-                        onChange={e => setParentPin(e.target.value)} 
-                        placeholder={isEs ? "PIN Directo" : "Direct PIN"} 
-                        inputMode="none"
-                        className={cn("h-10 pl-10 transition-all", activeInput === 'pin' && "ring-2 ring-primary/20 border-primary")} 
-                        maxLength={8} 
-                      />
-                    </div>
-                    {parentLoginError && <p className="text-destructive text-xs font-bold text-center">{parentLoginError}</p>}
-                    <Button onClick={handleParentLogin} disabled={isLoading} className="w-full h-10 font-bold uppercase tracking-wide">
-                      {isEs ? "Buscar Identificación" : "Identification Search"}
-                    </Button>
-                    
-                    <NumericKeypad 
-                      value={activeInput === 'phone' ? parentPhone.replace(/\D/g, '') : parentPin} 
-                      onChange={handleKeypadChange} 
-                      maxLength={activeInput === 'phone' ? 10 : 8}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === 'parent' && parentLoggedIn && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-end px-2">
-                <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">
-                    {isEs ? "Cuenta Familiar" : "Family Account"}
-                  </p>
-                  <h2 className="text-xl font-bold">{parentName}</h2>
-                </div>
-                <Button variant="ghost" size="sm" onClick={handleParentLogout} className="text-xs h-8">
-                  <LogOut className="w-3 h-3 mr-1.5" /> {isEs ? "Cerrar Sesión" : "Sign Out"}
-                </Button>
-              </div>
-
-              {/* NFC Self-Link Option for Parents at Kiosk */}
-              <Card className="bg-emerald-50 border-emerald-100 shadow-none rounded-2xl overflow-hidden border">
-                <CardContent className="p-4 flex items-center justify-between gap-4">
-                   <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-100 rounded-xl">
-                         <Smartphone className="h-5 w-5 text-emerald-700" />
+            <div className="w-full">
+              {/* Desktop / Landscape Tablet: Side-by-Side Dual Column (md and above) */}
+              <div className="hidden md:grid md:grid-cols-12 gap-5 items-stretch">
+                
+                {/* Left Column: QR Fast Pass & NFC Tap (5 Cols) */}
+                <div className="md:col-span-5 flex flex-col justify-between gap-4 p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
+                      <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+                        <ArrowRight className="w-4 h-4" />
                       </div>
                       <div>
-                         <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">
-                          {isEs ? "Configuración Rápida" : "Quick Setup"}
-                         </p>
-                         <p className="font-bold text-sm text-foreground">
-                          {isEs ? "Vincular Etiqueta NFC" : "Link NFC Tag"}
-                         </p>
+                        <h2 className="text-base font-black tracking-tight text-white">
+                          {isEs ? "Verificación Familiar" : "Parent Verification"}
+                        </h2>
+                        <p className="text-xs text-slate-400">
+                          {isEs ? "Escanee pase QR o use teléfono/PIN" : "Scan QR pass or enter phone/PIN"}
+                        </p>
                       </div>
-                   </div>
-                   <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="bg-background border-emerald-200 text-emerald-700 hover:bg-emerald-50 h-9 font-bold"
-                      onClick={() => {
-                        const parentId = window.localStorage.getItem('kiosk_active_parent_id');
-                        if (parentId) {
-                          setIsRegisteringNFC(parentId);
-                          startNfc();
-                          toast({ 
-                            title: isEs ? "Listo para NFC" : "Ready for NFC", 
-                            description: isEs ? "Por favor acerque su tarjeta o teléfono al lector." : "Please tap your physical tag or phone against the reader now." 
-                          });
-                        }
-                      }}
-                   >
-                      {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') 
-                        ? (isEs ? "Esperando toque..." : "Waiting for Tap...") 
-                        : (isEs ? "Vincular mi Etiqueta" : "Link My Tag")}
-                   </Button>
-                </CardContent>
-              </Card>
+                    </div>
 
-              <div className="space-y-3">
-                {parentChildren.map(child => {
-                  const checked = alreadyIn(child.id);
-                  return (
-                    <Card key={child.id} className={cn("overflow-hidden cursor-pointer hover:border-primary/50 transition-all rounded-2xl shadow-sm", checked ? "border-red-200 hover:border-red-400 bg-red-50/10" : "hover:border-primary/50")}>
-                        <CardContent className="p-5" onClick={() => handleParentCheckIn(child)}>
-                            <div className="flex items-center gap-5">
-                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl transition-all shadow-inner", checked ? "bg-red-500 text-white shadow-red-100" : "bg-muted text-muted-foreground")}>
-                                    {checked ? <CheckCircle className="w-7 h-7" /> : child.first_name[0]}
-                                </div>
-                                <div className="flex-1">
-                                    <p className="font-bold text-base">{child.first_name} {child.last_name}</p>
-                                    <p className={cn("text-[10px] uppercase font-bold", checked ? "text-red-500 animate-pulse" : "text-muted-foreground")}>
-                                        {checked 
-                                          ? (isEs ? "Registrado • Tocar para Salida" : "Checked In • Tap to Check Out") 
-                                          : (isEs ? "Disponible para entrada" : "Available for check-in")}
-                                    </p>
-                                </div>
-                                {checked ? (
-                                    <LogOut className="w-4 h-4 text-red-500 animate-pulse" />
-                                ) : (
-                                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                  );
-                })}
+                    {/* QR Fast-Pass Button */}
+                    <button
+                      onClick={() => setShowParentScanner(true)}
+                      className="w-full h-36 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/70 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer shadow-inner"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-blue-600/20 border border-blue-500/30 group-hover:border-blue-400 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
+                        <QrCode className="w-6 h-6" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-400">
+                          {isEs ? "Abrir Escáner QR" : "Scan Mobile QR Pass"}
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {isEs ? "Toque para abrir la cámara" : "Tap to activate camera"}
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* NFC Tap Card */}
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/20 flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 shrink-0">
+                      <Smartphone className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-extrabold uppercase text-emerald-400 tracking-wider truncate">
+                        {isEs ? "Lector NFC Activo" : "NFC Reader Active"}
+                      </p>
+                      <p className="text-xs text-slate-400 truncate">
+                        {isEs ? "Acerque su pulsera o teléfono" : "Tap wristband or smart tag"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Phone / PIN Keypad (7 Cols) */}
+                <div className="md:col-span-7 flex flex-col justify-between gap-4 p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
+                  <div className="space-y-3">
+                    {/* Dual-Factor Input Fields */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Phone Field */}
+                      <div 
+                        onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
+                        className={cn(
+                          "h-14 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
+                          activeInput === 'phone' ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" : "bg-slate-950 border-slate-800 hover:border-slate-700"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={cn("text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1", activeInput === 'phone' ? "text-blue-400" : "text-slate-400")}>
+                            <Phone className="w-3 h-3" /> {isEs ? "Teléfono" : "Phone"}
+                          </span>
+                          {parentPhone && (
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setParentPhone(''); }} className="text-[10px] font-bold text-slate-500 hover:text-rose-400">✕</button>
+                          )}
+                        </div>
+                        <p className="text-base font-mono font-black text-white mt-0.5 truncate">
+                          {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 font-normal font-sans">(000) 000-0000</span>}
+                        </p>
+                      </div>
+
+                      {/* PIN Field */}
+                      <div 
+                        onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
+                        className={cn(
+                          "h-14 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
+                          activeInput === 'pin' ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" : "bg-slate-950 border-slate-800 hover:border-slate-700"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className={cn("text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
+                            <Shield className="w-3 h-3" /> {isEs ? "PIN Seguro" : "4-Digit PIN"}
+                          </span>
+                          {parentPin && (
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setParentPin(''); }} className="text-[10px] font-bold text-slate-500 hover:text-rose-400">✕</button>
+                          )}
+                        </div>
+                        <p className="text-base font-mono font-black text-white mt-0.5 tracking-widest">
+                          {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-normal font-sans tracking-normal">••••</span>}
+                        </p>
+                      </div>
+                    </div>
+
+                    {parentLoginError && (
+                      <p className="text-rose-400 text-xs font-bold text-center mt-1 animate-in fade-in">{parentLoginError}</p>
+                    )}
+                  </div>
+
+                  {/* Tactile Keypad */}
+                  <div className="py-1">
+                    <div className="flex items-center justify-between px-1 mb-1">
+                      <span className="text-[11px] font-bold uppercase text-slate-400">
+                        {activeInput === 'phone' 
+                          ? (isEs ? "👉 Ingrese Teléfono (Paso 1)" : "👉 Enter Phone (Step 1)") 
+                          : (isEs ? "👉 Ingrese PIN de 4 dígitos (Paso 2)" : "👉 Enter 4-digit PIN (Step 2)")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveInput(activeInput === 'phone' ? 'pin' : 'phone')}
+                        className="text-[10px] font-extrabold uppercase text-blue-400 hover:underline"
+                      >
+                        {activeInput === 'phone' ? "Switch to PIN ➔" : "Switch to Phone ➔"}
+                      </button>
+                    </div>
+                    <NumericKeypad 
+                      value={activeInput === 'phone' ? parentPhone : parentPin} 
+                      onChange={handleKeypadChange} 
+                      maxLength={activeInput === 'phone' ? 10 : 6}
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button 
+                    onClick={handleParentLogin} 
+                    disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
+                    className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+                    {isEs ? "Verificar Teléfono + PIN" : "Verify Phone + PIN & Continue"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Mobile / Portrait View: Dedicated Zero-Scroll Card (< md) */}
+              <div className="md:hidden flex flex-col p-4 rounded-2xl bg-[#0c1322]/90 border border-slate-800/90 shadow-xl backdrop-blur-md max-w-sm mx-auto space-y-3">
+                {/* Dual Input Fields */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div 
+                    onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
+                    className={cn(
+                      "h-12 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
+                      activeInput === 'phone' ? "bg-blue-950/40 border-blue-500 ring-1 ring-blue-500" : "bg-slate-950 border-slate-800"
+                    )}
+                  >
+                    <span className={cn("text-[9px] font-extrabold uppercase flex items-center gap-1", activeInput === 'phone' ? "text-blue-400" : "text-slate-400")}>
+                      <Phone className="w-2.5 h-2.5" /> Phone
+                    </span>
+                    <p className="text-xs font-mono font-black text-white mt-0.5 truncate">
+                      {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600">(000) 000-0000</span>}
+                    </p>
+                  </div>
+
+                  <div 
+                    onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
+                    className={cn(
+                      "h-12 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
+                      activeInput === 'pin' ? "bg-blue-950/40 border-blue-500 ring-1 ring-blue-500" : "bg-slate-950 border-slate-800"
+                    )}
+                  >
+                    <span className={cn("text-[9px] font-extrabold uppercase flex items-center gap-1", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
+                      <Shield className="w-2.5 h-2.5" /> 4-Digit PIN
+                    </span>
+                    <p className="text-xs font-mono font-black text-white mt-0.5 tracking-widest">
+                      {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-normal">••••</span>}
+                    </p>
+                  </div>
+                </div>
+
+                {parentLoginError && (
+                  <p className="text-rose-400 text-[11px] font-bold text-center animate-in fade-in">{parentLoginError}</p>
+                )}
+
+                {/* Step Instruction & Quick Switch */}
+                <div className="flex items-center justify-between px-1 text-[10px]">
+                  <span className="font-bold text-slate-400">
+                    {activeInput === 'phone' ? "Step 1: Phone" : "Step 2: 4-digit PIN"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveInput(activeInput === 'phone' ? 'pin' : 'phone')}
+                    className="font-extrabold text-blue-400 hover:underline"
+                  >
+                    {activeInput === 'phone' ? "Enter PIN ➔" : "Enter Phone ➔"}
+                  </button>
+                </div>
+
+                {/* Compact Tactile Keypad */}
+                <NumericKeypad 
+                  value={activeInput === 'phone' ? parentPhone : parentPin} 
+                  onChange={handleKeypadChange} 
+                  maxLength={activeInput === 'phone' ? 10 : 6}
+                />
+
+                {/* Submit Action */}
+                <Button 
+                  onClick={handleParentLogin} 
+                  disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
+                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <ArrowRight className="w-4 h-4 mr-1.5" />}
+                  Verify & Sign In
+                </Button>
+
+                {/* Quick QR & NFC Options on Mobile */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                  <button
+                    onClick={() => setShowParentScanner(true)}
+                    className="h-8 rounded-lg bg-slate-950 border border-slate-800 hover:border-blue-500/50 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-300 hover:text-white transition-colors"
+                  >
+                    <QrCode className="w-3.5 h-3.5 text-blue-400" />
+                    Scan QR Pass
+                  </button>
+                  <button
+                    onClick={() => {
+                      toast({ 
+                        title: "NFC Tap Ready", 
+                        description: "Hold your NFC wristband or phone close to the screen/reader." 
+                      });
+                    }}
+                    className="h-8 rounded-lg bg-slate-950 border border-slate-800 hover:border-emerald-500/50 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-300 hover:text-white transition-colors"
+                  >
+                    <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                    Tap NFC Tag
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'youth' && (
-            <Card className="shadow-sm rounded-3xl overflow-hidden border">
-                <CardContent className="p-10 space-y-8">
-                    <div className="text-center space-y-3">
-                        <div className="w-16 h-16 mx-auto bg-primary/10 rounded-3xl flex items-center justify-center">
-                            <User className="w-8 h-8 text-primary" />
-                        </div>
-                        <h2 className="text-2xl font-bold tracking-tight">
-                          {isEs ? "Autoregistro de Jóvenes" : "Youth Self-Check"}
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          {isEs ? "Ingrese su PIN de seguridad para registrar entrada/salida" : "Enter security PIN to log entry/exit"}
-                        </p>
-                    </div>
-                    <div className="space-y-4">
-                        <div className="relative">
-                            <KeyRound className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
-                            <Input
-                                type="password"
-                                inputMode="none"
-                                maxLength={6}
-                                placeholder={isEs ? "PIN de Seguridad" : "Security PIN"}
-                                value={youthPinInput}
-                                onChange={(e) => setYouthPinInput(e.target.value)}
-                                className="pl-12 h-12 text-2xl tracking-[0.4em] font-bold"
-                            />
-                        </div>
-                        {youthLoginError && <p className="text-destructive text-center text-xs font-bold">{youthLoginError}</p>}
-                        <Button
-                            onClick={handleYouthLogin}
-                            disabled={isLoading || youthPinInput.length < 4}
-                            className="w-full h-12 font-bold uppercase"
-                        >
-                            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isEs ? "Verificar Identidad" : "Verify Identity")}
-                        </Button>
-                        
-                        <NumericKeypad 
-                          value={youthPinInput} 
-                          onChange={setYouthPinInput} 
-                          maxLength={6}
-                        />
-                    </div>
-                </CardContent>
-            </Card>
-          )}
+          {/* ══════════════════════════════════════════════════════════════
+              PARENT CHECK-IN (Authenticated Children Roster)
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'parent' && parentLoggedIn && (
+            <div className="w-full max-w-2xl mx-auto flex flex-col p-5 sm:p-6 rounded-2xl bg-[#0c1322]/90 border border-slate-800/90 shadow-xl backdrop-blur-md">
+              
+              {/* Header Bar */}
+              <div className="flex items-center justify-between pb-3.5 border-b border-slate-800">
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400">
+                    {isEs ? "Cuenta Familiar Verificada" : "Verified Family Account"}
+                  </p>
+                  <h2 className="text-lg font-black text-white">{parentName}</h2>
+                </div>
 
-          {activeTab === 'staff' && (
-             <div className="space-y-6">
-                {!staffAuthed ? (
-                  <Card className="shadow-sm rounded-3xl">
-                    <CardContent className="p-10 space-y-6">
-                        <div className="text-center space-y-2 mb-6">
-                            <h2 className="text-2xl font-bold">
-                              {isEs ? "Acceso de Personal" : "Staff Access"}
-                            </h2>
-                            <p className="text-sm text-muted-foreground">
-                              {isEs ? "Se requiere PIN de identificación" : "Identification PIN required"}
-                            </p>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 text-xs font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/30 hover:bg-emerald-900/40 rounded-xl"
+                    onClick={() => {
+                      const parentId = window.localStorage.getItem('kiosk_active_parent_id');
+                      if (parentId) {
+                        setIsRegisteringNFC(parentId);
+                        startNfc();
+                        toast({ 
+                          title: isEs ? "Listo para NFC" : "Ready for NFC", 
+                          description: isEs ? "Por favor acerque su tarjeta o teléfono al lector." : "Please tap your physical tag or phone against the reader now." 
+                        });
+                      }
+                    }}
+                  >
+                    <Smartphone className="w-3.5 h-3.5 mr-1" />
+                    {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') 
+                      ? (isEs ? "Esperando..." : "Waiting...") 
+                      : (isEs ? "Vincular NFC" : "Link NFC Tag")}
+                  </Button>
+
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleParentLogout} 
+                    className="h-8 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl"
+                  >
+                    <LogOut className="w-3.5 h-3.5 mr-1 text-rose-400" /> 
+                    {isEs ? "Cerrar" : "Sign Out"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Children List (Compact Horizontal Cards) */}
+              <div className="py-3.5 space-y-2.5 overflow-y-auto max-h-[340px]">
+                {parentChildren.map(child => {
+                  const checked = alreadyIn(child.id);
+                  return (
+                    <div 
+                      key={child.id} 
+                      onClick={() => handleParentCheckIn(child)}
+                      className={cn(
+                        "p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 group",
+                        checked 
+                          ? "bg-rose-950/20 border-rose-800/40 hover:border-rose-700/60" 
+                          : "bg-slate-900/70 hover:bg-blue-950/30 border-slate-800 hover:border-blue-700/60 shadow-md"
+                      )}
+                    >
+                      {/* Left: Child Avatar + Details */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-md shrink-0",
+                          checked ? "bg-rose-600 text-white" : "bg-blue-600 text-white"
+                        )}>
+                          {checked ? <CheckCircle className="w-5 h-5" /> : child.first_name[0]}
                         </div>
-                        
-                        <div className="space-y-4">
-                          <Input 
-                            type="password" 
-                            value={staffPinInput} 
-                            onChange={e => setStaffPinInput(e.target.value.toUpperCase())} 
-                            placeholder={isEs ? "PIN DE PERSONAL" : "STAFF PIN"} 
-                            inputMode={showStaffKeyboard ? undefined : "none"}
-                            className="h-16 text-center text-3xl tracking-[0.6em] font-bold rounded-2xl bg-muted border-none shadow-inner" 
-                          />
-                          
-                          <div className="flex justify-center">
-                             <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="text-[10px] font-bold uppercase tracking-widest text-slate-400 gap-2"
-                                onClick={() => setShowStaffKeyboard(!showStaffKeyboard)}
-                             >
-                                <PenTool className="h-3 w-3" />
-                                {showStaffKeyboard 
-                                  ? (isEs ? "Usar Teclado Numérico" : "Use Numeric Keypad") 
-                                  : (isEs ? "Usar Teclado Completo" : "Use Full Keyboard")}
-                             </Button>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-extrabold text-sm text-white truncate">{child.first_name} {child.last_name}</h3>
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md">
+                              {child.age ? `Age ${child.age}` : 'Child'}
+                            </span>
+                            <span className="text-[10px] font-black text-blue-300 bg-blue-950/80 border border-blue-500/30 px-2 py-0.5 rounded-md">
+                              {child.age && Number(child.age) <= 3 ? "Nursery Room" :
+                               child.age && Number(child.age) <= 5 ? "Preschool & Kindergarten" :
+                               child.age && Number(child.age) <= 8 ? "Primary Campers (6-8)" :
+                               child.age && Number(child.age) <= 12 ? "Junior Campers (9-12)" : "Teens Fellowship (13+)"}
+                            </span>
                           </div>
-
-                          {!showStaffKeyboard ? (
-                            <NumericKeypad 
-                              value={staffPinInput} 
-                              onChange={setStaffPinInput} 
-                              maxLength={8}
-                            />
-                          ) : (
-                            <p className="text-[10px] text-center text-slate-400 font-medium">
-                              {isEs ? "Use su teclado para escribir su PIN alfanumérico." : "Please use your physical or on-screen keyboard to type your alphanumeric PIN."}
+                          {child.allergies ? (
+                            <p className="text-[10px] font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30 mt-1 inline-block truncate max-w-[280px]">
+                              ⚠️ {child.allergies}
                             </p>
-                          )}
-                        </div>
-
-                        <Button onClick={handleStaffAuth} className="w-full h-14 font-bold uppercase text-base tracking-wider rounded-2xl">
-                          {isEs ? "Desbloquear Estación" : "Unlock Station"}
-                        </Button>
-                        {staffPinError && <p className="text-destructive text-center text-xs font-bold uppercase tracking-tight">{staffPinError}</p>}
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-6">
-                      <div className="flex justify-between items-center bg-card p-5 border rounded-2xl shadow-sm">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-0.5">
-                            {isEs ? "Personal Autenticado" : "Authenticated Staff"}
-                          </p>
-                          <p className="font-bold text-lg">{staffName}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {canAccessKioskSettings && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => setShowPrinterDialog(true)} 
-                              className="h-9 gap-1.5 border-primary/30 text-primary font-bold hover:bg-primary/10"
-                            >
-                              <Printer className="h-4 w-4" />
-                              <span>{isEs ? "Configurar Impresora" : "Printer Setup"}</span>
-                            </Button>
+                          ) : (
+                            <p className="text-[10px] font-medium text-slate-500 mt-0.5">
+                              {checked ? "Currently present in classroom" : "Ready for check-in"}
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      <Tabs defaultValue="search" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="search">{isEs ? "Niños" : "Children"}</TabsTrigger>
-                          <TabsTrigger value="shifts">{isEs ? "Turnos" : "Shifts"}</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="search" className="space-y-4">
-                          <Card className="p-4 bg-muted/20 border-dashed">
-                             <QRCodeScanner onScanComplete={handleQRScan} />
-                          </Card>
-                          <div className="relative">
-                            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input value={staffSearchTerm} onChange={e => setStaffSearchTerm(e.target.value)} placeholder={isEs ? "Búsqueda manual..." : "Manual search..."} className="pl-10" />
-                          </div>
-                          <div className="grid gap-2">
-                            {staffSearchResults.map(child => (
-                              <Card key={child.id} className="overflow-hidden border shadow-none">
-                                <CardContent className="p-4 flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4 flex-1" onClick={() => handleStaffCheckIn(child)}>
-                                      <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-500">{child.first_name[0]}</div>
-                                      <div>
-                                          <p className="font-bold text-sm leading-tight">{child.first_name} {child.last_name}</p>
-                                          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Parent ID: {child.parent_id?.slice(0,8)}</p>
-                                      </div>
-                                    </div>
-                                    
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="h-8 text-[10px] font-bold gap-1.5 rounded-lg"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsRegisteringNFC(child.parent_id);
-                                        startNfc();
-                                        toast({ title: isEs ? "Listo para NFC" : "Ready for NFC", description: isEs ? "Toque el teléfono o etiqueta del padre." : "Please tap the parent's device or sticker now." });
-                                      }}
-                                    >
-                                      <KeyRound className="w-3 h-3" />
-                                      {isRegisteringNFC === child.parent_id ? (isEs ? "Esperando..." : "Waiting...") : (isEs ? "Vincular" : "Link Tag")}
-                                    </Button>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        </TabsContent>
-
-                        <TabsContent value="shifts" className="space-y-3">
-                          {isLoadingShifts ? (
-                            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
-                          ) : staffShifts.length > 0 ? (
-                            staffShifts.map(shift => (
-                              <Card key={shift.shift_id} className="overflow-hidden">
-                                <CardContent className="p-4 space-y-4">
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <p className="font-bold text-sm">{shift.class_name || 'General Support'}</p>
-                                      <p className="text-[10px] text-muted-foreground">
-                                        {new Date(shift.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                                        {new Date(shift.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                      </p>
-                                    </div>
-                                    <Badge variant="outline" className="text-[9px] font-bold uppercase">{shift.role_type}</Badge>
-                                  </div>
-
-                                  {!shift.actual_start_time ? (
-                                    <Button onClick={() => handleShiftAction(shift.shift_id, 'check_in')} className="w-full font-bold h-9">
-                                      {isEs ? "Iniciar Turno" : "Start Shift"}
-                                    </Button>
-                                  ) : !shift.actual_end_time ? (
-                                    <div className="space-y-2">
-                                      <p className="text-[10px] text-emerald-600 font-bold text-center">
-                                        {isEs ? "Activo desde: " : "Active: "}{new Date(shift.actual_start_time).toLocaleTimeString()}
-                                      </p>
-                                      <Button variant="outline" onClick={() => handleShiftAction(shift.shift_id, 'check_out')} className="w-full text-amber-600 border-amber-200 hover:bg-amber-50 h-9 font-bold">
-                                        {isEs ? "Finalizar Turno" : "End Shift"}
-                                      </Button>
-                                    </div>
-                                  ) : (
-                                    <div className="text-center p-2 bg-emerald-50 rounded-md">
-                                      <p className="text-[10px] text-emerald-600 font-bold">
-                                        {isEs ? "Completado a las " : "Completed at "}{new Date(shift.actual_end_time).toLocaleTimeString()}
-                                      </p>
-                                    </div>
-                                  )}
-                                </CardContent>
-                              </Card>
-                            ))
+                      {/* Right: Instant Tap Action Button */}
+                      <div className="shrink-0">
+                        <div className={cn(
+                          "px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-transform group-hover:scale-105",
+                          checked 
+                            ? "bg-rose-600 text-white hover:bg-rose-500" 
+                            : "bg-emerald-600 text-white hover:bg-emerald-500"
+                        )}>
+                          {checked ? (
+                            <>
+                              <LogOut className="w-3.5 h-3.5" />
+                              <span>{isEs ? "Salida" : "Check Out"}</span>
+                            </>
                           ) : (
-                            <div className="text-center py-12 text-muted-foreground">
-                              <p className="text-sm">{isEs ? "No hay turnos programados para hoy." : "No shifts found for today."}</p>
-                            </div>
+                            <>
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              <span>{isEs ? "Entrada" : "Check In"}</span>
+                            </>
                           )}
-                        </TabsContent>
-                      </Tabs>
-                  </div>
-                )}
-             </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Instructions / Done Bar */}
+              <div className="pt-3.5 border-t border-slate-800 flex items-center justify-between">
+                <p className="text-xs text-slate-400 font-medium">
+                  {isEs ? "Toque un niño para registrar entrada o salida" : "Tap any child row above to check in or out"}
+                </p>
+                <Button 
+                  size="sm" 
+                  onClick={handleParentLogout} 
+                  className="h-9 px-5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md"
+                >
+                  {isEs ? "Listo / Finalizar" : "Done / Complete"}
+                </Button>
+              </div>
+
+            </div>
           )}
 
-          {activeTab === 'checkout' && (
-            <div className="space-y-6">
-              {!(parentLoggedIn || staffAuthed) ? (
-                <Card className="p-12 text-center text-muted-foreground border-dashed">
-                    <Shield className="w-10 h-10 mx-auto mb-4 opacity-20" />
-                    <p className="text-sm font-bold uppercase tracking-tight">
-                      {isEs ? "Se Requiere ID de Seguridad" : "Security ID Required"}
+          {/* ══════════════════════════════════════════════════════════════
+              YOUTH SELF-CHECK TAB
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'youth' && (
+            <div className="w-full">
+              {/* Desktop / Landscape Tablet View (md and above) */}
+              <div className="hidden md:grid md:grid-cols-12 gap-5 items-stretch">
+                {/* Left Column: Instructions */}
+                <div className="md:col-span-5 flex flex-col justify-between p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800 shadow-xl">
+                  <div>
+                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-base font-black tracking-tight text-white">
+                      {isEs ? "Autoregistro de Jóvenes" : "Youth Self-Check"}
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                      {isEs 
+                        ? "Ingrese su PIN personal de seguridad de 4 a 6 dígitos para registrar su entrada o salida del campamento." 
+                        : "Enter your personal 4 to 6 digit security PIN to log your attendance entry or exit."}
                     </p>
-                    <p className="text-xs pt-1">
-                      {isEs ? "Por favor identifíquese primero como Padre o Personal" : "Please identify as Parent or Staff first"}
-                    </p>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input value={checkoutSearch} onChange={e => setCheckoutSearch(e.target.value)} placeholder={isEs ? "Filtrar niños..." : "Filter children..."} className="pl-10" />
                   </div>
-                  <div className="grid gap-2">
-                    {checkoutFilteredChildren.map(record => (
-                      <Card key={record.id} className="shadow-sm">
-                        <CardContent className="p-4 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded border bg-slate-50 flex items-center justify-center font-bold">
-                                    {record.child?.first_name[0]}
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm">{record.child?.first_name} {record.child?.last_name}</p>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{record.class?.name}</p>
-                                </div>
-                            </div>
-                            <Button size="sm" onClick={() => initiateCheckOut(record)} className="font-bold uppercase text-[10px] h-8 px-4">
-                              {isEs ? "Registrar Salida" : "Log Exit"}
-                            </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    {checkoutFilteredChildren.length === 0 && (
-                        <div className="py-12 text-center text-muted-foreground">
-                            <p className="text-sm font-bold uppercase">
-                              {isEs ? "No se encontraron registros" : "No records found"}
-                            </p>
-                        </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-400">
+                    <p className="text-[10px] font-bold uppercase text-blue-400 tracking-wider mb-1">
+                      {isEs ? "Aviso de Seguridad" : "Security Notice"}
+                    </p>
+                    <p className="text-xs font-medium">
+                      {isEs ? "Las asistencias se registran en tiempo real con sello de hora." : "All check-ins and exits are timestamped in real-time."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Column: Keypad & Verification */}
+                <div className="md:col-span-7 flex flex-col justify-between p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800 shadow-xl">
+                  <div>
+                    <div className="h-12 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
+                      <span className="text-xs font-bold uppercase text-slate-500">PIN:</span>
+                      <span className="text-xl font-mono font-black tracking-widest text-blue-400">
+                        {youthPinInput ? '•'.repeat(youthPinInput.length) : <span className="text-slate-600 text-base">••••</span>}
+                      </span>
+                      <button onClick={() => setYouthPinInput('')} className="text-xs font-bold uppercase text-slate-500 hover:text-rose-400">Clear</button>
+                    </div>
+
+                    {youthLoginError && (
+                      <p className="text-rose-400 text-xs font-bold text-center mt-1.5 animate-in fade-in">{youthLoginError}</p>
                     )}
+                  </div>
+
+                  <div className="my-1.5">
+                    <NumericKeypad value={youthPinInput} onChange={setYouthPinInput} maxLength={6} />
+                  </div>
+
+                  <Button 
+                    onClick={handleYouthLogin} 
+                    disabled={isLoading || youthPinInput.length < 4}
+                    className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+                    {isEs ? "Verificar Identidad" : "Verify & Check In"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Mobile / Portrait View (< md) */}
+              <div className="md:hidden flex flex-col p-4 rounded-2xl bg-[#0c1322]/90 border border-slate-800 shadow-xl max-w-sm mx-auto space-y-3">
+                <div className="text-center">
+                  <h2 className="text-sm font-black text-white">Youth Self Check-In</h2>
+                  <p className="text-[11px] text-slate-400">Enter your 4-6 digit security PIN</p>
+                </div>
+
+                <div className="h-11 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
+                  <span className="text-[10px] font-bold uppercase text-slate-500">PIN:</span>
+                  <span className="text-lg font-mono font-black tracking-widest text-blue-400">
+                    {youthPinInput ? '•'.repeat(youthPinInput.length) : <span className="text-slate-600 text-sm">••••</span>}
+                  </span>
+                  <button onClick={() => setYouthPinInput('')} className="text-[10px] font-bold uppercase text-slate-500 hover:text-rose-400">Clear</button>
+                </div>
+
+                {youthLoginError && (
+                  <p className="text-rose-400 text-[11px] font-bold text-center animate-in fade-in">{youthLoginError}</p>
+                )}
+
+                <NumericKeypad value={youthPinInput} onChange={setYouthPinInput} maxLength={6} />
+
+                <Button 
+                  onClick={handleYouthLogin} 
+                  disabled={isLoading || youthPinInput.length < 4}
+                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <ArrowRight className="w-4 h-4 mr-1.5" />}
+                  Verify & Check In
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              CHECKOUT TAB
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'checkout' && (
+            <div className="h-full flex flex-col justify-between p-4 sm:p-5 rounded-2xl bg-[#0c1322]/80 border border-slate-800/90 shadow-xl backdrop-blur-md">
+              {!(parentLoggedIn || staffAuthed) ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-4 max-w-md mx-auto">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                    <Shield className="w-7 h-7 sm:w-8 sm:h-8" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-black uppercase tracking-tight text-white">
+                      {isEs ? "Autorización de Seguridad Requerida" : "Security Verification Required"}
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-slate-400 max-w-sm mt-1">
+                      {isEs 
+                        ? "Por favor inicie sesión en 'Padres' o 'Personal' para autorizar la salida." 
+                        : "Please identify via the 'Family Check-In' or 'Staff Portal' tab first to authorize child checkout."}
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => setActiveTab('parent')} 
+                    className="h-10 px-6 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950"
+                  >
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    {isEs ? "Ir a Verificación Familiar" : "Go to Family Verification"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col justify-between">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                      <Input 
+                        value={checkoutSearch} 
+                        onChange={e => setCheckoutSearch(e.target.value)} 
+                        placeholder={isEs ? "Filtrar por nombre..." : "Filter present children..."} 
+                        className="pl-9 h-9 bg-slate-950 border-slate-800 text-xs text-white rounded-xl" 
+                      />
+                    </div>
+                    <Badge variant="outline" className="h-7 text-xs font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/30">
+                      {checkoutFilteredChildren.length} Present
+                    </Badge>
+                  </div>
+
+                  <div className="flex-1 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto max-h-[390px]">
+                    {checkoutFilteredChildren.map(record => (
+                      <div key={record.id} className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between gap-3 shadow-md">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-lg bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center font-bold">
+                            {record.child?.first_name[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-black text-xs text-white truncate">{record.child?.first_name} {record.child?.last_name}</p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase">{record.class?.name || 'Classroom'}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => initiateCheckOut(record)} 
+                          className="h-8 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg"
+                        >
+                          <LogOut className="w-3 h-3 mr-1" />
+                          {isEs ? "Salida" : "Log Exit"}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800 text-center">
+                    <p className="text-[10px] text-slate-500 font-medium">
+                      {isEs ? "Las salidas se auditan con firma y confirmación de tutor autorizado." : "All checkouts are logged with authorized guardian verification."}
+                    </p>
                   </div>
                 </div>
               )}
             </div>
           )}
-          {/* Dev Mode NFC Emulator */}
-          {(!nfcSupported || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-            <div className="mt-8 p-5 bg-slate-950 text-slate-100 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800 shadow-xl">
-              <div className="flex items-center gap-3">
-                <span className="flex h-2.5 w-2.5 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
-                </span>
-                <div>
-                  <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-0.5">Developer Console</p>
-                  <p className="text-sm font-bold text-slate-200">Hardware NFC Simulator</p>
+
+          {/* ══════════════════════════════════════════════════════════════
+              STAFF TERMINAL TAB
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'staff' && (
+            <div className="h-full flex flex-col justify-between p-4 sm:p-5 rounded-2xl bg-[#0c1322]/80 border border-slate-800/90 shadow-xl backdrop-blur-md">
+              {!staffAuthed ? (
+                <div className="w-full">
+                  {/* Desktop / Landscape View (md and above) */}
+                  <div className="hidden md:grid md:grid-cols-12 gap-5 items-stretch">
+                    <div className="md:col-span-5 flex flex-col justify-between p-6 rounded-2xl bg-slate-950/60 border border-slate-800">
+                      <div>
+                        <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-3">
+                          <UserCog className="w-5 h-5" />
+                        </div>
+                        <h2 className="text-base font-black tracking-tight text-white">
+                          {isEs ? "Acceso de Personal" : "Staff Portal"}
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                          {isEs 
+                            ? "Ingrese su PIN de personal para desbloquear la estación, registrar turnos y gestionar niños." 
+                            : "Enter authorized staff PIN to unlock station controls, manage shifts, and perform override check-ins."}
+                        </p>
+                      </div>
+
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setShowStaffKeyboard(!showStaffKeyboard)}
+                        className="text-xs font-bold uppercase text-slate-400 hover:text-white"
+                      >
+                        <PenTool className="h-3.5 w-3.5 mr-1.5" />
+                        {showStaffKeyboard ? "Switch to Touch Keypad" : "Switch to Keyboard Input"}
+                      </Button>
+                    </div>
+
+                    <div className="md:col-span-7 flex flex-col justify-between p-6 rounded-2xl bg-slate-950/80 border border-slate-800">
+                      <div>
+                        <div className="h-12 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
+                          <span className="text-xs font-bold uppercase text-slate-500">Staff PIN:</span>
+                          <span className="text-xl font-mono font-black tracking-widest text-blue-400">
+                            {staffPinInput ? '•'.repeat(staffPinInput.length) : <span className="text-slate-600 text-base">••••</span>}
+                          </span>
+                          <button onClick={() => setStaffPinInput('')} className="text-xs font-bold uppercase text-slate-500 hover:text-rose-400">Clear</button>
+                        </div>
+
+                        {staffPinError && (
+                          <p className="text-rose-400 text-xs font-bold text-center mt-1.5">{staffPinError}</p>
+                        )}
+                      </div>
+
+                      <div className="my-1.5">
+                        {!showStaffKeyboard ? (
+                          <NumericKeypad value={staffPinInput} onChange={setStaffPinInput} maxLength={8} />
+                        ) : (
+                          <Input 
+                            type="password"
+                            value={staffPinInput}
+                            onChange={e => setStaffPinInput(e.target.value.toUpperCase())}
+                            placeholder="TYPE PIN HERE"
+                            className="text-center font-mono text-lg h-11 bg-slate-900 border-slate-800 text-white"
+                          />
+                        )}
+                      </div>
+
+                      <Button 
+                        onClick={handleStaffAuth} 
+                        className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98]"
+                      >
+                        {isEs ? "Desbloquear Estación" : "Unlock Station"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Mobile View (< md) */}
+                  <div className="md:hidden flex flex-col p-4 rounded-2xl bg-slate-950/80 border border-slate-800 max-w-sm mx-auto space-y-3">
+                    <div className="text-center">
+                      <h2 className="text-sm font-black text-white">Staff Portal Login</h2>
+                      <p className="text-[11px] text-slate-400">Enter your authorized 4-digit Staff PIN</p>
+                    </div>
+
+                    <div className="h-11 rounded-xl bg-slate-950 border border-slate-800 px-4 flex items-center justify-between shadow-inner">
+                      <span className="text-[10px] font-bold uppercase text-slate-500">PIN:</span>
+                      <span className="text-lg font-mono font-black tracking-widest text-blue-400">
+                        {staffPinInput ? '•'.repeat(staffPinInput.length) : <span className="text-slate-600 text-sm">••••</span>}
+                      </span>
+                      <button onClick={() => setStaffPinInput('')} className="text-[10px] font-bold uppercase text-slate-500 hover:text-rose-400">Clear</button>
+                    </div>
+
+                    {staffPinError && (
+                      <p className="text-rose-400 text-[11px] font-bold text-center">{staffPinError}</p>
+                    )}
+
+                    <NumericKeypad value={staffPinInput} onChange={setStaffPinInput} maxLength={8} />
+
+                    <Button 
+                      onClick={handleStaffAuth} 
+                      className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md"
+                    >
+                      Unlock Station
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2 w-full md:w-auto">
-                <Input 
-                  placeholder="Tag UID (e.g. nfc-101)" 
-                  className="bg-slate-900 border-slate-700 text-white h-9 text-xs rounded-xl" 
-                  id="dev-nfc-input"
-                />
-                <Button 
-                  variant="secondary"
-                  size="sm"
-                  className="h-9 px-4 font-bold bg-blue-600 text-white hover:bg-blue-500 rounded-xl"
-                  onClick={() => {
-                    const el = document.getElementById('dev-nfc-input') as HTMLInputElement;
-                    const val = el?.value || 'nfc-101';
-                    console.log('[Dev NFC] Simulating NFC tap with serial:', val);
-                    if (isRegisteringNFC) {
-                      handleNfcRegister(val);
-                    } else {
-                      handleNfcLogin(val);
-                    }
-                  }}
-                >
-                  Simulate Tap
-                </Button>
-              </div>
+              ) : (
+                <div className="h-full flex flex-col justify-between">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">
+                        {isEs ? "Personal Autenticado" : "Authenticated Staff"}
+                      </p>
+                      <h2 className="text-base font-black text-white">{staffName}</h2>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {canAccessKioskSettings && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setShowPrinterDialog(true)} 
+                          className="h-8 text-xs font-bold border-blue-500/30 text-blue-400 bg-blue-950/30 hover:bg-blue-900/40 rounded-xl"
+                        >
+                          <Printer className="h-3.5 w-3.5 mr-1" />
+                          <span>{isEs ? "Impresora" : "Printer Setup"}</span>
+                        </Button>
+                      )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => { setStaffAuthed(false); setStaffPinInput(''); }} 
+                        className="h-8 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl"
+                      >
+                        <LogOut className="w-3.5 h-3.5 mr-1 text-rose-400" />
+                        {isEs ? "Cerrar" : "Lock Terminal"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <Tabs defaultValue="search" className="flex-1 flex flex-col justify-between pt-2">
+                    <TabsList className="grid w-full grid-cols-2 bg-slate-950 border border-slate-800 h-9 p-0.5 rounded-xl">
+                      <TabsTrigger value="search" className="text-xs font-bold">{isEs ? "Búsqueda Manual" : "Children Search"}</TabsTrigger>
+                      <TabsTrigger value="shifts" className="text-xs font-bold">{isEs ? "Turnos de Personal" : "Staff Shifts"}</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="search" className="flex-1 flex flex-col justify-between pt-2">
+                      <div className="relative mb-2">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                        <Input 
+                          value={staffSearchTerm} 
+                          onChange={e => setStaffSearchTerm(e.target.value)} 
+                          placeholder={isEs ? "Buscar niño por nombre..." : "Type child name to search..."} 
+                          className="pl-9 h-9 bg-slate-950 border-slate-800 text-xs text-white rounded-xl" 
+                        />
+                      </div>
+
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 overflow-y-auto max-h-[340px]">
+                        {staffSearchResults.map(child => (
+                          <div 
+                            key={child.id} 
+                            onClick={() => handleStaffCheckIn(child)}
+                            className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 hover:border-blue-500 flex items-center justify-between cursor-pointer"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-blue-600/30 text-blue-300 font-black flex items-center justify-center">
+                                {child.first_name[0]}
+                              </div>
+                              <div>
+                                <p className="font-black text-xs text-white">{child.first_name} {child.last_name}</p>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">ID: {child.parent_id?.slice(0, 8)}</p>
+                              </div>
+                            </div>
+
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-7 text-[9px] font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsRegisteringNFC(child.parent_id);
+                                startNfc();
+                                toast({ title: isEs ? "Listo para NFC" : "Ready for NFC", description: isEs ? "Toque el teléfono o etiqueta del padre." : "Please tap the parent's device or sticker now." });
+                              }}
+                            >
+                              <Smartphone className="w-3 h-3 mr-1" />
+                              Link Tag
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="shifts" className="flex-1 overflow-y-auto max-h-[340px] pt-2 space-y-2">
+                      {isLoadingShifts ? (
+                        <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-400" /></div>
+                      ) : staffShifts.length > 0 ? (
+                        staffShifts.map(shift => (
+                          <div key={shift.shift_id} className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between">
+                            <div>
+                              <p className="font-bold text-xs text-white">{shift.class_name || 'General Support'}</p>
+                              <p className="text-[10px] text-slate-400">
+                                {new Date(shift.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(shift.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            {!shift.actual_start_time ? (
+                              <Button size="sm" onClick={() => handleShiftAction(shift.shift_id, 'check_in')} className="h-8 bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white">
+                                Start Shift
+                              </Button>
+                            ) : !shift.actual_end_time ? (
+                              <Button size="sm" onClick={() => handleShiftAction(shift.shift_id, 'check_out')} className="h-8 bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white">
+                                End Shift
+                              </Button>
+                            ) : (
+                              <Badge className="bg-emerald-950 text-emerald-400 border-emerald-500/30">Completed</Badge>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-center text-slate-500 py-8">No scheduled shifts for today.</p>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              )}
             </div>
           )}
+
         </div>
       </main>
 
+      {/* ─── Dialogs & Overlays ─── */}
       <ClassSelectionDialog 
         open={showClassDialog} 
         onClose={() => setShowClassDialog(false)} 
@@ -1619,28 +1992,71 @@ const KioskCheckInSystem = () => {
         />
       )}
 
+      {/* Dedicated QR Fast-Pass Camera Scanner Dialog */}
+      <Dialog open={showParentScanner} onOpenChange={setShowParentScanner}>
+        <DialogContent className="max-w-sm p-0 overflow-hidden bg-slate-900 border-slate-800 text-white shadow-2xl rounded-2xl">
+          <DialogHeader className="p-4 bg-slate-950 border-b border-slate-800 flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="text-sm font-black text-white flex items-center gap-2">
+                <QrCode className="h-4 w-4 text-blue-400" />
+                {isEs ? "Escanear Pase Móvil" : "Scan Mobile Fast-Pass"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-400 mt-0.5">
+                {isEs ? "Acerque el código QR de su pase a la cámara." : "Hold your digital QR pass in front of the camera."}
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <div className="p-4 flex flex-col items-center justify-center bg-slate-950">
+            <div className="w-full aspect-square max-w-[280px] rounded-xl overflow-hidden flex items-center justify-center">
+              <QRCodeScanner 
+                compact={true}
+                darkMode={true}
+                onScanComplete={(data) => {
+                  handleQRScan(data);
+                  setShowParentScanner(false);
+                  toast({
+                    title: isEs ? "Pase Reconocido" : "Pass Verified",
+                    description: isEs ? "Cargando perfil familiar..." : "Loading family profile...",
+                  });
+                }} 
+              />
+            </div>
+          </div>
+          <DialogFooter className="p-3 bg-slate-950 border-t border-slate-800 flex justify-end">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowParentScanner(false)} 
+              className="border-slate-700 text-slate-300 font-bold text-xs"
+            >
+              {isEs ? "Cancelar" : "Cancel / Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Signature Dialog */}
       <Dialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
-          <DialogHeader className="p-6 bg-muted/50 border-b">
-            <DialogTitle>Verification Required</DialogTitle>
-            <DialogDescription>Please provide a signature for {pendingCheckoutRecord?.child?.first_name}.</DialogDescription>
+        <DialogContent className="max-w-md p-0 overflow-hidden bg-slate-900 border-slate-800 text-white shadow-xl">
+          <DialogHeader className="p-5 bg-slate-950 border-b border-slate-800">
+            <DialogTitle className="text-white">Verification Signature</DialogTitle>
+            <DialogDescription className="text-slate-400">Please provide a signature for {pendingCheckoutRecord?.child?.first_name}.</DialogDescription>
           </DialogHeader>
-          <div className="p-6">
-              <div className="border bg-card rounded-md p-1 overflow-hidden">
+          <div className="p-5">
+              <div className="border border-slate-700 bg-white rounded-xl p-1 overflow-hidden">
                 <SignatureCanvas
                   ref={signatureRef}
                   penColor="black"
-                  canvasProps={{ width: 400, height: 200, className: 'w-full h-[200px]' }}
+                  canvasProps={{ width: 380, height: 180, className: 'w-full h-[180px]' }}
                 />
               </div>
               <DialogFooter className="mt-4 flex sm:justify-between items-center w-full">
-                <Button variant="ghost" size="sm" onClick={() => signatureRef.current?.clear()} className="gap-2 text-muted-foreground">
-                  <Eraser className="w-4 h-4" /> Reset
+                <Button variant="ghost" size="sm" onClick={() => signatureRef.current?.clear()} className="text-slate-400 hover:text-white">
+                  <Eraser className="w-4 h-4 mr-1" /> Reset
                 </Button>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowSignatureDialog(false)}>Abort</Button>
-                  <Button size="sm" onClick={() => {
+                  <Button variant="outline" size="sm" onClick={() => setShowSignatureDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-500 font-bold text-white" onClick={() => {
                     const dataUrl = signatureRef.current?.getTrimmedCanvas().toDataURL('image/png');
                     if (signatureRef.current?.isEmpty()) {
                       toast({ title: "Incomplete", description: "Signature is required.", variant: "destructive" });
@@ -1654,117 +2070,73 @@ const KioskCheckInSystem = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── IP Lockdown Block Warning Screen ─── */}
-      {securityBlockedIp && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-xl animate-fade-in">
-          <div className="max-w-md w-full mx-4 p-8 rounded-2xl border border-rose-500/35 bg-slate-900/90 text-white shadow-2xl shadow-rose-950/40 text-center space-y-6">
-            <div className="inline-flex p-4 bg-rose-500/10 border border-rose-500/25 rounded-full text-rose-500 animate-pulse">
-              <ShieldAlert className="h-10 w-10" />
-            </div>
-            
-            <div className="space-y-2">
-              <h2 className="text-xl font-black tracking-tight text-rose-500 uppercase">Terminal Access Locked</h2>
-              <p className="text-xs font-semibold tracking-wider text-rose-400 uppercase">Unauthorized Physical Location Network</p>
-            </div>
-            
-            <div className="p-4 rounded-lg bg-rose-950/20 border border-rose-950/50 text-left space-y-3">
-              <p className="text-xs text-rose-200 leading-relaxed">
-                This kiosk check-in terminal is attempting to authenticate from an external, unauthorized IP address:
-              </p>
-              <div className="font-mono text-sm bg-rose-950/40 text-rose-300 py-1.5 px-3 rounded border border-rose-900 font-bold select-all text-center">
-                {securityBlockedIp}
-              </div>
-              <p className="text-[10px] text-slate-400 leading-normal font-medium">
-                To enable access, this IP address must be registered under the authorized location settings in the Admin Dashboard panel.
-              </p>
-            </div>
-            
-            <div className="pt-2 flex flex-col gap-2">
-              <Button 
-                onClick={() => setSecurityBlockedIp(null)} 
-                variant="outline" 
-                className="w-full bg-slate-800 border-slate-700 text-white hover:bg-slate-700/80 hover:text-white"
-              >
-                Dismiss Notice
-              </Button>
-              <p className="text-[9px] text-slate-500 font-medium uppercase tracking-wide">
-                Security Policy SEC-01 • Active Protection
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Kiosk Printer & Print Server Setup Dialog */}
       <Dialog open={showPrinterDialog} onOpenChange={setShowPrinterDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-slate-900 border-slate-800 text-white shadow-xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Printer className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Printer className="h-5 w-5 text-blue-400" />
               Kiosk Printer & Print Server Setup
             </DialogTitle>
-            <DialogDescription>
-              Configure the Linux Print Server IP and Label Printer for this Kiosk terminal.
+            <DialogDescription className="text-slate-400">
+              Configure the Print Server IP and Label Printer for this Kiosk terminal.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
-                Print Server PC IP (Linux Server)
+              <label className="text-xs font-bold uppercase text-slate-400 block mb-1">
+                Print Server PC IP (Port 3003)
               </label>
               <div className="flex gap-2">
                 <Input
                   value={printServerIp}
                   onChange={(e) => setPrintServerIp(e.target.value)}
                   placeholder="e.g. 192.168.1.150"
-                  className="font-mono"
+                  className="font-mono bg-slate-950 border-slate-800 text-white"
                 />
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={testPrinterConnection} 
                   disabled={isTestingPrinter}
+                  className="border-slate-700 text-slate-200"
                 >
                   {isTestingPrinter ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Test IP'}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Local IP address of the Linux PC running print server on port 3003.
-              </p>
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+              <label className="text-xs font-bold uppercase text-slate-400 block mb-1">
                 Target Wireless Printer IP (Optional)
               </label>
               <Input
                 value={targetPrinterIp}
                 onChange={(e) => setTargetPrinterIp(e.target.value)}
-                placeholder="e.g. 192.168.1.101 (Leave blank for default)"
-                className="font-mono"
+                placeholder="e.g. 192.168.2.169"
+                className="font-mono bg-slate-950 border-slate-800 text-white"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Assign Printer 1 (e.g. .101) or Printer 2 (e.g. .102) to this kiosk.
-              </p>
             </div>
 
             <div>
-              <label className="text-xs font-bold uppercase text-muted-foreground block mb-1">
+              <label className="text-xs font-bold uppercase text-slate-400 block mb-1">
                 Printer Model / Name
               </label>
               <Input
                 value={targetPrinterName}
                 onChange={(e) => setTargetPrinterName(e.target.value)}
-                placeholder="e.g. DYMO LabelWriter 450"
+                placeholder="e.g. Brother QL-820NWB"
+                className="bg-slate-950 border-slate-800 text-white"
               />
             </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowPrinterDialog(false)}>
+            <Button variant="outline" onClick={() => setShowPrinterDialog(false)} className="border-slate-700 text-slate-300">
               Cancel
             </Button>
-            <Button onClick={savePrinterSettings} className="gap-1.5 font-bold">
+            <Button onClick={savePrinterSettings} className="bg-blue-600 hover:bg-blue-500 font-bold text-white gap-1.5">
               <CheckCircle className="h-4 w-4" /> Save Printer Config
             </Button>
           </DialogFooter>
@@ -1780,63 +2152,99 @@ export default KioskCheckInSystem;
 const cn = (...inputs: any[]) => inputs.filter(Boolean).join(' ');
 
 /**
- * Numeric Keypad for touch-friendly PIN entry
+ * High-Definition Tactile Touch Keypad (Dark Midnight Theme, Ergonomic 3x4 Grid)
  */
 const NumericKeypad: React.FC<{ 
   value: string; 
   onChange: (val: string) => void; 
   onEnter?: () => void;
   maxLength?: number;
-}> = ({ value, onChange, onEnter, maxLength = 8 }) => {
+}> = ({ value, onChange, onEnter, maxLength = 10 }) => {
   const handlePress = (num: string) => {
-    if (value.length < maxLength) onChange(value + num);
+    const rawVal = (value || '').replace(/\D/g, '');
+    if (rawVal.length < maxLength) onChange(rawVal + num);
   };
 
   const handleBackspace = () => {
-    onChange(value.slice(0, -1));
+    const rawVal = (value || '').replace(/\D/g, '');
+    onChange(rawVal.slice(0, -1));
   };
 
   const handleClear = () => {
     onChange('');
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If typing in a regular input/textarea, ignore
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        handlePress(e.key);
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      } else if (e.key === 'Enter' && onEnter) {
+        e.preventDefault();
+        onEnter();
+      } else if (e.key === 'Escape') {
+        handleClear();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [value, maxLength, onEnter]);
+
+  const keypadKeys = [
+    { num: '1', letters: '' },
+    { num: '2', letters: 'ABC' },
+    { num: '3', letters: 'DEF' },
+    { num: '4', letters: 'GHI' },
+    { num: '5', letters: 'JKL' },
+    { num: '6', letters: 'MNO' },
+    { num: '7', letters: 'PQRS' },
+    { num: '8', letters: 'TUV' },
+    { num: '9', letters: 'WXYZ' },
+  ];
+
   return (
-    <div className="grid grid-cols-3 gap-2 w-full max-w-[280px] mx-auto mt-4">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-        <Button 
+    <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto">
+      {keypadKeys.map(({ num, letters }) => (
+        <button 
           key={num} 
-          variant="outline" 
           type="button"
-          className="h-14 text-xl font-bold rounded-xl active:scale-95 transition-transform"
-          onClick={() => handlePress(num.toString())}
+          className="h-10 sm:h-11 bg-slate-900/90 hover:bg-slate-800 active:bg-blue-600 text-white border border-slate-800 active:border-blue-500 rounded-xl flex flex-col items-center justify-center active:scale-95 transition-all shadow-md group cursor-pointer"
+          onClick={() => handlePress(num)}
         >
-          {num}
-        </Button>
+          <span className="text-base sm:text-lg font-black leading-none text-white">{num}</span>
+          {letters && <span className="text-[8px] font-bold text-slate-500 group-hover:text-slate-400 group-active:text-blue-200 tracking-wider mt-0.5">{letters}</span>}
+        </button>
       ))}
-      <Button 
-        variant="ghost" 
+      
+      <button 
         type="button"
-        className="h-14 text-[10px] font-bold uppercase text-muted-foreground"
+        className="h-10 sm:h-11 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200 active:scale-95 transition-all cursor-pointer"
         onClick={handleClear}
       >
-        Clear
-      </Button>
-      <Button 
-        variant="outline" 
+        CLEAR
+      </button>
+
+      <button 
         type="button"
-        className="h-14 text-xl font-bold rounded-xl active:scale-95 transition-transform"
+        className="h-10 sm:h-11 bg-slate-900/90 hover:bg-slate-800 active:bg-blue-600 text-white border border-slate-800 active:border-blue-500 rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-md group cursor-pointer"
         onClick={() => handlePress('0')}
       >
-        0
-      </Button>
-      <Button 
-        variant="ghost" 
+        <span className="text-base sm:text-lg font-black text-white">0</span>
+      </button>
+
+      <button 
         type="button"
-        className="h-14 flex items-center justify-center"
+        className="h-10 sm:h-11 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-400 active:scale-95 transition-all cursor-pointer"
         onClick={handleBackspace}
+        title="Backspace"
       >
-        <Eraser className="w-5 h-5 text-muted-foreground" />
-      </Button>
+        <Eraser className="w-4 h-4" />
+      </button>
     </div>
   );
 };

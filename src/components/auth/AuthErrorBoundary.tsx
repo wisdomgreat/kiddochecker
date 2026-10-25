@@ -23,6 +23,25 @@ export class AuthErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('AuthErrorBoundary caught an error:', error, errorInfo);
+
+    // Auto-reload once when a stale deploy/dynamic chunk import error occurs
+    const isChunkLoadError = 
+      error?.message?.includes('Failed to fetch dynamically imported module') ||
+      error?.message?.includes('Loading chunk') ||
+      error?.message?.includes('dynamically imported module') ||
+      error?.name === 'ChunkLoadError';
+
+    if (isChunkLoadError) {
+      const storageKey = 'kiddo_chunk_retry_timestamp';
+      const lastRetry = sessionStorage.getItem(storageKey);
+      const now = Date.now();
+      // If we haven't auto-reloaded in the last 15 seconds, reload cleanly
+      if (!lastRetry || now - parseInt(lastRetry, 10) > 15000) {
+        sessionStorage.setItem(storageKey, String(now));
+        window.location.reload();
+        return;
+      }
+    }
   }
 
   private handleRetry = () => {

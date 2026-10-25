@@ -1,0 +1,6 @@
+Contact: mailto:security@gvachurch.com
+Expires: 2027-10-24T00:00:00.000Z
+Preferred-Languages: en, es
+Canonical: https://kids.gvachurch.com/.well-known/security.txt
+Policy: https://kids.gvachurch.com/privacy-policy
+Acknowledgment: https://kids.gvachurch.com/about-us

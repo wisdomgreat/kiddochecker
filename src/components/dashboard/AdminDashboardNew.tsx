@@ -1,6 +1,7 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { apiFetch } from "@/lib/apiClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "@/lib/i18n";
@@ -12,13 +13,14 @@ import { cn } from "@/lib/utils";
 import {
     Users, Baby, Calendar, Shield, MessageSquare,
     TrendingUp, Clock, Activity, UserCheck, ChevronRight,
-    Monitor, BarChart3, Settings, QrCode, Printer, LogOut
+    Monitor, BarChart3, Settings, QrCode, Printer, LogOut, MailCheck, Send, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useSettings } from "@/hooks/useSettings";
 import DashboardShell from "./DashboardShell";
+import { toast } from "sonner";
 
 const DONUT_COLORS = ["hsl(230,75%,55%)", "hsl(220,14%,89%)"];
 
@@ -70,54 +72,57 @@ const AdminDashboardNew = () => {
         refetchInterval: 15000,
     });
 
+    // Direct API call to bypass bridgeProxy ordering/limit restrictions for 7-day chart
     const { data: weeklyAttendance = [] } = useQuery({
-        queryKey: ["dashboard-weekly-attendance-v3"],
+        queryKey: ["dashboard-weekly-attendance-v6"],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("attendance")
-                .select("id, attendance_date, checked_in_at, created_at")
-                .order("created_at", { ascending: false })
-                .limit(300);
-
-            if (error) {
-                console.error("Weekly attendance fetch error:", error);
-            }
-
+            // Build 7-day window
             const daysMap: Record<string, number> = {};
-            const daysOrder: string[] = [];
+            const daysOrder: { dayStr: string; dayName: string }[] = [];
             for (let i = 6; i >= 0; i--) {
                 const d = subDays(new Date(), i);
+                const dayStr = format(d, "yyyy-MM-dd");
                 const dayName = format(d, "EEE");
-                daysMap[dayName] = 0;
-                daysOrder.push(dayName);
+                daysMap[dayStr] = 0;
+                daysOrder.push({ dayStr, dayName });
             }
 
-            if (data && data.length > 0) {
-                data.forEach((rec: any) => {
+            try {
+                // Direct API call — unaffected by bridge proxy chaining issues
+                const res = await apiFetch('/api/query', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        table: 'attendance',
+                        select: 'id, attendance_date, checked_in_at',
+                        filters: []
+                    })
+                });
+
+                const rows = Array.isArray(res?.data) ? res.data : [];
+                rows.forEach((rec: any) => {
                     let dateStr = rec.attendance_date;
-                    if (!dateStr && rec.checked_in_at) {
+                    if (dateStr && typeof dateStr === "string") {
+                        dateStr = dateStr.split("T")[0];
+                    } else if (rec.checked_in_at) {
                         dateStr = String(rec.checked_in_at).split("T")[0];
-                    }
-                    if (!dateStr && rec.created_at) {
+                    } else if (rec.created_at) {
                         dateStr = String(rec.created_at).split("T")[0];
                     }
-
-                    if (dateStr) {
-                        const parts = String(dateStr).split("-");
-                        if (parts.length === 3) {
-                            const recDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-                            const dayName = format(recDate, "EEE");
-                            if (daysMap[dayName] !== undefined) {
-                                daysMap[dayName] += 1;
-                            }
-                        }
+                    if (dateStr && daysMap[dateStr] !== undefined) {
+                        daysMap[dateStr] += 1;
                     }
                 });
+            } catch (e) {
+                console.error("[Dashboard] Weekly attendance fetch error:", e);
             }
 
-            return daysOrder.map(day => ({ day, checkins: daysMap[day] }));
+            return daysOrder.map(({ dayStr, dayName }) => ({
+                day: dayName,
+                dayStr,
+                checkins: daysMap[dayStr] || 0
+            }));
         },
-        refetchInterval: 15000,
+        refetchInterval: 30000,
     });
 
     const { data: messagesCount = 0 } = useQuery({
@@ -177,47 +182,82 @@ const AdminDashboardNew = () => {
         },
     ];
 
+    const queryClient = useQueryClient();
+
+    // Test Email Mutation — broadcasts a sample family fast-pass email from dashboard
+    const sendTestEmailMutation = useMutation({
+        mutationFn: async () => {
+            return await apiFetch('/api/emails/broadcast-summer-camp', {
+                method: 'POST',
+                body: JSON.stringify({
+                    churchName: 'Green Valley Alliance',
+                    rateLimitMs: 0
+                })
+            });
+        },
+        onSuccess: (data: any) => {
+            if (data?.error) {
+                toast.warning('Email Service Unavailable', {
+                    description: 'Azure Communication Services is not configured. Email delivery log will still record the attempt.'
+                });
+            } else {
+                toast.success('Email Broadcast Initiated!', {
+                    description: `Fast-Pass PIN emails queued for ${data?.familiesCount || 'all'} families. Check Email Delivery Logs for status.`
+                });
+            }
+            queryClient.invalidateQueries({ queryKey: ['email-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['email-stats'] });
+        },
+        onError: (err: any) => {
+            toast.error('Broadcast Failed', { description: err.message });
+        }
+    });
+
     const quickActions = [
         { title: "Kiosk", icon: QrCode, path: "/check-in" },
+        { title: "Security", icon: Shield, path: "/admin/security" },
         { title: "QR Labels", icon: Printer, path: "/qr-management" },
+        { title: "Email Logs", icon: MailCheck, path: "/admin/email-logs" },
         { title: "Schedules", icon: Calendar, path: "/staff/schedules" },
         { title: "Users", icon: Users, path: "/users" },
         { title: "Devices", icon: Monitor, path: "/devices" },
         { title: "Reports", icon: BarChart3, path: "/reports" },
-        { title: "Settings", icon: Settings, path: "/settings" },
     ];
 
-    const todayDayName = format(new Date(), "EEE");
+    const todayStr = format(new Date(), "yyyy-MM-dd");
     const chartData = React.useMemo(() => {
         const daysMap: Record<string, number> = {};
-        const daysOrder: string[] = [];
+        const daysOrder: { dayStr: string; dayName: string }[] = [];
         for (let i = 6; i >= 0; i--) {
             const d = subDays(new Date(), i);
+            const dayStr = format(d, "yyyy-MM-dd");
             const dayName = format(d, "EEE");
-            daysMap[dayName] = 0;
-            daysOrder.push(dayName);
+            daysMap[dayStr] = 0;
+            daysOrder.push({ dayStr, dayName });
         }
 
         if (weeklyAttendance && weeklyAttendance.length > 0) {
             weeklyAttendance.forEach((item: any) => {
-                if (daysMap[item.day] !== undefined) {
-                    daysMap[item.day] = item.checkins;
+                if (item.dayStr && daysMap[item.dayStr] !== undefined) {
+                    daysMap[item.dayStr] = item.checkins;
                 }
             });
         }
 
-        if (attendance.length > (daysMap[todayDayName] || 0)) {
-            daysMap[todayDayName] = attendance.length;
+        // Ensure today's total is at least the live fetched count
+        if (attendance.length > (daysMap[todayStr] || 0)) {
+            daysMap[todayStr] = attendance.length;
         }
 
         const maxVal = Math.max(1, ...Object.values(daysMap));
 
-        return daysOrder.map(day => ({
-            day,
-            checkins: daysMap[day],
-            heightPct: Math.round((daysMap[day] / maxVal) * 100)
+        return daysOrder.map(({ dayStr, dayName }) => ({
+            day: dayName,
+            dayStr,
+            checkins: daysMap[dayStr] || 0,
+            heightPct: Math.round(((daysMap[dayStr] || 0) / maxVal) * 100)
         }));
-    }, [weeklyAttendance, attendance, todayDayName]);
+    }, [weeklyAttendance, attendance, todayStr]);
 
     return (
         <DashboardShell
@@ -256,15 +296,15 @@ const AdminDashboardNew = () => {
                             <p className="text-[12px] text-muted-foreground mt-0.5">Check-ins over the last 7 days</p>
                         </div>
                         <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20 font-bold">
-                            {chartData.find(d => d.day === todayDayName)?.checkins || 0} recorded today
+                            {chartData.find(d => d.dayStr === todayStr)?.checkins || 0} recorded today
                         </Badge>
                     </div>
                     <div className="p-5 flex-1 flex flex-col justify-between min-h-[220px]">
                         <div className="grid grid-cols-7 gap-2 items-end h-[160px] pt-4">
                             {chartData.map((d) => {
-                                const isToday = d.day === todayDayName;
+                                const isToday = d.dayStr === todayStr;
                                 return (
-                                    <div key={d.day} className="flex flex-col items-center gap-2 h-full justify-end group">
+                                    <div key={d.dayStr} className="flex flex-col items-center gap-2 h-full justify-end group">
                                         <span className={cn(
                                             "text-[11px] font-bold px-1.5 py-0.5 rounded transition-all",
                                             d.checkins > 0
@@ -343,7 +383,7 @@ const AdminDashboardNew = () => {
             {/* Quick actions */}
             <div className="animate-enter animate-enter-4">
                 <p className="section-label mb-3">Quick Actions</p>
-                <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
                     {quickActions.map((action) => (
                         <button
                             key={action.title}
@@ -356,6 +396,22 @@ const AdminDashboardNew = () => {
                             <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors text-center leading-tight">{action.title}</span>
                         </button>
                     ))}
+                    {/* Test Email button */}
+                    <button
+                        onClick={() => sendTestEmailMutation.mutate()}
+                        disabled={sendTestEmailMutation.isPending}
+                        className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-emerald-200/70 bg-emerald-50/50 hover:border-emerald-400/50 hover:bg-emerald-50 hover:shadow-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        <div className="h-9 w-9 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
+                            {sendTestEmailMutation.isPending
+                                ? <div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                : <Send className="h-4 w-4 text-emerald-600" />
+                            }
+                        </div>
+                        <span className="text-[11px] font-semibold text-emerald-700 text-center leading-tight">
+                            {sendTestEmailMutation.isPending ? 'Sending…' : 'Send Emails'}
+                        </span>
+                    </button>
                 </div>
             </div>
 

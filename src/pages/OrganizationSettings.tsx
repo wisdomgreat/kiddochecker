@@ -48,19 +48,19 @@ const OrganizationSettings = () => {
     if (settings) {
       setFormData({
         name: settings.name || '',
-        address: '', // Assuming these might not be in the table yet but keeping for UI
-        phone: '',
-        email: '',
+        address: (settings as any).address || '',
+        phone: (settings as any).phone || '',
+        email: (settings as any).email || '',
         primary_color: settings.primary_color || '#6366f1',
         font_family: settings.font_family || 'Inter',
         logo_url: settings.logo_url || '',
-        check_in_enabled: true,
-        auto_checkout: false,
-        require_pin: true,
-        session_timeout: 30,
-        email_notifications: true,
-        sms_notifications: false,
-        print_name_tags: true,
+        check_in_enabled: (settings as any).check_in_enabled ?? true,
+        auto_checkout: (settings as any).auto_checkout ?? false,
+        require_pin: (settings as any).require_pin ?? true,
+        session_timeout: (settings as any).session_timeout || 30,
+        email_notifications: (settings as any).email_notifications ?? true,
+        sms_notifications: (settings as any).sms_notifications ?? false,
+        print_name_tags: (settings as any).print_name_tags ?? true,
         require_checkout_signature: settings.require_checkout_signature || false,
         google_maps_api_key: settings.google_maps_api_key || '',
         show_center_finder: settings.show_center_finder ?? true,
@@ -68,7 +68,7 @@ const OrganizationSettings = () => {
         max_upload_size_kb: settings.max_upload_size_kb || 200,
         upload_limit_type: settings.upload_limit_type || 'hard',
         blocked_extensions: settings.blocked_extensions?.join(', ') || 'exe, bat, sh, php, js, py',
-        backup_frequency: 'daily'
+        backup_frequency: (settings as any).backup_frequency || 'daily'
       });
     }
   }, [settings]);

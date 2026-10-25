@@ -112,10 +112,12 @@ const LandingPage = () => {
           <p className="w-full text-center text-muted-foreground font-bold uppercase tracking-widest text-[10px] mb-2 lg:mb-0 lg:w-auto lg:mr-8">
             {isEs ? "Tecnología De" : "Powered By"}
           </p>
-          <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-60 grayscale"><Shield className="h-4 w-4" /> SUPABASE</div>
-          <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-60 grayscale"><Lock className="h-4 w-4" /> STRIPE</div>
-          <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-60 grayscale"><Mail className="h-4 w-4" /> RESEND</div>
-          <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-60 grayscale"><Check className="h-4 w-4" /> COPPA COMPLIANT</div>
+          <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-70"><Shield className="h-4 w-4 text-blue-600" /> MICROSOFT AZURE CLOUD</div>
+          <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-70"><Lock className="h-4 w-4 text-emerald-600" /> AES-256 ENCRYPTED</div>
+          <div className="flex items-center gap-2 text-sm font-bold text-foreground opacity-70"><Mail className="h-4 w-4 text-purple-600" /> AZURE COMM SERVICES</div>
+          <Link to="/privacy-policy" className="flex items-center gap-2 text-sm font-bold text-foreground opacity-80 hover:opacity-100 hover:underline transition-opacity">
+            <Check className="h-4 w-4 text-emerald-600" /> COPPA COMPLIANT
+          </Link>
         </div>
       </div>
 

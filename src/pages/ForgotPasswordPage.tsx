@@ -6,6 +6,7 @@ import { Shield, Mail, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/useToast';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_BASE_URL } from '@/lib/apiClient';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -19,10 +20,8 @@ const ForgotPasswordPage = () => {
     setIsLoading(true);
     
     try {
-      const isAzure = !!import.meta.env.VITE_API_URL;
-
-      if (isAzure) {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
+      if (API_BASE_URL) {
+        const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim() })

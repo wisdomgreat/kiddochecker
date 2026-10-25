@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@azure/communication-email": "^1.1.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -21,7 +22,9 @@
     "jwks-rsa": "^3.1.0",
     "morgan": "^1.10.1",
     "pg": "^8.20.0",
+    "qrcode": "^1.5.4",
     "resend": "^6.12.2",
-    "twilio": "^6.0.0"
+    "twilio": "^6.0.0",
+    "xlsx": "^0.18.5"
   }
 }

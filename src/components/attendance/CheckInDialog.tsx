@@ -40,6 +40,21 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
     enabled: open,
   });
 
+  // Fetch children already present today to prevent duplicates
+  const { data: presentTodayIds = [] } = useQuery({
+    queryKey: ['present-children-today-dialog'],
+    queryFn: async () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('attendance')
+        .select('child_id')
+        .eq('attendance_date', todayStr)
+        .is('checked_out_at', null);
+      return (data || []).map((r: any) => r.child_id);
+    },
+    enabled: open,
+  });
+
   // Fetch all classes
   const { data: classes = [] } = useQuery({
     queryKey: ['all-classes'],
@@ -169,11 +184,14 @@ export const CheckInDialog = ({ open, onOpenChange, onSuccess }: CheckInDialogPr
                 <SelectValue placeholder="Begin typing or select..." />
               </SelectTrigger>
               <SelectContent className="rounded-2xl border-border/50 max-h-[300px]">
-                {children.map((child: any) => (
-                  <SelectItem key={child.id} value={child.id} className="font-bold py-3">
-                    {child.first_name} {child.last_name}
-                  </SelectItem>
-                ))}
+                {children.map((child: any) => {
+                  const isPresent = presentTodayIds.includes(child.id);
+                  return (
+                    <SelectItem key={child.id} value={child.id} disabled={isPresent} className="font-bold py-3">
+                      {child.first_name} {child.last_name} {isPresent ? '(Already Present Today)' : ''}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

@@ -1,26 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
 import { createBridgeProxy } from './bridgeProxy';
 import type { Database } from './types';
 import { AppRole, CustomRole, Permission, RolePermission } from '@/types/supabase';
 
-const SUPABASE_URL = "https://pxqztqcukuilqdermblq.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4cXp0cWN1a3VpbHFkZXJtYmxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA4MzYwODgsImV4cCI6MjA1NjQxMjA4OH0.2mZ8Dn2DX5SAQw2dHwPdHy6bQK5OhNTVI-1HVvXXlOs";
-
-// Migration Switch: Defaults to true so all queries go to Azure API Bridge
-const USE_AZURE_BRIDGE = import.meta.env.VITE_USE_AZURE_BRIDGE !== 'false';
-
-const realClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-});
-
+// Pure Azure Architecture: All operations proxy directly to Azure Container App and Azure PostgreSQL
 export const supabase = createBridgeProxy(null);
 
 // Helper functions for session management

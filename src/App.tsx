@@ -19,55 +19,74 @@ import { msalConfig } from "@/lib/authConfig";
 
 const msalInstance = new PublicClientApplication(msalConfig);
 
-// ─── Lazy Page Imports (code splitting) ───────────────────────────────────────
-const Index = lazy(() => import("./pages/Index"));
-const LoginPage = lazy(() => import("./pages/LoginPage"));
-const LandingPage = lazy(() => import("./pages/LandingPage"));
-const DeviceLoginPage = lazy(() => import("./pages/DeviceLoginPage"));
-const AdminDocumentVerification = lazy(() => import("./pages/AdminDocumentVerification"));
-const StaffDocumentUpload = lazy(() => import("./pages/StaffDocumentUpload"));
-const CheckInPage = lazy(() => import("./pages/CheckInPage"));
-const CheckInSetupPage = lazy(() => import("./pages/CheckInSetupPage"));
-const CheckOutPage = lazy(() => import("./pages/CheckOutPage"));
-const AttendancePage = lazy(() => import("./pages/AttendancePage"));
-const DeviceEnrollmentPage = lazy(() => import("./pages/DeviceEnrollmentPage"));
-const ClassesPage = lazy(() => import("./pages/ClassesPage"));
-const CombinedReportsWrapper = lazy(() => import("./pages/CombinedReportsPage"));
-const UsersPage = lazy(() => import("./pages/UsersPage"));
-const RolesPage = lazy(() => import("./pages/RolesPage"));
-const RegisterPage = lazy(() => import("./pages/RegisterPage"));
-const ParentRegistration = lazy(() => import("./pages/ParentRegistration"));
-const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
-const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const StaffPage = lazy(() => import("./pages/StaffPage"));
-const MessagesPage = lazy(() => import("./pages/MessagesPage"));
-const ChildrenPage = lazy(() => import("./pages/ChildrenPage"));
-const CalendarPage = lazy(() => import("./pages/CalendarPage"));
-const StaffSchedulesPage = lazy(() => import("./pages/StaffSchedulesPage"));
-const ParentChildrenPage = lazy(() => import("./pages/ParentChildrenPage"));
-const ParentAttendancePage = lazy(() => import("./pages/ParentAttendancePage"));
-const ParentMessagesPage = lazy(() => import("./pages/ParentMessagesPage"));
-const ParentProfilePage = lazy(() => import("./pages/ParentProfilePage"));
-const ParentRewardsPage = lazy(() => import("./pages/ParentRewardsPage"));
-const ChildMedicalProfile = lazy(() => import("./pages/ChildMedicalProfile"));
-const QRManagementPage = lazy(() => import("./pages/QRManagementPage"));
-const AuditLogPage = lazy(() => import("./pages/AuditLogPage"));
-const EmailTemplatesPage = lazy(() => import("./pages/EmailTemplatesPage"));
-const UserProfile = lazy(() => import("./pages/UserProfile"));
-const AttendanceRewardsPage = lazy(() => import("./pages/AttendanceRewardsPage"));
-const SystemHealth = lazy(() => import("./pages/SystemHealth"));
-const HelpDocumentation = lazy(() => import("./pages/HelpDocumentation"));
-const AboutUsPage = lazy(() => import("./pages/AboutUsPage"));
-const CentersPage = lazy(() => import("./pages/CentersPage")); // Removed from routes below
+// ─── Resilient Lazy Page Imports (Auto-recovers from new deploys/stale chunks) ──
+const lazyWithRetry = (factory: () => Promise<any>) =>
+  lazy(async () => {
+    const pageHasBeenForceRefreshed = sessionStorage.getItem('kiddo_chunk_retry_timestamp');
+    try {
+      return await factory();
+    } catch (error: any) {
+      console.warn('[ChunkLoader] Stale bundle chunk detected. Auto-refreshing window...', error);
+      const now = Date.now();
+      if (!pageHasBeenForceRefreshed || now - parseInt(pageHasBeenForceRefreshed, 10) > 15000) {
+        sessionStorage.setItem('kiddo_chunk_retry_timestamp', String(now));
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
 
-const ShiftManagementPage = lazy(() => import("./pages/ShiftManagementPage"));
-const ChurchManagementPage = lazy(() => import("./pages/ChurchManagementPage"));
-const InstallPWABanner = lazy(() => import("./components/mobile/InstallPWABanner"));
+const Index = lazyWithRetry(() => import("./pages/Index"));
+const LoginPage = lazyWithRetry(() => import("./pages/LoginPage"));
+const LandingPage = lazyWithRetry(() => import("./pages/LandingPage"));
+const DeviceLoginPage = lazyWithRetry(() => import("./pages/DeviceLoginPage"));
+const AdminDocumentVerification = lazyWithRetry(() => import("./pages/AdminDocumentVerification"));
+const StaffDocumentUpload = lazyWithRetry(() => import("./pages/StaffDocumentUpload"));
+const CheckInPage = lazyWithRetry(() => import("./pages/CheckInPage"));
+const CheckInSetupPage = lazyWithRetry(() => import("./pages/CheckInSetupPage"));
+const CheckOutPage = lazyWithRetry(() => import("./pages/CheckOutPage"));
+const AttendancePage = lazyWithRetry(() => import("./pages/AttendancePage"));
+const DeviceEnrollmentPage = lazyWithRetry(() => import("./pages/DeviceEnrollmentPage"));
+const ClassesPage = lazyWithRetry(() => import("./pages/ClassesPage"));
+const CombinedReportsWrapper = lazyWithRetry(() => import("./pages/CombinedReportsPage"));
+const UsersPage = lazyWithRetry(() => import("./pages/UsersPage"));
+const RolesPage = lazyWithRetry(() => import("./pages/RolesPage"));
+const RegisterPage = lazyWithRetry(() => import("./pages/RegisterPage"));
+const ParentRegistration = lazyWithRetry(() => import("./pages/ParentRegistration"));
+const ForgotPasswordPage = lazyWithRetry(() => import("./pages/ForgotPasswordPage"));
+const ResetPasswordPage = lazyWithRetry(() => import("./pages/ResetPasswordPage"));
+const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
+const StaffPage = lazyWithRetry(() => import("./pages/StaffPage"));
+const MessagesPage = lazyWithRetry(() => import("./pages/MessagesPage"));
+const ChildrenPage = lazyWithRetry(() => import("./pages/ChildrenPage"));
+const CalendarPage = lazyWithRetry(() => import("./pages/CalendarPage"));
+const StaffSchedulesPage = lazyWithRetry(() => import("./pages/StaffSchedulesPage"));
+const ParentChildrenPage = lazyWithRetry(() => import("./pages/ParentChildrenPage"));
+const ParentAttendancePage = lazyWithRetry(() => import("./pages/ParentAttendancePage"));
+const ParentMessagesPage = lazyWithRetry(() => import("./pages/ParentMessagesPage"));
+const ParentProfilePage = lazyWithRetry(() => import("./pages/ParentProfilePage"));
+const ParentRewardsPage = lazyWithRetry(() => import("./pages/ParentRewardsPage"));
+const ChildMedicalProfile = lazyWithRetry(() => import("./pages/ChildMedicalProfile"));
+const QRManagementPage = lazyWithRetry(() => import("./pages/QRManagementPage"));
+const AuditLogPage = lazyWithRetry(() => import("./pages/AuditLogPage"));
+const EmailTemplatesPage = lazyWithRetry(() => import("./pages/EmailTemplatesPage"));
+const EmailLogsPage = lazyWithRetry(() => import("./pages/EmailLogsPage"));
+const UserProfile = lazyWithRetry(() => import("./pages/UserProfile"));
+const AttendanceRewardsPage = lazyWithRetry(() => import("./pages/AttendanceRewardsPage"));
+const SystemHealth = lazyWithRetry(() => import("./pages/SystemHealth"));
+const HelpDocumentation = lazyWithRetry(() => import("./pages/HelpDocumentation"));
+const AboutUsPage = lazyWithRetry(() => import("./pages/AboutUsPage"));
+const PrivacyPolicyPage = lazyWithRetry(() => import("./pages/PrivacyPolicyPage"));
+const TermsOfServicePage = lazyWithRetry(() => import("./pages/TermsOfServicePage"));
+const CentersPage = lazyWithRetry(() => import("./pages/CentersPage"));
+
+const ShiftManagementPage = lazyWithRetry(() => import("./pages/ShiftManagementPage"));
+const ChurchManagementPage = lazyWithRetry(() => import("./pages/ChurchManagementPage"));
+const SecurityTrackerPage = lazyWithRetry(() => import("./pages/SecurityTrackerPage"));
+const InstallPWABanner = lazyWithRetry(() => import("./components/mobile/InstallPWABanner"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => {
-  const { t } = useTranslation();
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="flex flex-col items-center gap-6">
@@ -78,8 +97,8 @@ const PageLoader = () => {
           </div>
         </div>
         <div className="space-y-1 text-center">
-          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-foreground">{t('syncingEnvironment')}</p>
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{t('authorizingModules')}</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.3em] text-foreground">Secure Childcare System</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Connecting Secure Terminal</p>
         </div>
       </div>
     </div>
@@ -118,6 +137,12 @@ function App() {
                       <Route path="/device-login" element={<DeviceLoginPage />} />
                       <Route path="/register" element={<RegisterPage />} />
                       <Route path="/parent-registration" element={<ParentRegistration />} />
+                      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                      <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+                      <Route path="/terms" element={<TermsOfServicePage />} />
+                      <Route path="/about-us" element={<AboutUsPage />} />
+                      <Route path="/about" element={<AboutUsPage />} />
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/landing" element={<LandingPage />} />
@@ -177,8 +202,11 @@ function App() {
                       <Route path="/children/:id/medical" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']}><ChildMedicalProfile /></RoleBasedRoute>} />
                       <Route path="/audit-log" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AuditLogPage /></RoleBasedRoute>} />
                       <Route path="/admin/email-templates" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><EmailTemplatesPage /></RoleBasedRoute>} />
+                      <Route path="/admin/email-logs" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><EmailLogsPage /></RoleBasedRoute>} />
                       <Route path="/admin/rewards" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><AttendanceRewardsPage /></RoleBasedRoute>} />
                       <Route path="/admin/system-health" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="manage_system"><SystemHealth /></RoleBasedRoute>} />
+                      <Route path="/admin/security" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SecurityTrackerPage /></RoleBasedRoute>} />
+                      <Route path="/admin/security-tracker" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']}><SecurityTrackerPage /></RoleBasedRoute>} />
                       <Route path="/help" element={<HelpDocumentation />} />
                       <Route path="/faq" element={<HelpDocumentation />} />
                       <Route path="/about" element={<AboutUsPage />} />

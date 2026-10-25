@@ -115,6 +115,11 @@ export const createBridgeProxy = (realClient: any) => {
         filters.push({ operator: 'limit', value: count });
         return proxy;
       },
+      range: (from: number, to: number) => {
+        filters.push({ operator: 'offset', value: from });
+        filters.push({ operator: 'limit', value: Math.max(1, to - from + 1) });
+        return proxy;
+      },
       order: (column: string, { ascending = true } = {}) => {
         filters.push({ operator: 'order', column, value: ascending ? 'ASC' : 'DESC' });
         return proxy;
@@ -164,6 +169,30 @@ export const createBridgeProxy = (realClient: any) => {
   const client: any = {
     from: (table: string) => createBuilder(table),
     rpc: async (fn: string, params: any = {}) => {
+      // Direct client-side bridge fallback for log_care_event
+      if (fn === 'log_care_event') {
+        try {
+          const payload = {
+            attendance_id: params.attendance_id || params.p_attendance_id,
+            staff_id: params.staff_id || params.p_staff_id,
+            event_type: params.event_type || params.p_event_type,
+            notes: params.notes || params.p_notes,
+            details: params.details || params.p_details || {}
+          };
+          const mutateRes = await apiFetch('/api/mutate', {
+            method: 'POST',
+            body: JSON.stringify({
+              table: 'care_logs',
+              action: 'insert',
+              data: payload
+            })
+          });
+          return { data: mutateRes.data?.[0] || mutateRes.data, error: null };
+        } catch (mutateErr: any) {
+          console.warn('[BridgeProxy] Fallback direct mutate error for log_care_event:', mutateErr);
+        }
+      }
+
       const res = await apiFetch('/api/rpc', {
         method: 'POST',
         body: JSON.stringify({ fn, params })
@@ -254,7 +283,8 @@ export const createBridgeProxy = (realClient: any) => {
       },
       signInWithPassword: async ({ email, password }: any) => {
         try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const res = await fetch(`${baseUrl}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
@@ -283,7 +313,8 @@ export const createBridgeProxy = (realClient: any) => {
       mfa: {
         listFactors: async () => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/list`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/list`, {
               headers: { 
                 'Authorization': `Bearer ${localStorage.getItem('bridge_token')}`
               }
@@ -297,7 +328,8 @@ export const createBridgeProxy = (realClient: any) => {
         },
         enroll: async ({ friendlyName, issuer }: any) => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/enroll`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/enroll`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -320,7 +352,8 @@ export const createBridgeProxy = (realClient: any) => {
         },
         verify: async ({ factorId, challengeId, code }: any) => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/verify`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/verify`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -340,7 +373,8 @@ export const createBridgeProxy = (realClient: any) => {
         },
         unenroll: async ({ factorId }: any) => {
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/mfa/unenroll`, {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const res = await fetch(`${baseUrl}/api/auth/mfa/unenroll`, {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json',
@@ -353,6 +387,108 @@ export const createBridgeProxy = (realClient: any) => {
               return { data: null, error: new Error(error.error || 'Failed to unenroll') };
             }
             const data = await res.json();
+            return { data, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        }
+      },
+      resetPasswordForEmail: async (email: string, options?: { redirectTo?: string }) => {
+        try {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const res = await fetch(`${baseUrl}/api/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim() })
+          });
+          if (!res.ok) {
+            let errorMsg = 'Failed to trigger password reset';
+            try {
+              const errorObj = await res.json();
+              errorMsg = errorObj.error || errorObj.message || errorMsg;
+            } catch {
+              const text = await res.text().catch(() => '');
+              errorMsg = text || `Server error (${res.status})`;
+            }
+            return { data: null, error: new Error(errorMsg) };
+          }
+          const data = await res.json();
+          return { data, error: null };
+        } catch (e: any) {
+          return { data: null, error: e };
+        }
+      },
+      updateUser: async (attributes: any) => {
+        try {
+          const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+          const token = localStorage.getItem('bridge_token');
+          const bodyPayload = attributes?.password ? { password: attributes.password } : (attributes?.data || attributes);
+          const res = await fetch(`${baseUrl}/api/profile`, {
+            method: 'PATCH',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(bodyPayload)
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            return { data: null, error: new Error(err.error || 'Failed to update user profile') };
+          }
+          return { data: { user: await res.json() }, error: null };
+        } catch (e: any) {
+          return { data: null, error: e };
+        }
+      },
+      admin: {
+        createUser: async ({ email, password, user_metadata }: any) => {
+          try {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const token = localStorage.getItem('bridge_token');
+            const res = await fetch(`${baseUrl}/api/functions/admin-user-management`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                action: 'create_user',
+                email,
+                password,
+                firstName: user_metadata?.first_name || '',
+                lastName: user_metadata?.last_name || '',
+                phone: user_metadata?.phone || '',
+                role: user_metadata?.role || 'parent'
+              })
+            });
+            const data = await res.json();
+            if (!res.ok || data.success === false) {
+              return { data: null, error: new Error(data.error || 'User creation failed') };
+            }
+            return { data: { user: { id: data.userId || data.id, email } }, error: null };
+          } catch (e: any) {
+            return { data: null, error: e };
+          }
+        },
+        deleteUser: async (userId: string) => {
+          try {
+            const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+            const token = localStorage.getItem('bridge_token');
+            const res = await fetch(`${baseUrl}/api/admin/users/bulk-action`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                action: 'delete',
+                user_ids: [userId]
+              })
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+              return { data: null, error: new Error(data.error || 'Failed to delete user') };
+            }
             return { data, error: null };
           } catch (e: any) {
             return { data: null, error: e };

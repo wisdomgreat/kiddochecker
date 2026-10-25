@@ -170,7 +170,8 @@ const ParentProfile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: user.id,
           first_name: firstName,
           last_name: lastName,
           phone: phone,
@@ -178,10 +179,8 @@ const ParentProfile = () => {
           security_pin: securityPin,
           photo_url: photoUrl,
           avatar_url: photoUrl,
-        } as any)
-        .eq('id', user.id)
-        .select()
-        .single();
+          updated_at: new Date().toISOString(),
+        } as any);
 
       if (error) throw error;
       return data;

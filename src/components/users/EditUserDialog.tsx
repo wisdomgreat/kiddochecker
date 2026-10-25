@@ -50,6 +50,7 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
   const { sendStaffPinNotification } = useEmailNotifications();
   const [staffPin, setStaffPin] = useState<string | null>(null);
   const [isGeneratingPin, setIsGeneratingPin] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<any>(null);
 
   useEffect(() => {
@@ -107,7 +108,15 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
   };
 
   const handlePasswordReset = async () => {
-    if (!user?.email) return;
+    if (!user?.email) {
+      toast({
+        title: "No Email Found",
+        description: "This user does not have an email address associated with their account.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setIsResettingPassword(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -119,10 +128,12 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
       });
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: "Reset Failed",
         description: error.message || "Failed to trigger password reset",
         variant: "destructive",
       });
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -363,11 +374,21 @@ export const EditUserDialog = ({ user, open, onOpenChange, onSuccess }: EditUser
              <Button 
                 type="button"
                 variant="destructive" 
-                className="w-full h-12 rounded-xl flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 border-red-100"
+                className="w-full h-12 rounded-xl flex items-center justify-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 border-red-100 font-medium transition-colors"
                 onClick={handlePasswordReset}
-                disabled={currentUserRole?.role === 'admin' && user?.is_super_admin}
+                disabled={isResettingPassword || (currentUserRole?.role === 'admin' && user?.is_super_admin)}
              >
-                <Key className="w-4 h-4" /> Reset Account Password
+                {isResettingPassword ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Sending Reset Link...
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-4 h-4 mr-2" />
+                    Reset Account Password
+                  </>
+                )}
              </Button>
              {currentUserRole?.role === 'admin' && user?.is_super_admin && (
                 <p className="text-[10px] text-red-400 mt-2 italic text-center">

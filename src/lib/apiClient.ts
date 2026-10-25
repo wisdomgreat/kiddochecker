@@ -27,17 +27,24 @@ export const getAccessToken = async () => {
     }
 
     // 2. Fallback to Supabase (Email/Password)
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-        return session.access_token;
-    }
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            return session.access_token;
+        }
+    } catch (e) {}
 
+    // No active session token
     return null;
 };
 
+export const API_BASE_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.length > 0)
+    ? import.meta.env.VITE_API_URL
+    : "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     const token = await getAccessToken();
-    const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+    const baseUrl = API_BASE_URL;
     
     const headers = {
         ...options.headers,

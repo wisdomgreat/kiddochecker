@@ -75,6 +75,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     // 1. Primary: Enqueue to Azure Cloud Relay (Immune to browser CORS / Mixed Content)
     try {
       const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
+      const orgId = localStorage.getItem('kiddochecker_org_id') || 'default_org';
       const cloudRes = await fetch(`${baseUrl}/api/print-jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,10 +86,12 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             class: safeClassName,
             instructions: safeInstructions,
             securityCode: displayCode,
-            qrData: qrData
+            qrData: qrData,
+            orgId: orgId
           },
           printerIp: targetPrinterIp,
-          printerName: targetPrinterName
+          printerName: targetPrinterName,
+          orgId: orgId
         }),
       });
 

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, User, MapPin, CheckCircle } from "lucide-react";
+import { AttendanceService } from "@/services/attendanceService";
 
 interface CheckInProcessParams extends Record<string, string> {
   childId: string;
@@ -78,17 +79,17 @@ const CheckInProcess = () => {
     mutationFn: async () => {
       if (!child || !selectedClass) throw new Error("Missing required data");
 
-      const { error } = await supabase
-        .from('attendance')
-        .insert({
-          child_id: child.id,
-          class_id: selectedClass.id,
-          attendance_date: new Date().toISOString().split('T')[0],
-          checked_in_at: new Date().toISOString(),
-          checked_in_by: user?.id || null,
-        });
+      const res = await AttendanceService.checkInChild({
+        childId: child.id,
+        classId: selectedClass.id,
+        checkedInBy: user?.id || undefined,
+        method: 'staff_dashboard',
+        station: 'Check-In Station'
+      });
 
-      if (error) throw error;
+      if (!res.success) {
+        throw new Error(res.error || "Failed to check in child");
+      }
     },
     onSuccess: () => {
       toast({
