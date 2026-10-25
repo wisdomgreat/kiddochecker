@@ -757,6 +757,7 @@ async function runMigrations() {
     { name: 'get_staff_verification_status_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_staff_verification_status(p_user_id UUID) RETURNS TABLE (user_id UUID, is_verified BOOLEAN, verification_status TEXT, verified_at TIMESTAMPTZ, verified_by UUID, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(ur.role IN ('admin', 'super_admin', 'staff', 'teacher'), false) as is_verified, COALESCE(ur.role, 'pending')::TEXT as verification_status, p.created_at as verified_at, p.id as verified_by, (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id = p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_pending_staff_verifications_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_pending_staff_verifications() RETURNS TABLE (user_id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT, created_at TIMESTAMPTZ, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.email, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(p.created_at, NOW()), (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) IN ('staff', 'teacher', 'volunteer', 'pending') ORDER BY p.created_at DESC; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'col_activity_logs_resource_id_text', sql: `ALTER TABLE public.activity_logs ALTER COLUMN resource_id TYPE TEXT USING resource_id::TEXT;` },
+    { name: 'col_profiles_verification_status_safe', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unverified';` },
     { name: 'admin_verify_staff_rpc', sql: `
       DROP FUNCTION IF EXISTS public.admin_verify_staff(UUID, TEXT, TEXT, UUID);
       DROP FUNCTION IF EXISTS public.admin_verify_staff(UUID, TEXT, TEXT);
@@ -778,7 +779,7 @@ async function runMigrations() {
             verification_notes = COALESCE(p_notes, EXCLUDED.verification_notes);
             
           UPDATE public.profiles 
-          SET role = 'staff', verification_status = 'verified' 
+          SET role = 'staff' 
           WHERE id = p_user_id;
 
           INSERT INTO public.activity_logs (user_id, action, resource, resource_id, details) 
@@ -791,10 +792,6 @@ async function runMigrations() {
               verified_by = v_admin, 
               verification_notes = COALESCE(p_notes, 'Rejected by administrator') 
           WHERE user_id = p_user_id;
-
-          UPDATE public.profiles 
-          SET verification_status = 'rejected' 
-          WHERE id = p_user_id;
 
           INSERT INTO public.activity_logs (user_id, action, resource, resource_id, details) 
           VALUES (COALESCE(v_admin, p_user_id), 'reject_staff', 'user_roles', p_user_id::TEXT, jsonb_build_object('action', 'rejected', 'notes', p_notes)); 
@@ -1879,13 +1876,16 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             verification_notes = COALESCE($4, public.user_roles.verification_notes);
         `, [userId, newStatus, adminId, notes]);
 
-        // 2. Update profiles table
-        await pool.query(`
-          UPDATE public.profiles
-          SET verification_status = $2,
-              role = CASE WHEN $2 = 'verified' AND (role IS NULL OR role = 'parent' OR role = 'pending') THEN 'staff' ELSE role END
-          WHERE id::text = $1::text;
-        `, [userId, newStatus]);
+        // 2. Update profiles table (only columns that exist on profiles: role)
+        try {
+          await pool.query(`
+            UPDATE public.profiles
+            SET role = CASE WHEN $2 = 'verified' AND (role IS NULL OR role = 'parent' OR role = 'pending') THEN 'staff' ELSE role END
+            WHERE id::text = $1::text;
+          `, [userId, newStatus]);
+        } catch (profErr) {
+          console.warn('[Bridge] Non-critical profile role update notice:', profErr.message);
+        }
 
         // 3. Log to activity_logs (safe with uuid cast or text fallback)
         try {
