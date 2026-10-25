@@ -842,7 +842,8 @@ async function runMigrations() {
         'wisejobsnaija+kiddotest1@gmail.com',
         'wisejobsnaija+kiddotest2@gmail.com',
         'wisejobsnaija+kiddodeep1@gmail.com',
-        'wisejobsnaija+kiddodeep2@gmail.com'
+        'wisejobsnaija+kiddodeep2@gmail.com',
+        'test_audit_dup_verify@gmail.com'
       );
 
       -- Explicitly ensure owner-created staff test account is verified
