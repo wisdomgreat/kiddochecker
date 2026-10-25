@@ -214,6 +214,30 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
 
         if (error) throw error;
       } else {
+        // Prevent duplicate child registration within the family
+        const targetParentId = user.id;
+        const { data: existingChildren } = await supabase
+          .from('children')
+          .select('id, first_name, last_name, age')
+          .eq('parent_id', targetParentId);
+
+        const isDuplicate = existingChildren?.some(
+          (c: any) =>
+            c.first_name?.trim().toLowerCase() === firstName.trim().toLowerCase() &&
+            c.last_name?.trim().toLowerCase() === lastName.trim().toLowerCase() &&
+            (age === undefined || c.age === age)
+        );
+
+        if (isDuplicate) {
+          toast({
+            title: "Duplicate Child Detected",
+            description: `A child named ${firstName.trim()} ${lastName.trim()} (Age ${age ?? 'N/A'}) is already registered under your family.`,
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
         const { data: newChild, error } = await supabase
           .from('children')
           .insert(childPayload)

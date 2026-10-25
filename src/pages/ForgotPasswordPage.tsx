@@ -136,9 +136,9 @@ const ForgotPasswordPage = () => {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div className="space-y-1">
-                <h2 className="text-xl font-bold text-foreground">Check your Email</h2>
+                <h2 className="text-xl font-bold text-foreground">Request Processed</h2>
                 <p className="text-xs text-muted-foreground">
-                  We've dispatched password reset instructions to <strong className="text-foreground">{email}</strong>.
+                  If an account exists with <strong className="text-foreground">{email}</strong>, you will receive password recovery instructions shortly.
                 </p>
               </div>
               

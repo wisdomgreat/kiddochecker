@@ -90,7 +90,7 @@ const RoleBasedRoute = ({ children, allowedRoles, requiredPermission, redirectTo
   if (hasAccess) {
     // SECURITY UPGRADE: Force onboarding for unverified staff
     const isStaffType = userRole === 'staff' || userRole === 'teacher' || userRole === 'teacher_assistant';
-    const isAllowedUnverifiedPath = ['/', '/staff-dashboard', '/dashboard', '/parent-dashboard'].includes(location.pathname);
+    const isAllowedUnverifiedPath = ['/', '/staff-dashboard', '/dashboard', '/parent-dashboard', '/staff/documents', '/profile'].includes(location.pathname);
     
     if (isStaffType && !isVerifiedStaff && !isAllowedUnverifiedPath) {
       return <Navigate to="/" replace />;

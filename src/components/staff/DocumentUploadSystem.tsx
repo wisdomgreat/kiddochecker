@@ -43,44 +43,54 @@ const DocumentUploadSystem = () => {
   const [fileError, setFileError] = useState<string | null>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const ext = (file.name.split('.').pop() || '').toLowerCase();
-      const allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    try {
+      const file = e.target.files?.[0];
+      if (file) {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const allowedExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
 
-      if (!allowedExts.includes(ext) && (!file.type || !allowedTypes.includes(file.type))) {
-        const errMsg = "Invalid file type. Please select a PDF, JPG, or PNG document.";
-        setFileError(errMsg);
-        toast({
-           title: "Invalid Type",
-           description: errMsg,
-           variant: "destructive"
-        });
-        return;
+        if (!allowedExts.includes(ext) && (!file.type || !allowedTypes.includes(file.type))) {
+          const errMsg = "Invalid file type. Please select a PDF, JPG, or PNG document.";
+          setFileError(errMsg);
+          toast({
+             title: "Invalid Type",
+             description: errMsg,
+             variant: "destructive"
+          });
+          return;
+        }
+
+        // 1. Organization Screening (FSRM)
+        const screening = screenFileUpload(file, settings);
+        if (!screening.isValid) {
+          setFileError(screening.error || "File violates security policy or size limits.");
+          toast({
+            title: "Policy Violation",
+            description: screening.error,
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (screening.isSoftLimitTriggered) {
+          toast({
+            title: "Soft Quota Warning",
+            description: screening.error,
+          });
+        }
+
+        setFileError(null);
+        setSelectedFile(file);
       }
-
-      // 1. Organization Screening (FSRM)
-      const screening = screenFileUpload(file, settings);
-      if (!screening.isValid) {
-        setFileError(screening.error || "File violates security policy or size limits.");
-        toast({
-          title: "Policy Violation",
-          description: screening.error,
-          variant: "destructive"
-        });
-        return;
+    } catch (err: any) {
+      console.error("[handleFileSelect] File selection error:", err);
+      // Fallback: still set the file if valid type
+      const fallbackFile = e.target.files?.[0];
+      if (fallbackFile) {
+        setFileError(null);
+        setSelectedFile(fallbackFile);
       }
-
-      if (screening.isSoftLimitTriggered) {
-        toast({
-          title: "Soft Quota Warning",
-          description: screening.error,
-        });
-      }
-
-      setFileError(null);
-      setSelectedFile(file);
     }
   };
 

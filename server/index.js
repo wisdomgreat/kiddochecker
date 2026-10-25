@@ -78,18 +78,8 @@ async function setupDatabase() {
     console.error('[DB] Schema Setup Error (Non-Fatal):', err.message);
   }
 
-  // Grant BYPASSRLS to the service account so Supabase auth.uid()-based RLS
-  // policies don't block the API server (auth.uid() is always NULL for pg connections).
-  // This is safe: kiddomin is a trusted backend service account, not an end-user.
-  try {
-    const dbUser = process.env.DB_USER || 'kiddomin';
-    await pool.query(`ALTER ROLE "${dbUser}" BYPASSRLS`);
-    console.log(`[DB] BYPASSRLS granted to ${dbUser} — RLS will not block service queries.`);
-  } catch (err) {
-    // Azure PostgreSQL Flexible Server admin may not allow this — log but don't crash
-    console.warn('[DB] Could not grant BYPASSRLS (non-fatal, auth may still fail via RLS):', err.message);
-    // Fallback: try to set row_security off at session level in critical auth queries
-  }
+  // Note: Backend queries are authenticated and authorized explicitly at the API layer.
+  // We do not grant BYPASSRLS to the database role to preserve defense-in-depth.
 
   // Ensure password_reset_tokens table exists
   try {
@@ -747,14 +737,14 @@ async function runMigrations() {
     { name: 'get_staff_shifts_for_kiosk', sql: `CREATE OR REPLACE FUNCTION public.get_staff_shifts_for_kiosk() RETURNS TABLE (id UUID, staff_id UUID, start_time TIMESTAMPTZ, end_time TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT s.id, s.staff_id, s.start_time, s.end_time FROM public.staff_shifts s WHERE s.start_time::date = CURRENT_DATE; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'check_user_permission', sql: `CREATE OR REPLACE FUNCTION public.check_user_permission(p_user_id UUID, p_permission_name TEXT) RETURNS BOOLEAN AS $$ DECLARE v_is_admin BOOLEAN; BEGIN SELECT (role IN ('admin', 'super_admin') OR is_super_admin = true) INTO v_is_admin FROM public.user_roles WHERE user_id = p_user_id; IF v_is_admin THEN RETURN TRUE; END IF; RETURN EXISTS (SELECT 1 FROM public.role_permissions rp JOIN public.permissions p ON rp.permission_id = p.id JOIN public.user_roles ur ON ur.role::text = rp.role_id::text WHERE ur.user_id = p_user_id AND p.name = p_permission_name); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'device_mgmt', sql: `CREATE OR REPLACE FUNCTION public.register_device(p_device_id TEXT, p_name TEXT, p_type TEXT, p_location TEXT DEFAULT NULL) RETURNS VOID AS $$ BEGIN INSERT INTO public.devices (device_id, name, type, location, is_active, is_authorized) VALUES (p_device_id, p_name, p_type, p_location, true, true) ON CONFLICT (device_id) DO UPDATE SET name = p_name, type = p_type, location = p_location, last_seen_at = now(); END; $$ LANGUAGE plpgsql; CREATE OR REPLACE FUNCTION public.get_device_profile(p_device_id TEXT) RETURNS JSONB AS $$ DECLARE v_dev RECORD; BEGIN SELECT * INTO v_dev FROM public.devices WHERE device_id = p_device_id AND is_active = true LIMIT 1; IF v_dev IS NULL THEN RETURN NULL; END IF; RETURN jsonb_build_object('id', v_dev.id, 'name', v_dev.name, 'type', v_dev.type, 'is_authorized', v_dev.is_authorized); END; $$ LANGUAGE plpgsql;` },
-    { name: 'col_password_hash', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT; UPDATE public.profiles SET password_hash = '$2b$10$7JMzVL7apPHCTSIO2c0niefOkPVOYo9iEnZrPAiRSWB.hSGU0pgJu' WHERE password_hash IS NULL; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_secret TEXT; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE;` },
-    { name: 'get_staff_members', sql: `DROP FUNCTION IF EXISTS public.get_staff_members(UUID); DROP FUNCTION IF EXISTS public.get_staff_members(); CREATE OR REPLACE FUNCTION public.get_staff_members(p_user_id UUID DEFAULT NULL) RETURNS TABLE (user_id UUID, email TEXT, first_name TEXT, last_name TEXT, phone TEXT, role TEXT, is_super_admin BOOLEAN, is_active BOOLEAN, staff_pin TEXT, avatar_url TEXT, photo_url TEXT, department TEXT, specialties TEXT[], max_hours_per_week INTEGER, supervisor_id UUID) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, p.email::TEXT, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.phone, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(ur.is_super_admin, p.is_super_admin, false), true AS is_active, p.staff_pin::TEXT, p.avatar_url::TEXT, p.photo_url::TEXT, p.department::TEXT, p.specialties, p.max_hours_per_week, p.supervisor_id FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) NOT IN ('parent', 'child', 'kiosk') ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'col_password_hash', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_secret TEXT; ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE;` },
+    { name: 'get_staff_members', sql: `DROP FUNCTION IF EXISTS public.get_staff_members(UUID); DROP FUNCTION IF EXISTS public.get_staff_members(); CREATE OR REPLACE FUNCTION public.get_staff_members(p_user_id UUID DEFAULT NULL) RETURNS TABLE (user_id UUID, email TEXT, first_name TEXT, last_name TEXT, phone TEXT, role TEXT, is_super_admin BOOLEAN, is_active BOOLEAN, staff_pin TEXT, avatar_url TEXT, photo_url TEXT, department TEXT, specialties TEXT[], max_hours_per_week INTEGER, supervisor_id UUID) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, p.email::TEXT, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.phone, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(ur.is_super_admin, p.is_super_admin, false), true AS is_active, NULL::TEXT as staff_pin, p.avatar_url::TEXT, p.photo_url::TEXT, p.department::TEXT, p.specialties, p.max_hours_per_week, p.supervisor_id FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) NOT IN ('parent', 'child', 'kiosk') ORDER BY p.last_name NULLS LAST, p.first_name NULLS LAST; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'sync_profile_role_trigger', sql: `CREATE OR REPLACE FUNCTION public.sync_profile_role_to_user_roles() RETURNS TRIGGER AS $$ BEGIN INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES (NEW.id, COALESCE(NEW.role, 'parent'), COALESCE(NEW.is_super_admin, false)) ON CONFLICT (user_id) DO UPDATE SET role = COALESCE(EXCLUDED.role, user_roles.role), is_super_admin = COALESCE(EXCLUDED.is_super_admin, user_roles.is_super_admin); RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER; DROP TRIGGER IF EXISTS trg_sync_profile_role ON public.profiles; CREATE TRIGGER trg_sync_profile_role AFTER INSERT OR UPDATE OF role, is_super_admin ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.sync_profile_role_to_user_roles();` },
     { name: 'care_logs_table_v2', sql: `CREATE TABLE IF NOT EXISTS public.care_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), attendance_id UUID, child_id UUID REFERENCES public.children(id) ON DELETE CASCADE, staff_id UUID, note_type TEXT DEFAULT 'general', note TEXT NOT NULL, logged_at TIMESTAMPTZ DEFAULT NOW(), created_at TIMESTAMPTZ DEFAULT NOW()); CREATE INDEX IF NOT EXISTS idx_care_logs_att ON public.care_logs(attendance_id); CREATE INDEX IF NOT EXISTS idx_care_logs_child ON public.care_logs(child_id);` },
     { name: 'get_detailed_attendance_report_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_detailed_attendance_report(start_date text DEFAULT '2020-01-01', end_date text DEFAULT '2030-12-31') RETURNS TABLE (id UUID, attendance_date DATE, child_id UUID, child_name TEXT, class_id UUID, class_name TEXT, checked_in_at TIMESTAMPTZ, checked_out_at TIMESTAMPTZ, status TEXT) AS $$ BEGIN RETURN QUERY SELECT a.id, a.attendance_date::date, a.child_id, COALESCE(CONCAT(c.first_name, ' ', c.last_name), 'Registered Child') as child_name, a.class_id, COALESCE(cl.name, 'General / Summer Camp') as class_name, a.checked_in_at, a.checked_out_at, COALESCE(a.status, 'present') as status FROM public.attendance a LEFT JOIN public.children c ON a.child_id = c.id LEFT JOIN public.classes cl ON a.class_id = cl.id WHERE a.attendance_date::date BETWEEN start_date::date AND end_date::date ORDER BY a.attendance_date DESC, a.checked_in_at DESC; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_class_roster_with_attendance_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_class_roster_with_attendance(p_class_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, is_present BOOLEAN, checked_in_at TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT c.id as child_id, c.first_name, c.last_name, c.age, c.allergies, EXISTS(SELECT 1 FROM public.attendance a WHERE a.child_id = c.id AND a.attendance_date::date = CURRENT_DATE AND a.checked_in_at IS NOT NULL AND a.checked_out_at IS NULL) as is_present, (SELECT a.checked_in_at FROM public.attendance a WHERE a.child_id = c.id AND a.attendance_date::date = CURRENT_DATE ORDER BY a.checked_in_at DESC LIMIT 1) as checked_in_at FROM public.children c WHERE p_class_id IS NULL OR c.class_id = p_class_id ORDER BY c.first_name, c.last_name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_parent_children_unique_signature', sql: `DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID); DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID, UUID); CREATE OR REPLACE FUNCTION public.get_parent_children_with_classes(parent_user_id UUID DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, medical_info TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, notes TEXT, current_class_name TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id as child_id, c.first_name, c.last_name, c.age, c.allergies, c.medical_info, c.emergency_contact_name, c.emergency_contact_phone, c.notes, COALESCE(cl.name, 'General / Summer Camp') as current_class_name FROM public.children c LEFT JOIN public.classes cl ON c.class_id = cl.id WHERE c.parent_id = COALESCE(parent_user_id, p_user_id); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'get_staff_verification_status_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_staff_verification_status(p_user_id UUID) RETURNS TABLE (user_id UUID, is_verified BOOLEAN, verification_status TEXT, verified_at TIMESTAMPTZ, verified_by UUID, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(ur.role IN ('admin', 'super_admin', 'staff', 'teacher'), false) as is_verified, COALESCE(ur.role, 'pending')::TEXT as verification_status, p.created_at as verified_at, p.id as verified_by, (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id = p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_staff_verification_status_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_staff_verification_status(p_user_id UUID) RETURNS TABLE (user_id UUID, is_verified BOOLEAN, verification_status TEXT, verified_at TIMESTAMPTZ, verified_by UUID, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(ur.verification_status = 'verified' OR ur.role IN ('admin', 'super_admin'), false) as is_verified, COALESCE(ur.verification_status, 'pending')::TEXT as verification_status, ur.verified_at, ur.verified_by, (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id OR sd.staff_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id = p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_pending_staff_verifications_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_pending_staff_verifications() RETURNS TABLE (user_id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT, created_at TIMESTAMPTZ, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.email, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(p.created_at, NOW()), (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) IN ('staff', 'teacher', 'volunteer', 'pending') ORDER BY p.created_at DESC; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'col_activity_logs_resource_id_text', sql: `ALTER TABLE public.activity_logs ALTER COLUMN resource_id TYPE TEXT USING resource_id::TEXT;` },
     { name: 'col_profiles_verification_status_safe', sql: `ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS verification_status TEXT DEFAULT 'unverified';` },
@@ -822,34 +812,15 @@ async function runMigrations() {
       BEGIN 
         RETURN QUERY SELECT 
           p.id as user_id, 
-          COALESCE(ur.verification_status = 'verified' OR ur.role IN ('admin', 'super_admin'), true) as is_verified, 
-          COALESCE(ur.verification_status, 'verified')::TEXT as verification_status, 
-          COALESCE(ur.verified_at, p.created_at) as verified_at, 
+          COALESCE(ur.verification_status = 'verified' OR ur.role IN ('admin', 'super_admin'), false) as is_verified, 
+          COALESCE(ur.verification_status, 'pending')::TEXT as verification_status, 
+          ur.verified_at, 
           ur.verified_by, 
-          (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count 
+          (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id OR sd.staff_id = p.id) as documents_count 
         FROM public.profiles p 
         LEFT JOIN public.user_roles ur ON p.id = ur.user_id 
         WHERE p.id = p_user_id; 
       END; $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-      UPDATE public.user_roles 
-      SET verification_status = 'verified', verified_at = NOW() 
-      WHERE role IN ('staff', 'teacher', 'admin', 'super_admin');
-
-      -- Clean up synthetic test parent accounts and orphaned test children from security audit
-      DELETE FROM public.children WHERE first_name LIKE 'Synth%' OR first_name LIKE 'Test Child%';
-      DELETE FROM public.profiles WHERE LOWER(email) IN (
-        'wisejobsnaija+kiddotest1@gmail.com',
-        'wisejobsnaija+kiddotest2@gmail.com',
-        'wisejobsnaija+kiddodeep1@gmail.com',
-        'wisejobsnaija+kiddodeep2@gmail.com',
-        'test_audit_dup_verify@gmail.com'
-      );
-
-      -- Explicitly ensure owner-created staff test account is verified
-      UPDATE public.user_roles 
-      SET verification_status = 'verified', verified_at = NOW() 
-      WHERE user_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = 'wisejobsnaija+kiddostaff@gmail.com');
     ` }
   ];
 
@@ -991,7 +962,52 @@ function getKey(header, callback) {
   client.getSigningKey(header.kid, (err, key) => callback(null, key.publicKey || key.rsaPublicKey));
 }
 
-const verifyToken = (req, res, next) => {
+function sanitizeProfile(profile) {
+  if (!profile) return null;
+  const safe = { ...profile };
+  delete safe.password_hash;
+  delete safe.mfa_secret;
+  delete safe.security_pin;
+  delete safe.staff_pin;
+  delete safe.pin;
+  delete safe.direct_pin;
+  delete safe.security_answer;
+  delete safe.security_answer_hash;
+  return safe;
+}
+
+async function resolveUserFromDb(decoded) {
+  const user = { ...decoded };
+  const email = decoded.email || decoded.preferred_username || decoded.upn;
+  if (email) {
+    user.email = email.trim().toLowerCase();
+    try {
+      const userRes = await pool.query(
+        `SELECT p.id, p.email, COALESCE(ur.role, p.role, 'parent')::text as role,
+                COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin,
+                COALESCE(ur.verification_status, p.verification_status, 'unverified')::text as verification_status,
+                p.organization_id
+         FROM public.profiles p
+         LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+         WHERE LOWER(p.email) = LOWER($1) LIMIT 1`,
+        [user.email]
+      );
+      if (userRes.rows.length > 0) {
+        const row = userRes.rows[0];
+        user.id = row.id;
+        user.role = row.role;
+        user.is_super_admin = Boolean(row.is_super_admin);
+        user.verification_status = (user.is_super_admin || user.role === 'admin') ? 'verified' : row.verification_status;
+        user.organization_id = row.organization_id;
+      }
+    } catch (e) {
+      console.warn('[verifyToken] User DB lookup notice:', e.message);
+    }
+  }
+  return user;
+}
+
+const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authentication required. Missing or malformed Bearer token.' });
@@ -1004,16 +1020,16 @@ const verifyToken = (req, res, next) => {
   // 1. Check custom Bridge secret
   try {
     const decoded = jwt.verify(token, BRIDGE_SECRET);
-    req.user = decoded;
+    req.user = await resolveUserFromDb(decoded);
     return next();
   } catch (e) {
     // Continue to MSAL verification if bridge secret does not match
   }
 
   // 2. Verified MSAL Entra ID verification
-  jwt.verify(token, getKey, { audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525', issuer: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0' }, (err, decoded) => {
+  jwt.verify(token, getKey, { audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525', issuer: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0' }, async (err, decoded) => {
     if (!err && decoded) {
-      req.user = decoded;
+      req.user = await resolveUserFromDb(decoded);
       return next();
     }
     return res.status(401).json({ error: 'Invalid or expired authentication token.' });
@@ -1059,15 +1075,16 @@ const authLimiter = rateLimit({
 
 app.post(['/api/auth/send-code', '/auth/send-code'], authLimiter, async (req, res) => {
   const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+  const normalizedEmail = email.trim().toLowerCase();
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  console.log(`[Bridge] Auth: Generated code ${code} for ${email}`);
   try {
     await pool.query(
       'INSERT INTO auth.verification_codes (email, code) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET code = $2, created_at = NOW(), expires_at = (NOW() + INTERVAL \'15 minutes\')',
-      [email, code]
+      [normalizedEmail, code]
     );
     await sendEmail({
-      to: email,
+      to: normalizedEmail,
       subject: 'KiddoChecker Verification Code',
       html: `<div style="font-family:sans-serif;padding:20px;background:#f9f9f9;border-radius:10px;">
               <h2 style="color:#2563eb;">KiddoChecker Verification</h2>
@@ -1084,9 +1101,10 @@ app.post(['/api/auth/send-code', '/auth/send-code'], authLimiter, async (req, re
 
 app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req, res) => {
   const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Email and verification code are required' });
+  const normalizedEmail = email.trim().toLowerCase();
   const client = await pool.connect();
   try {
-    // Bypass RLS — auth.uid() is NULL for service account connections
     try { await client.query('SET LOCAL row_security = off'); } catch (e) {}
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
       await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
@@ -1095,26 +1113,40 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req
     }
 
     const result = await client.query(
-      'SELECT * FROM auth.verification_codes WHERE email = $1 AND code = $2 AND expires_at > NOW()',
-      [email, code]
+      'SELECT * FROM auth.verification_codes WHERE LOWER(email) = $1 AND code = $2 AND expires_at > NOW()',
+      [normalizedEmail, String(code).trim()]
     );
     if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid or expired code' });
 
-    // Issue Bridge JWT
-    const token = jwt.sign({ email, role: 'admin' }, BRIDGE_SECRET, { expiresIn: '24h' });
-
-    // Fetch profile
-    let profileRes = await client.query(
-      'SELECT * FROM public.profiles WHERE LOWER(email) = LOWER($1) LIMIT 1',
-      [email]
+    // Fetch profile and verify real user role from database
+    const profileRes = await client.query(
+      `SELECT p.*, COALESCE(ur.role, p.role, 'parent')::text as resolved_role,
+              COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super
+       FROM public.profiles p
+       LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+       WHERE LOWER(p.email) = $1 LIMIT 1`,
+      [normalizedEmail]
     );
 
     if (profileRes.rows.length === 0) {
       return res.status(401).json({ error: 'Profile not found. Please contact an administrator.' });
     }
 
+    // Invalidate code upon successful verification (single-use)
+    await client.query('DELETE FROM auth.verification_codes WHERE LOWER(email) = $1', [normalizedEmail]);
+
     const profile = profileRes.rows[0];
-    res.json({ token, profile });
+    const finalRole = profile.resolved_role || 'parent';
+    const isSuper = Boolean(profile.is_super);
+
+    // Issue Bridge JWT with actual database role
+    const token = jwt.sign(
+      { id: profile.id, email: normalizedEmail, role: finalRole, is_super_admin: isSuper },
+      BRIDGE_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ token, profile: sanitizeProfile(profile) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
@@ -1130,17 +1162,18 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
   const normalizedEmail = email.trim().toLowerCase();
   const client = await pool.connect();
   try {
-    // Bypass RLS — auth.uid() is NULL for service account connections
     try { await client.query('SET LOCAL row_security = off'); } catch (e) {}
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
       await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
     }
 
-
     const profileRes = await client.query('SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
     if (profileRes.rows.length === 0) {
       return res.json({ success: true, message: 'If the email exists, a reset link was sent.' });
     }
+
+    // Invalidate prior unused tokens
+    await client.query('DELETE FROM public.password_reset_tokens WHERE LOWER(email) = $1', [normalizedEmail]);
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -1150,17 +1183,11 @@ app.post(['/api/auth/forgot-password', '/auth/forgot-password'], authLimiter, as
       [normalizedEmail, token, expiresAt]
     );
 
-    let originHost = req.headers['x-forwarded-host'] || req.headers.host;
-    if (originHost && !originHost.startsWith('http://') && !originHost.startsWith('https://')) {
-      originHost = `https://${originHost}`;
-    }
-    const frontendBase = process.env.FRONTEND_URL
-      || originHost
-      || 'https://kids.gvachurch.com';
+    const frontendBase = process.env.FRONTEND_URL || 'https://kids.gvachurch.com';
     const resetLink = `${frontendBase.replace(/\/$/, '')}/reset-password?token=${token}`;
     
-    // Always log the reset link so it's visible in Azure Container logs for debugging
-    console.log(`[AUTH] Reset link generated for ${normalizedEmail}: ${resetLink}`);
+    // Log event type only without secret link
+    console.log(`[AUTH] Password reset token dispatched for account: ${normalizedEmail}`);
 
     try {
       const emailResult = await sendEmail({
@@ -1241,7 +1268,7 @@ app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, asyn
 });
 
 // Quick email pre-check endpoint for Step 01 registration validation
-app.get(['/api/auth/check-email', '/auth/check-email'], async (req, res) => {
+app.get(['/api/auth/check-email', '/auth/check-email'], authLimiter, async (req, res) => {
   const email = (req.query.email || '').trim().toLowerCase();
   if (!email) return res.json({ exists: false });
   try {
@@ -1253,7 +1280,7 @@ app.get(['/api/auth/check-email', '/auth/check-email'], async (req, res) => {
 });
 
 app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => {
-  const { email, password, firstName, lastName, phone, role } = req.body;
+  const { email, password, firstName, lastName, phone, securityPin, address } = req.body;
   if (!email || !password || !firstName || !lastName) {
     return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
   }
@@ -1280,7 +1307,6 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
     // 2. Generate hash
     const newHash = bcrypt.hashSync(password, 10);
     // Security: Public self-signup is strictly restricted to parent role.
-    // Staff/Admin roles must be provisioned by existing administrators.
     const finalRole = 'parent';
 
     // 3. Perform a transactional insert
@@ -1288,8 +1314,8 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
 
     // Insert profile using gen_random_uuid()
     const insertProfileSql = `
-      INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role) 
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6) 
+      INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role, security_pin, address) 
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8) 
       RETURNING *
     `;
     const profileRes = await pool.query(insertProfileSql, [
@@ -1298,25 +1324,31 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
       firstName.trim(), 
       lastName.trim(), 
       (phone || '').trim(), 
-      finalRole
+      finalRole,
+      (securityPin || null),
+      (address || null)
     ]);
     const profile = profileRes.rows[0];
     const newUserId = profile.id;
 
-    // Insert user role (with ON CONFLICT DO UPDATE to support DB trigger & prevent duplicate key errors)
+    // Insert user role
     await pool.query(
       `INSERT INTO public.user_roles (user_id, role, is_super_admin) 
        VALUES ($1, $2, $3) 
        ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, is_super_admin = EXCLUDED.is_super_admin`,
-      [newUserId, finalRole, finalRole === 'super_admin']
+      [newUserId, finalRole, false]
     );
 
     await pool.query('COMMIT');
 
     // 4. Issue Bridge JWT
-    const token = jwt.sign({ email: normalizedEmail, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(
+      { id: newUserId, email: normalizedEmail, role: finalRole, is_super_admin: false },
+      BRIDGE_SECRET,
+      { expiresIn: '24h' }
+    );
 
-    res.json({ token, profile });
+    res.json({ token, profile: sanitizeProfile(profile) });
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error('[Bridge] signup error:', err.message);
@@ -1351,32 +1383,28 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
   try {
     const bcrypt = require('bcryptjs');
 
-    // Attempt to bypass RLS for this connection — the service account (kiddomin) should have
-    // BYPASSRLS privilege. If not, SET LOCAL row_security = off works for the admin role.
-    // Both are no-ops if the role already bypasses RLS via BYPASSRLS attribute.
     try {
       await client.query('SET LOCAL row_security = off');
-    } catch (e) {
-      console.warn('[Auth] Could not SET row_security = off (may already have BYPASSRLS):', e.message);
-    }
+    } catch (e) {}
 
-    // Set tenant context (belt-and-suspenders alongside row_security = off)
+    // Set tenant context
     if (req.tenant && typeof req.tenant.churchId !== 'undefined') {
       await client.query("SELECT set_config('app.church_id', $1, false)", [String(req.tenant.churchId)]);
     } else {
       await client.query("SELECT set_config('app.church_id', '0', false)");
     }
 
-    // Fetch profile – bypass RLS by querying with SECURITY DEFINER if needed,
-    // but first try with current session context
     let profileRes = await client.query(
-      'SELECT * FROM public.profiles WHERE LOWER(email) = $1 LIMIT 1',
+      `SELECT p.*, COALESCE(ur.role, p.role, 'parent')::text as resolved_role,
+              COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super
+       FROM public.profiles p
+       LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+       WHERE LOWER(p.email) = $1 LIMIT 1`,
       [normalizedEmail]
     );
 
-    // If RLS blocked the row (0 rows but user might exist), try via function
     if (profileRes.rows.length === 0) {
-      console.warn(`[Auth] Login: profile not found (or RLS blocked) for ${normalizedEmail}`);
+      console.warn(`[Auth] Login: profile not found for ${normalizedEmail}`);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -1392,7 +1420,8 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
     }
 
     let isMatch = false;
-    if (profile.password_hash && profile.password_hash.length === 64) {
+    const isLegacySha256 = profile.password_hash && profile.password_hash.length === 64;
+    if (isLegacySha256) {
       const sha256Hash = crypto.createHash('sha256').update(password).digest('hex');
       isMatch = (sha256Hash === profile.password_hash);
     } else {
@@ -1402,7 +1431,6 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
     if (!isMatch) {
       console.warn(`[Auth] Failed login for ${normalizedEmail} — password mismatch`);
       const attempt = failedLoginAttempts.get(normalizedEmail) || { count: 0, firstFailed: Date.now() };
-      // Reset count if first failure was more than 15 minutes ago
       if (Date.now() - attempt.firstFailed > 15 * 60 * 1000) {
         attempt.count = 0;
         attempt.firstFailed = Date.now();
@@ -1419,10 +1447,10 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
         });
       } else {
         failedLoginAttempts.set(normalizedEmail, attempt);
-        const remaining = 5 - attempt.count;
+        // Generic response without disclosing remaining attempt threshold
         return res.status(401).json({
           error: 'Invalid email or password',
-          message: `Invalid email or password. ${remaining} attempt(s) remaining before account lockout.`
+          message: 'Invalid email or password.'
         });
       }
     }
@@ -1430,8 +1458,15 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
     // Login successful — clear failure counter
     failedLoginAttempts.delete(normalizedEmail);
 
-    // Determine the role
-    const finalRole = profile.role || 'parent';
+    // Automatically migrate legacy SHA-256 hash to secure bcrypt
+    if (isLegacySha256) {
+      const bcryptHash = bcrypt.hashSync(password, 10);
+      await client.query('UPDATE public.profiles SET password_hash = $1 WHERE id = $2', [bcryptHash, profile.id]);
+      console.log(`[Auth Security] Migrated legacy SHA-256 hash to bcrypt for ${normalizedEmail}`);
+    }
+
+    const finalRole = profile.resolved_role || 'parent';
+    const isSuper = Boolean(profile.is_super);
 
     // Check if MFA is enabled
     if (profile.mfa_enabled) {
@@ -1446,10 +1481,14 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
     const mfaSetupRequired = isPrivileged && !profile.mfa_enabled;
 
     // Issue Bridge JWT
-    const token = jwt.sign({ email: profile.email, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(
+      { id: profile.id, email: profile.email, role: finalRole, is_super_admin: isSuper },
+      BRIDGE_SECRET,
+      { expiresIn: '24h' }
+    );
     console.log(`[Auth] Login success for ${normalizedEmail} role=${finalRole}`);
 
-    res.json({ token, profile, mfaSetupRequired });
+    res.json({ token, profile: sanitizeProfile(profile), mfaSetupRequired });
   } catch (err) {
     console.error('[Bridge] login error:', err.message);
     res.status(500).json({ error: err.message });
@@ -1485,9 +1524,14 @@ app.post(['/api/auth/login/mfa', '/auth/login/mfa'], authLimiter, async (req, re
     }
     
     const finalRole = profile.role || 'parent';
-    const token = jwt.sign({ email: profile.email, role: finalRole }, BRIDGE_SECRET, { expiresIn: '24h' });
+    const isSuper = profile.is_super_admin === true || profile.role === 'super_admin';
+    const token = jwt.sign(
+      { id: profile.id, email: profile.email, role: finalRole, is_super_admin: isSuper },
+      BRIDGE_SECRET,
+      { expiresIn: '24h' }
+    );
     
-    res.json({ token, profile });
+    res.json({ token, profile: sanitizeProfile(profile) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1571,7 +1615,7 @@ app.post('/api/auth/mfa/unenroll', verifyToken, async (req, res) => {
 });
 
 // ─── Email Management Endpoints ──────────────────────────────────────────
-app.get('/api/emails/stats', verifyToken, async (req, res) => {
+app.get('/api/emails/stats', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS public.email_logs (
@@ -1611,7 +1655,7 @@ app.get('/api/emails/stats', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/emails/logs', verifyToken, async (req, res) => {
+app.get('/api/emails/logs', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS public.email_logs (
@@ -1676,43 +1720,42 @@ app.get('/api/emails/logs', verifyToken, async (req, res) => {
   }
 });
 
-app.post('/api/emails/broadcast-summer-camp', verifyToken, async (req, res) => {
+app.post('/api/emails/broadcast-summer-camp', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
   try {
     const { churchName } = req.body;
     
     // Fetch all parents with registered children
     const parentsRes = await pool.query(`
-      SELECT DISTINCT p.id, p.email, p.first_name, p.last_name, p.security_pin, p.pin,
+      SELECT DISTINCT p.id, p.email, p.first_name, p.last_name,
              ARRAY_AGG(c.first_name || ' ' || c.last_name) as kids
       FROM public.profiles p
       JOIN public.children c ON c.parent_id = p.id
       WHERE p.email IS NOT NULL AND p.email <> ''
-      GROUP BY p.id, p.email, p.first_name, p.last_name, p.security_pin, p.pin;
+      GROUP BY p.id, p.email, p.first_name, p.last_name;
     `);
 
     const parents = parentsRes.rows;
     console.log(`[Broadcast Summer Camp] Found ${parents.length} family profiles to notify.`);
 
-    // Dispatch emails
+    // Dispatch emails (PINs are kept private and masked)
     let sentCount = 0;
     for (const parent of parents) {
-      const pin = parent.security_pin || parent.pin || '4821';
       const kidsList = (parent.kids || []).join(', ') || 'Your registered children';
-      const subject = `☀️ ${churchName || 'KiddoChecker'} - Summer Camp 2026 Kiosk Fast-Pass`;
+      const subject = `☀️ ${churchName || 'KiddoChecker'} - Summer Camp Check-In Information`;
       const html = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Summer Camp 2026 Check-In Fast-Pass</h1>
+            <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Summer Camp Check-In Pass</h1>
             <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">${churchName || 'Green Valley Alliance'}</p>
           </div>
           <div style="padding: 32px 24px;">
             <p style="font-size: 16px; color: #1e293b; margin-top: 0;">Hi <strong>${parent.first_name || 'Parent'}</strong>,</p>
-            <p style="font-size: 14px; color: #475569; line-height: 1.6;">Your security check-in pass for <strong>${kidsList}</strong> is active! Use your 4-digit PIN at any station kiosk for fast check-in and pickup.</p>
+            <p style="font-size: 14px; color: #475569; line-height: 1.6;">Your security check-in pass for <strong>${kidsList}</strong> is active! Use your Security PIN at any station kiosk for fast check-in and pickup.</p>
             
             <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
-              <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b;">Your Family Kiosk PIN</span>
-              <div style="font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #4f46e5; margin: 8px 0;">${pin}</div>
-              <span style="font-size: 12px; color: #64748b;">Enter this PIN on any iPad / Kiosk terminal to check in in seconds.</span>
+              <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b;">Family Kiosk Check-In</span>
+              <div style="font-size: 15px; font-weight: 600; color: #4f46e5; margin: 12px 0;">Log in to your parent portal to view or manage your family Security PIN</div>
+              <span style="font-size: 12px; color: #64748b;">For child safety, PINs are never transmitted in unencrypted email broadcasts.</span>
             </div>
 
             <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; text-align: center;">
@@ -1730,8 +1773,7 @@ app.post('/api/emails/broadcast-summer-camp', verifyToken, async (req, res) => {
         templateType: 'summer_camp_pass',
         metadata: {
           family_id: parent.id,
-          kids: parent.kids,
-          pin
+          kids: parent.kids
         }
       });
       sentCount++;
@@ -1755,10 +1797,81 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
   const finalParams = params || args || {};
   
   try {
-    console.log(`[Bridge] RPC Call: ${finalFn}`, JSON.stringify(finalParams));
+    console.log(`[Bridge] RPC Call: ${finalFn}`);
     
     if (!finalFn || typeof finalFn !== 'string' || !/^[a-zA-Z0-9_]+$/.test(finalFn)) {
       return res.status(400).json({ error: 'Invalid or missing RPC function name' });
+    }
+
+    const callerRole = req.user?.role || 'parent';
+    const isAdmin = callerRole === 'admin' || callerRole === 'super_admin' || req.user?.is_super_admin === true;
+    const isStaff = callerRole === 'staff' || callerRole === 'teacher' || callerRole === 'teacher_assistant';
+    const isVerifiedStaff = isStaff && (req.user?.verification_status === 'verified');
+    const isKiosk = callerRole === 'kiosk';
+
+    // 1. Admin-only RPCs (Prevent privilege escalation and admin function abuse)
+    const ADMIN_ONLY_RPCS = new Set([
+      'admin_verify_staff',
+      'assign_organization_creator_role',
+      'create_organization',
+      'get_users_with_roles',
+      'get_staff_members',
+      'generate_staff_pin_rpc',
+      'get_church_stats',
+      'admin_reset_user_password',
+      'get_liability_audit_report',
+      'get_detailed_attendance_report',
+      'get_pending_staff_verifications',
+      'generate_roster_from_template',
+      'get_terminal_security_stats',
+      'get_staff_performance_stats'
+    ]);
+
+    if (ADMIN_ONLY_RPCS.has(finalFn) && !isAdmin) {
+      console.warn(`[Security Alert] Blocked non-admin RPC call [${finalFn}] from user ${req.user?.email} (role: ${callerRole})`);
+      return res.status(403).json({ error: `Access denied: '${finalFn}' requires administrator privileges.` });
+    }
+
+    // 2. Unverified staff restriction (Unverified staff cannot call staff-level children/attendance RPCs)
+    if (isStaff && !isVerifiedStaff && !isAdmin) {
+      const UNVERIFIED_ALLOWED = new Set(['check_user_permission', 'get_staff_verification_status', 'get_my_active_sessions', 'revoke_session']);
+      if (!UNVERIFIED_ALLOWED.has(finalFn)) {
+        console.warn(`[Security Alert] Blocked unverified staff RPC call [${finalFn}] from ${req.user?.email}`);
+        return res.status(403).json({ error: 'Account Verification Required: Your staff account is pending background verification.' });
+      }
+    }
+
+    // 3. Parent scope restrictions
+    if (callerRole === 'parent') {
+      const PARENT_ALLOWED_RPCS = new Set([
+        'get_parent_children_with_classes',
+        'get_parent_for_kiosk',
+        'get_children_for_kiosk',
+        'checkin_child',
+        'checkout_child',
+        'redeem_reward',
+        'check_user_permission',
+        'get_my_active_sessions',
+        'revoke_session'
+      ]);
+
+      if (!PARENT_ALLOWED_RPCS.has(finalFn)) {
+        console.warn(`[Security Alert] Blocked unauthorized RPC call [${finalFn}] from parent ${req.user?.email}`);
+        return res.status(403).json({ error: `Access denied: Function '${finalFn}' is not accessible for parent accounts.` });
+      }
+
+      // Enforce parent ownership on get_parent_children_with_classes
+      if (finalFn === 'get_parent_children_with_classes') {
+        finalParams.parent_user_id = req.user.id;
+        finalParams.p_parent_id = req.user.id;
+        finalParams.parent_id = req.user.id;
+      }
+
+      // Enforce parent ownership on get_children_for_kiosk
+      if (finalFn === 'get_children_for_kiosk') {
+        finalParams.p_parent_id = req.user.id;
+        finalParams.parent_id = req.user.id;
+      }
     }
 
     // Direct safe handler for checkin_child with auto-safety cutoff and duplicate prevention
@@ -1776,6 +1889,17 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         const deviceMetadata = finalParams.p_device_metadata || {};
         const deviceId = finalParams.p_device_id || null;
         const orgId = finalParams.p_org_id || null;
+
+        // If parent, verify child belongs to this parent
+        if (callerRole === 'parent') {
+          const childOwnerCheck = await pool.query(
+            'SELECT 1 FROM public.children WHERE id::text = $1::text AND parent_id::text = $2::text',
+            [childId, req.user.id]
+          );
+          if (childOwnerCheck.rows.length === 0) {
+            return res.status(403).json({ error: 'Access denied: You can only check in children in your family.' });
+          }
+        }
 
         // 1. Auto-close previous stale sessions for this child (>14h or past day)
         await pool.query(`
@@ -1835,6 +1959,19 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         const deviceMetadata = finalParams.p_device_metadata || {};
         const witnessId = finalParams.p_witness_id || null;
         const deviceId = finalParams.p_device_id || null;
+
+        // If parent, verify attendance record belongs to caller's child
+        if (callerRole === 'parent') {
+          const attCheck = await pool.query(
+            `SELECT 1 FROM public.attendance a
+             JOIN public.children c ON a.child_id = c.id
+             WHERE a.id::text = $1::text AND c.parent_id::text = $2::text`,
+            [attendanceId, req.user.id]
+          );
+          if (attCheck.rows.length === 0) {
+            return res.status(403).json({ error: 'Access denied: You can only check out children in your family.' });
+          }
+        }
 
         await pool.query(`
           UPDATE public.attendance
@@ -2129,7 +2266,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin, 
             COALESCE(ur.is_volunteer, false) as is_volunteer, 
             true as is_active,
-            p.staff_pin::text as staff_pin, 
+            NULL::text as staff_pin, 
             p.avatar_url::text as avatar_url, 
             p.photo_url::text as photo_url, 
             p.department::text as department, 
@@ -2438,6 +2575,25 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
       data = data[0][finalFn];
     }
     
+    // Sanitize any sensitive credential fields from RPC outputs
+    const stripCreds = (item) => {
+      if (item && typeof item === 'object') {
+        delete item.staff_pin;
+        delete item.security_pin;
+        delete item.pin;
+        delete item.direct_pin;
+        delete item.password_hash;
+        delete item.mfa_secret;
+      }
+      return item;
+    };
+
+    if (Array.isArray(data)) {
+      data = data.map(stripCreds);
+    } else if (data && typeof data === 'object') {
+      stripCreds(data);
+    }
+
     res.json({ data, error: null });
   } catch (err) { 
     console.error(`[Bridge] RPC error [${finalFn}]:`, err.message);
@@ -2450,6 +2606,66 @@ app.post('/api/query', verifyToken, async (req, res) => {
   if (!table || typeof table !== 'string' || !/^[a-zA-Z0-9_]+$/.test(table)) {
     return res.status(400).json({ error: 'Invalid or missing table name' });
   }
+
+  // Block direct querying of sensitive credential/token tables
+  const BLOCKED_QUERY_TABLES = new Set([
+    'password_reset_tokens',
+    'verification_codes',
+    'auth_verification_codes',
+    'session_tokens'
+  ]);
+  if (BLOCKED_QUERY_TABLES.has(table)) {
+    return res.status(403).json({ error: 'Access denied: Table is restricted.' });
+  }
+
+  const callerRole = req.user?.role || 'parent';
+  const isAdmin = callerRole === 'admin' || callerRole === 'super_admin' || req.user?.is_super_admin === true;
+  const isStaff = callerRole === 'staff' || callerRole === 'teacher' || callerRole === 'teacher_assistant';
+  const isVerifiedStaff = isStaff && (req.user?.verification_status === 'verified');
+  const isKiosk = callerRole === 'kiosk';
+
+  // Role-based Table Access Checks
+  if (callerRole === 'parent') {
+    const PARENT_ALLOWED_QUERY_TABLES = new Set([
+      'children',
+      'child_medical_profiles',
+      'attendance',
+      'profiles',
+      'messages',
+      'classes',
+      'events',
+      'organizations',
+      'organization_settings',
+      'rewards',
+      'reward_redemptions',
+      'authorized_pickups',
+      'emergency_contacts',
+      'church_memberships',
+      'kiosk_settings'
+    ]);
+    if (!PARENT_ALLOWED_QUERY_TABLES.has(table)) {
+      console.warn(`[Security Alert] Parent ${req.user?.email} attempted to query restricted table: ${table}`);
+      return res.status(403).json({ error: `Access denied: Table '${table}' is not accessible for parent accounts.` });
+    }
+  }
+
+  // Unverified staff restriction
+  if (isStaff && !isVerifiedStaff && !isAdmin) {
+    const SENSITIVE_TABLES = new Set(['children', 'child_medical_profiles', 'church_memberships', 'care_logs', 'attendance', 'enrolled_devices']);
+    if (SENSITIVE_TABLES.has(table)) {
+      console.warn(`[Security Alert] Unverified staff ${req.user?.email} blocked from querying ${table}`);
+      return res.status(403).json({ error: 'Account Verification Required: Your staff account is pending verification.' });
+    }
+  }
+
+  // Non-admins cannot query admin infrastructure tables
+  if (!isAdmin && !isKiosk) {
+    const ADMIN_ONLY_TABLES = new Set(['enrolled_devices', 'device_activity_log', 'system_settings', 'role_permissions', 'permissions']);
+    if (ADMIN_ONLY_TABLES.has(table)) {
+      return res.status(403).json({ error: `Access denied: Table '${table}' requires administrator privileges.` });
+    }
+  }
+
   let sql = "";
   try {
     // IP lockdown verification for Kiosk NFC Login queries
@@ -2510,8 +2726,39 @@ app.post('/api/query', verifyToken, async (req, res) => {
     }
 
     const values = [];
+    const mandatoryClauses = [];
+
+    // Inject mandatory server-side ownership filters for parents
+    if (callerRole === 'parent') {
+      if (table === 'children') {
+        const pIdx = values.push(req.user.id);
+        mandatoryClauses.push(`t.parent_id::text = $${pIdx}::text`);
+      } else if (table === 'profiles') {
+        const pIdx = values.push(req.user.id);
+        mandatoryClauses.push(`(t.id::text = $${pIdx}::text OR (t.role IN ('staff', 'teacher', 'admin', 'super_admin') AND t.role IS NOT NULL))`);
+      } else if (table === 'child_medical_profiles') {
+        const pIdx = values.push(req.user.id);
+        mandatoryClauses.push(`t.child_id::text IN (SELECT id::text FROM public.children WHERE parent_id::text = $${pIdx}::text)`);
+      } else if (table === 'attendance') {
+        const pIdx = values.push(req.user.id);
+        mandatoryClauses.push(`t.child_id::text IN (SELECT id::text FROM public.children WHERE parent_id::text = $${pIdx}::text)`);
+      } else if (table === 'messages') {
+        const pIdx = values.push(req.user.id);
+        mandatoryClauses.push(`(t.sender_id::text = $${pIdx}::text OR t.recipient_id::text = $${pIdx}::text)`);
+      } else if (table === 'reward_redemptions' || table === 'authorized_pickups' || table === 'emergency_contacts') {
+        const pIdx = values.push(req.user.id);
+        mandatoryClauses.push(`t.child_id::text IN (SELECT id::text FROM public.children WHERE parent_id::text = $${pIdx}::text)`);
+      }
+    }
+
+    let clauses = [];
     if (actualFilters && actualFilters.length > 0) {
-      const clauses = actualFilters.map(f => {
+      clauses = actualFilters.map(f => {
+        // Prevent parents from overriding their parent_id filter on children table
+        if (callerRole === 'parent' && table === 'children' && f.column === 'parent_id') {
+          return null;
+        }
+
         if (f.operator === 'OR') {
           const parts = f.value.split(',');
           const orClauses = parts.map(part => {
@@ -2591,10 +2838,10 @@ app.post('/api/query', verifyToken, async (req, res) => {
         }
         return `${tableAlias}.${f.column}::text ${op} $${pIdx}`;
       }).filter(Boolean);
-
-      const validClauses = clauses.filter(Boolean);
-      if (validClauses.length > 0) sql += ` WHERE ${validClauses.join(' AND ')}`;
     }
+
+    const allClauses = [...mandatoryClauses, ...clauses.filter(Boolean)];
+    if (allClauses.length > 0) sql += ` WHERE ${allClauses.join(' AND ')}`;
     
     if (order) {
       const [col, dir] = order.split('.');
@@ -2608,11 +2855,21 @@ app.post('/api/query', verifyToken, async (req, res) => {
       sql += ` OFFSET ${parseInt(offset)}`;
     }
     
-    console.log('[Bridge] Executing SQL:', sql);
-    console.log('[Bridge] With Values:', JSON.stringify(values));
     const result = await pool.query(sql, values);
-    console.log(`[Bridge] query success [${table}]: returned ${result.rows.length} rows`);
-    res.json({ data: result.rows, error: null });
+    const safeRows = (result.rows || []).map(row => {
+      if (row && typeof row === 'object') {
+        delete row.password_hash;
+        delete row.mfa_secret;
+        delete row.security_pin;
+        delete row.staff_pin;
+        delete row.pin;
+        delete row.direct_pin;
+        delete row.security_answer;
+        delete row.security_answer_hash;
+      }
+      return row;
+    });
+    res.json({ data: safeRows, error: null });
   } catch (err) { 
     if (err.code === '42703' && err.message.includes('organization_id')) {
       console.warn(`[Bridge] Column organization_id does not exist on table ${table}, retrying query without organization_id filter...`);
@@ -2666,7 +2923,6 @@ app.post('/api/query', verifyToken, async (req, res) => {
 
 
 app.post('/api/mutate', verifyToken, async (req, res) => {
-  console.log('[Bridge] Mutation Request:', JSON.stringify(req.body, null, 2));
   let { table, method, action, values, data, filters } = req.body;
   
   if (!table || typeof table !== 'string' || !/^[a-zA-Z0-9_]+$/.test(table)) {
@@ -2679,6 +2935,92 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
   const finalMethod = rawMethod;
   let rawValues = values || data || req.body.values || req.body.data || {};
   let finalValues = Array.isArray(rawValues) ? (rawValues[0] || {}) : rawValues;
+
+  // Reject unconstrained blanket updates or deletes
+  if ((finalMethod === 'update' || finalMethod === 'delete') && (!filters || filters.length === 0)) {
+    return res.status(400).json({ error: 'Unconstrained mutation rejected: Updates and deletes require explicit filter conditions.' });
+  }
+
+  const callerRole = req.user?.role || 'parent';
+  const isAdmin = callerRole === 'admin' || callerRole === 'super_admin' || req.user?.is_super_admin === true;
+  const isStaff = callerRole === 'staff' || callerRole === 'teacher' || callerRole === 'teacher_assistant';
+  const isVerifiedStaff = isStaff && (req.user?.verification_status === 'verified');
+  const isKiosk = callerRole === 'kiosk';
+
+  // 1. Parent role mutations
+  if (callerRole === 'parent') {
+    const PARENT_ALLOWED_MUTATE_TABLES = new Set([
+      'children',
+      'child_medical_profiles',
+      'profiles',
+      'messages',
+      'reward_redemptions',
+      'authorized_pickups',
+      'emergency_contacts'
+    ]);
+    if (!PARENT_ALLOWED_MUTATE_TABLES.has(table)) {
+      console.warn(`[Security Alert] Parent ${req.user?.email} blocked from mutating table: ${table}`);
+      return res.status(403).json({ error: `Access denied: Parent accounts cannot modify table '${table}'.` });
+    }
+
+    if (table === 'children') {
+      if (finalMethod === 'insert') {
+        finalValues.parent_id = req.user.id;
+        // Check for duplicate child in this family
+        if (finalValues.first_name && finalValues.last_name) {
+          const dupRes = await pool.query(
+            `SELECT id FROM public.children
+             WHERE parent_id::text = $1::text
+               AND LOWER(TRIM(first_name)) = LOWER(TRIM($2))
+               AND LOWER(TRIM(last_name)) = LOWER(TRIM($3))
+               AND (age = $4 OR ($4::int IS NULL AND age IS NULL))
+             LIMIT 1`,
+            [req.user.id, finalValues.first_name, finalValues.last_name, finalValues.age || null]
+          );
+          if (dupRes.rows.length > 0) {
+            return res.status(409).json({ error: `Duplicate child: A child named ${finalValues.first_name} ${finalValues.last_name} is already registered in your family.` });
+          }
+        }
+      } else {
+        // For update or delete on children by parent, force parent_id check
+        filters = (filters || []).filter(f => f.column !== 'parent_id');
+        filters.push({ column: 'parent_id', value: req.user.id });
+      }
+    } else if (table === 'child_medical_profiles') {
+      const targetChildId = finalValues.child_id || (filters && filters.find(f => f.column === 'child_id')?.value);
+      if (targetChildId) {
+        const ownerCheck = await pool.query('SELECT 1 FROM public.children WHERE id::text = $1::text AND parent_id::text = $2::text', [targetChildId, req.user.id]);
+        if (ownerCheck.rows.length === 0) {
+          return res.status(403).json({ error: 'Access denied: You can only modify medical records for your own children.' });
+        }
+      }
+    } else if (table === 'profiles') {
+      if (finalMethod === 'delete') {
+        return res.status(403).json({ error: 'Access denied: You cannot delete profiles.' });
+      }
+      // Force filter to own profile
+      filters = [{ column: 'id', value: req.user.id }];
+      // Strip privileged fields
+      delete finalValues.role;
+      delete finalValues.is_super_admin;
+      delete finalValues.verification_status;
+      delete finalValues.password_hash;
+      delete finalValues.mfa_secret;
+      delete finalValues.staff_pin;
+    }
+  }
+
+  // 2. Unverified staff restrictions
+  if (isStaff && !isVerifiedStaff && !isAdmin) {
+    if (table !== 'staff_documents' && table !== 'profiles') {
+      return res.status(403).json({ error: 'Account Verification Required: Unverified staff can only upload documents or manage their own profile.' });
+    }
+  }
+
+  // 3. Prevent non-admins from deleting profiles
+  if (!isAdmin && table === 'profiles' && finalMethod === 'delete') {
+    return res.status(403).json({ error: 'Access denied: Only administrators can delete user accounts.' });
+  }
 
   // Sanitize empty strings on UUID columns to null
   Object.keys(finalValues).forEach(k => {
@@ -2839,8 +3181,8 @@ app.post('/api/admin/users/reset-password', verifyToken, requireRole('admin', 's
   if (!user_id || !new_password) {
     return res.status(400).json({ error: 'user_id and new_password are required' });
   }
-  if (new_password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  if (new_password.length < 8 || !/([0-9]|[^A-Za-z0-9])/.test(new_password)) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long and include at least one number or symbol.' });
   }
   try {
     const saltRounds = 10;
@@ -3066,7 +3408,7 @@ app.post(['/api/functions/admin-user-management', '/functions/v1/admin-user-mana
 });
 
 // Edge Function Bridge Endpoint: device-login
-app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functions/device-login'], async (req, res) => {
+app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functions/device-login'], authLimiter, async (req, res) => {
   try {
     const { code, pin, forensics } = req.body || {};
     const { hardwareId, os, browser, fingerprint, ip } = forensics || {};
@@ -3078,11 +3420,11 @@ app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functio
 
     let device = null;
     if (code) {
-      console.log(`[Device Login] Activation attempt with code: ${code}`);
+      console.log(`[Device Login] Activation attempt with code prefix: ${(code.trim().slice(0, 3))}***`);
       const devRes = await pool.query('SELECT * FROM public.enrolled_devices WHERE enrollment_code = $1 AND status = $2 LIMIT 1', [code.trim(), 'active']);
       device = devRes.rows[0];
     } else if (hardwareId) {
-      console.log(`[Device Login] Re-auth attempt for hardware: ${hardwareId}`);
+      console.log(`[Device Login] Re-auth attempt for hardware: ${hardwareId.slice(0, 8)}...`);
       const devRes = await pool.query('SELECT * FROM public.enrolled_devices WHERE hardware_id = $1 AND status = $2 LIMIT 1', [hardwareId, 'active']);
       device = devRes.rows[0];
     }
@@ -3100,9 +3442,9 @@ app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functio
       return res.json({ error: 'Security Alert: Unauthorized hardware detected.' });
     }
 
-    // Initial activation phase
+    // Initial activation phase: single-use burning of enrollment code
     if (!device.hardware_id && hardwareId) {
-      console.log(`[Device Login] Initial activation for ${device.name}. Burning code: ${code}`);
+      console.log(`[Device Login] Initial activation for ${device.name}. Burning enrollment code.`);
       await pool.query(`
         UPDATE public.enrolled_devices 
         SET hardware_id = $1, enrollment_code = NULL, os_info = $2, browser_info = $3, last_ip = $4, last_seen = NOW(), security_status = 'secure'
@@ -3116,12 +3458,10 @@ app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functio
       `, [clientIp, device.id]);
     }
 
-    // Generate Kiosk credentials
+    // Generate Kiosk credentials with secure random bcrypt
     const deviceEmail = `device_${device.id}@kiosk.kiddochecker.com`;
-    const devicePassword = `Kiosk-${device.id.slice(0, 8)}-Pass!`;
-
-    // Ensure kiosk profile exists
-    const passHash = crypto.createHash('sha256').update(devicePassword).digest('hex');
+    const randomKioskPass = crypto.randomBytes(24).toString('base64');
+    const passHash = bcrypt.hashSync(randomKioskPass, 10);
     
     const existingProfile = await pool.query('SELECT id FROM public.profiles WHERE id = $1::uuid', [device.id]);
     if (existingProfile.rows.length > 0) {
@@ -3153,8 +3493,8 @@ app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functio
 
     const token = jwt.sign(
       { email: deviceEmail, role: 'kiosk', id: device.id, device_id: device.id },
-      JWT_SECRET,
-      { expiresIn: '365d' }
+      BRIDGE_SECRET,
+      { expiresIn: '30d' }
     );
 
     console.log(`[Device Login] Access Granted for ${device.name} (${device.id})`);
@@ -3162,7 +3502,6 @@ app.post(['/api/functions/device-login', '/functions/v1/device-login', '/functio
     return res.json({
       success: true,
       email: deviceEmail,
-      password: devicePassword,
       token,
       device: {
         id: device.id,
@@ -3546,11 +3885,11 @@ app.get('/api/profile', verifyToken, async (req, res) => {
     }
 
     res.json({
-      ...profile,
+      ...sanitizeProfile(profile),
       role: userRole,
       is_super_admin: isSuperAdmin,
       verification_status: verificationStatus,
-      permissions: ['*']
+      permissions: (isSuperAdmin || userRole === 'admin') ? ['*'] : [userRole]
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

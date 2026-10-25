@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/useToast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Mail, Phone, MapPin, Save, Loader2, Key, QrCode, ShieldCheck, BadgeCheck } from "lucide-react";
+import { User, Mail, Phone, MapPin, Save, Loader2, Key, QrCode, ShieldCheck, BadgeCheck, Eye, EyeOff, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { QRCodeSVG } from "qrcode.react";
 import MfaEnrollment from "@/components/auth/MfaEnrollment";
@@ -31,11 +31,12 @@ const profileSchema = z.object({
 type ProfileFormData = z.infer<typeof profileSchema>;
 
 const UserProfile = () => {
-  const { user, userRole } = useAuth();
+  const { user, userRole, isVerifiedStaff } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [showPin, setShowPin] = useState(false);
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -169,10 +170,17 @@ const UserProfile = () => {
           </div>
 
           <div className="flex items-center gap-2">
-             <div className="bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-500/20 flex items-center gap-2">
+            {isVerifiedStaff || userRole === 'admin' || userRole === 'super_admin' ? (
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-lg border border-emerald-100 dark:border-emerald-500/20 flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
                 <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Verified Identity</span>
-             </div>
+              </div>
+            ) : (
+              <div className="bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-500/20 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-600" />
+                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Pending Verification</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -368,17 +376,31 @@ const UserProfile = () => {
             {(userRole === 'admin' || userRole === 'super_admin' || userRole === 'staff' || userRole === 'teacher') && userProfile?.staff_pin && (
               <Card className="bg-primary text-primary-foreground shadow-lg">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2">
-                    <Key className="h-4 w-4" />
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider">Kiosk PIN</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      <CardTitle className="text-sm font-bold uppercase tracking-wider">Kiosk PIN</CardTitle>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPin(!showPin)}
+                      className="h-7 px-2 text-primary-foreground hover:bg-white/20 hover:text-white"
+                      title={showPin ? "Hide PIN" : "Reveal PIN"}
+                    >
+                      {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="text-center pb-6">
                   <div className="bg-white/10 rounded-lg py-4 mb-3 border border-white/10">
-                    <p className="text-4xl font-black tracking-widest">{userProfile.staff_pin}</p>
+                    <p className="text-4xl font-black tracking-widest font-mono">
+                      {showPin ? userProfile.staff_pin : '••••'}
+                    </p>
                   </div>
                   <p className="text-[10px] text-primary-foreground/70 font-medium">
-                    Use this PIN for overrides and check-ins at any physical station.
+                    Use this PIN for overrides and check-ins at any physical station. Keep confidential.
                   </p>
                 </CardContent>
               </Card>

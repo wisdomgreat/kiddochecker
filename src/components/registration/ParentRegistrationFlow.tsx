@@ -105,25 +105,6 @@ export const ParentRegistrationFlow = () => {
       return;
     }
 
-    if (currentStep === 1) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/check-email?email=${encodeURIComponent(parentData.email.trim().toLowerCase())}`);
-        if (res.ok) {
-          const { exists } = await res.json();
-          if (exists) {
-            toast({
-              title: "Account Already Exists",
-              description: "An account with this email address already exists. Please sign in or use password reset.",
-              variant: "destructive"
-            });
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn("[Registration] Email check notice:", e);
-      }
-    }
-
     setCurrentStep(prev => Math.min(prev + 1, 4));
   };
 

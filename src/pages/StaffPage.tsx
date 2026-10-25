@@ -312,7 +312,7 @@ const StaffPage = ({ isEmbedded = false }: { isEmbedded?: boolean }) => {
                           <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {member.email}</span>
                           <div className="flex items-center gap-1.5 font-mono text-[10px]">
                               <Lock className="h-3 w-3" />
-                              {member.user_id === user?.id && member.staff_pin ? member.staff_pin : '••••'}
+                              ••••
                           </div>
                          </div>
                        </div>

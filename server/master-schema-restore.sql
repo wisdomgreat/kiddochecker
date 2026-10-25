@@ -515,11 +515,11 @@ BEGIN
     RETURN QUERY
     SELECT 
         p.id as user_id,
-        COALESCE(ur.role IN ('admin', 'super_admin', 'staff', 'teacher'), false) as is_verified,
-        COALESCE(ur.role, 'pending')::TEXT as verification_status,
-        p.created_at as verified_at,
-        p.id as verified_by,
-        (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.staff_id = p.id) as documents_count
+        COALESCE(ur.verification_status = 'verified' OR ur.role IN ('admin', 'super_admin'), false) as is_verified,
+        COALESCE(ur.verification_status, 'pending')::TEXT as verification_status,
+        ur.verified_at,
+        ur.verified_by,
+        (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id OR sd.staff_id = p.id) as documents_count
     FROM public.profiles p
     LEFT JOIN public.user_roles ur ON p.id = ur.user_id
     WHERE p.id = p_user_id;
