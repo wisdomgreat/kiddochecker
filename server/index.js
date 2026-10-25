@@ -293,6 +293,31 @@ async function setupDatabase() {
         await forceDeleteProfile(row.id);
       }
     }
+
+    // Comprehensive purge of any probe / synthetic accounts
+    const probeRes = await pool.query(`
+      SELECT id FROM public.profiles 
+      WHERE LOWER(email) LIKE '%syntheticparent.com' 
+         OR LOWER(email) LIKE '%probe_%' 
+         OR LOWER(email) LIKE '%retest%' 
+         OR LOWER(email) LIKE '%kiddofapi%'
+    `);
+    for (const row of probeRes.rows) {
+      await pool.query('DELETE FROM public.children WHERE parent_id::uuid = $1::uuid', [row.id]);
+      await forceDeleteProfile(row.id);
+    }
+
+    // Purge any orphan test children matching test naming patterns
+    await pool.query(`
+      DELETE FROM public.children 
+      WHERE first_name ILIKE '%Retest%' 
+         OR first_name ILIKE '%probe%' 
+         OR first_name ILIKE '%OwnChild%' 
+         OR first_name ILIKE '%ChildA%'
+         OR first_name ILIKE '%CrossChild%';
+    `);
+
+    // Delete test documents uploaded under kiddostaff or matching test patterns
     await pool.query(`
       DELETE FROM public.staff_documents 
       WHERE file_name ILIKE '%TEST%Police%' 
@@ -300,7 +325,7 @@ async function setupDatabase() {
          OR (profile_id IN (SELECT id FROM public.profiles WHERE LOWER(email) ILIKE '%kiddostaff%') 
              AND document_type = 'police_check');
     `);
-    console.log('[DB Self-Healing] Cleaned up retest synthetic accounts and test documents.');
+    console.log('[DB Self-Healing] Cleaned up retest synthetic accounts, probe accounts, test children, and test documents.');
   } catch (cleanErr) {
     console.warn('[DB Self-Healing] Notice during synthetic cleanup:', cleanErr.message);
   }
