@@ -58,7 +58,8 @@ import {
   Award,
   Bell,
   Vibrate,
-  VolumeX
+  VolumeX,
+  GraduationCap
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -112,7 +113,7 @@ const STEP_GUIDES: StepGuide[] = [
     summary: "Check in your children in under 10 seconds using your phone number, 4 to 6-digit PIN, QR code, or NFC tap.",
     estimatedTime: "1 min",
     difficulty: "Beginner",
-    actionLink: { text: "Open Kiosk Station", url: "/check-in" },
+    actionLink: { text: "View Family PIN & QR Code", url: "/parent/profile" },
     cheatSheetSummary: [
       "1. Approach the kiosk terminal in the church lobby",
       "2. Enter last 4 digits of phone or scan mobile QR",
@@ -857,6 +858,21 @@ const CHEAT_SHEETS: CheatSheet[] = [
       "Only the 4-character code flashes on the sanctuary screen for privacy — child names are never displayed.",
       "Parents tap 'I'm On My Way' in the mobile app to immediately acknowledge and notify classroom leaders."
     ]
+  },
+  {
+    id: "family-checkin-checklist",
+    title: "Sunday Family Check-In & Pick-Up Guide",
+    targetRole: "Parents & Families",
+    icon: Baby,
+    color: "from-rose-500/20 to-rose-500/5 border-rose-500/30 text-rose-900 dark:text-rose-200",
+    items: [
+      "Find your 4 to 6-digit Kiosk PIN or Kiosk Access QR code in your Family Profile before leaving home.",
+      "At the church lobby, enter your phone number or scan your QR code at any check-in terminal.",
+      "Check off attending children and verify any allergy warnings.",
+      "Stick the printed Child Name Tag securely to your child's shirt/back.",
+      "Keep the matching Parent Claim Ticket safe — staff will verify the 4-character code at pickup.",
+      "Keep your phone on silent or vibrate during worship to receive discreet sanctuary paging notifications."
+    ]
   }
 ];
 
@@ -971,21 +987,30 @@ const CATEGORIES = [
 
 const HelpDocumentation = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string>("all");
+  const { userRole, isAdmin, isSuperAdmin, isStaff, isTeacher, isParent, isVolunteer } = useAuth();
+  const { toast } = useToast();
+
+  const querySimulate = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("simulate") : null;
+  const isPrivileged = isAdmin || isSuperAdmin || isStaff || isTeacher || isVolunteer || ["admin", "super_admin", "staff", "teacher", "volunteer"].includes(querySimulate || "");
+
+  // If not privileged (parent or visitor), force role to parent
+  const [selectedRole, setSelectedRole] = useState<string>(() => (isPrivileged ? "all" : "parent"));
   const [selectedCategory, setSelectedCategory] = useState<string>("All Categories");
   const [activeGuideModal, setActiveGuideModal] = useState<StepGuide | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
   const [completedSteps, setCompletedSteps] = useState<Record<string, number[]>>({});
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, boolean>>({});
-  const { userRole, isAdmin, isSuperAdmin, isStaff, isTeacher, isParent, isVolunteer } = useAuth();
-  const { toast } = useToast();
 
-  // Filter Step Guides
+  // Filter Step Guides: strictly ensure parents never see staff/admin hardware or management guides
   const filteredGuides = useMemo(() => {
     return STEP_GUIDES.filter(guide => {
       // Role matching
-      const roleMatch = selectedRole === "all" || guide.targetRole === selectedRole || guide.targetRole === "all";
-      if (!roleMatch) return false;
+      if (!isPrivileged) {
+        if (guide.targetRole !== "parent" && guide.targetRole !== "all") return false;
+      } else {
+        const roleMatch = selectedRole === "all" || guide.targetRole === selectedRole || guide.targetRole === "all";
+        if (!roleMatch) return false;
+      }
 
       // Category matching
       const categoryMatch = selectedCategory === "All Categories" || guide.category === selectedCategory;
@@ -1000,21 +1025,44 @@ const HelpDocumentation = () => {
       const categoryTextMatch = guide.category.toLowerCase().includes(term);
       return titleMatch || summaryMatch || stepMatch || categoryTextMatch;
     });
-  }, [selectedRole, selectedCategory, searchTerm]);
+  }, [selectedRole, selectedCategory, searchTerm, isPrivileged]);
 
-  // Filter FAQs
+  // Dynamic available categories based on visible guides for this user's role
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    cats.add("All Categories");
+    const roleScopedGuides = isPrivileged
+      ? (selectedRole === "all" ? STEP_GUIDES : STEP_GUIDES.filter(g => g.targetRole === selectedRole || g.targetRole === "all"))
+      : STEP_GUIDES.filter(g => g.targetRole === "parent" || g.targetRole === "all");
+    roleScopedGuides.forEach(g => cats.add(g.category));
+    return Array.from(cats);
+  }, [isPrivileged, selectedRole]);
+
+  // Filter Cheat Sheets: Parents only see parent-facing cheat sheets
+  const filteredCheatSheets = useMemo(() => {
+    if (!isPrivileged) {
+      return CHEAT_SHEETS.filter(sheet => sheet.id === "sanctuary-paging-protocol" || sheet.id === "family-checkin-checklist");
+    }
+    return CHEAT_SHEETS;
+  }, [isPrivileged]);
+
+  // Filter FAQs: Parents strictly only see FAQs where roles include parent
   const filteredFaqs = useMemo(() => {
     return FAQ_ITEMS.filter(faq => {
       // Role matching
-      const roleMatch = selectedRole === "all" || faq.roles.includes(selectedRole as any);
-      if (!roleMatch) return false;
+      if (!isPrivileged) {
+        if (!faq.roles.includes("parent")) return false;
+      } else {
+        const roleMatch = selectedRole === "all" || faq.roles.includes(selectedRole as any);
+        if (!roleMatch) return false;
+      }
 
       // Search term matching
       if (!searchTerm.trim()) return true;
       const term = searchTerm.toLowerCase();
       return faq.question.toLowerCase().includes(term) || faq.answer.toLowerCase().includes(term) || faq.category.toLowerCase().includes(term);
     });
-  }, [selectedRole, searchTerm]);
+  }, [selectedRole, searchTerm, isPrivileged]);
 
   const handleOpenWalkthrough = (guide: StepGuide) => {
     setActiveGuideModal(guide);
@@ -1050,30 +1098,32 @@ const HelpDocumentation = () => {
             <div className="space-y-2 max-w-3xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
                 <Book className="h-3.5 w-3.5" />
-                Documentation & Knowledge Base
+                {isPrivileged ? "Documentation & Operations Manual" : "Family & Parent Help Center"}
               </div>
               
               <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-                How-To Guides & Operations Manual
+                {isPrivileged ? "How-To Guides & Operations Manual" : "Family Help & How-To Guides"}
               </h1>
               
               <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
-                Step-by-step instructions, child safety protocols, hardware setup, and best practices tailored for Parents, Staff, Volunteers, and Administrators.
+                {isPrivileged
+                  ? "Step-by-step instructions, child safety protocols, hardware setup, and best practices tailored for Staff, Volunteers, and Administrators."
+                  : "Step-by-step instructions for Sunday check-in, silent sanctuary paging, guardian pickup authorizations, and allergy safety."}
               </p>
             </div>
 
             {/* Quick Stats Pill */}
             <div className="flex items-center gap-3 self-start md:self-center shrink-0 bg-muted/40 p-3 rounded-2xl border border-border/60">
               <div className="text-center px-3 border-r border-border/60">
-                <div className="text-lg font-black text-foreground">{STEP_GUIDES.length}</div>
+                <div className="text-lg font-black text-foreground">{filteredGuides.length}</div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Guides</div>
               </div>
               <div className="text-center px-3 border-r border-border/60">
-                <div className="text-lg font-black text-foreground">{FAQ_ITEMS.length}</div>
+                <div className="text-lg font-black text-foreground">{filteredFaqs.length}</div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">FAQs</div>
               </div>
               <div className="text-center px-3">
-                <div className="text-lg font-black text-foreground">{CHEAT_SHEETS.length}</div>
+                <div className="text-lg font-black text-foreground">{filteredCheatSheets.length}</div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Checklists</div>
               </div>
             </div>
@@ -1084,7 +1134,7 @@ const HelpDocumentation = () => {
             <Search className="absolute left-4 top-1/2 mt-1 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search by topic, feature, or keyword (e.g., 'check in child', 'printer', 'allergies', 'reports', 'PIN', 'checkout')..."
+              placeholder={isPrivileged ? "Search by topic, feature, or keyword (e.g., 'check in child', 'printer', 'allergies', 'reports', 'PIN', 'checkout')..." : "Search family guides (e.g., 'check in', 'sanctuary pager', 'allergies', 'points', 'pickup')..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-12 pr-12 h-13 rounded-2xl bg-muted/30 border-border text-foreground placeholder:text-muted-foreground focus:bg-background focus:border-primary transition-all font-medium text-sm shadow-sm"
@@ -1103,54 +1153,62 @@ const HelpDocumentation = () => {
         {/* ─── Clean Streamlined Navigation & Filters ───────────────────── */}
         <div className="space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card border border-border/70 p-4 sm:p-5 rounded-2xl shadow-sm">
-            {/* Role Filter Tabs */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden sm:inline mr-1">
-                Filter by Role:
-              </span>
-              <div className="flex flex-wrap items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/50">
-                <Button
-                  variant={selectedRole === "all" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setSelectedRole("all")}
-                  className="rounded-lg font-bold text-xs h-8 px-3"
-                >
-                  All Roles
-                </Button>
-                <Button
-                  variant={selectedRole === "parent" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setSelectedRole("parent")}
-                  className="rounded-lg font-bold text-xs h-8 px-3"
-                >
-                  Parents & Families
-                </Button>
-                <Button
-                  variant={selectedRole === "staff" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setSelectedRole("staff")}
-                  className="rounded-lg font-bold text-xs h-8 px-3"
-                >
-                  Staff & Teachers
-                </Button>
-                <Button
-                  variant={selectedRole === "volunteer" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setSelectedRole("volunteer")}
-                  className="rounded-lg font-bold text-xs h-8 px-3"
-                >
-                  Volunteers
-                </Button>
-                <Button
-                  variant={selectedRole === "admin" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setSelectedRole("admin")}
-                  className="rounded-lg font-bold text-xs h-8 px-3"
-                >
-                  Administrators
-                </Button>
+            {/* Role Filter Tabs - Only shown to privileged staff & administrators */}
+            {isPrivileged ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider hidden sm:inline mr-1">
+                  Filter by Role:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5 bg-muted/50 p-1 rounded-xl border border-border/50">
+                  <Button
+                    variant={selectedRole === "all" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSelectedRole("all")}
+                    className="rounded-lg font-bold text-xs h-8 px-3"
+                  >
+                    All Roles
+                  </Button>
+                  <Button
+                    variant={selectedRole === "parent" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSelectedRole("parent")}
+                    className="rounded-lg font-bold text-xs h-8 px-3"
+                  >
+                    Parents & Families
+                  </Button>
+                  <Button
+                    variant={selectedRole === "staff" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSelectedRole("staff")}
+                    className="rounded-lg font-bold text-xs h-8 px-3"
+                  >
+                    Staff & Teachers
+                  </Button>
+                  <Button
+                    variant={selectedRole === "volunteer" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSelectedRole("volunteer")}
+                    className="rounded-lg font-bold text-xs h-8 px-3"
+                  >
+                    Volunteers
+                  </Button>
+                  <Button
+                    variant={selectedRole === "admin" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSelectedRole("admin")}
+                    className="rounded-lg font-bold text-xs h-8 px-3"
+                  >
+                    Administrators
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-bold text-xs px-3.5 py-1.5 rounded-xl bg-primary/10 text-primary border-primary/20">
+                  Parents & Families Guides
+                </Badge>
+              </div>
+            )}
 
             {/* Category Dropdown / Quick Select */}
             <div className="flex items-center gap-2">
@@ -1162,19 +1220,19 @@ const HelpDocumentation = () => {
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="h-9 rounded-xl bg-muted/50 border border-border/60 text-foreground font-semibold text-xs px-3 focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                {CATEGORIES.map(category => (
+                {availableCategories.map(category => (
                   <option key={category} value={category} className="bg-popover text-popover-foreground">
                     {category}
                   </option>
                 ))}
               </select>
 
-              {(selectedRole !== "all" || selectedCategory !== "All Categories" || searchTerm) && (
+              {(selectedCategory !== "All Categories" || searchTerm || (isPrivileged && selectedRole !== "all")) && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setSelectedRole("all");
+                    setSelectedRole(isPrivileged ? "all" : "parent");
                     setSelectedCategory("All Categories");
                     setSearchTerm("");
                   }}
@@ -1190,7 +1248,7 @@ const HelpDocumentation = () => {
           <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
             <span>
               Showing <strong className="text-foreground">{filteredGuides.length}</strong> guides and <strong className="text-foreground">{filteredFaqs.length}</strong> FAQs
-              {selectedRole !== "all" && <span> for <strong className="text-primary capitalize">{selectedRole === "parent" ? "Parents & Families" : selectedRole === "staff" ? "Staff & Teachers" : selectedRole}</strong></span>}
+              {isPrivileged && selectedRole !== "all" && <span> for <strong className="text-primary capitalize">{selectedRole === "parent" ? "Parents & Families" : selectedRole === "staff" ? "Staff & Teachers" : selectedRole}</strong></span>}
               {selectedCategory !== "All Categories" && <span> in <strong className="text-primary">{selectedCategory}</strong></span>}
             </span>
 
@@ -1208,16 +1266,16 @@ const HelpDocumentation = () => {
             <div>
               <h3 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
                 <FileCheck className="h-5 w-5 text-indigo-500" />
-                Quick Printable Checklists & Cheat Sheets
+                {isPrivileged ? "Quick Printable Checklists & Cheat Sheets" : "Family Quick Checklists & Reference"}
               </h3>
               <p className="text-xs text-muted-foreground font-medium">
-                1-page quick reference protocols for Sunday morning operations.
+                {isPrivileged ? "1-page quick reference protocols for Sunday morning operations." : "Quick-reference cards for Sunday check-in, sanctuary paging alerts, and safe pickup."}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {CHEAT_SHEETS.map(sheet => {
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredCheatSheets.map(sheet => {
               const SheetIcon = sheet.icon;
               return (
                 <div
@@ -1469,34 +1527,71 @@ const HelpDocumentation = () => {
 
         {/* ─── Direct Support / Safety Hotline Card ──────────────────────── */}
         <Card className="rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 p-8 shadow-sm">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-5">
-              <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-                <LifeBuoy className="h-8 w-8" />
+          {isPrivileged ? (
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-5">
+                <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                  <LifeBuoy className="h-8 w-8" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black tracking-tight text-foreground">Need Immediate On-Site Sunday Support?</h3>
+                  <p className="text-sm text-muted-foreground font-medium max-w-xl">
+                    If you experience printer hardware issues or require manual security overrides during Sunday service, notify the Lead Check-In Supervisor or Ministry Director immediately.
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <h3 className="text-xl font-black tracking-tight text-foreground">Need Immediate On-Site Sunday Support?</h3>
-                <p className="text-sm text-muted-foreground font-medium max-w-xl">
-                  If you experience printer hardware issues or require manual security overrides during Sunday service, notify the Lead Check-In Supervisor or Ministry Director immediately.
-                </p>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <Button asChild variant="outline" className="rounded-2xl font-bold h-12 px-6">
-                <Link to="/attendance">
-                  <UserCheck className="mr-2 h-4 w-4" />
-                  Live Attendance
-                </Link>
-              </Button>
-              <Button asChild className="rounded-2xl font-bold h-12 px-6 shadow-md">
-                <Link to="/check-in">
-                  <Monitor className="mr-2 h-4 w-4" />
-                  Launch Kiosk
-                </Link>
-              </Button>
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <Button asChild variant="outline" className="rounded-2xl font-bold h-12 px-5">
+                  <Link to="/training">
+                    <GraduationCap className="mr-2 h-4 w-4" />
+                    Staff Training
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="rounded-2xl font-bold h-12 px-5">
+                  <Link to="/attendance">
+                    <UserCheck className="mr-2 h-4 w-4" />
+                    Live Attendance
+                  </Link>
+                </Button>
+                <Button asChild className="rounded-2xl font-bold h-12 px-5 shadow-md">
+                  <Link to="/check-in">
+                    <Monitor className="mr-2 h-4 w-4" />
+                    Launch Kiosk
+                  </Link>
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-5">
+                <div className="h-16 w-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                  <LifeBuoy className="h-8 w-8" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black tracking-tight text-foreground">Need Family Support or Have Questions?</h3>
+                  <p className="text-sm text-muted-foreground font-medium max-w-xl">
+                    Our children's ministry team is here to help with child registration, allergy notes, pickup authorizations, or Sunday service schedules.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
+                <Button asChild variant="outline" className="rounded-2xl font-bold h-12 px-6">
+                  <Link to="/parent/profile">
+                    <Users className="mr-2 h-4 w-4" />
+                    View Family Profile & PIN
+                  </Link>
+                </Button>
+                <Button asChild className="rounded-2xl font-bold h-12 px-6 shadow-md">
+                  <Link to="/parent/messages">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Message Ministry Leaders
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* ─── Interactive Guided Walkthrough Modal ───────────────────────── */}
