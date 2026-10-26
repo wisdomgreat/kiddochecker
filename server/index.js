@@ -68,6 +68,30 @@ async function forceDeleteProfile(profileId) {
   }
 }
 
+// ─── Helper: Unique Family Sanctuary Callout Pager Code Generator ──────────
+// 4-character non-ambiguous uppercase alphanumeric (excluding 0, O, 1, I, L)
+const FAMILY_CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+function generateFamilyCode() {
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    const randIdx = crypto.randomInt(0, FAMILY_CODE_CHARS.length);
+    code += FAMILY_CODE_CHARS[randIdx];
+  }
+  return code;
+}
+
+async function getUniqueFamilyCode(clientOrPool) {
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const code = generateFamilyCode();
+    const existing = await clientOrPool.query('SELECT 1 FROM public.profiles WHERE family_code = $1 LIMIT 1', [code]);
+    if (existing.rows.length === 0) {
+      return code;
+    }
+  }
+  // Fallback 5-char code in high-density cases
+  return generateFamilyCode() + FAMILY_CODE_CHARS[crypto.randomInt(0, FAMILY_CODE_CHARS.length)];
+}
+
 // Self-healing: Ensure schema and table exist
 async function setupDatabase() {
   console.log('[DB] Running migrations and schema verification...');
@@ -183,12 +207,32 @@ async function setupDatabase() {
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT TRUE;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 1;
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS family_code VARCHAR(10);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_family_code ON public.profiles(family_code) WHERE family_code IS NOT NULL;
       ALTER TABLE public.staff_documents ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE public.staff_documents ALTER COLUMN uploaded_at SET DEFAULT NOW();
       UPDATE public.staff_documents SET uploaded_at = NOW() WHERE uploaded_at IS NULL;
       UPDATE public.user_roles SET verification_status = 'pending' WHERE user_id IN (SELECT id FROM public.profiles WHERE email ILIKE '%kiddostaff%');
     `);
     console.log('[DB] Profiles table schema columns and staff verification pending status verified.');
+
+    // Backfill any profiles with missing family sanctuary pager code
+    try {
+      const missingCodes = await pool.query(`
+        SELECT id, role FROM public.profiles 
+        WHERE (family_code IS NULL OR family_code = '')
+      `);
+      if (missingCodes.rows.length > 0) {
+        console.log(`[DB] Backfilling unique family sanctuary codes for ${missingCodes.rows.length} profile(s)...`);
+        for (const row of missingCodes.rows) {
+          const code = await getUniqueFamilyCode(pool);
+          await pool.query('UPDATE public.profiles SET family_code = $1 WHERE id = $2', [code, row.id]);
+        }
+        console.log('[DB] Finished backfilling family sanctuary codes.');
+      }
+    } catch (bfErr) {
+      console.warn('[DB] family_code backfill notice:', bfErr.message);
+    }
   } catch (err) {
     console.error('[DB] Profiles column migration notice:', err.message);
   }
@@ -824,8 +868,8 @@ async function runMigrations() {
     { name: 'sync_profile_role_trigger', sql: `CREATE OR REPLACE FUNCTION public.sync_profile_role_to_user_roles() RETURNS TRIGGER AS $$ BEGIN INSERT INTO public.user_roles (user_id, role, is_super_admin) VALUES (NEW.id, COALESCE(NEW.role, 'parent'), COALESCE(NEW.is_super_admin, false)) ON CONFLICT (user_id) DO UPDATE SET role = COALESCE(EXCLUDED.role, user_roles.role), is_super_admin = COALESCE(EXCLUDED.is_super_admin, user_roles.is_super_admin); RETURN NEW; END; $$ LANGUAGE plpgsql SECURITY DEFINER; DROP TRIGGER IF EXISTS trg_sync_profile_role ON public.profiles; CREATE TRIGGER trg_sync_profile_role AFTER INSERT OR UPDATE OF role, is_super_admin ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.sync_profile_role_to_user_roles();` },
     { name: 'care_logs_table_v2', sql: `CREATE TABLE IF NOT EXISTS public.care_logs (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), attendance_id UUID, child_id UUID REFERENCES public.children(id) ON DELETE CASCADE, staff_id UUID, note_type TEXT DEFAULT 'general', note TEXT NOT NULL, logged_at TIMESTAMPTZ DEFAULT NOW(), created_at TIMESTAMPTZ DEFAULT NOW()); CREATE INDEX IF NOT EXISTS idx_care_logs_att ON public.care_logs(attendance_id); CREATE INDEX IF NOT EXISTS idx_care_logs_child ON public.care_logs(child_id);` },
     { name: 'get_detailed_attendance_report_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_detailed_attendance_report(start_date text DEFAULT '2020-01-01', end_date text DEFAULT '2030-12-31') RETURNS TABLE (id UUID, attendance_date DATE, child_id UUID, child_name TEXT, class_id UUID, class_name TEXT, checked_in_at TIMESTAMPTZ, checked_out_at TIMESTAMPTZ, status TEXT) AS $$ BEGIN RETURN QUERY SELECT a.id, a.attendance_date::date, a.child_id, COALESCE(CONCAT(c.first_name, ' ', c.last_name), 'Registered Child') as child_name, a.class_id, COALESCE(cl.name, 'General / Summer Camp') as class_name, a.checked_in_at, a.checked_out_at, COALESCE(a.status, 'present') as status FROM public.attendance a LEFT JOIN public.children c ON a.child_id = c.id LEFT JOIN public.classes cl ON a.class_id = cl.id WHERE a.attendance_date::date BETWEEN start_date::date AND end_date::date ORDER BY a.attendance_date DESC, a.checked_in_at DESC; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'get_class_roster_with_attendance_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_class_roster_with_attendance(p_class_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, is_present BOOLEAN, checked_in_at TIMESTAMPTZ) AS $$ BEGIN RETURN QUERY SELECT c.id as child_id, c.first_name, c.last_name, c.age, c.allergies, EXISTS(SELECT 1 FROM public.attendance a WHERE a.child_id = c.id AND a.attendance_date::date = CURRENT_DATE AND a.checked_in_at IS NOT NULL AND a.checked_out_at IS NULL) as is_present, (SELECT a.checked_in_at FROM public.attendance a WHERE a.child_id = c.id AND a.attendance_date::date = CURRENT_DATE ORDER BY a.checked_in_at DESC LIMIT 1) as checked_in_at FROM public.children c WHERE p_class_id IS NULL OR c.class_id = p_class_id ORDER BY c.first_name, c.last_name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
-    { name: 'get_parent_children_unique_signature', sql: `DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID); DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID, UUID); CREATE OR REPLACE FUNCTION public.get_parent_children_with_classes(parent_user_id UUID DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, medical_info TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, notes TEXT, current_class_name TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id as child_id, c.first_name, c.last_name, c.age, c.allergies, c.medical_info, c.emergency_contact_name, c.emergency_contact_phone, c.notes, COALESCE(cl.name, 'General / Summer Camp') as current_class_name FROM public.children c LEFT JOIN public.classes cl ON c.class_id = cl.id WHERE c.parent_id = COALESCE(parent_user_id, p_user_id); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_class_roster_with_attendance_rpc', sql: `DROP FUNCTION IF EXISTS public.get_class_roster_with_attendance(UUID); CREATE OR REPLACE FUNCTION public.get_class_roster_with_attendance(p_class_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, is_present BOOLEAN, checked_in_at TIMESTAMPTZ, family_code TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id as child_id, c.first_name, c.last_name, c.age, c.allergies, EXISTS(SELECT 1 FROM public.attendance a WHERE a.child_id = c.id AND a.attendance_date::date = CURRENT_DATE AND a.checked_in_at IS NOT NULL AND a.checked_out_at IS NULL) as is_present, (SELECT a.checked_in_at FROM public.attendance a WHERE a.child_id = c.id AND a.attendance_date::date = CURRENT_DATE ORDER BY a.checked_in_at DESC LIMIT 1) as checked_in_at, p.family_code::TEXT as family_code FROM public.children c LEFT JOIN public.profiles p ON c.parent_id = p.id WHERE p_class_id IS NULL OR c.class_id = p_class_id ORDER BY c.first_name, c.last_name; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
+    { name: 'get_parent_children_unique_signature', sql: `DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID); DROP FUNCTION IF EXISTS public.get_parent_children_with_classes(UUID, UUID); CREATE OR REPLACE FUNCTION public.get_parent_children_with_classes(parent_user_id UUID DEFAULT NULL, p_user_id UUID DEFAULT NULL) RETURNS TABLE (child_id UUID, first_name TEXT, last_name TEXT, age INTEGER, allergies TEXT, medical_info TEXT, emergency_contact_name TEXT, emergency_contact_phone TEXT, notes TEXT, current_class_name TEXT, family_code TEXT) AS $$ BEGIN RETURN QUERY SELECT c.id as child_id, c.first_name, c.last_name, c.age, c.allergies, c.medical_info, c.emergency_contact_name, c.emergency_contact_phone, c.notes, COALESCE(cl.name, 'General / Summer Camp') as current_class_name, p.family_code::TEXT as family_code FROM public.children c LEFT JOIN public.classes cl ON c.class_id = cl.id LEFT JOIN public.profiles p ON c.parent_id = p.id WHERE c.parent_id = COALESCE(parent_user_id, p_user_id); END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_staff_verification_status_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_staff_verification_status(p_user_id UUID) RETURNS TABLE (user_id UUID, is_verified BOOLEAN, verification_status TEXT, verified_at TIMESTAMPTZ, verified_by UUID, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(ur.verification_status = 'verified' OR ur.role IN ('admin', 'super_admin'), false) as is_verified, COALESCE(ur.verification_status, 'pending')::TEXT as verification_status, ur.verified_at, ur.verified_by, (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id OR sd.staff_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE p.id = p_user_id; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'get_pending_staff_verifications_rpc', sql: `CREATE OR REPLACE FUNCTION public.get_pending_staff_verifications() RETURNS TABLE (user_id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT, created_at TIMESTAMPTZ, documents_count INTEGER) AS $$ BEGIN RETURN QUERY SELECT p.id as user_id, COALESCE(p.first_name, '')::TEXT, COALESCE(p.last_name, '')::TEXT, COALESCE(p.email, '')::TEXT, COALESCE(ur.role::TEXT, p.role::TEXT, 'staff')::TEXT, COALESCE(p.created_at, NOW()), (SELECT COUNT(*)::INTEGER FROM public.staff_documents sd WHERE sd.user_id = p.id) as documents_count FROM public.profiles p LEFT JOIN public.user_roles ur ON p.id = ur.user_id WHERE COALESCE(ur.role::TEXT, p.role::TEXT) IN ('staff', 'teacher', 'volunteer', 'pending') ORDER BY p.created_at DESC; END; $$ LANGUAGE plpgsql SECURITY DEFINER;` },
     { name: 'col_activity_logs_resource_id_text', sql: `ALTER TABLE public.activity_logs ALTER COLUMN resource_id TYPE TEXT USING resource_id::TEXT;` },
@@ -1514,10 +1558,13 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
     // 3. Perform a transactional insert
     await pool.query('BEGIN');
 
+    // Generate unique 4-character family sanctuary pager code
+    const familyCode = await getUniqueFamilyCode(pool);
+
     // Insert profile using gen_random_uuid()
     const insertProfileSql = `
-      INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role, security_pin, address, email_verified) 
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, FALSE) 
+      INSERT INTO public.profiles (id, email, password_hash, first_name, last_name, phone, role, security_pin, address, email_verified, family_code) 
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, FALSE, $9) 
       RETURNING *
     `;
     const profileRes = await pool.query(insertProfileSql, [
@@ -1528,7 +1575,8 @@ app.post(['/api/auth/signup', '/auth/signup'], authLimiter, async (req, res) => 
       (phone || '').trim(), 
       finalRole,
       (securityPin || null),
-      (address || null)
+      (address || null),
+      familyCode
     ]);
     const profile = profileRes.rows[0];
     const newUserId = profile.id;
@@ -2136,9 +2184,11 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             c.notes, 
             COALESCE(cl.name, 'General / Summer Camp') as current_class_name,
             COALESCE(c.points_balance, 0) as points_balance,
-            c.photo_url
+            c.photo_url,
+            p.family_code
           FROM public.children c 
           LEFT JOIN public.classes cl ON c.class_id = cl.id 
+          LEFT JOIN public.profiles p ON c.parent_id = p.id
           WHERE c.parent_id::text = $1::text
              OR c.parent_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($2))
           ORDER BY c.first_name ASC
@@ -2332,6 +2382,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
             p.occupation::text,
             p.emergency_contact_name::text,
             p.emergency_contact_phone::text,
+            p.family_code::text as family_code,
             (SELECT COUNT(*)::integer FROM public.children c WHERE c.parent_id = p.id) as children_count
           FROM public.profiles p
           LEFT JOIN public.user_roles ur ON p.id = ur.user_id
@@ -3013,11 +3064,30 @@ app.post('/api/query', verifyToken, async (req, res) => {
             'id', c.id, 
             'first_name', c.first_name, 
             'last_name', c.last_name, 
-            'parent_id', c.parent_id::text
+            'age', c.age,
+            'allergies', c.allergies,
+            'photo_url', c.photo_url,
+            'parent_id', c.parent_id::text,
+            'family_code', p.family_code,
+            'parent_name', CONCAT(p.first_name, ' ', p.last_name),
+            'parent_phone', p.phone
           ) as child,
+          jsonb_build_object(
+            'id', c.id, 
+            'first_name', c.first_name, 
+            'last_name', c.last_name, 
+            'age', c.age,
+            'allergies', c.allergies,
+            'photo_url', c.photo_url,
+            'parent_id', c.parent_id::text,
+            'family_code', p.family_code,
+            'parent_name', CONCAT(p.first_name, ' ', p.last_name),
+            'parent_phone', p.phone
+          ) as children,
           jsonb_build_object('id', cl.id, 'name', cl.name) as class
         FROM public.attendance t
         LEFT JOIN public.children c ON t.child_id = c.id
+        LEFT JOIN public.profiles p ON c.parent_id = p.id
         LEFT JOIN public.classes cl ON t.class_id = cl.id
       `;
     } else if (needsChildrenJoin) {
@@ -4256,7 +4326,19 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     
-    const profile = result.rows[0];
+    let profile = result.rows[0];
+
+    // Auto-heal family sanctuary pager code if missing
+    if (!profile.family_code) {
+      try {
+        const newCode = await getUniqueFamilyCode(pool);
+        await pool.query('UPDATE public.profiles SET family_code = $1 WHERE id = $2', [newCode, profile.id]);
+        profile.family_code = newCode;
+        console.log(`[Profile Auto-Heal] Assigned family sanctuary code ${newCode} to ${profile.email}`);
+      } catch (fhErr) {
+        console.warn('[Profile Auto-Heal] Notice assigning family code:', fhErr.message);
+      }
+    }
 
     // Fetch user roles & is_super_admin from user_roles
     let userRole = profile.role || 'parent';
@@ -4279,12 +4361,62 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 
     res.json({
       ...sanitizeProfile(profile),
+      family_code: profile.family_code,
       role: userRole,
       is_super_admin: isSuperAdmin,
       verification_status: verificationStatus,
       permissions: (isSuperAdmin || userRole === 'admin') ? ['*'] : [userRole]
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Sanctuary Callout / Parent Paging System ──────────────────────────────
+// Allows staff/admins/teachers to trigger a projector callout during service
+app.post(['/api/sanctuary/page', '/sanctuary/page'], verifyToken, requireRole('staff', 'teacher', 'admin', 'super_admin'), async (req, res) => {
+  const { family_code, child_id, child_name, reason } = req.body || {};
+  if (!family_code) {
+    return res.status(400).json({ error: 'family_code is required' });
+  }
+
+  try {
+    const callerEmail = req.user?.email || req.user?.id || 'staff';
+    const cleanCode = String(family_code).trim().toUpperCase();
+    const cleanReason = (reason || 'Attention needed in children area').trim();
+
+    // 1. Log callout event to care_logs
+    try {
+      await pool.query(`
+        INSERT INTO public.care_logs (staff_id, event_type, notes, details, created_at)
+        VALUES ($1::uuid, 'sanctuary_page', $2, $3::jsonb, NOW())
+      `, [
+        req.user?.id || null,
+        `Sanctuary callout for family ${cleanCode}: ${cleanReason}`,
+        JSON.stringify({ 
+          family_code: cleanCode, 
+          child_id: child_id || null, 
+          child_name: child_name || null, 
+          reason: cleanReason, 
+          paged_by: callerEmail, 
+          paged_at: new Date().toISOString() 
+        })
+      ]);
+    } catch (logErr) {
+      console.warn('[Sanctuary Page] care_logs write notice:', logErr.message);
+    }
+
+    console.log(`[Sanctuary Page] Code ${cleanCode} paged by ${callerEmail} for child "${child_name || 'N/A'}". Reason: ${cleanReason}`);
+
+    return res.json({
+      success: true,
+      family_code: cleanCode,
+      display_text: `PAGER # ${cleanCode}`,
+      message: `Sanctuary alert ready for family ${cleanCode}`,
+      paged_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[Sanctuary Page Error]:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── Cloud Print Queue Endpoints (Secured with verifyToken) ──────────

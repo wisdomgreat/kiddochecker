@@ -23,12 +23,12 @@ const DashboardShell = ({
   const today = format(new Date(), "EEEE, MMMM d");
 
   return (
-    <div className={cn("max-w-7xl mx-auto px-6 py-8 space-y-7", className)}>
+    <div className={cn("w-full space-y-4 sm:space-y-6", className)}>
       {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-enter">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-0.5 animate-enter">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{title}</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {subtitle ?? today}
           </p>
         </div>

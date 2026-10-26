@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
-import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Award, QrCode } from "lucide-react";
+import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Award, QrCode, Bell } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { useMembers } from "@/hooks/useMembers";
 import { format } from "date-fns";
@@ -54,8 +54,10 @@ interface Profile {
   phone?: string;
   address?: string;
   security_pin?: string;
+  family_code?: string;
   avatar_url?: string;
   photo_url?: string;
+  nfc_uid?: string;
   created_at: string;
   updated_at: string;
 }
@@ -381,6 +383,29 @@ const ParentProfile = () => {
             <p className="text-xs text-muted-foreground">
               This 4 to 6-digit PIN will be used to check in your children at the kiosk station.
             </p>
+          </div>
+
+          {/* Family Sanctuary Pager Code */}
+          <div className="bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-900/40 rounded-3xl p-6 space-y-3">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-rose-100 dark:bg-rose-900/40 rounded-xl">
+                        <Bell className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-foreground leading-tight">Sanctuary Pager Code</h4>
+                        <p className="text-[10px] font-medium text-rose-500 uppercase tracking-widest">Discreet Screen Alert</p>
+                    </div>
+                </div>
+                <div className="px-3.5 py-1.5 bg-card border-2 border-rose-500/30 rounded-xl shadow-sm">
+                    <span className="font-mono text-xl font-black tracking-widest text-foreground">
+                        {profile?.family_code || (user as any)?.family_code || "—"}
+                    </span>
+                </div>
+             </div>
+             <p className="text-xs text-muted-foreground leading-relaxed">
+                If your child needs your attention during service, this 4-character code will be displayed on the sanctuary screen to notify you without announcing your name publicly.
+             </p>
           </div>
 
           {/* Kiosk QR Access */}

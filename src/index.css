@@ -115,14 +115,14 @@
 
   /* ── KPI / Stat Cards ─────────────────────────────────── */
   .kpi-card {
-    @apply relative bg-card border border-border/70 rounded-xl p-5
-           flex items-start gap-4 overflow-hidden
+    @apply relative bg-card border border-border/70 rounded-xl p-3.5 sm:p-4 lg:p-5
+           flex items-start gap-3 sm:gap-4 overflow-hidden
            hover:border-border hover:shadow-sm
            transition-all duration-200;
   }
 
   .kpi-icon {
-    @apply flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center;
+    @apply flex-shrink-0 h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center;
   }
 
   .kpi-label {
@@ -130,16 +130,16 @@
   }
 
   .kpi-value {
-    @apply text-3xl font-bold tracking-tight leading-none text-foreground;
+    @apply text-2xl sm:text-3xl font-bold tracking-tight leading-none text-foreground;
   }
 
   .kpi-trend {
-    @apply text-[11px] text-muted-foreground mt-2;
+    @apply text-[11px] text-muted-foreground mt-1.5;
   }
 
   /* ── Feed / Activity rows ─────────────────────────────── */
   .feed-row {
-    @apply flex items-center gap-3 px-5 py-3 hover:bg-muted/50
+    @apply flex items-center gap-3 px-3.5 sm:px-5 py-2 sm:py-2.5 hover:bg-muted/50
            transition-colors cursor-default;
   }
 
