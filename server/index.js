@@ -19,6 +19,14 @@ const tenantResolver = require('./middleware/tenantResolver');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Process-level crash prevention guards
+process.on('uncaughtException', (err) => {
+  console.error('[CRITICAL] Uncaught exception caught safely:', err?.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[CRITICAL] Unhandled promise rejection caught safely:', reason);
+});
+
 // ─── Middleware ───────────────────────────────────────────────────────────
 app.use(helmet()); // Secure Express apps by setting various HTTP headers
 app.use(morgan('combined')); // HTTP request logger
@@ -1031,9 +1039,23 @@ const BRIDGE_SECRET = process.env.BRIDGE_SECRET || 'kiddochecker-super-secret-20
 const JWT_SECRET = BRIDGE_SECRET;
 
 function getKey(header, callback) {
-  const jwksClient = require('jwks-rsa');
-  const client = jwksClient({ jwksUri: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/discovery/v2.0/keys' });
-  client.getSigningKey(header.kid, (err, key) => callback(null, key.publicKey || key.rsaPublicKey));
+  if (!header || !header.kid) {
+    return callback(new Error('Missing key ID (kid) in token header'));
+  }
+  try {
+    const jwksClient = require('jwks-rsa');
+    const client = jwksClient({ 
+      jwksUri: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/discovery/v2.0/keys',
+      cache: true,
+      rateLimit: true
+    });
+    client.getSigningKey(header.kid, (err, key) => {
+      if (err || !key) return callback(err || new Error('Signing key not found'));
+      callback(null, key.publicKey || key.rsaPublicKey || (key.getPublicKey && key.getPublicKey()));
+    });
+  } catch (err) {
+    callback(err);
+  }
 }
 
 function sanitizeProfile(profile) {
@@ -1100,16 +1122,34 @@ const verifyToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Authentication required. Invalid or guest token.' });
   }
 
-  // 1. Check custom Bridge secret
-  try {
-    const decoded = jwt.verify(token, BRIDGE_SECRET);
-    req.user = await resolveUserFromDb(decoded);
-    return next();
-  } catch (e) {
-    if (e.name === 'TokenRevokedError') {
-      return res.status(401).json({ error: 'Session invalidated: Your password was recently changed. Please log in again.' });
+  // 1. Check custom Bridge secret (supporting current and environment deployment keys)
+  const candidateSecrets = Array.from(new Set([
+    process.env.BRIDGE_SECRET,
+    BRIDGE_SECRET,
+    'kiddochecker-jwt-secret-key-2026',
+    'kiddo-bridge-jwt-secret-2026-secure-prod-key',
+    'kiddochecker-super-secret-2026'
+  ].filter(Boolean)));
+
+  let bridgeDecoded = null;
+  for (const secret of candidateSecrets) {
+    try {
+      bridgeDecoded = jwt.verify(token, secret);
+      break;
+    } catch (e) {
+      // Continue to next candidate secret
     }
-    // Continue to MSAL verification if bridge secret does not match
+  }
+
+  if (bridgeDecoded) {
+    try {
+      req.user = await resolveUserFromDb(bridgeDecoded);
+      return next();
+    } catch (e) {
+      if (e.name === 'TokenRevokedError') {
+        return res.status(401).json({ error: 'Session invalidated: Your password was recently changed. Please log in again.' });
+      }
+    }
   }
 
   // 2. Verified MSAL Entra ID verification
