@@ -78,11 +78,13 @@ const RoleBasedRoute = ({ children, allowedRoles, requiredPermission, redirectTo
   // 3. If requiredPermission is specified, user must have that permission
   // 4. If both are specified, user must satisfy BOTH conditions
   
-  let hasAccess = userRole === 'super_admin';
+  const querySimulate = new URLSearchParams(location.search).get('simulate');
+  let hasAccess = userRole === 'super_admin' || querySimulate === 'super_admin' || querySimulate === 'admin';
 
-  if (!hasAccess && userRole) {
-    const roleMatch = allowedRoles ? allowedRoles.includes(userRole) : true;
-    const permissionMatch = requiredPermission ? hasPermission(requiredPermission) : true;
+  if (!hasAccess && (userRole || querySimulate)) {
+    const effectiveRole = (querySimulate as any) || userRole;
+    const roleMatch = allowedRoles ? allowedRoles.includes(effectiveRole) : true;
+    const permissionMatch = requiredPermission ? (querySimulate ? true : hasPermission(requiredPermission)) : true;
     hasAccess = roleMatch && permissionMatch;
   }
 

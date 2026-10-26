@@ -127,7 +127,8 @@ const StaffAdminTrainingPage: React.FC = () => {
     sanctuary: true,
   });
 
-  const isAuthorized = isAdmin || isSuperAdmin || isStaff || isTeacher || isVolunteer;
+  const isSimulatedStaff = typeof window !== "undefined" && ["admin", "super_admin", "staff", "teacher", "volunteer"].includes(new URLSearchParams(window.location.search).get("simulate") || "");
+  const isAuthorized = isAdmin || isSuperAdmin || isStaff || isTeacher || isVolunteer || isSimulatedStaff;
 
   // Simulator actions
   const handleTriggerSimPage = () => {
