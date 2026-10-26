@@ -531,7 +531,7 @@ const AdminDashboardNew = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-7 px-2 text-xs border-rose-500/20 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 gap-1 rounded-lg"
+                                                className="h-7 px-2 text-xs border-primary/25 hover:bg-primary/10 text-primary gap-1 rounded-lg"
                                                 title="Page Family to Sanctuary"
                                                 onClick={() => {
                                                     setPageDialogItem({
@@ -560,7 +560,7 @@ const AdminDashboardNew = () => {
             <Dialog open={!!pageDialogItem} onOpenChange={(open) => !open && setPageDialogItem(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-lg text-rose-600 dark:text-rose-400">
+                        <DialogTitle className="flex items-center gap-2 text-lg text-primary">
                             <Bell className="h-5 w-5" />
                             Sanctuary Callout / Parent Pager
                         </DialogTitle>
@@ -612,7 +612,7 @@ const AdminDashboardNew = () => {
                                     className={cn(
                                         "text-left text-xs px-3 py-2 rounded-lg border transition-all",
                                         pageReason === reason
-                                            ? "bg-rose-500/10 border-rose-500/40 font-semibold text-rose-700 dark:text-rose-300"
+                                            ? "bg-primary/10 border-primary/40 font-semibold text-primary"
                                             : "border-border hover:bg-muted/50 text-muted-foreground"
                                     )}
                                 >
@@ -637,7 +637,7 @@ const AdminDashboardNew = () => {
                             {copiedPager ? "Copied" : "Copy Projector Text"}
                         </Button>
                         <Button
-                            className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5"
+                            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-xs gap-1.5"
                             disabled={isPaging}
                             onClick={handleTriggerSanctuaryPage}
                         >

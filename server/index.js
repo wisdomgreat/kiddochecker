@@ -4371,7 +4371,19 @@ app.get('/api/profile', verifyToken, async (req, res) => {
 });
 
 // ─── Sanctuary Callout / Parent Paging System ──────────────────────────────
-// Allows staff/admins/teachers to trigger a projector callout during service
+// In-memory active pages cache with automatic 20-minute expiry
+const activeSanctuaryPages = new Map();
+
+function pruneExpiredSanctuaryPages() {
+  const cutoff = Date.now() - 20 * 60 * 1000;
+  for (const [code, page] of activeSanctuaryPages.entries()) {
+    if (new Date(page.paged_at).getTime() < cutoff) {
+      activeSanctuaryPages.delete(code);
+    }
+  }
+}
+
+// Allows staff/admins/teachers to trigger a projector callout and app notification/vibration
 app.post(['/api/sanctuary/page', '/sanctuary/page'], verifyToken, requireRole('staff', 'teacher', 'admin', 'super_admin'), async (req, res) => {
   const { family_code, child_id, child_name, reason } = req.body || {};
   if (!family_code) {
@@ -4382,6 +4394,21 @@ app.post(['/api/sanctuary/page', '/sanctuary/page'], verifyToken, requireRole('s
     const callerEmail = req.user?.email || req.user?.id || 'staff';
     const cleanCode = String(family_code).trim().toUpperCase();
     const cleanReason = (reason || 'Attention needed in children area').trim();
+    const nowIso = new Date().toISOString();
+
+    const pageRecord = {
+      id: `page-${Date.now()}`,
+      family_code: cleanCode,
+      child_id: child_id || null,
+      child_name: child_name || null,
+      reason: cleanReason,
+      paged_by: callerEmail,
+      paged_at: nowIso,
+      acknowledged: false
+    };
+
+    // Store in active pages
+    activeSanctuaryPages.set(cleanCode, pageRecord);
 
     // 1. Log callout event to care_logs
     try {
@@ -4391,17 +4418,31 @@ app.post(['/api/sanctuary/page', '/sanctuary/page'], verifyToken, requireRole('s
       `, [
         req.user?.id || null,
         `Sanctuary callout for family ${cleanCode}: ${cleanReason}`,
-        JSON.stringify({ 
-          family_code: cleanCode, 
-          child_id: child_id || null, 
-          child_name: child_name || null, 
-          reason: cleanReason, 
-          paged_by: callerEmail, 
-          paged_at: new Date().toISOString() 
-        })
+        JSON.stringify(pageRecord)
       ]);
     } catch (logErr) {
       console.warn('[Sanctuary Page] care_logs write notice:', logErr.message);
+    }
+
+    // 2. Dispatch in-app message to parent accounts linked with this family_code
+    try {
+      const parentRes = await pool.query(
+        'SELECT id, email FROM public.profiles WHERE UPPER(family_code) = $1',
+        [cleanCode]
+      );
+      for (const parent of parentRes.rows) {
+        await pool.query(`
+          INSERT INTO public.messages (sender_id, recipient_id, subject, content, is_read, created_at)
+          VALUES ($1, $2, $3, $4, FALSE, NOW())
+        `, [
+          req.user?.id || null,
+          String(parent.id),
+          `Sanctuary Callout: Attention Needed for ${child_name || 'your child'}`,
+          `Your attention is kindly requested in the children's ministry area for ${child_name || 'your child'}. Reason: ${cleanReason}.`
+        ]);
+      }
+    } catch (msgErr) {
+      console.warn('[Sanctuary Page] notification dispatch notice:', msgErr.message);
     }
 
     console.log(`[Sanctuary Page] Code ${cleanCode} paged by ${callerEmail} for child "${child_name || 'N/A'}". Reason: ${cleanReason}`);
@@ -4410,13 +4451,48 @@ app.post(['/api/sanctuary/page', '/sanctuary/page'], verifyToken, requireRole('s
       success: true,
       family_code: cleanCode,
       display_text: `PAGER # ${cleanCode}`,
-      message: `Sanctuary alert ready for family ${cleanCode}`,
-      paged_at: new Date().toISOString()
+      message: `Sanctuary alert dispatched to parent app and sanctuary screen for family ${cleanCode}`,
+      page: pageRecord,
+      paged_at: nowIso
     });
   } catch (err) {
     console.error('[Sanctuary Page Error]:', err.message);
     return res.status(500).json({ error: err.message });
   }
+});
+
+// Check active sanctuary pages for a family code (or all active if staff/display screen)
+app.get(['/api/sanctuary/active', '/sanctuary/active'], async (req, res) => {
+  pruneExpiredSanctuaryPages();
+  const reqCode = req.query.family_code ? String(req.query.family_code).trim().toUpperCase() : null;
+
+  if (reqCode) {
+    const active = activeSanctuaryPages.get(reqCode);
+    return res.json({
+      family_code: reqCode,
+      active_page: active || null
+    });
+  }
+
+  // Return all active pages for sanctuary projector screen or staff monitors
+  return res.json({
+    active_pages: Array.from(activeSanctuaryPages.values())
+  });
+});
+
+// Parent or staff acknowledges/dismisses an active page
+app.post(['/api/sanctuary/acknowledge', '/sanctuary/acknowledge'], async (req, res) => {
+  const { family_code } = req.body || {};
+  if (!family_code) {
+    return res.status(400).json({ error: 'family_code is required' });
+  }
+  const cleanCode = String(family_code).trim().toUpperCase();
+  const page = activeSanctuaryPages.get(cleanCode);
+  if (page) {
+    page.acknowledged = true;
+    activeSanctuaryPages.delete(cleanCode);
+  }
+  return res.json({ success: true, family_code: cleanCode });
 });
 
 // ─── Cloud Print Queue Endpoints (Secured with verifyToken) ──────────

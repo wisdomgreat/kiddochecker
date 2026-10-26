@@ -11,13 +11,14 @@ import {
 import {
     Baby, CheckCircle2, Award, MessageSquare,
     QrCode, ChevronRight, Clock, Activity,
-    Bell, Copy, Check, Info, ShieldAlert
+    Bell, Copy, Check, Info, ShieldAlert, Vibrate
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import DashboardShell from "./DashboardShell";
 import { toast } from "sonner";
+import SanctuaryPageReceiver, { triggerHapticPaging } from "@/components/notifications/SanctuaryPageReceiver";
 import {
     Dialog,
     DialogContent,
@@ -148,8 +149,8 @@ const ParentDashboardNew = () => {
             label: "My Children",
             value: myChildren.length,
             icon: Baby,
-            iconBg: "bg-rose-500/10",
-            iconColor: "text-rose-500",
+            iconBg: "bg-sky-500/10",
+            iconColor: "text-sky-600 dark:text-sky-400",
             trend: "Registered",
         },
         {
@@ -172,8 +173,8 @@ const ParentDashboardNew = () => {
             label: "Notifications",
             value: unreadCount,
             icon: MessageSquare,
-            iconBg: unreadCount > 0 ? "bg-rose-500/10" : "bg-muted",
-            iconColor: unreadCount > 0 ? "text-rose-500" : "text-muted-foreground",
+            iconBg: unreadCount > 0 ? "bg-primary/10" : "bg-muted",
+            iconColor: unreadCount > 0 ? "text-primary" : "text-muted-foreground",
             trend: unreadCount > 0 ? "Unread" : "All caught up",
         },
     ];
@@ -210,7 +211,7 @@ const ParentDashboardNew = () => {
                     <MessageSquare className="h-3.5 w-3.5" />
                     <span className="hidden xs:inline sm:inline">Messages</span>
                     {unreadCount > 0 && (
-                        <span className="bg-rose-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
+                        <span className="bg-primary text-primary-foreground text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
                             {unreadCount}
                         </span>
                     )}
@@ -218,14 +219,14 @@ const ParentDashboardNew = () => {
             }
         >
             {/* Family Sanctuary Pager Code Banner - compact horizontal bar */}
-            <div className="surface-card bg-gradient-to-r from-rose-500/10 via-amber-500/5 to-primary/10 border-rose-500/20 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex items-center justify-between gap-2.5 animate-enter animate-enter-1">
+            <div className="surface-card bg-gradient-to-r from-primary/10 via-slate-500/5 to-indigo-500/10 border-primary/25 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex items-center justify-between gap-2.5 animate-enter animate-enter-1">
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-rose-500 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 shadow-sm">
                         <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
                     <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 truncate">
+                            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-primary truncate">
                                 Sanctuary Pager Code
                             </p>
                             <button
@@ -242,7 +243,7 @@ const ParentDashboardNew = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    <div className="bg-card border-2 border-rose-500/30 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl shadow-xs flex items-center">
+                    <div className="bg-card border-2 border-primary/30 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl shadow-xs flex items-center">
                         <span className="font-mono text-base sm:text-xl font-black tracking-widest text-foreground">
                             {familyCode || "—"}
                         </span>
@@ -250,7 +251,7 @@ const ParentDashboardNew = () => {
                     <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 px-2 sm:px-3 gap-1 border-rose-500/20 hover:bg-rose-500/10 text-xs"
+                        className="h-8 px-2 sm:px-3 gap-1 border-primary/25 hover:bg-primary/10 text-xs"
                         onClick={handleCopyFamilyCode}
                         title="Copy Pager Code"
                     >
@@ -329,9 +330,9 @@ const ParentDashboardNew = () => {
                                             <div
                                                 key={child.id}
                                                 onClick={() => navigate("/parent/children")}
-                                                className="flex items-center gap-2.5 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-border/60 hover:border-rose-300 hover:bg-rose-500/5 transition-all cursor-pointer group"
+                                                className="flex items-center gap-2.5 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-border/60 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer group"
                                             >
-                                                <div className="h-8 w-8 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0 text-xs font-bold text-rose-500">
+                                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-xs font-bold text-primary">
                                                     {initials}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
@@ -375,9 +376,9 @@ const ParentDashboardNew = () => {
                                     <Line
                                         type="monotone"
                                         dataKey="attended"
-                                        stroke="hsl(346,84%,58%)"
+                                        stroke="hsl(var(--primary))"
                                         strokeWidth={2.5}
-                                        dot={{ fill: "hsl(346,84%,58%)", r: 3, strokeWidth: 0 }}
+                                        dot={{ fill: "hsl(var(--primary))", r: 3, strokeWidth: 0 }}
                                         activeDot={{ r: 4, strokeWidth: 0 }}
                                     />
                                 </LineChart>
@@ -406,14 +407,14 @@ const ParentDashboardNew = () => {
                         <button
                             key={link.label}
                             onClick={() => navigate(link.path)}
-                            className="group relative flex flex-col items-center gap-1.5 p-2.5 sm:p-4 rounded-xl border border-border/70 bg-card hover:border-rose-300 hover:bg-rose-500/5 hover:shadow-sm transition-all duration-200"
+                            className="group relative flex flex-col items-center gap-1.5 p-2.5 sm:p-4 rounded-xl border border-border/70 bg-card hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm transition-all duration-200"
                         >
-                            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl bg-rose-500/10 flex items-center justify-center group-hover:bg-rose-500/15 transition-colors">
-                                <link.icon className="h-4 w-4 text-rose-500" />
+                            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg sm:rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                                <link.icon className="h-4 w-4 text-primary" />
                             </div>
                             <span className="text-[11px] sm:text-[12px] font-semibold text-foreground">{link.label}</span>
                             {link.badge != null && link.badge > 0 && (
-                                <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                                <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
                                     {link.badge}
                                 </span>
                             )}
@@ -445,7 +446,7 @@ const ParentDashboardNew = () => {
                             const isPresent = record.checked_in_at && !record.checked_out_at;
                             return (
                                 <div key={record.id} className="feed-row">
-                                    <div className="feed-avatar bg-rose-500/10 text-rose-600">
+                                    <div className="feed-avatar bg-primary/10 text-primary">
                                         {initials}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -481,7 +482,7 @@ const ParentDashboardNew = () => {
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-lg">
-                            <Bell className="h-5 w-5 text-rose-500" />
+                            <Bell className="h-5 w-5 text-primary" />
                             Sanctuary Pager Code System
                         </DialogTitle>
                         <DialogDescription className="text-left text-sm pt-2 space-y-3">
@@ -490,15 +491,19 @@ const ParentDashboardNew = () => {
                             </p>
                             <div className="bg-muted/50 p-3.5 rounded-xl space-y-2 border border-border/70 text-xs">
                                 <div className="flex items-start gap-2">
-                                    <span className="font-bold text-rose-500">1.</span>
+                                    <span className="font-bold text-primary">1.</span>
                                     <span><strong>Discreet Projection:</strong> If your child is inconsolable, needs assistance, or requires medical attention, classroom leaders trigger a callout.</span>
                                 </div>
                                 <div className="flex items-start gap-2">
-                                    <span className="font-bold text-rose-500">2.</span>
-                                    <span><strong>Screen Alert:</strong> Only your 4-character code (<strong className="font-mono text-rose-600">{familyCode || "CODE"}</strong>) will flash on the sanctuary projector screen (e.g. <em>PAGER # {familyCode}</em>).</span>
+                                    <span className="font-bold text-primary">2.</span>
+                                    <span><strong>Screen Alert:</strong> Only your 4-character code (<strong className="font-mono text-primary font-bold">{familyCode || "CODE"}</strong>) will flash on the sanctuary projector screen (e.g. <em>PAGER # {familyCode}</em>).</span>
                                 </div>
                                 <div className="flex items-start gap-2">
-                                    <span className="font-bold text-rose-500">3.</span>
+                                    <span className="font-bold text-primary">3.</span>
+                                    <span><strong>Silent Mobile Alert:</strong> Your phone also vibrates and receives a discreet in-app notification without interrupting the service.</span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <span className="font-bold text-primary">4.</span>
                                     <span><strong>Complete Privacy:</strong> Your child's and family's names are never announced or displayed publicly.</span>
                                 </div>
                             </div>
@@ -507,13 +512,28 @@ const ParentDashboardNew = () => {
                             </p>
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                triggerHapticPaging();
+                                toast.success("Phone vibration triggered (silent haptic pager pattern)!");
+                            }}
+                            className="gap-2 text-xs"
+                        >
+                            <Vibrate className="h-4 w-4 text-primary" />
+                            Test Phone Vibration
+                        </Button>
                         <Button onClick={() => setShowPagerInfo(false)} className="w-full sm:w-auto">
                             Got it
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* In-App Realtime Sanctuary Page Alert Receiver with Haptic Vibration */}
+            <SanctuaryPageReceiver familyCode={familyCode} />
         </DashboardShell>
     );
 };

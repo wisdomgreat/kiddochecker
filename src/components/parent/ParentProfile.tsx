@@ -386,18 +386,18 @@ const ParentProfile = () => {
           </div>
 
           {/* Family Sanctuary Pager Code */}
-          <div className="bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-900/40 rounded-3xl p-6 space-y-3">
+          <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-3xl p-6 space-y-3">
              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-rose-100 dark:bg-rose-900/40 rounded-xl">
-                        <Bell className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                    <div className="p-2 bg-primary/10 rounded-xl">
+                        <Bell className="h-5 w-5 text-primary" />
                     </div>
                     <div>
                         <h4 className="font-bold text-foreground leading-tight">Sanctuary Pager Code</h4>
-                        <p className="text-[10px] font-medium text-rose-500 uppercase tracking-widest">Discreet Screen Alert</p>
+                        <p className="text-[10px] font-semibold text-primary uppercase tracking-widest">Discreet Screen Alert</p>
                     </div>
                 </div>
-                <div className="px-3.5 py-1.5 bg-card border-2 border-rose-500/30 rounded-xl shadow-sm">
+                <div className="px-3.5 py-1.5 bg-card border-2 border-primary/30 rounded-xl shadow-sm">
                     <span className="font-mono text-xl font-black tracking-widest text-foreground">
                         {profile?.family_code || (user as any)?.family_code || "—"}
                     </span>

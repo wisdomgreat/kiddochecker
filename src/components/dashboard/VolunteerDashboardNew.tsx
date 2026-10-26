@@ -94,7 +94,7 @@ const VolunteerDashboardNew = () => {
                     <MessageSquare className="h-3.5 w-3.5" />
                     <span className="hidden xs:inline sm:inline">Messages</span>
                     {unreadCount > 0 && (
-                        <span className="bg-rose-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
+                        <span className="bg-primary text-primary-foreground text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
                             {unreadCount}
                         </span>
                     )}
@@ -107,7 +107,7 @@ const VolunteerDashboardNew = () => {
                     { label: "On-site Now", value: presentNow, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", dot: "bg-amber-500" },
                     { label: "Total Check-ins", value: todayAttendance.length, color: "text-foreground", bg: "bg-muted", dot: "bg-muted-foreground/40" },
                     { label: "Departed", value: checkedOut, color: "text-foreground", bg: "bg-muted", dot: "bg-muted-foreground/40" },
-                    { label: "Health Alerts", value: allergyAlerts.length, color: allergyAlerts.length > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground", bg: allergyAlerts.length > 0 ? "bg-rose-500/10" : "bg-muted", dot: allergyAlerts.length > 0 ? "bg-rose-500" : "bg-muted-foreground/40" },
+                    { label: "Health Alerts", value: allergyAlerts.length, color: allergyAlerts.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground", bg: allergyAlerts.length > 0 ? "bg-amber-500/10" : "bg-muted", dot: allergyAlerts.length > 0 ? "bg-amber-500" : "bg-muted-foreground/40" },
                 ].map((stat) => (
                     <div key={stat.label} className="surface-card p-2 sm:p-4 flex flex-col items-center gap-0.5 sm:gap-1">
                         <div className={cn("h-1.5 w-5 rounded-full", stat.dot)} />
@@ -205,7 +205,7 @@ const VolunteerDashboardNew = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-7 px-2 text-xs border-rose-500/20 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 gap-1 rounded-lg shrink-0 ml-2"
+                                                className="h-7 px-2 text-xs border-primary/25 hover:bg-primary/10 text-primary gap-1 rounded-lg shrink-0 ml-2"
                                                 title="Page Family"
                                                 onClick={() => {
                                                     setPageDialogItem({
@@ -290,7 +290,7 @@ const VolunteerDashboardNew = () => {
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-6 px-1.5 text-[11px] border-rose-500/20 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 gap-1 rounded-md"
+                                                    className="h-6 px-1.5 text-[11px] border-primary/25 hover:bg-primary/10 text-primary gap-1 rounded-md"
                                                     title="Page Family"
                                                     onClick={() => {
                                                         setPageDialogItem({
@@ -320,7 +320,7 @@ const VolunteerDashboardNew = () => {
             <Dialog open={!!pageDialogItem} onOpenChange={(open) => !open && setPageDialogItem(null)}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-lg text-rose-600 dark:text-rose-400">
+                        <DialogTitle className="flex items-center gap-2 text-lg text-primary">
                             <Bell className="h-5 w-5" />
                             Sanctuary Callout / Parent Pager
                         </DialogTitle>
@@ -372,7 +372,7 @@ const VolunteerDashboardNew = () => {
                                     className={cn(
                                         "text-left text-xs px-3 py-2 rounded-lg border transition-all",
                                         pageReason === reason
-                                            ? "bg-rose-500/10 border-rose-500/40 font-semibold text-rose-700 dark:text-rose-300"
+                                            ? "bg-primary/10 border-primary/40 font-semibold text-primary"
                                             : "border-border hover:bg-muted/50 text-muted-foreground"
                                     )}
                                 >
@@ -397,7 +397,7 @@ const VolunteerDashboardNew = () => {
                             {copiedPager ? "Copied" : "Copy Projector Text"}
                         </Button>
                         <Button
-                            className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white text-xs gap-1.5"
+                            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground text-xs gap-1.5"
                             disabled={isPaging}
                             onClick={handleTriggerSanctuaryPage}
                         >
