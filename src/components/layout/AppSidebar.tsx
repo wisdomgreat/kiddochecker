@@ -203,8 +203,7 @@ export function AppSidebar() {
   const { color: roleColor, label: roleLabel } = getRoleConfig();
 
   return (
-    <div className="h-screen flex flex-col">
-      <Sidebar className="border-r border-border/50 bg-card h-full">
+    <Sidebar className="border-r border-border/50 bg-card h-full">
         {/* Logo / org header */}
         <SidebarHeader className="px-4 py-4 border-b border-border/40">
           <div className="flex items-center gap-3">
@@ -383,6 +382,5 @@ export function AppSidebar() {
           </div>
         </SidebarFooter>
       </Sidebar>
-    </div>
   );
 }

@@ -28,7 +28,7 @@ const LandingPage = () => {
       <LandingNavigation />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-24 border-b">
+      <section className="relative pt-20 sm:pt-28 md:pt-32 pb-14 sm:pb-20 md:pb-24 border-b">
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1 rounded text-primary text-xs font-bold uppercase tracking-wider">
