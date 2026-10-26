@@ -40,7 +40,7 @@ const UnifiedDashboard = () => {
     if (isSuperAdmin || isAdmin) {
       if (!isMfaEnrolled) {
         return (
-          <div className="space-y-6 max-w-3xl mx-auto py-8 font-['Outfit']">
+          <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto py-3 sm:py-8 font-['Outfit']">
             <Alert className="border-amber-500/50 bg-amber-500/10">
               <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               <AlertTitle className="font-bold text-amber-900 dark:text-amber-200">
@@ -61,7 +61,7 @@ const UnifiedDashboard = () => {
     if (isStaff || userRole === "staff" || userRole === "teacher" || userRole === "teacher_assistant") {
       if (!isMfaEnrolled) {
         return (
-          <div className="space-y-6 max-w-3xl mx-auto py-8 font-['Outfit']">
+          <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto py-3 sm:py-8 font-['Outfit']">
             <Alert className="border-amber-500/50 bg-amber-500/10">
               <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
               <AlertTitle className="font-bold text-amber-900 dark:text-amber-200">
@@ -79,7 +79,7 @@ const UnifiedDashboard = () => {
       // If not verified and they are a staff role, show Document Upload (Onboarding)
       if (!isVerifiedStaff && userRole !== 'volunteer') {
         return (
-          <div className="space-y-6 max-w-5xl mx-auto py-8">
+          <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto py-3 sm:py-8">
             <Alert variant="destructive">
               <ShieldAlert className="h-5 w-5" />
               <AlertTitle className="font-bold">Action Required: Complete Your Onboarding</AlertTitle>
@@ -113,30 +113,30 @@ const UnifiedDashboard = () => {
 
   return (
     <div>
-      {/* Non-blocking MFA enrollment banner */}
+      {/* Non-blocking MFA enrollment banner - compact on mobile */}
       {showMfaBanner && (
-        <div className="border-b border-warning/20 bg-warning/5 px-4 py-3">
-          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <div className="mb-2.5 sm:mb-4 rounded-xl border border-warning/30 bg-warning/5 px-2.5 py-1.5 sm:px-4 sm:py-2.5">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <ShieldAlert className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400 shrink-0" />
               <div className="min-w-0">
-                <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                <p className="text-[11px] sm:text-xs font-bold text-amber-800 dark:text-amber-300 truncate">
                   Two-Factor Authentication Recommended
                 </p>
-                <p className="text-xs text-amber-700 dark:text-amber-400/80 mt-0.5">
-                  Protect sensitive child data by enabling MFA in your security settings.
+                <p className="text-[10px] sm:text-[11px] text-amber-700 dark:text-amber-400/80 mt-0.5 truncate hidden xs:block sm:block">
+                  Protect sensitive child data by enabling MFA in settings.
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 asChild
-                className="border-warning/30 bg-warning/10 hover:bg-warning/20 text-warning"
+                className="h-6 sm:h-7 px-2 text-[10px] sm:text-xs border-warning/30 bg-warning/10 hover:bg-warning/20 text-warning"
               >
                 <Link to="/settings">
-                  Set Up Now <ArrowRight className="ml-1 h-3 w-3" />
+                  Set Up <ArrowRight className="ml-1 h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 </Link>
               </Button>
               <button
@@ -144,7 +144,7 @@ const UnifiedDashboard = () => {
                 className="p-1 rounded hover:bg-warning/20 text-warning transition-colors"
                 aria-label="Dismiss MFA reminder"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3 sm:h-4 sm:w-4" />
               </button>
             </div>
           </div>

@@ -89,12 +89,12 @@ const VolunteerDashboardNew = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => navigate("/messages")}
-                    className="gap-2"
+                    className="h-8 px-2.5 sm:px-3 text-xs gap-1.5"
                 >
                     <MessageSquare className="h-3.5 w-3.5" />
-                    Messages
+                    <span className="hidden xs:inline sm:inline">Messages</span>
                     {unreadCount > 0 && (
-                        <span className="ml-1 bg-rose-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
+                        <span className="bg-rose-500 text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
                             {unreadCount}
                         </span>
                     )}
@@ -102,68 +102,68 @@ const VolunteerDashboardNew = () => {
             }
         >
             {/* KPI row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-enter animate-enter-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 animate-enter animate-enter-1">
                 {[
                     { label: "On-site Now", value: presentNow, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", dot: "bg-amber-500" },
                     { label: "Total Check-ins", value: todayAttendance.length, color: "text-foreground", bg: "bg-muted", dot: "bg-muted-foreground/40" },
                     { label: "Departed", value: checkedOut, color: "text-foreground", bg: "bg-muted", dot: "bg-muted-foreground/40" },
                     { label: "Health Alerts", value: allergyAlerts.length, color: allergyAlerts.length > 0 ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground", bg: allergyAlerts.length > 0 ? "bg-rose-500/10" : "bg-muted", dot: allergyAlerts.length > 0 ? "bg-rose-500" : "bg-muted-foreground/40" },
                 ].map((stat) => (
-                    <div key={stat.label} className="surface-card p-3 sm:p-4 flex flex-col items-center gap-1">
+                    <div key={stat.label} className="surface-card p-2 sm:p-4 flex flex-col items-center gap-0.5 sm:gap-1">
                         <div className={cn("h-1.5 w-5 rounded-full", stat.dot)} />
-                        <p className={cn("text-2xl sm:text-3xl font-extrabold tracking-tight", stat.color)}>{stat.value}</p>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-center">{stat.label}</p>
+                        <p className={cn("text-xl sm:text-3xl font-extrabold tracking-tight", stat.color)}>{stat.value}</p>
+                        <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-center truncate w-full">{stat.label}</p>
                     </div>
                 ))}
             </div>
 
             {/* Main responsive grid: 2 columns on desktop (7 / 5 split) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-5 items-start">
                 {/* Left column: Actions + Medical Alerts */}
-                <div className="lg:col-span-7 space-y-4">
+                <div className="lg:col-span-7 space-y-3 sm:space-y-4">
                     {/* Primary CTA */}
                     <button
                         onClick={() => navigate("/check-in")}
-                        className="w-full group flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white transition-all duration-200 shadow-md hover:shadow-lg animate-enter animate-enter-2"
+                        className="w-full group flex items-center justify-between p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white transition-all duration-200 shadow-md hover:shadow-lg animate-enter animate-enter-2"
                     >
-                        <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors shadow-inner">
-                                <QrCode className="h-6 w-6" />
+                        <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors shadow-inner flex-shrink-0">
+                                <QrCode className="h-5 w-5 sm:h-6 sm:w-6" />
                             </div>
-                            <div className="text-left">
-                                <p className="font-bold text-base sm:text-lg leading-tight">Start Check-In Session</p>
-                                <p className="text-xs text-amber-100 mt-1">Open camera scanner & lookup terminal</p>
+                            <div className="text-left min-w-0">
+                                <p className="font-bold text-sm sm:text-lg leading-tight truncate">Start Check-In Session</p>
+                                <p className="text-[11px] sm:text-xs text-amber-100 mt-0.5 sm:mt-1 truncate">Camera scanner & lookup terminal</p>
                             </div>
                         </div>
-                        <div className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
-                            <ChevronRight className="h-5 w-5 opacity-90 group-hover:translate-x-0.5 transition-transform" />
+                        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors flex-shrink-0">
+                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 opacity-90 group-hover:translate-x-0.5 transition-transform" />
                         </div>
                     </button>
 
                     {/* Secondary action tiles */}
-                    <div className="grid grid-cols-2 gap-3 animate-enter animate-enter-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 animate-enter animate-enter-3">
                         <button
                             onClick={() => navigate("/check-out")}
-                            className="group surface-card flex items-center gap-3 p-3.5 sm:p-4 hover:border-border transition-all text-left"
+                            className="group surface-card flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-4 hover:border-border transition-all text-left"
                         >
-                            <div className="h-10 w-10 rounded-xl bg-slate-500/10 flex items-center justify-center group-hover:bg-slate-500/15 transition-colors flex-shrink-0">
-                                <LogOut className="h-5 w-5 text-slate-600 dark:text-slate-300" />
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-slate-500/10 flex items-center justify-center group-hover:bg-slate-500/15 transition-colors flex-shrink-0">
+                                <LogOut className="h-4 w-4 sm:h-5 sm:w-5 text-slate-600 dark:text-slate-300" />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[13px] font-semibold leading-none">Departure</p>
-                                <p className="text-[11px] text-muted-foreground mt-1 truncate">Process check-outs</p>
+                                <p className="text-[12px] sm:text-[13px] font-semibold leading-none truncate">Departure</p>
+                                <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 sm:mt-1 truncate">Check-outs</p>
                             </div>
                         </button>
                         <button
                             onClick={() => navigate("/classes")}
-                            className="group surface-card flex items-center gap-3 p-3.5 sm:p-4 hover:border-border transition-all text-left"
+                            className="group surface-card flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-4 hover:border-border transition-all text-left"
                         >
-                            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/15 transition-colors flex-shrink-0">
-                                <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/15 transition-colors flex-shrink-0">
+                                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 dark:text-emerald-400" />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[13px] font-semibold leading-none">Class Roster</p>
-                                <p className="text-[11px] text-muted-foreground mt-1 truncate">View rooms & ratios</p>
+                                <p className="text-[12px] sm:text-[13px] font-semibold leading-none truncate">Class Roster</p>
+                                <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 sm:mt-1 truncate">Rooms & ratios</p>
                             </div>
                         </button>
                     </div>

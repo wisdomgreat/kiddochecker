@@ -309,18 +309,18 @@ const AdminDashboardNew = () => {
             title="Admin Dashboard"
             subtitle={`${format(new Date(), "EEEE, MMMM d")} · ${totalCheckins} check-ins recorded`}
             action={
-                <Button size="sm" onClick={() => navigate("/check-in")} className="gap-2">
+                <Button size="sm" onClick={() => navigate("/check-in")} className="h-8 px-2.5 sm:px-3 text-xs gap-1.5">
                     <QrCode className="h-3.5 w-3.5" />
-                    Launch Kiosk
+                    <span className="hidden xs:inline sm:inline">Launch Kiosk</span>
                 </Button>
             }
         >
-            {/* KPI row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* KPI row - 2x2 grid on mobile */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3.5">
                 {stats.map((stat, i) => (
                     <div key={stat.label} className={cn("kpi-card animate-enter", `animate-enter-${i + 1}`)}>
                         <div className={cn("kpi-icon", stat.iconBg)}>
-                            <stat.icon className={cn("h-5 w-5", stat.iconColor)} />
+                            <stat.icon className={cn("h-4 w-4 sm:h-5 sm:w-5", stat.iconColor)} />
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="kpi-label">{stat.label}</p>
@@ -332,33 +332,33 @@ const AdminDashboardNew = () => {
             </div>
 
             {/* Charts row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-enter animate-enter-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5 animate-enter animate-enter-3">
                 {/* Attendance Trend card */}
                 <div className="surface-card lg:col-span-2 flex flex-col justify-between">
-                    <div className="px-5 pt-5 pb-3 border-b border-border/50 flex items-center justify-between">
+                    <div className="px-3.5 sm:px-5 pt-3.5 sm:pt-4 pb-2 sm:pb-3 border-b border-border/50 flex items-center justify-between">
                         <div>
-                            <p className="font-semibold text-[14px]">Attendance Trend</p>
-                            <p className="text-[12px] text-muted-foreground mt-0.5">Check-ins over the last 7 days</p>
+                            <p className="font-semibold text-[13px] sm:text-[14px]">Attendance Trend</p>
+                            <p className="text-[11px] sm:text-[12px] text-muted-foreground mt-0.5">Check-ins over the last 7 days</p>
                         </div>
-                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20 font-bold">
-                            {chartData.find(d => d.dayStr === todayStr)?.checkins || 0} recorded today
+                        <Badge variant="outline" className="text-[11px] sm:text-xs bg-primary/10 text-primary border-primary/20 font-bold px-1.5 sm:px-2.5">
+                            {chartData.find(d => d.dayStr === todayStr)?.checkins || 0} today
                         </Badge>
                     </div>
-                    <div className="p-5 flex-1 flex flex-col justify-between min-h-[220px]">
-                        <div className="grid grid-cols-7 gap-2 items-end h-[160px] pt-4">
+                    <div className="p-3 sm:p-5 flex-1 flex flex-col justify-between min-h-[170px] sm:min-h-[220px]">
+                        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 items-end h-[130px] sm:h-[160px] pt-2 sm:pt-4">
                             {chartData.map((d) => {
                                 const isToday = d.dayStr === todayStr;
                                 return (
-                                    <div key={d.dayStr} className="flex flex-col items-center gap-2 h-full justify-end group">
+                                    <div key={d.dayStr} className="flex flex-col items-center gap-1.5 sm:gap-2 h-full justify-end group">
                                         <span className={cn(
-                                            "text-[11px] font-bold px-1.5 py-0.5 rounded transition-all",
+                                            "text-[10px] sm:text-[11px] font-bold px-1 sm:px-1.5 py-0.5 rounded transition-all",
                                             d.checkins > 0
                                                 ? (isToday ? "bg-primary text-primary-foreground shadow-sm" : "bg-card border text-foreground")
                                                 : "text-muted-foreground/40"
                                         )}>
                                             {d.checkins}
                                         </span>
-                                        <div className="w-full max-w-[38px] bg-muted/40 rounded-t-lg h-full max-h-[110px] flex items-end p-0.5 overflow-hidden">
+                                        <div className="w-full max-w-[34px] sm:max-w-[38px] bg-muted/40 rounded-t-lg h-full max-h-[90px] sm:max-h-[110px] flex items-end p-0.5 overflow-hidden">
                                             <div
                                                 style={{ height: `${Math.max(d.checkins > 0 ? 15 : 6, d.heightPct)}%` }}
                                                 className={cn(
@@ -370,7 +370,7 @@ const AdminDashboardNew = () => {
                                             />
                                         </div>
                                         <span className={cn(
-                                            "text-[11px] font-semibold tracking-tight",
+                                            "text-[10px] sm:text-[11px] font-semibold tracking-tight",
                                             isToday ? "text-primary font-bold" : "text-muted-foreground"
                                         )}>
                                             {d.day}
@@ -384,18 +384,18 @@ const AdminDashboardNew = () => {
 
                 {/* Donut chart */}
                 <div className="surface-card">
-                    <div className="px-5 pt-5 pb-3 border-b border-border/50">
-                        <p className="font-semibold text-[14px]">On-site Status</p>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">Current snapshot</p>
+                    <div className="px-3.5 sm:px-5 pt-3.5 sm:pt-4 pb-2 sm:pb-3 border-b border-border/50">
+                        <p className="font-semibold text-[13px] sm:text-[14px]">On-site Status</p>
+                        <p className="text-[11px] sm:text-[12px] text-muted-foreground mt-0.5">Current snapshot</p>
                     </div>
-                    <div className="p-5">
-                        <div className="h-[160px] relative">
+                    <div className="p-3 sm:p-5">
+                        <div className="h-[130px] sm:h-[160px] relative">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
                                         data={pieData}
                                         cx="50%" cy="50%"
-                                        innerRadius={52} outerRadius={68}
+                                        innerRadius={46} outerRadius={62}
                                         paddingAngle={3}
                                         dataKey="value"
                                     >
@@ -408,16 +408,16 @@ const AdminDashboardNew = () => {
                             </ResponsiveContainer>
                             {/* Center label */}
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <p className="text-2xl font-bold">{presentNow}</p>
-                                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Present</p>
+                                <p className="text-xl sm:text-2xl font-bold">{presentNow}</p>
+                                <p className="text-[9px] sm:text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Present</p>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 mt-4">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-2 sm:mt-4">
                             {pieData.map((item, i) => (
-                                <div key={item.name} className="bg-muted/50 rounded-lg p-3 text-center">
-                                    <div className="h-1.5 w-6 rounded-full mx-auto mb-2" style={{ background: DONUT_COLORS[i] }} />
-                                    <p className="text-lg font-bold">{item.value}</p>
-                                    <p className="text-[10px] text-muted-foreground font-semibold uppercase">{item.name}</p>
+                                <div key={item.name} className="bg-muted/50 rounded-lg p-2 sm:p-3 text-center">
+                                    <div className="h-1.5 w-5 sm:w-6 rounded-full mx-auto mb-1.5" style={{ background: DONUT_COLORS[i] }} />
+                                    <p className="text-base sm:text-lg font-bold">{item.value}</p>
+                                    <p className="text-[9px] sm:text-[10px] text-muted-foreground font-semibold uppercase">{item.name}</p>
                                 </div>
                             ))}
                         </div>
@@ -427,33 +427,33 @@ const AdminDashboardNew = () => {
 
             {/* Quick actions */}
             <div className="animate-enter animate-enter-4">
-                <p className="section-label mb-3">Quick Actions</p>
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+                <p className="section-label mb-2 sm:mb-3">Quick Actions</p>
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 sm:gap-3">
                     {quickActions.map((action) => (
                         <button
                             key={action.title}
                             onClick={() => navigate(action.path)}
-                            className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-border/70 bg-card hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm transition-all duration-200"
+                            className="group flex flex-col items-center gap-1.5 sm:gap-2.5 p-2.5 sm:p-4 rounded-xl border border-border/70 bg-card hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm transition-all duration-200"
                         >
-                            <div className="h-9 w-9 rounded-lg bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
                                 <action.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                             </div>
-                            <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors text-center leading-tight">{action.title}</span>
+                            <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground group-hover:text-foreground transition-colors text-center leading-tight truncate w-full">{action.title}</span>
                         </button>
                     ))}
                     {/* Test Email button */}
                     <button
                         onClick={() => sendTestEmailMutation.mutate()}
                         disabled={sendTestEmailMutation.isPending}
-                        className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-emerald-200/70 bg-emerald-50/50 hover:border-emerald-400/50 hover:bg-emerald-50 hover:shadow-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="group flex flex-col items-center gap-1.5 sm:gap-2.5 p-2.5 sm:p-4 rounded-xl border border-emerald-200/70 bg-emerald-50/50 hover:border-emerald-400/50 hover:bg-emerald-50 hover:shadow-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        <div className="h-9 w-9 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
+                        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
                             {sendTestEmailMutation.isPending
-                                ? <div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                                : <Send className="h-4 w-4 text-emerald-600" />
+                                ? <div className="h-3.5 w-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                : <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
                             }
                         </div>
-                        <span className="text-[11px] font-semibold text-emerald-700 text-center leading-tight">
+                        <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-700 text-center leading-tight truncate w-full">
                             {sendTestEmailMutation.isPending ? 'Sending…' : 'Send Emails'}
                         </span>
                     </button>

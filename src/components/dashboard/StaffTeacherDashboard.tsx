@@ -166,23 +166,23 @@ const StaffTeacherDashboard = () => {
             title="Staff Overview"
             subtitle={`${format(new Date(), "EEEE, MMMM d")} · Signed in as ${user?.email}`}
             action={
-                <Button size="sm" onClick={() => navigate("/messages")} className="gap-2" variant="outline">
+                <Button size="sm" onClick={() => navigate("/messages")} className="h-8 px-2.5 sm:px-3 text-xs gap-1.5" variant="outline">
                     <MessageSquare className="h-3.5 w-3.5" />
-                    Inbox
+                    <span className="hidden xs:inline sm:inline">Inbox</span>
                     {messagesCount > 0 && (
-                        <span className="ml-1 bg-primary text-primary-foreground text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
+                        <span className="bg-primary text-primary-foreground text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center">
                             {messagesCount}
                         </span>
                     )}
                 </Button>
             }
         >
-            {/* KPI row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* KPI row - 2x2 grid on mobile instead of 4 stacked cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3.5">
                 {stats.map((stat, i) => (
                     <div key={stat.label} className={cn("kpi-card animate-enter", `animate-enter-${i + 1}`)}>
                         <div className={cn("kpi-icon", stat.iconBg)}>
-                            <stat.icon className={cn("h-5 w-5", stat.iconColor)} />
+                            <stat.icon className={cn("h-4 w-4 sm:h-5 sm:w-5", stat.iconColor)} />
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="kpi-label">{stat.label}</p>
@@ -194,14 +194,14 @@ const StaffTeacherDashboard = () => {
             </div>
 
             {/* Charts + Classes */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-enter animate-enter-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-5 animate-enter animate-enter-3">
                 {/* Bar chart - arrival flow */}
                 <div className="surface-card lg:col-span-2">
-                    <div className="px-5 pt-5 pb-3 border-b border-border/50">
-                        <p className="font-semibold text-[14px]">Arrival Flow</p>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">Children checked in by hour</p>
+                    <div className="px-3.5 sm:px-5 pt-3.5 sm:pt-4 pb-2 sm:pb-3 border-b border-border/50">
+                        <p className="font-semibold text-[13px] sm:text-[14px]">Arrival Flow</p>
+                        <p className="text-[11px] sm:text-[12px] text-muted-foreground mt-0.5">Children checked in by hour</p>
                     </div>
-                    <div className="p-5 h-[220px]">
+                    <div className="p-3 sm:p-5 h-[160px] sm:h-[220px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={hourlyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} barSize={18}>
                                 <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "hsl(220,9%,46%)" }} />
@@ -219,29 +219,29 @@ const StaffTeacherDashboard = () => {
 
                 {/* Classes panel */}
                 <div className="surface-card">
-                    <div className="px-5 pt-5 pb-3 border-b border-border/50">
-                        <p className="font-semibold text-[14px]">Assigned Classes</p>
+                    <div className="px-3.5 sm:px-5 pt-3.5 sm:pt-4 pb-2 sm:pb-3 border-b border-border/50">
+                        <p className="font-semibold text-[13px] sm:text-[14px]">Assigned Classes</p>
                     </div>
-                    <div className="divide-y divide-border/50 max-h-[260px] overflow-y-auto custom-scrollbar">
+                    <div className="divide-y divide-border/50 max-h-[190px] sm:max-h-[260px] overflow-y-auto custom-scrollbar">
                         {myClasses.length === 0 ? (
-                            <div className="py-8 flex flex-col items-center text-muted-foreground">
-                                <BookOpen className="h-6 w-6 mb-2 opacity-25" />
-                                <p className="text-[12px] font-medium">No active classes</p>
+                            <div className="py-6 flex flex-col items-center text-muted-foreground">
+                                <BookOpen className="h-5 w-5 mb-1.5 opacity-25" />
+                                <p className="text-[11px] sm:text-[12px] font-medium">No active classes</p>
                             </div>
                         ) : (
                             myClasses.map((cls: any) => (
                                 <button
                                     key={cls.id}
                                     onClick={() => navigate("/classes")}
-                                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors text-left"
+                                    className="w-full flex items-center justify-between px-3.5 sm:px-5 py-2.5 sm:py-3.5 hover:bg-muted/40 transition-colors text-left"
                                 >
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2.5 sm:gap-3">
                                         <div className="h-7 w-7 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
                                             <BookOpen className="h-3.5 w-3.5 text-emerald-500" />
                                         </div>
                                         <div>
-                                            <p className="text-[13px] font-semibold leading-none">{cls.name}</p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">{cls.room || "No room"}</p>
+                                            <p className="text-[12px] sm:text-[13px] font-semibold leading-none">{cls.name}</p>
+                                            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5">{cls.room || "No room"}</p>
                                         </div>
                                     </div>
                                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -254,7 +254,7 @@ const StaffTeacherDashboard = () => {
 
             {/* Live feed */}
             <div className="animate-enter animate-enter-4">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
                     <p className="section-label">Real-time Feed</p>
                     <button
                         onClick={() => navigate("/attendance")}
