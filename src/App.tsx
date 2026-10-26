@@ -83,6 +83,7 @@ const CentersPage = lazyWithRetry(() => import("./pages/CentersPage"));
 const ShiftManagementPage = lazyWithRetry(() => import("./pages/ShiftManagementPage"));
 const ChurchManagementPage = lazyWithRetry(() => import("./pages/ChurchManagementPage"));
 const SecurityTrackerPage = lazyWithRetry(() => import("./pages/SecurityTrackerPage"));
+const StaffAdminTrainingPage = lazyWithRetry(() => import("./pages/StaffAdminTrainingPage"));
 const InstallPWABanner = lazyWithRetry(() => import("./components/mobile/InstallPWABanner"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
@@ -180,6 +181,23 @@ function App() {
                       <Route path="/attendance" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant']} requiredPermission="view_all_attendance"><AttendancePage /></RoleBasedRoute>} />
                       <Route path="/children" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher']} requiredPermission="view_all_children"><ChildrenPage /></RoleBasedRoute>} />
                       <Route path="/admin/church" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin']} requiredPermission="church_view"><ChurchManagementPage /></RoleBasedRoute>} />
+                      
+                      {/* Staff & Admin Exclusive Training Hub */}
+                      <Route path="/training" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer']}>
+                          <StaffAdminTrainingPage />
+                        </RoleBasedRoute>
+                      } />
+                      <Route path="/admin/training" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer']}>
+                          <StaffAdminTrainingPage />
+                        </RoleBasedRoute>
+                      } />
+                      <Route path="/staff/training" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer']}>
+                          <StaffAdminTrainingPage />
+                        </RoleBasedRoute>
+                      } />
 
                       {/* All Authenticated - but NOT Kiosks */}
                       <Route path="/messages" element={<RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'parent', 'volunteer', 'regular_user']}><MessagesPage /></RoleBasedRoute>} />

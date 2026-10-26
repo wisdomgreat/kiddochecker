@@ -55,7 +55,10 @@ import {
   Layers,
   Wrench,
   AlertOctagon,
-  Award
+  Award,
+  Bell,
+  Vibrate,
+  VolumeX
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -148,11 +151,65 @@ const STEP_GUIDES: StepGuide[] = [
     ]
   },
   {
+    id: "parent-sanctuary-paging",
+    title: "How the Sanctuary Pager & Silent Mobile Alerts Work",
+    targetRole: "parent",
+    roleBadge: "Parents & Families",
+    roleBadgeColor: "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300",
+    category: "Safety & Security",
+    icon: Bell,
+    summary: "Understand how our children's ministry silently and discreetly reaches you during worship using private sanctuary screen codes, phone vibration, and in-app alerts.",
+    estimatedTime: "2 mins",
+    difficulty: "Beginner",
+    actionLink: { text: "View My Pager Code", url: "/parent/profile" },
+    cheatSheetSummary: [
+      "1. Find your 4-character Family Pager Code on your dashboard banner or profile",
+      "2. Keep your phone on silent or vibrate during worship service",
+      "3. If child needs care, your phone pulses with a silent haptic vibration pattern",
+      "4. Only your 4-character code flashes on the sanctuary screen — names are never publicized",
+      "5. Tap 'I'm On My Way' in the app so teachers know you are coming"
+    ],
+    steps: [
+      {
+        number: 1,
+        title: "Find Your Family Sanctuary Pager Code",
+        description: "Your family is assigned a private 4-character Sanctuary Pager Code (e.g. #A4B2). You can view it anytime at the top of your Parent Dashboard, on your printed Parent Claim Ticket, and inside your Profile page.",
+        tip: "Keep this 4-character code in mind or leave your KiddoChecker dashboard open on your phone during the service.",
+        keyAction: "Locate code on dashboard"
+      },
+      {
+        number: 2,
+        title: "When Classroom Leaders Request Your Care",
+        description: "If your child is inconsolable, needs assistance with a diaper/wardrobe change, requests a parent, or requires health attention, classroom leaders trigger a silent callout from their classroom terminal.",
+        keyAction: "Leader triggers assistance"
+      },
+      {
+        number: 3,
+        title: "Silent Phone Vibration & In-App Alert",
+        description: "Your phone immediately receives a high-priority assistance alert banner and pulses with a discreet haptic vibration pattern (two pulses followed by a longer buzz). It will NEVER make loud ringing noises that disturb the sermon or worship prayer.",
+        tip: "You can test your phone's vibration right now by clicking 'Sanctuary Pager Code' on your dashboard and tapping 'Test Phone Vibration'.",
+        keyAction: "Discreet mobile haptic pulse"
+      },
+      {
+        number: 4,
+        title: "Discreet Sanctuary Screen Projection",
+        description: "For parents whose phones are in a bag or pocket, your 4-character code is flashed discreetly on the sanctuary projector screen (e.g., 'PAGER # A4B2'). Your child's and family's names are never announced or displayed publicly to protect your privacy.",
+        keyAction: "Private screen flash"
+      },
+      {
+        number: 5,
+        title: "Tap 'I'm On My Way' (Acknowledge)",
+        description: "When the alert appears on your phone, tap 'I'm On My Way'. This immediately notifies classroom leaders that you have responded and are heading to the children's wing, silences further alerts, and provides reassurance.",
+        keyAction: "Tap Acknowledge"
+      }
+    ]
+  },
+  {
     id: "parent-add-children",
     title: "How to Register Children & Record Critical Allergies",
     targetRole: "parent",
     roleBadge: "Parents & Families",
-    roleBadgeColor: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300",
+    roleBadgeColor: "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-950 dark:text-sky-300",
     category: "Children & Medical",
     icon: Baby,
     summary: "Add your children to the registry, set emergency contacts, and record vital allergies or medical alerts.",
@@ -785,6 +842,21 @@ const CHEAT_SHEETS: CheatSheet[] = [
       "Check Brother/Zebra cutter mechanism is clean and free of adhesive residue.",
       "Enable Location IP Lockdown in Admin Settings to secure local network terminals."
     ]
+  },
+  {
+    id: "sanctuary-paging-protocol",
+    title: "Sanctuary Paging & Silent Mobile Alert Protocol",
+    targetRole: "Parents, Staff & Media Team",
+    icon: Bell,
+    color: "from-sky-500/20 to-sky-500/5 border-sky-500/30 text-sky-900 dark:text-sky-200",
+    items: [
+      "Every family has a unique 4-character Family Pager Code (e.g., #A4B2).",
+      "Classroom leaders trigger a page when a child needs parent assistance (comfort, diaper, medical).",
+      "Parent mobile device receives an in-app banner and silent rhythmic haptic vibration pulses.",
+      "Auditory disruption is strictly prevented — no loud chimes or ringtones sound during worship.",
+      "Only the 4-character code flashes on the sanctuary screen for privacy — child names are never displayed.",
+      "Parents tap 'I'm On My Way' in the mobile app to immediately acknowledge and notify classroom leaders."
+    ]
   }
 ];
 
@@ -797,6 +869,30 @@ interface FAQItem {
 }
 
 const FAQ_ITEMS: FAQItem[] = [
+  {
+    category: "Safety & Security",
+    question: "How will I know if my child needs me during the church service?",
+    answer: "KiddoChecker uses a multi-layered silent notification protocol: (1) Your phone receives an in-app alert and vibrates with a silent haptic pulse pattern. (2) Your 4-character Family Pager Code (e.g. #A4B2) is projected discreetly onto the sanctuary screen. (3) An SMS backup is sent if unacknowledged. Your child's name is never publicly announced.",
+    roles: ["parent", "volunteer", "staff", "admin"]
+  },
+  {
+    category: "Safety & Security",
+    question: "Will the mobile pager make loud sounds or ring during worship?",
+    answer: "No. The system uses silent Web Vibration haptics ([450ms, 180ms, 450ms, 180ms, 700ms]) and silent on-screen notifications. It is engineered specifically for church worship environments to prevent audio interruptions.",
+    roles: ["parent"]
+  },
+  {
+    category: "Safety & Security",
+    question: "Where do I find my family's Sanctuary Pager Code?",
+    answer: "Your Sanctuary Pager Code is prominently displayed at the top of your Parent Dashboard, on your Parent Claim Ticket printed at the kiosk, and under 'Sanctuary Pager Code' on your Profile page.",
+    roles: ["parent", "volunteer", "staff"]
+  },
+  {
+    category: "Safety & Security",
+    question: "How do classroom teachers know I am coming when paged?",
+    answer: "When your phone vibrates or you open KiddoChecker, tap 'I'm On My Way'. This logs an immediate acknowledgment in the system and lets classroom leaders know you are in transit to the children's wing.",
+    roles: ["parent", "staff", "volunteer"]
+  },
   {
     category: "Check-In & Kiosk",
     question: "What should I do if a parent loses their Parent Claim Ticket?",

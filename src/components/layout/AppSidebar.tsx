@@ -3,7 +3,7 @@ import {
   Calendar, Home, Users, Settings, BarChart3, Building, LogOut,
   Baby, ClipboardCheck, BookOpen, UserCheck, Monitor, MessageSquare,
   QrCode, Printer, Shield, ShieldCheck,
-  Trophy, HeartPulse, HelpCircle, Globe, Heart, Moon, Sun, Mail, MailCheck
+  Trophy, HeartPulse, HelpCircle, Globe, Heart, Moon, Sun, Mail, MailCheck, GraduationCap
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -62,6 +62,7 @@ export function AppSidebar() {
         { title: t("attendance"), url: "/attendance", icon: ClipboardCheck },
         { title: t("kioskStation"), url: "/check-in", icon: Monitor },
         { title: t("checkOut"), url: "/check-out", icon: LogOut },
+        { title: "Staff Training Hub", url: "/training", icon: GraduationCap },
         { title: t("attendanceRewards"), url: "/admin/rewards", icon: Trophy },
       ],
     },
@@ -114,6 +115,7 @@ export function AppSidebar() {
       items: [
         { title: t("kioskStation"), url: "/check-in", icon: Monitor },
         { title: t("checkOut"), url: "/check-out", icon: LogOut },
+        { title: "Staff Training Hub", url: "/training", icon: GraduationCap },
         ...(isStaff || isTeacher || isTeacherAssistant || userRole === "volunteer"
           ? [{ title: t("attendance"), url: "/attendance", icon: ClipboardCheck }]
           : []),
