@@ -84,7 +84,6 @@ const ShiftManagementPage = lazyWithRetry(() => import("./pages/ShiftManagementP
 const ChurchManagementPage = lazyWithRetry(() => import("./pages/ChurchManagementPage"));
 const SecurityTrackerPage = lazyWithRetry(() => import("./pages/SecurityTrackerPage"));
 const StaffAdminTrainingPage = lazyWithRetry(() => import("./pages/StaffAdminTrainingPage"));
-const InstallPWABanner = lazyWithRetry(() => import("./components/mobile/InstallPWABanner"));
 
 // ─── Loading Fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => {
@@ -123,7 +122,6 @@ function App() {
         <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
-          <InstallPWABanner />
           <BrowserRouter>
             <AuthErrorBoundary>
               <LanguageProvider>
