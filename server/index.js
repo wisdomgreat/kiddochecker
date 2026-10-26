@@ -612,7 +612,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin) || isLocalhost || isAzureApp) {
       callback(null, true);
     } else {
-      callback(new Error('Blocked by CORS policy: Unauthorized Origin.'));
+      callback(null, false);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -4149,7 +4149,7 @@ app.patch('/api/admin/security/issues/:id', verifyToken, requireRole('admin', 's
   }
 });
 
-app.get('/api/health', async (req, res) => {
+app.get(['/api/health', '/health'], async (req, res) => {
   try {
     const dbCheck = await pool.query('SELECT NOW()');
     res.json({ 
