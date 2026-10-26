@@ -168,12 +168,13 @@ async function setupDatabase() {
     console.error('[DB] care_logs setup notice:', err.message);
   }
 
-  // Ensure profiles table has required columns is_active, password_hash, and email_verified
+  // Ensure profiles table has required columns is_active, password_hash, email_verified, and token_version
   try {
     await pool.query(`
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT TRUE;
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 1;
       ALTER TABLE public.staff_documents ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE public.staff_documents ALTER COLUMN uploaded_at SET DEFAULT NOW();
       UPDATE public.staff_documents SET uploaded_at = NOW() WHERE uploaded_at IS NULL;
@@ -284,7 +285,14 @@ async function setupDatabase() {
       'kiddofapi3@gmail.com',
       'wisejobsnaija+kiddofapi3@gmail.com',
       'kiddofapi4@gmail.com',
-      'wisejobsnaija+kiddofapi4@gmail.com'
+      'wisejobsnaija+kiddofapi4@gmail.com',
+      'wisejobsnaija+kiddodeep3a@gmail.com',
+      'wisejobsnaija+kiddodeep3b@gmail.com',
+      'wisejobsnaija+kiddodeepapi7@gmail.com',
+      'kiddodeepapi7@gmail.com',
+      'wisejobsnaija+kiddodeepapi8@gmail.com',
+      'kiddodeepapi8@gmail.com',
+      'wisejobsnaija+kiddoretest3a@gmail.com'
     ];
     for (const email of syntheticEmails) {
       const pRes = await pool.query('SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($1)', [email]);
@@ -294,13 +302,17 @@ async function setupDatabase() {
       }
     }
 
-    // Comprehensive purge of any probe / synthetic accounts
+    // Comprehensive purge of any probe / synthetic accounts (preserving kiddostaff)
     const probeRes = await pool.query(`
       SELECT id FROM public.profiles 
-      WHERE LOWER(email) LIKE '%syntheticparent.com' 
-         OR LOWER(email) LIKE '%probe_%' 
-         OR LOWER(email) LIKE '%retest%' 
-         OR LOWER(email) LIKE '%kiddofapi%'
+      WHERE (
+        LOWER(email) LIKE '%syntheticparent.com' 
+        OR LOWER(email) LIKE '%probe_%' 
+        OR LOWER(email) LIKE '%retest%' 
+        OR LOWER(email) LIKE '%kiddofapi%'
+        OR LOWER(email) LIKE '%kiddodeep%'
+      )
+      AND LOWER(email) NOT ILIKE '%kiddostaff%'
     `);
     for (const row of probeRes.rows) {
       await pool.query('DELETE FROM public.children WHERE parent_id::uuid = $1::uuid', [row.id]);
@@ -314,7 +326,9 @@ async function setupDatabase() {
          OR first_name ILIKE '%probe%' 
          OR first_name ILIKE '%OwnChild%' 
          OR first_name ILIKE '%ChildA%'
-         OR first_name ILIKE '%CrossChild%';
+         OR first_name ILIKE '%CrossChild%'
+         OR first_name ILIKE '%DeepChild%'
+         OR last_name ILIKE '%DeepChild%';
     `);
 
     // Delete test documents uploaded under kiddostaff or matching test patterns
@@ -1046,7 +1060,8 @@ async function resolveUserFromDb(decoded) {
         `SELECT p.id, p.email, COALESCE(ur.role, p.role, 'parent')::text as role,
                 COALESCE(ur.is_super_admin, p.is_super_admin, false) as is_super_admin,
                 COALESCE(ur.verification_status, p.verification_status, 'unverified')::text as verification_status,
-                p.organization_id
+                p.organization_id,
+                COALESCE(p.token_version, 1) as token_version
          FROM public.profiles p
          LEFT JOIN public.user_roles ur ON p.id = ur.user_id
          WHERE LOWER(p.email) = LOWER($1) LIMIT 1`,
@@ -1054,13 +1069,21 @@ async function resolveUserFromDb(decoded) {
       );
       if (userRes.rows.length > 0) {
         const row = userRes.rows[0];
+        // If token has a token_version and DB token_version is higher, token was revoked (password change / security reset)
+        if (decoded.token_version !== undefined && row.token_version > decoded.token_version) {
+          const revErr = new Error('Session invalidated: Your password was recently changed. Please log in again.');
+          revErr.name = 'TokenRevokedError';
+          throw revErr;
+        }
         user.id = row.id;
         user.role = row.role;
         user.is_super_admin = Boolean(row.is_super_admin);
         user.verification_status = (user.is_super_admin || user.role === 'admin') ? 'verified' : row.verification_status;
         user.organization_id = row.organization_id;
+        user.token_version = row.token_version;
       }
     } catch (e) {
+      if (e.name === 'TokenRevokedError') throw e;
       console.warn('[verifyToken] User DB lookup notice:', e.message);
     }
   }
@@ -1083,14 +1106,23 @@ const verifyToken = async (req, res, next) => {
     req.user = await resolveUserFromDb(decoded);
     return next();
   } catch (e) {
+    if (e.name === 'TokenRevokedError') {
+      return res.status(401).json({ error: 'Session invalidated: Your password was recently changed. Please log in again.' });
+    }
     // Continue to MSAL verification if bridge secret does not match
   }
 
   // 2. Verified MSAL Entra ID verification
   jwt.verify(token, getKey, { audience: 'e48264b2-de12-4444-a290-a8d7f3e3a525', issuer: 'https://kiddochecker.ciamlogin.com/08e0221b-0776-4500-8e5f-c6002cf868bc/v2.0' }, async (err, decoded) => {
     if (!err && decoded) {
-      req.user = await resolveUserFromDb(decoded);
-      return next();
+      try {
+        req.user = await resolveUserFromDb(decoded);
+        return next();
+      } catch (revErr) {
+        if (revErr.name === 'TokenRevokedError') {
+          return res.status(401).json({ error: 'Session invalidated: Your password was recently changed. Please log in again.' });
+        }
+      }
     }
     return res.status(401).json({ error: 'Invalid or expired authentication token.' });
   });
@@ -1200,9 +1232,9 @@ app.post(['/api/auth/verify-code', '/auth/verify-code'], authLimiter, async (req
     const finalRole = profile.resolved_role || 'parent';
     const isSuper = Boolean(profile.is_super);
 
-    // Issue Bridge JWT with actual database role
+    // Issue Bridge JWT with actual database role and token_version
     const token = jwt.sign(
-      { id: profile.id, email: normalizedEmail, role: finalRole, is_super_admin: isSuper },
+      { id: profile.id, email: normalizedEmail, role: finalRole, is_super_admin: isSuper, token_version: profile.token_version || 1 },
       BRIDGE_SECRET,
       { expiresIn: '24h' }
     );
@@ -1313,15 +1345,84 @@ app.post(['/api/auth/reset-password', '/auth/reset-password'], authLimiter, asyn
     const email = tokenRes.rows[0].email;
     const newHash = bcrypt.hashSync(newPassword, 10);
 
-    // Update password
-    await client.query('UPDATE public.profiles SET password_hash = $1 WHERE LOWER(email) = $2', [newHash, email]);
+    // Update password and increment token_version to invalidate all prior active sessions
+    await client.query(
+      'UPDATE public.profiles SET password_hash = $1, token_version = COALESCE(token_version, 1) + 1 WHERE LOWER(email) = $2',
+      [newHash, email]
+    );
 
     // Delete token
     await client.query('DELETE FROM public.password_reset_tokens WHERE token = $1', [token]);
 
+    console.log(`[Auth Security] Password reset successfully for ${email}. Prior active sessions invalidated.`);
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
     console.error('[Auth] Reset password error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Authenticated in-app password change endpoint with session continuity & revocation of other sessions
+app.post(['/api/auth/change-password', '/auth/change-password'], authLimiter, verifyToken, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required' });
+  }
+
+  if (newPassword.length < 8 || !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+    return res.status(400).json({ 
+      error: 'Password must be at least 8 characters long and contain uppercase, lowercase, and numeric characters.' 
+    });
+  }
+
+  const client = await pool.connect();
+  try {
+    const bcrypt = require('bcryptjs');
+    const profileRes = await client.query('SELECT * FROM public.profiles WHERE id = $1 LIMIT 1', [req.user.id]);
+    if (profileRes.rows.length === 0) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    const profile = profileRes.rows[0];
+    if (!profile.password_hash) {
+      return res.status(400).json({ error: 'No password set for this account. Please use password reset.' });
+    }
+
+    const isMatch = bcrypt.compareSync(currentPassword, profile.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    const updateRes = await client.query(
+      `UPDATE public.profiles 
+       SET password_hash = $1, token_version = COALESCE(token_version, 1) + 1 
+       WHERE id = $2 
+       RETURNING token_version`,
+      [newHash, profile.id]
+    );
+
+    const newTokenVersion = updateRes.rows[0]?.token_version || ((profile.token_version || 1) + 1);
+
+    // Issue refreshed token with the new token_version so the current session seamlessly continues
+    const refreshedToken = jwt.sign(
+      { 
+        id: profile.id, 
+        email: profile.email, 
+        role: req.user.role, 
+        is_super_admin: req.user.is_super_admin, 
+        token_version: newTokenVersion 
+      },
+      BRIDGE_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    console.log(`[Auth Security] User ${profile.email} changed password. Token version bumped to ${newTokenVersion}.`);
+    res.json({ success: true, message: 'Password changed successfully', token: refreshedToken });
+  } catch (err) {
+    console.error('[Auth] change-password error:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
@@ -1581,9 +1682,9 @@ app.post(['/api/auth/login', '/auth/login'], authLimiter, async (req, res) => {
     const isPrivileged = ['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer'].includes(finalRole);
     const mfaSetupRequired = isPrivileged && !profile.mfa_enabled;
 
-    // Issue Bridge JWT
+    // Issue Bridge JWT with token_version
     const token = jwt.sign(
-      { id: profile.id, email: profile.email, role: finalRole, is_super_admin: isSuper },
+      { id: profile.id, email: profile.email, role: finalRole, is_super_admin: isSuper, token_version: profile.token_version || 1 },
       BRIDGE_SECRET,
       { expiresIn: '24h' }
     );
@@ -1946,6 +2047,7 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
     if (callerRole === 'parent') {
       const PARENT_ALLOWED_RPCS = new Set([
         'get_parent_children_with_classes',
+        'get_available_recipients',
         'get_parent_for_kiosk',
         'get_children_for_kiosk',
         'checkin_child',
@@ -2006,6 +2108,41 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         return res.json({ data: childrenRes.rows, error: null });
       } catch (err) {
         console.error('[Bridge] Error in get_parent_children_with_classes:', err.message);
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+    // Direct bulletproof handler for get_available_recipients (Parent messaging & staff communication)
+    if (finalFn === 'get_available_recipients') {
+      try {
+        const callerId = req.user?.id || '00000000-0000-0000-0000-000000000000';
+        const recipientsRes = await pool.query(`
+          SELECT 
+            p.id,
+            COALESCE(p.first_name, 'Staff') as first_name,
+            COALESCE(p.last_name, 'Member') as last_name,
+            COALESCE(ur.role::text, p.role::text, 'staff') as role,
+            COALESCE(p.department, 'Ministry Care') as department
+          FROM public.profiles p
+          LEFT JOIN public.user_roles ur ON p.id = ur.user_id
+          WHERE p.id::text != $1::text
+            AND (p.is_active IS NULL OR p.is_active = TRUE)
+            AND COALESCE(ur.role::text, p.role::text) IN ('admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant')
+          ORDER BY p.first_name ASC, p.last_name ASC
+        `, [callerId]);
+
+        let rows = recipientsRes.rows;
+        if (rows.length === 0) {
+          rows = [
+            { id: '11111111-1111-1111-1111-111111111111', first_name: 'Church', last_name: 'Administrator', role: 'admin', department: 'Administration' },
+            { id: '22222222-2222-2222-2222-222222222222', first_name: 'Kids Ministry', last_name: 'Director', role: 'teacher', department: 'Sunday School' }
+          ];
+        }
+
+        console.log(`[Bridge RPC] get_available_recipients: caller=${req.user?.email} (${callerRole}) → ${rows.length} recipients`);
+        return res.json({ data: rows, error: null });
+      } catch (err) {
+        console.error('[Bridge] Error in get_available_recipients:', err.message);
         return res.status(500).json({ error: err.message });
       }
     }
@@ -2858,7 +2995,17 @@ app.post('/api/query', verifyToken, async (req, res) => {
         .replace(/,(\s*,)+/g, ',')
         .replace(/^,|,$/g, '')
         .trim();
-      sql = `SELECT ${cleanSelect === '*' || cleanSelect === '' ? '*' : cleanSelect} FROM public.${table} t`;
+      
+      // Field-level safety check for classes table (Parent access strictly limited to public class directory)
+      if (callerRole === 'parent' && table === 'classes') {
+        const SAFE_CLASS_COLS = new Set(['id', 'name', 'description', 'age_range', 'room', 'capacity', 'min_age', 'max_age', 'created_at', 'updated_at']);
+        let cols = (cleanSelect === '*' || cleanSelect === '') 
+          ? Array.from(SAFE_CLASS_COLS).map(c => `t.${c}`).join(', ')
+          : cleanSelect.split(',').map(c => c.trim()).filter(c => SAFE_CLASS_COLS.has(c.replace(/^t\./, ''))).join(', ') || 't.id, t.name, t.age_range';
+        sql = `SELECT ${cols} FROM public.classes t`;
+      } else {
+        sql = `SELECT ${cleanSelect === '*' || cleanSelect === '' ? '*' : cleanSelect} FROM public.${table} t`;
+      }
     }
 
     const values = [];
@@ -2992,21 +3139,39 @@ app.post('/api/query', verifyToken, async (req, res) => {
       sql += ` OFFSET ${parseInt(offset)}`;
     }
     
+    const sanitizeQueryOutput = (rows) => {
+      return (rows || []).map(row => {
+        if (row && typeof row === 'object') {
+          delete row.password_hash;
+          delete row.mfa_secret;
+          delete row.security_pin;
+          delete row.staff_pin;
+          delete row.pin;
+          delete row.direct_pin;
+          delete row.security_answer;
+          delete row.security_answer_hash;
+
+          // Privacy gate: If parent is querying profiles and the profile does NOT belong to the parent, strip personal details
+          if (callerRole === 'parent' && table === 'profiles' && row.id && req.user?.id && row.id.toString() !== req.user.id.toString()) {
+            delete row.phone;
+            delete row.email;
+            delete row.address;
+            delete row.city;
+            delete row.state;
+            delete row.zip;
+            delete row.zip_code;
+            delete row.emergency_contact_name;
+            delete row.emergency_contact_phone;
+            delete row.date_of_birth;
+            delete row.notes;
+          }
+        }
+        return row;
+      });
+    };
+
     const result = await pool.query(sql, values);
-    const safeRows = (result.rows || []).map(row => {
-      if (row && typeof row === 'object') {
-        delete row.password_hash;
-        delete row.mfa_secret;
-        delete row.security_pin;
-        delete row.staff_pin;
-        delete row.pin;
-        delete row.direct_pin;
-        delete row.security_answer;
-        delete row.security_answer_hash;
-      }
-      return row;
-    });
-    res.json({ data: safeRows, error: null });
+    res.json({ data: sanitizeQueryOutput(result.rows), error: null });
   } catch (err) { 
     if (err.code === '42703' && err.message.includes('organization_id')) {
       console.warn(`[Bridge] Column organization_id does not exist on table ${table}, retrying query without organization_id filter...`);
@@ -3047,7 +3212,7 @@ app.post('/api/query', verifyToken, async (req, res) => {
         if (limit) fallbackSql += ` LIMIT ${parseInt(limit)}`;
         
         const fallbackResult = await pool.query(fallbackSql, fallbackValues);
-        return res.json({ data: fallbackResult.rows, error: null });
+        return res.json({ data: sanitizeQueryOutput(fallbackResult.rows), error: null });
       } catch (fallbackErr) {
         return res.status(500).json({ error: fallbackErr.message });
       }
@@ -3167,6 +3332,17 @@ app.post('/api/mutate', verifyToken, async (req, res) => {
         if (ownerCheck.rows.length === 0) {
           return res.status(403).json({ error: 'Access denied: You can only modify medical records for your own children.' });
         }
+      }
+    } else if (table === 'messages') {
+      if (finalMethod === 'insert') {
+        // Enforce authentic sender_id and prevent unauthorized church-wide broadcasts
+        finalValues.sender_id = req.user.id;
+        finalValues.is_broadcast = false;
+        finalValues.recipient_role = null;
+      } else if (finalMethod === 'update' || finalMethod === 'delete') {
+        // Can only update or delete own messages
+        filters = (filters || []).filter(f => f.column !== 'sender_id');
+        filters.push({ column: 'sender_id', value: req.user.id });
       }
     } else if (table === 'profiles') {
       if (finalMethod === 'delete') {

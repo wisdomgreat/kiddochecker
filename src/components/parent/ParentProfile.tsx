@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { Check, PlusCircle, Smartphone } from "lucide-react";
 import { useNFC } from "@/hooks/useNFC";
 import MfaEnrollment from "../auth/MfaEnrollment";
+import ChangePasswordCard from "../auth/ChangePasswordCard";
 
 interface Milestone {
   type: string;
@@ -639,7 +640,10 @@ const ParentProfile = () => {
         </DialogContent>
       </Dialog>
 
-      <MfaEnrollment />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <MfaEnrollment />
+        <ChangePasswordCard />
+      </div>
     </motion.div>
   );
 };

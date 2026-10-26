@@ -33,6 +33,7 @@ const DocumentUploadSystem = () => {
     verificationStatus,
     isLoadingStatus,
     requirements,
+    isLoadingRequirements,
     myDocuments,
     isLoadingDocuments,
     uploadDocument,
@@ -203,14 +204,20 @@ const DocumentUploadSystem = () => {
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-foreground">Registration Progress</h3>
               <span className="text-sm font-semibold text-indigo-600">
-                {submittedMandatory.length}/{mandatoryRequirements.length} submitted
+                {(isLoadingRequirements || isLoadingDocuments) ? (
+                  <span className="text-slate-400 font-normal">Loading requirements...</span>
+                ) : (
+                  `${submittedMandatory.length}/${mandatoryRequirements.length} submitted`
+                )}
               </span>
             </div>
-            <Progress value={progress} className="h-3 mb-2" />
+            <Progress value={(isLoadingRequirements || isLoadingDocuments) ? 0 : progress} className="h-3 mb-2" />
             <p className="text-xs text-slate-500">
-              {submittedMandatory.length === mandatoryRequirements.length
-                ? "All mandatory documents submitted! Pending final review."
-                : `${mandatoryRequirements.length - submittedMandatory.length} documents remaining. Upload your documents to get verified.`
+              {(isLoadingRequirements || isLoadingDocuments)
+                ? "Fetching verification requirements checklist..."
+                : (mandatoryRequirements.length > 0 && submittedMandatory.length === mandatoryRequirements.length)
+                  ? "All mandatory documents submitted! Pending final review."
+                  : `${Math.max(0, mandatoryRequirements.length - submittedMandatory.length)} documents remaining. Upload your documents to get verified.`
               }
             </p>
           </CardContent>

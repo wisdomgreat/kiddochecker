@@ -15,6 +15,7 @@ import { User, Mail, Phone, MapPin, Save, Loader2, Key, QrCode, ShieldCheck, Bad
 import { Badge } from "@/components/ui/badge";
 import { QRCodeSVG } from "qrcode.react";
 import MfaEnrollment from "@/components/auth/MfaEnrollment";
+import ChangePasswordCard from "@/components/auth/ChangePasswordCard";
 import { useStaffVerification } from "@/hooks/useStaffVerification";
 
 const profileSchema = z.object({
@@ -434,6 +435,9 @@ const UserProfile = () => {
 
             {/* MFA Protection Panel */}
             <MfaEnrollment />
+
+            {/* Change Password Panel */}
+            <ChangePasswordCard />
           </div>
         </div>
       </div>
