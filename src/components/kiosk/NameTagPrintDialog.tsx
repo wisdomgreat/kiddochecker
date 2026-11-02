@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { useTranslation, Language } from '@/lib/i18n';
 
 import { useLanguage } from '@/context/LanguageContext';
 import { getPrintProxyUrl } from '@/services/printService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NameTagPrintDialogProps {
   open: boolean;
@@ -25,9 +26,10 @@ interface NameTagPrintDialogProps {
     age?: number;
     allergies?: string;
   };
-  qrData: string;
+  qrData?: string;
   className?: string;
   securityCode?: string; // Optional passed code, otherwise we generate a random 4-char one
+  familyCode?: string;
   specialInstructions?: string;
   language?: Language;
 }
@@ -39,6 +41,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   qrData,
   className,
   securityCode,
+  familyCode,
   specialInstructions,
 }) => {
   const { t } = useTranslation();
@@ -49,6 +52,30 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   // Generate a matching security code for the session if not provided
   const generatedCode = useRef(Math.random().toString(36).substring(2, 6).toUpperCase());
   const displayCode = securityCode || generatedCode.current;
+  const finalQrData = qrData || displayCode || 'KIDDO';
+
+  const [resolvedFamilyCode, setResolvedFamilyCode] = useState<string>(
+    familyCode || (child as any)?.family_code || ''
+  );
+
+  useEffect(() => {
+    if (familyCode) {
+      setResolvedFamilyCode(familyCode);
+      return;
+    }
+    if ((child as any)?.family_code) {
+      setResolvedFamilyCode((child as any).family_code);
+      return;
+    }
+    const parentId = (child as any)?.parent_id;
+    if (parentId) {
+      supabase.from('profiles').select('family_code').eq('id', parentId).maybeSingle().then(({ data }) => {
+        if (data?.family_code) {
+          setResolvedFamilyCode(data.family_code);
+        }
+      });
+    }
+  }, [familyCode, child]);
 
   // Auto-print on mount if open
   React.useEffect(() => {
@@ -68,6 +95,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     const safeAllergies = child.allergies ? DOMPurify.sanitize(child.allergies) : '';
     const safeClassName = className ? DOMPurify.sanitize(className) : '';
     const safeInstructions = specialInstructions ? DOMPurify.sanitize(specialInstructions) : '';
+    const safeFamilyCode = resolvedFamilyCode ? DOMPurify.sanitize(resolvedFamilyCode) : '';
 
     const targetPrinterIp = localStorage.getItem('kiddochecker_target_printer_ip') || '';
     const targetPrinterName = localStorage.getItem('kiddochecker_target_printer_name') || '';
@@ -86,7 +114,8 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             class: safeClassName,
             instructions: safeInstructions,
             securityCode: displayCode,
-            qrData: qrData,
+            familyCode: safeFamilyCode,
+            qrData: finalQrData,
             orgId: orgId
           },
           printerIp: targetPrinterIp,
@@ -118,7 +147,8 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             class: safeClassName,
             instructions: safeInstructions,
             securityCode: displayCode,
-            qrData: qrData
+            familyCode: safeFamilyCode,
+            qrData: finalQrData
           },
           printerIp: targetPrinterIp,
           printerName: targetPrinterName
@@ -192,7 +222,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
               ${safeInstructions ? `<div style="font-size:9px; border:1px solid #000; padding:3px; margin-top:3px;"><strong>${noteTxt}:</strong> ${safeInstructions}</div>` : ''}
             </div>
             <div>
-              <div class="footer"><span>${classTxt}: ${safeClassName || 'N/A'}</span><span>${new Date().toLocaleDateString()}</span></div>
+              <div class="footer"><span>${classTxt}: ${safeClassName || 'N/A'}</span><span>${new Date().toLocaleDateString()}${safeFamilyCode ? ` &bull; Pager: #${safeFamilyCode}` : ''}</span></div>
               <div class="qr-area">
                 <div id="qr-target"></div>
                 <div style="font-size:9px;"><strong>IMPORTANTE:</strong> ${validTxt}</div>
@@ -263,11 +293,11 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
               <div>
                 <div className="flex justify-between text-xs font-bold mb-1">
                   <span>Class: {className || 'N/A'}</span>
-                  <span>{new Date().toLocaleDateString()}</span>
+                  <span>{new Date().toLocaleDateString()}{resolvedFamilyCode ? ` • Pager: #${resolvedFamilyCode}` : ''}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <QRCodeSVG
-                    value={qrData}
+                    value={finalQrData}
                     size={50}
                     level="H"
                     className="qr-rendered-svg"

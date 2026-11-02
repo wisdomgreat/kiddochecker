@@ -457,6 +457,8 @@ function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none' && allergies.length > 0;
+    const familyCode = (labelData.familyCode || labelData.family_code || '').toString().trim();
+    const pagerText = familyCode ?   •  Pager: # : '';
 
     const defaultH = spec.defaultHeight || 520;
     const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || defaultH, 10);
@@ -471,11 +473,11 @@ function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
         canvas.drawText(lastName, 45, 110, 6, 1);
         canvas.fillRect(45, 160, 420, 4, 1);
         canvas.drawText(`Class: ${className}`, 45, 178, 4, 1);
-        canvas.drawText(`Date: ${dateStr}`, 45, 215, 3, 1);
+        canvas.drawText(`Date: ${dateStr}${pagerText}`, 45, 215, 3, 1);
     } else {
         canvas.fillRect(45, 115, 420, 4, 1);
         canvas.drawText(`Class: ${className}`, 45, 135, 4, 1);
-        canvas.drawText(`Date: ${dateStr}`, 45, 175, 3, 1);
+        canvas.drawText(`Date: ${dateStr}${pagerText}`, 45, 175, 3, 1);
     }
 
     // Security Code Box (Inverted black badge with white text)
@@ -568,6 +570,8 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
+    const familyCode = (labelData.familyCode || labelData.family_code || '').toString().trim();
+    const pagerText = familyCode ?    •   Pager: # : '';
 
     const width = 696;
     const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || 520, 10);
@@ -592,7 +596,7 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
   <line x1="40" y1="${lastName ? 172 : 118}" x2="440" y2="${lastName ? 172 : 118}" stroke="#000000" stroke-width="4"/>
 
   <text x="45" y="${lastName ? 215 : 160}" font-size="28" font-weight="900" fill="#000000">Class: ${className}</text>
-  <text x="45" y="${lastName ? 255 : 200}" font-size="24" font-weight="bold" fill="#000000">Date: ${dateStr}</text>
+  <text x="45" y="${lastName ? 255 : 200}" font-size="24" font-weight="bold" fill="#000000">Date: ${dateStr}${pagerText}</text>
 
   <rect x="460" y="38" width="190" height="60" rx="10" fill="#000000"/>
   <text x="555" y="80" text-anchor="middle" font-size="34" font-weight="900" fill="#FFFFFF" font-family="monospace" letter-spacing="4">${securityCode}</text>
@@ -617,6 +621,8 @@ function generateEscPosPayload(labelData) {
     const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const LINE = '─'.repeat(32) + '\n';
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
+    const familyCode = (labelData.familyCode || labelData.family_code || '').toString().trim();
+    const pagerText = familyCode ?    •   Pager: # : '';
     return Buffer.from(
         '\x1b@' + '\x1ba\x01' +
         '\x1bE\x01\x1d!\x00' + 'KIDDOCHECKER CHECK-IN\n' + '\x1bE\x00' + LINE +
