@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Shield, QrCode, ShieldCheck, Activity, AlertCircle, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Loader2, Shield, AlertCircle, Mail, ArrowRight, Lock, KeyRound, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import gsap from 'gsap';
-
 import { useLanguage } from '@/context/LanguageContext';
 
 const EnhancedLoginForm = () => {
@@ -131,8 +129,8 @@ const EnhancedLoginForm = () => {
         body: JSON.stringify({ email, code: mfaCode })
       });
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || (isEs ? 'Código de verificación no válido' : 'Invalid verification code'));
+        const errorData = await res.json();
+        throw new Error(errorData.error || (isEs ? 'Código de verificación no válido' : 'Invalid verification code'));
       }
       const { token } = await res.json();
       localStorage.setItem('bridge_token', token);
@@ -149,131 +147,118 @@ const EnhancedLoginForm = () => {
     }
   };
 
-  const features = [
-    { icon: QrCode, title: isEs ? 'Registro con QR' : 'QR Check-in', desc: isEs ? 'Entrada segura sin contacto para niños.' : 'Secure contactless entry for children.' },
-    { icon: ShieldCheck, title: isEs ? 'Verificación de Personal' : 'Staff Verification', desc: isEs ? 'Verificación de antecedentes del personal autorizado.' : 'Background track approved personnel.' },
-    { icon: Activity, title: isEs ? 'Registro en Vivo' : 'Live Feed', desc: isEs ? 'Asistencia y alertas de seguridad en tiempo real.' : 'Real-time attendance and safety alerts.' },
-  ];
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] p-4 md:p-10 font-['Outfit']">
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 bg-white/70 backdrop-blur-2xl border border-white/50 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 sm:px-6 lg:px-8">
+      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
         
-        {/* LEFT PANEL: BRANDING & FEATURES */}
-        <div className="lg:col-span-7 p-10 md:p-16 bg-slate-900 text-white flex flex-col justify-between relative overflow-hidden">
-          {/* DECO BLURS */}
-          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary/20 blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[100px]" />
-
-          <div className="relative z-10 space-y-12">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary rounded-xl">
-                <Shield className="h-6 w-6 text-white" />
+        {/* Left Side: Context & Institutional Authenticity */}
+        <div className="md:col-span-5 p-8 sm:p-10 bg-muted/40 border-b md:border-b-0 md:border-r border-border flex flex-col justify-between space-y-8">
+          <div className="space-y-6">
+            <Link to="/" className="inline-flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
+                <Shield className="h-4 w-4" />
               </div>
-              <span className="font-black text-xl tracking-tight">KiddoChecker</span>
+              <span className="font-semibold text-lg tracking-tight">KiddoChecker</span>
+            </Link>
+
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-foreground tracking-tight">
+                {isEs ? "Acceso Seguro al Portal" : "Secure Portal Access"}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                {isEs 
+                  ? "Para líderes de ministerio, maestros, voluntarios y tutores autorizados." 
+                  : "For ministry directors, teachers, volunteers, and authorized guardians."}
+              </p>
             </div>
 
-            <div className="space-y-6">
-              <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-[1.1] text-white">
-                {isEs ? (
-                  <>Asegurando el Futuro <br/><span className="text-primary">del Cuidado Infantil.</span></>
-                ) : (
-                  <>Securing the Future <br/><span className="text-primary">of Childcare.</span></>
-                )}
-              </h1>
-              <p className="text-slate-300 text-lg md:text-xl max-w-md font-medium">
-                {isEs 
-                  ? "Gestión de seguridad universal para organizaciones infantiles." 
-                  : "Universal safety management for children's organizations."}
-              </p>
-              
-              <div className="space-y-6 pt-8">
-                {features.map((f, i) => (
-                  <div key={i} className="flex gap-4 group">
-                    <div className="mt-1 p-2 bg-slate-800 rounded-lg group-hover:bg-primary/20 transition-colors">
-                      <f.icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-base text-white">{f.title}</h4>
-                      <p className="text-sm text-slate-300 leading-relaxed max-w-xs">{f.desc}</p>
-                    </div>
-                  </div>
-                ))}
+            <div className="space-y-3 pt-2 text-xs text-muted-foreground">
+              <div className="flex items-start gap-2.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                <span>{isEs ? "Control de asistencia en tiempo real" : "Real-time attendance & room rosters"}</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                <span>{isEs ? "Verificación de pases de recogida de 4 dígitos" : "4-digit guardian claim pass matching"}</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                <span>{isEs ? "Alertas médicas y dietéticas inmediatas" : "Immediate medical & allergy indicators"}</span>
               </div>
             </div>
           </div>
 
-          <div className="relative z-10 text-xs text-slate-500 font-bold uppercase tracking-widest pt-12 flex items-center gap-4">
-            <span>&copy; 2026 KiddoChecker Inc.</span>
-            <span className="text-slate-700">|</span>
-            <a 
-              href="https://tdwas.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:text-primary transition-colors flex items-center gap-1.5"
-            >
-              {isEs ? "Tecnología De" : "Powered by"} <span className="text-slate-300">TDWAS Technology</span>
-            </a>
+          <div className="pt-6 border-t border-border text-[11px] text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground">Green Valley Alliance Church</p>
+            <p>Hosted on Microsoft Azure • TDWAS Technology</p>
           </div>
         </div>
 
-        {/* RIGHT PANEL: AUTH FORM */}
-        <div className="lg:col-span-5 p-10 md:p-16 flex flex-col justify-center bg-white/50">
+        {/* Right Side: High-Craft Hallmark Form Stage */}
+        <div className="md:col-span-7 p-8 sm:p-10 flex flex-col justify-center bg-card">
           <div className="w-full max-w-sm mx-auto" ref={formRef}>
-            {step === 'login' ? (
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+            
+            {/* Step 1: Login */}
+            {step === 'login' && (
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-semibold text-foreground tracking-tight">
                     {isEs ? "Iniciar Sesión" : "Sign In"}
-                  </h2>
-                  <p className="text-slate-500 font-medium">
-                    {isEs ? "Ingrese sus credenciales para acceder a su panel." : "Enter your credentials to access your dashboard."}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    {isEs ? "Ingrese con su correo institucional o registrado." : "Enter your registered email to access your dashboard."}
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">
-                      {isEs ? "Correo Electrónico" : "Email Address"}
+                <div className="space-y-4 pt-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-xs font-medium text-foreground">
+                      {isEs ? "Correo electrónico" : "Email address"}
                     </Label>
-                    <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                       <Input 
                         id="email"
-                        placeholder="nombre@ejemplo.com"
+                        placeholder="you@example.com"
                         type="email"
+                        autoComplete="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
+                        className="pl-10 h-11 rounded-lg border-input bg-background text-sm text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
                         required
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="password" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">
+                      <Label htmlFor="password" className="text-xs font-medium text-foreground">
                         {isEs ? "Contraseña" : "Password"}
                       </Label>
-                      <button type="button" onClick={() => navigate('/forgot-password')} className="text-[10px] font-bold text-primary hover:underline tracking-widest uppercase">
-                        {isEs ? "¿Olvidó su contraseña?" : "Forgot Password?"}
+                      <button 
+                        type="button" 
+                        onClick={() => navigate('/forgot-password')} 
+                        className="text-xs font-medium text-primary hover:underline"
+                      >
+                        {isEs ? "¿Olvidó su contraseña?" : "Forgot password?"}
                       </button>
                     </div>
-                    <div className="relative group">
-                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                       <Input 
                         id="password"
                         placeholder="••••••••"
                         type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="pl-12 pr-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium"
+                        className="pl-10 pr-16 h-11 rounded-lg border-input bg-background text-sm text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 hover:text-primary transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-1 py-0.5"
                       >
                         {showPassword ? (isEs ? "Ocultar" : "Hide") : (isEs ? "Mostrar" : "Show")}
                       </button>
@@ -281,82 +266,118 @@ const EnhancedLoginForm = () => {
                   </div>
                 </div>
 
+                {error && (
+                  <div className="p-3 bg-destructive/10 text-destructive text-xs font-medium rounded-lg border border-destructive/20 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
                 <Button 
                   type="submit" 
                   disabled={isLoading} 
-                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
+                  className="w-full h-11 rounded-lg font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                 >
-                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                    <>{isEs ? "Iniciar Sesión" : "Sign In"} <ArrowRight className="h-5 w-5" /></>
+                  {isLoading ? (
+                    <Loader2 className="animate-spin h-4 w-4" />
+                  ) : (
+                    <>
+                      <span>{isEs ? "Entrar al Portal" : "Sign In to Portal"}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
                   )}
                 </Button>
 
                 <div className="text-center pt-2">
-                  <p className="text-sm text-slate-500 font-medium">
-                    {isEs ? "¿No tiene una cuenta? " : "Don't have an account? "}
+                  <p className="text-xs text-muted-foreground">
+                    {isEs ? "¿Nueva familia? " : "New family? "}
                     <button 
                       type="button" 
                       onClick={() => navigate('/parent-registration')} 
-                      className="text-primary hover:underline font-bold"
+                      className="text-primary hover:underline font-medium"
                     >
-                      {isEs ? "Regístrese aquí" : "Register here"}
+                      {isEs ? "Registrar familia aquí" : "Register your children here"}
                     </button>
                   </p>
                 </div>
 
-                {error && (
-                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    {error}
-                  </div>
-                )}
+                {/* Microsoft Enterprise SSO Option */}
+                <div className="pt-4 border-t border-border space-y-3">
+                  <span className="block text-center text-xs text-muted-foreground font-medium">
+                    {isEs ? "O use su cuenta institucional" : "Or use institutional login"}
+                  </span>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    onClick={() => signIn()}
+                    className="w-full h-10 rounded-lg text-xs font-semibold text-foreground border-border hover:bg-muted transition-colors flex items-center justify-center gap-2.5"
+                  >
+                    <svg className="h-4 w-4 shrink-0" viewBox="0 0 23 23">
+                      <path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/>
+                    </svg>
+                    <span>{isEs ? "Iniciar sesión con Microsoft" : "Sign in with Microsoft"}</span>
+                  </Button>
+                </div>
               </form>
-            ) : step === 'verify_email' ? (
-              <form onSubmit={handleVerifyEmailCode} className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full mb-1">
-                    <Mail className="h-3.5 w-3.5" />
-                    {isEs ? "Verificación de Correo" : "Email Verification"}
+            )}
+
+            {/* Step 2: Email Verification */}
+            {step === 'verify_email' && (
+              <form onSubmit={handleVerifyEmailCode} className="space-y-5">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full mb-1">
+                    <Mail className="h-3 w-3" />
+                    <span>{isEs ? "Verificación de Correo" : "Email Verification"}</span>
                   </div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                    {isEs ? "Ingrese su Código" : "Enter Verification Code"}
+                  <h2 className="text-xl font-semibold text-foreground tracking-tight">
+                    {isEs ? "Ingrese su código" : "Enter Verification Code"}
                   </h2>
-                  <p className="text-slate-500 font-medium text-sm">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     {isEs 
-                      ? `Hemos enviado un código de 6 dígitos a ${email || 'su correo'}. Ingréselo para activar su portal.` 
-                      : `We sent a 6-digit verification code to ${email || 'your email'}. Enter it below to activate your account.`}
+                      ? `Enviamos un código de 6 dígitos a ${email || 'su correo'}. Ingréselo a continuación.` 
+                      : `We sent a 6-digit code to ${email || 'your email'}. Enter it below to activate your account.`}
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="verifyCode" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">
-                      {isEs ? "Código de 6 Dígitos" : "6-Digit Security Code"}
-                    </Label>
-                    <div className="relative group">
-                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                      <Input 
-                        id="verifyCode"
-                        placeholder="000000"
-                        type="text"
-                        maxLength={6}
-                        value={verifyCode}
-                        onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
-                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-center text-2xl font-mono tracking-[0.4em] font-black"
-                        required
-                        autoFocus
-                      />
-                    </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="verifyCode" className="text-xs font-medium text-foreground">
+                    {isEs ? "Código de 6 dígitos" : "6-Digit Security Code"}
+                  </Label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input 
+                      id="verifyCode"
+                      placeholder="000000"
+                      type="text"
+                      maxLength={6}
+                      value={verifyCode}
+                      onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
+                      className="pl-10 h-11 rounded-lg border-input bg-background text-center text-lg font-mono tracking-widest font-semibold focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
+                      required
+                      autoFocus
+                    />
                   </div>
                 </div>
+
+                {error && (
+                  <div className="p-3 bg-destructive/10 text-destructive text-xs font-medium rounded-lg border border-destructive/20 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
+                )}
 
                 <Button 
                   type="submit" 
                   disabled={isLoading || verifyCode.length < 6} 
-                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
+                  className="w-full h-11 rounded-lg font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                 >
-                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                    <>{isEs ? "Verificar y Entrar" : "Verify & Access Portal"} <ArrowRight className="h-5 w-5" /></>
+                  {isLoading ? (
+                    <Loader2 className="animate-spin h-4 w-4" />
+                  ) : (
+                    <>
+                      <span>{isEs ? "Verificar y Acceder" : "Verify & Access Portal"}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
                   )}
                 </Button>
 
@@ -368,52 +389,71 @@ const EnhancedLoginForm = () => {
                     setVerifyCode('');
                     setError('');
                   }}
-                  className="w-full h-12 rounded-xl text-slate-500 font-semibold"
+                  className="w-full h-10 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2"
                 >
-                  {isEs ? "Volver a Iniciar Sesión" : "Back to Sign In"}
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>{isEs ? "Volver a Iniciar Sesión" : "Back to Sign In"}</span>
                 </Button>
+              </form>
+            )}
+
+            {/* Step 3: Two-Factor Authentication (MFA) */}
+            {step === 'mfa' && (
+              <form onSubmit={handleMfaVerify} className="space-y-5">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full mb-1">
+                    <Shield className="h-3 w-3" />
+                    <span>{isEs ? "Autenticación de 2 Factores" : "Two-Factor Authentication"}</span>
+                  </div>
+                  <h2 className="text-xl font-semibold text-foreground tracking-tight">
+                    {isEs ? "Código Authenticator" : "Authenticator Code"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isEs 
+                      ? "Abra su aplicación autenticadora e ingrese el código de 6 dígitos actual." 
+                      : "Open your authenticator app and enter the current 6-digit verification code."}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="mfaCode" className="text-xs font-medium text-foreground">
+                    {isEs ? "Código de Verificación" : "Verification Code"}
+                  </Label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    <Input 
+                      id="mfaCode"
+                      placeholder="000000"
+                      type="text"
+                      maxLength={6}
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                      className="pl-10 h-11 rounded-lg border-input bg-background text-center text-lg font-mono tracking-widest font-semibold focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-colors"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                </div>
 
                 {error && (
-                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    {error}
+                  <div className="p-3 bg-destructive/10 text-destructive text-xs font-medium rounded-lg border border-destructive/20 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{error}</span>
                   </div>
                 )}
-              </form>
-            ) : (
-              <form onSubmit={handleMfaVerify} className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Two-Factor Auth</h2>
-                  <p className="text-slate-500 font-medium">Enter the 6-digit code from your authenticator app to complete sign-in.</p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="mfaCode" className="text-slate-700 font-bold ml-1 uppercase text-[10px] tracking-widest">Verification Code</Label>
-                    <div className="relative group">
-                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
-                      <Input 
-                        id="mfaCode"
-                        placeholder="000000"
-                        type="text"
-                        maxLength={6}
-                        value={mfaCode}
-                        onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                        className="pl-12 h-14 rounded-2xl border-slate-200 bg-white focus:ring-4 focus:ring-primary/10 transition-all text-center text-xl font-mono tracking-[0.3em] font-medium"
-                        required
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-                </div>
 
                 <Button 
                   type="submit" 
-                  disabled={isLoading} 
-                  className="w-full h-14 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all flex gap-2 active:scale-[0.98]"
+                  disabled={isLoading || mfaCode.length < 6} 
+                  className="w-full h-11 rounded-lg font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
                 >
-                  {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
-                    <>Verify Code <ArrowRight className="h-5 w-5" /></>
+                  {isLoading ? (
+                    <Loader2 className="animate-spin h-4 w-4" />
+                  ) : (
+                    <>
+                      <span>{isEs ? "Confirmar Código" : "Confirm Code"}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </>
                   )}
                 </Button>
 
@@ -425,45 +465,14 @@ const EnhancedLoginForm = () => {
                     setMfaCode('');
                     setError('');
                   }}
-                  className="w-full h-12 rounded-xl text-slate-500 font-semibold"
+                  className="w-full h-10 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2"
                 >
-                  Back to Sign In
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>{isEs ? "Volver a Iniciar Sesión" : "Back to Sign In"}</span>
                 </Button>
-
-                {error && (
-                  <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    {error}
-                  </div>
-                )}
               </form>
             )}
 
-            <div className="mt-12 pt-8 border-t border-slate-100">
-              <div className="text-center space-y-4">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Enterprise Login</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => signIn()}
-                  className="w-full h-12 rounded-xl text-slate-600 font-semibold gap-3 border-2 hover:bg-slate-50 transition-all"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 23 23">
-                    <path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/>
-                  </svg>
-                  Sign in with Microsoft
-                </Button>
-              </div>
-            </div>
-            <div className="mt-8 text-center">
-              <a 
-                href="https://tdwas.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-[10px] text-slate-400 font-bold uppercase tracking-widest hover:text-primary transition-colors"
-              >
-                Learn more about TDWAS Technology
-              </a>
-            </div>
           </div>
         </div>
 

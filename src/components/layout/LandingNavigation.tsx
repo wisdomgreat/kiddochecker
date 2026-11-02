@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -38,63 +37,64 @@ const LandingNavigation = () => {
   
   return (
     <nav className={cn(
-      "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4",
-      isScrolled ? "bg-card/80 backdrop-blur-md shadow-sm" : "bg-transparent"
+      "fixed top-0 left-0 right-0 z-50 transition-colors duration-200 px-6 py-4",
+      isScrolled ? "bg-background/95 backdrop-blur-md border-b border-border shadow-xs" : "bg-transparent"
     )}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="h-10 w-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-              <Shield className="h-6 w-6 text-white" />
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-xs">
+              <Shield className="h-5 w-5" />
             </div>
-            <span className="font-bold text-2xl tracking-tighter text-foreground">KiddoChecker</span>
+            <span className="font-semibold text-xl tracking-tight text-foreground">KiddoChecker</span>
           </Link>
         </div>
         
         {/* Desktop navigation */}
-        <div className="hidden md:flex items-center space-x-8">
-          <Link to="/#features" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">
+        <div className="hidden md:flex items-center space-x-6">
+          <Link to="/#features" className="text-muted-foreground hover:text-foreground font-medium text-sm transition-colors">
             {isEs ? "Características" : "Features"}
           </Link>
-          <Link to="/#security" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">
+          <Link to="/#security" className="text-muted-foreground hover:text-foreground font-medium text-sm transition-colors">
             {isEs ? "Seguridad" : "Security"}
           </Link>
-          <Link to="/#pricing" className="text-slate-600 hover:text-indigo-600 font-bold text-sm transition-colors">
-            {isEs ? "Precios" : "Pricing"}
+          <Link to="/kiosk" className="text-muted-foreground hover:text-foreground font-medium text-sm transition-colors">
+            {isEs ? "Quiosco" : "Kiosk"}
           </Link>
-          <div className="h-4 w-px bg-slate-200 ml-4" />
+          
+          <div className="h-4 w-px bg-border" />
 
           {/* Language Switcher */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 font-bold text-xs rounded-xl">
-                <Globe className="h-4 w-4 text-indigo-600" />
+              <Button variant="ghost" size="sm" className="gap-2 font-medium text-xs rounded-lg hover:bg-muted transition-colors">
+                <Globe className="h-3.5 w-3.5 text-primary" />
                 <span>{isEs ? "Español" : "English"}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-xl">
-              <DropdownMenuItem onClick={() => setLanguage('en')} className="font-bold text-xs cursor-pointer">
-                🇺🇸 English
+            <DropdownMenuContent align="end" className="rounded-xl border border-border">
+              <DropdownMenuItem onClick={() => setLanguage('en')} className="font-medium text-xs cursor-pointer">
+                English
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setLanguage('es')} className="font-bold text-xs cursor-pointer">
-                🇪🇸 Español
+              <DropdownMenuItem onClick={() => setLanguage('es')} className="font-medium text-xs cursor-pointer">
+                Español
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           {user ? (
-            <Button onClick={navigateToDashboard} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-100">
+            <Button onClick={navigateToDashboard} className="rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm shadow-xs transition-colors">
               {getDashboardName()}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
-            <div className="flex items-center space-x-4">
-              <Link to="/login" className="text-foreground font-bold text-sm hover:text-indigo-600 transition-colors">
+            <div className="flex items-center space-x-3">
+              <Link to="/login" className="text-foreground font-medium text-sm hover:text-primary transition-colors px-2 py-1">
                 {isEs ? "Iniciar Sesión" : "Log In"}
               </Link>
               <Link to="/parent-registration">
-                <Button className="rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 shadow-xl shadow-slate-200">
-                  {isEs ? "Comenzar" : "Get Started"}
+                <Button className="rounded-xl bg-foreground text-background hover:bg-foreground/90 font-medium text-sm px-4 shadow-xs transition-colors">
+                  {isEs ? "Registrar Familia" : "Get Started"}
                 </Button>
               </Link>
             </div>
@@ -107,41 +107,42 @@ const LandingNavigation = () => {
             variant="ghost" 
             size="sm" 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="rounded-xl"
+            className="rounded-lg"
+            aria-label="Toggle navigation menu"
           >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </Button>
         </div>
       </div>
       
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-card border-t border-slate-100 shadow-2xl z-50 py-8 px-8 flex flex-col space-y-6 animate-in slide-in-from-top duration-300">
-          <Link to="/#features" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-card border-b border-border shadow-lg z-50 py-6 px-6 flex flex-col space-y-4">
+          <Link to="/#features" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-medium text-base">
             {isEs ? "Características" : "Features"}
           </Link>
-          <Link to="/#security" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">
+          <Link to="/#security" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-medium text-base">
             {isEs ? "Seguridad" : "Security"}
           </Link>
-          <Link to="/#pricing" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-bold text-lg">
-            {isEs ? "Precios" : "Pricing"}
+          <Link to="/kiosk" onClick={() => setMobileMenuOpen(false)} className="text-foreground font-medium text-base">
+            {isEs ? "Modo Quiosco" : "Kiosk Mode"}
           </Link>
           
-          <div className="pt-6 border-t border-slate-100">
+          <div className="pt-4 border-t border-border">
             {user ? (
-              <Button onClick={() => { navigateToDashboard(); setMobileMenuOpen(false); }} className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-lg shadow-xl shadow-indigo-100">
+              <Button onClick={() => { navigateToDashboard(); setMobileMenuOpen(false); }} className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-medium text-base shadow-xs transition-colors">
                 {isEs ? "Ir al Tablero" : "Go to Dashboard"}
               </Button>
             ) : (
-              <div className="flex flex-col space-y-4">
+              <div className="flex flex-col space-y-3">
                 <Link to="/login" className="w-full">
-                  <Button variant="outline" className="w-full h-14 rounded-2xl border-slate-200 font-bold text-lg">
+                  <Button variant="outline" className="w-full h-11 rounded-xl border-border font-medium text-base hover:bg-muted transition-colors">
                     {isEs ? "Iniciar Sesión" : "Log In"}
                   </Button>
                 </Link>
                 <Link to="/parent-registration" className="w-full">
-                  <Button className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-lg shadow-xl shadow-indigo-100">
-                    {isEs ? "Crear Cuenta Gratis" : "Create Free Account"}
+                  <Button className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-medium text-base shadow-xs transition-colors">
+                    {isEs ? "Registrar Familia" : "Register Family"}
                   </Button>
                 </Link>
               </div>
@@ -154,5 +155,3 @@ const LandingNavigation = () => {
 };
 
 export default LandingNavigation;
-
-

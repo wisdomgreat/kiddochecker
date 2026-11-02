@@ -100,7 +100,9 @@
     transition: background-color 0.2s ease, border-color 0.2s ease;
   }
 
+  html,
   body {
+    overflow-x: clip;
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
