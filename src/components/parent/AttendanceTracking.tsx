@@ -48,24 +48,35 @@ const AttendanceTracking = () => {
 
       console.log("AttendanceTracking: Fetching children for parent:", user.id);
       
-      // Fetch children using the RPC for consistency and to bypass RLS issues
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
-        parent_user_id: user.id
-      });
-      
-      if (rpcError) {
-        console.error("AttendanceTracking: RPC Error fetching children:", rpcError);
-        throw rpcError;
+      let childrenData: any[] = [];
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
+          parent_user_id: user.id
+        });
+        if (!rpcError && rpcData) {
+          childrenData = rpcData.map((child: any) => ({
+            id: child.child_id,
+            first_name: child.first_name,
+            last_name: child.last_name,
+            age: child.age
+          }));
+        }
+      } catch (e) {
+        console.warn('RPC fetch fallback:', e);
       }
-      
-      console.log("AttendanceTracking: Found children:", rpcData?.length || 0);
-      
-      const childrenData = (rpcData || []).map((child: any) => ({
-        id: child.child_id,
-        first_name: child.first_name,
-        last_name: child.last_name,
-        age: child.age
-      }));
+
+      if (childrenData.length === 0) {
+        const { data: directData } = await supabase
+          .from('children')
+          .select('id, first_name, last_name, age')
+          .eq('parent_id', user.id);
+        childrenData = (directData || []).map((child: any) => ({
+          id: child.id,
+          first_name: child.first_name,
+          last_name: child.last_name,
+          age: child.age
+        }));
+      }
 
       setChildren(childrenData);
 

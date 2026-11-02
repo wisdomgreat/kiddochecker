@@ -56,7 +56,7 @@ const ParentChildManagement = () => {
             emergency_contact_name: child.emergency_contact_name,
             emergency_contact_phone: child.emergency_contact_phone,
             current_class_name: child.current_class_name,
-            is_present: false, // Default value
+            is_present: presentSet.has(child.child_id || child.id),
           }));
         }
 
@@ -82,7 +82,7 @@ const ParentChildManagement = () => {
           emergency_contact_name: child.emergency_contact_name,
           emergency_contact_phone: child.emergency_contact_phone,
           current_class_name: undefined,
-          is_present: false,
+          is_present: presentSet.has(child.id),
         }));
       } catch (error) {
         console.error('Error in parent children fetch:', error);

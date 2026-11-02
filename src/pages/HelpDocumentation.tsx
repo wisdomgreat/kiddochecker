@@ -206,6 +206,58 @@ const STEP_GUIDES: StepGuide[] = [
     ]
   },
   {
+    id: "parent-express-mobile-checkin",
+    title: "How to Use Express Mobile Check-In & Auto Tag Printing",
+    targetRole: "parent",
+    roleBadge: "Parents & Families",
+    roleBadgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300",
+    category: "Express Check-In",
+    icon: Smartphone,
+    summary: "Check in your children directly from your mobile smartphone upon arriving at church. Badges print automatically at the Brother QL printer.",
+    estimatedTime: "30 secs",
+    difficulty: "Beginner",
+    actionLink: { text: "Family Dashboard", url: "/" },
+    cheatSheetSummary: [
+      "1. Open kids.gvachurch.com on your phone when arriving at church",
+      "2. Tap 'Start Mobile Check-In' on your family dashboard",
+      "3. Allow GPS access to verify you are on church campus",
+      "4. Scan the rotating QR code on the church entrance display",
+      "5. Confirm children attending — badges instantly print at the lobby table"
+    ],
+    steps: [
+      {
+        number: 1,
+        title: "Arrive at Church & Open Dashboard",
+        description: "When you arrive at church, open kids.gvachurch.com on your mobile browser. The 'Express Mobile Check-In' card will be visible right at the top of your dashboard.",
+        keyAction: "Tap Start Mobile Check-In"
+      },
+      {
+        number: 2,
+        title: "Verify GPS Location",
+        description: "Tap 'Verify My Location'. Your browser will check GPS to confirm you are within church safety grounds (250m perimeter). This prevents accidental check-ins from home.",
+        keyAction: "Allow Location Permission"
+      },
+      {
+        number: 3,
+        title: "Scan the 30-Second Rotating Entrance Code",
+        description: "Point your phone camera at the TV or tablet screen at the church lobby entrance. The dynamic code changes every 30 seconds for maximum physical presence security.",
+        keyAction: "Point Camera at Door Screen"
+      },
+      {
+        number: 4,
+        title: "Select Children & Add Drop-Off Notes",
+        description: "Select which children are attending service today. If you have any special notes (e.g. diaper bag location or early pickup), type them in the instructions box.",
+        keyAction: "Check Children & Tap Print"
+      },
+      {
+        number: 5,
+        title: "Collect Badges & Save Your Digital Claim Pass",
+        description: "Your children's name badges are automatically queued and cut by the Brother QL printer in the lobby. Your phone displays your secure 4-character pickup code to show teachers after service.",
+        keyAction: "Grab Stickers & Save Code"
+      }
+    ]
+  },
+  {
     id: "parent-add-children",
     title: "How to Register Children & Record Critical Allergies",
     targetRole: "parent",

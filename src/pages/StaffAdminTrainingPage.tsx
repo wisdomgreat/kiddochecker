@@ -107,6 +107,18 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
     ],
     correctIndex: 1,
     explanation: "Allow 10 minutes of gentle redirection and soothing before triggering a callout, unless there is a medical emergency."
+  },
+  {
+    id: 6,
+    question: "When parents use Express Mobile Check-In from their smartphone, how do we verify physical presence?",
+    options: [
+      "No verification is needed; parents can check in from home anytime",
+      "GPS Geofencing confirms they are on church campus AND they scan the dynamic 30-second rotating entrance QR code",
+      "The child must shout their name into the church microphone",
+      "Parents must send a selfie to the church Instagram account"
+    ],
+    correctIndex: 1,
+    explanation: "Two physical factors guarantee physical presence: precise GPS geofencing (within campus radius) plus scanning the dynamic rotating entrance code on the lobby greeting screen."
   }
 ];
 
@@ -250,6 +262,10 @@ const StaffAdminTrainingPage: React.FC = () => {
             <TabsTrigger value="paging" className="text-xs py-2 px-3 gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Bell className="h-3.5 w-3.5" />
               1. Sanctuary Paging SOP
+            </TabsTrigger>
+            <TabsTrigger value="mobile" className="text-xs py-2 px-3 gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Smartphone className="h-3.5 w-3.5" />
+              <span>Mobile & Auto-Print</span>
             </TabsTrigger>
             <TabsTrigger value="kiosk" className="text-xs py-2 px-3 gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Monitor className="h-3.5 w-3.5" />
@@ -576,6 +592,64 @@ const StaffAdminTrainingPage: React.FC = () => {
           {/* ═══════════════════════════════════════════════════════════════════ */}
           {/* TAB 2: KIOSK & SECURITY BADGE PRINTING                             */}
           {/* ═══════════════════════════════════════════════════════════════════ */}
+          <TabsContent value="mobile" className="space-y-4 pt-2">
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <Smartphone className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Mobile Check-In & Brother QL Cloud Printing</CardTitle>
+                    <CardDescription>
+                      Staff protocol for physical presence verification, lobby entrance screens, and automated badge cutting.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                    <span className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px]">1</span>
+                      GPS Geofencing
+                    </span>
+                    <p className="text-xs">
+                      Parents must be within 250 meters of the church perimeter. If checked in from a parking lot or home, the browser prevents check-in.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                    <span className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px]">2</span>
+                      Dynamic Entrance Display
+                    </span>
+                    <p className="text-xs">
+                      The church entrance screen (at <code>/entrance-display</code>) rotates a cryptographic QR code every 30 seconds to prevent spoofed screenshots.
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-muted/50 border border-border space-y-1">
+                    <span className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px]">3</span>
+                      Silent Brother Auto-Cut
+                    </span>
+                    <p className="text-xs">
+                      Badges queue to Azure Cloud Relay and print via Brother QL printer within 3-5 seconds. Parents grab their badges at the greeting table.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs space-y-1">
+                  <span className="font-bold uppercase tracking-wider text-[10px]">Teacher Checkout Rule</span>
+                  <p>
+                    When a parent checks in on mobile, they receive a <strong>Digital Claim Pass</strong> with a 4-character pickup code (e.g. <code>#A8K2</code>). Teachers must visually verify this matching code on the parent's phone before releasing the child.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="kiosk" className="space-y-6">
             <Card className="border-border/70 shadow-sm">
               <CardHeader>
