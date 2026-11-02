@@ -135,6 +135,7 @@ const KioskCheckInSystem = () => {
   const [parentPin, setParentPin] = useState('');
   const [parentLoggedIn, setParentLoggedIn] = useState(false);
   const [parentName, setParentName] = useState('');
+  const [familyCode, setFamilyCode] = useState('');
   const [parentProfileId, setParentProfileId] = useState<string | null>(null);
   const [parentChildren, setParentChildren] = useState<Child[]>([]);
   const [parentLoginError, setParentLoginError] = useState('');
@@ -308,6 +309,8 @@ const KioskCheckInSystem = () => {
 
         if (!error && kids && kids.length > 0) {
           setParentName(savedName);
+          const savedCode = window.localStorage.getItem('kiosk_active_family_code');
+          if (savedCode) setFamilyCode(savedCode);
           setParentProfileId(savedId);
           setParentChildren(kids as any);
           setParentLoggedIn(true);
@@ -415,6 +418,8 @@ const KioskCheckInSystem = () => {
       if (userRole === 'parent') {
         setParentPhone(data.phone || '');
         setParentName(`${data.first_name} ${data.last_name}`);
+        setFamilyCode(data.family_code || '');
+        if (data.family_code) window.localStorage.setItem('kiosk_active_family_code', data.family_code);
         setParentProfileId(data.id);
 
         const kids = await supabase.from('children').select('*').eq('parent_id', data.id).eq('organization_id', activeOrgId);
@@ -647,6 +652,8 @@ const KioskCheckInSystem = () => {
       }));
       
       setParentName(`${parent.first_name} ${parent.last_name}`);
+      setFamilyCode(parent.family_code || '');
+      if (parent.family_code) window.localStorage.setItem('kiosk_active_family_code', parent.family_code);
       setParentProfileId(parent.id);
       setParentChildren(kidsWithClasses || []);
       setParentLoggedIn(true);
@@ -711,6 +718,8 @@ const KioskCheckInSystem = () => {
         .eq('organization_id', activeOrgId);
 
       setParentName(`${profileData.first_name || ''} ${profileData.last_name || ''}`);
+      setFamilyCode(profileData.family_code || '');
+      if (profileData.family_code) window.localStorage.setItem('kiosk_active_family_code', profileData.family_code);
       setParentProfileId(profileData.id);
       setParentChildren(kids || []);
       setParentLoggedIn(true);
@@ -732,6 +741,8 @@ const KioskCheckInSystem = () => {
   const handleParentLogout = () => {
     setParentLoggedIn(false);
     setParentName('');
+    setFamilyCode('');
+    window.localStorage.removeItem('kiosk_active_family_code');
     setParentChildren([]);
     setParentPhone('');
     setParentPin('');
@@ -1212,7 +1223,8 @@ const KioskCheckInSystem = () => {
       </div>
 
       {/* ─── Row 2: Mode Navigation Capsule Bar (Responsive Tabs) ─── */}
-      <div className="min-h-[42px] h-auto py-1 px-2 sm:px-6 bg-[#0a0f1d]/90 border-b border-slate-800/90 flex items-center justify-center z-40 shadow-sm">
+      {!parentLoggedIn && (
+        <div className="min-h-[42px] h-auto py-1 px-2 sm:px-6 bg-[#0a0f1d]/90 border-b border-slate-800/90 flex items-center justify-center z-40 shadow-sm">
         <div className="grid grid-cols-4 sm:flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner w-full max-w-lg sm:max-w-none sm:w-auto gap-0.5">
           {[
             { id: 'parent', label: isEs ? 'PADRES' : 'PARENT DROP-OFF', shortLabel: isEs ? 'PADRES' : 'PARENT', icon: KeyRound },
@@ -1242,6 +1254,7 @@ const KioskCheckInSystem = () => {
           ))}
         </div>
       </div>
+      )}
 
       {/* ─── Main Responsive Workspace (Zero-Scroll Adaptive Layout) ─── */}
       <main className="flex-1 overflow-y-auto md:overflow-hidden px-3 sm:px-6 py-2 sm:py-4 flex flex-col items-center justify-center">
@@ -1251,242 +1264,119 @@ const KioskCheckInSystem = () => {
               PARENT CHECK-IN TAB (Unauthenticated)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && !parentLoggedIn && (
-            <div className="w-full">
-              {/* Desktop / Landscape Tablet: Side-by-Side Dual Column (md and above) */}
-              <div className="hidden md:grid md:grid-cols-12 gap-5 items-stretch">
+            <div className="w-full max-w-md mx-auto">
+              <div className="flex flex-col p-6 sm:p-7 rounded-3xl bg-[#0c1322]/95 border border-slate-800 shadow-2xl backdrop-blur-xl">
                 
-                {/* Left Column: QR Fast Pass & NFC Tap (5 Cols) */}
-                <div className="md:col-span-5 flex flex-col justify-between gap-4 p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 pb-3 border-b border-slate-800">
-                      <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-                        <ArrowRight className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-black tracking-tight text-white">
-                          {isEs ? "Verificación Familiar" : "Parent Verification"}
-                        </h2>
-                        <p className="text-xs text-slate-400">
-                          {isEs ? "Escanee pase QR o use teléfono/PIN" : "Scan QR pass or enter phone/PIN"}
-                        </p>
-                      </div>
-                    </div>
+                {/* Clean Header */}
+                <div className="text-center pb-5 border-b border-slate-800/80">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold mb-2">
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>{isEs ? "Registro Familiar" : "Family Check-In"}</span>
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    {activeInput === 'phone' 
+                      ? (isEs ? "Ingrese su Teléfono" : "Enter Phone Number") 
+                      : (isEs ? "Ingrese su PIN" : "Enter Your PIN")}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
+                    {activeInput === 'phone'
+                      ? (isEs ? "Paso 1 de 2: Escriba su número móvil registrado" : "Step 1 of 2: Enter your 10-digit mobile number")
+                      : (isEs ? "Paso 2 de 2: Ingrese su PIN familiar de 4 a 6 dígitos" : "Step 2 of 2: Enter your 4 to 6-digit family PIN")}
+                  </p>
+                </div>
 
-                    {/* QR Fast-Pass Button */}
+                {/* Display Value Boxes */}
+                <div className="py-4 space-y-2">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {/* Phone Display Box */}
                     <button
-                      onClick={() => setShowParentScanner(true)}
-                      className="w-full h-36 rounded-xl border border-dashed border-slate-700 hover:border-blue-500 bg-slate-950/70 hover:bg-blue-950/20 transition-all flex flex-col items-center justify-center gap-2 group cursor-pointer shadow-inner"
+                      type="button"
+                      onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
+                      className={cn(
+                        "h-16 rounded-2xl border px-3 py-2 flex flex-col justify-center text-left transition-all duration-150 cursor-pointer shadow-inner",
+                        activeInput === 'phone' 
+                          ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
+                          : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
+                      )}
                     >
-                      <div className="w-12 h-12 rounded-full bg-blue-600/20 border border-blue-500/30 group-hover:border-blue-400 flex items-center justify-center text-blue-400 group-hover:scale-105 transition-transform">
-                        <QrCode className="w-6 h-6" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-black uppercase tracking-wider text-slate-200 group-hover:text-blue-400">
-                          {isEs ? "Abrir Escáner QR" : "Scan Mobile QR Pass"}
-                        </p>
-                        <p className="text-[11px] text-slate-500">
-                          {isEs ? "Toque para abrir la cámara" : "Tap to activate camera"}
-                        </p>
-                      </div>
+                      <span className={cn("text-[10px] font-bold uppercase tracking-wider flex items-center justify-between", activeInput === 'phone' ? "text-blue-400" : "text-slate-400")}>
+                        <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {isEs ? "Teléfono" : "Phone"}</span>
+                        {activeInput === 'phone' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
+                      </span>
+                      <p className="text-base sm:text-lg font-mono font-black text-white mt-0.5 truncate tracking-wide">
+                        {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 font-sans font-normal text-sm">(000) 000-0000</span>}
+                      </p>
+                    </button>
+
+                    {/* PIN Display Box */}
+                    <button
+                      type="button"
+                      onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
+                      className={cn(
+                        "h-16 rounded-2xl border px-3 py-2 flex flex-col justify-center text-left transition-all duration-150 cursor-pointer shadow-inner",
+                        activeInput === 'pin' 
+                          ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
+                          : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
+                      )}
+                    >
+                      <span className={cn("text-[10px] font-bold uppercase tracking-wider flex items-center justify-between", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
+                        <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> PIN</span>
+                        {activeInput === 'pin' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
+                      </span>
+                      <p className="text-base sm:text-lg font-mono font-black text-white mt-0.5 tracking-widest truncate">
+                        {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-sans font-normal text-sm tracking-normal">••••</span>}
+                      </p>
                     </button>
                   </div>
 
-                  {/* NFC Tap Card */}
-                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-emerald-500/20 flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 shrink-0">
-                      <Smartphone className="w-5 h-5" />
+                  {parentLoginError && (
+                    <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center animate-in fade-in">
+                      {parentLoginError}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-extrabold uppercase text-emerald-400 tracking-wider truncate">
-                        {isEs ? "Lector NFC Activo" : "NFC Reader Active"}
-                      </p>
-                      <p className="text-xs text-slate-400 truncate">
-                        {isEs ? "Acerque su pulsera o teléfono" : "Tap wristband or smart tag"}
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Right Column: Phone / PIN Keypad (7 Cols) */}
-                <div className="md:col-span-7 flex flex-col justify-between gap-4 p-6 rounded-2xl bg-[#0c1322]/85 border border-slate-800/90 shadow-xl backdrop-blur-md">
-                  <div className="space-y-3">
-                    {/* Dual-Factor Input Fields */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Phone Field */}
-                      <div 
-                        onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
-                        className={cn(
-                          "h-14 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
-                          activeInput === 'phone' ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" : "bg-slate-950 border-slate-800 hover:border-slate-700"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={cn("text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1", activeInput === 'phone' ? "text-blue-400" : "text-slate-400")}>
-                            <Phone className="w-3 h-3" /> {isEs ? "Teléfono" : "Phone"}
-                          </span>
-                          {parentPhone && (
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setParentPhone(''); }} className="text-[10px] font-bold text-slate-500 hover:text-rose-400">✕</button>
-                          )}
-                        </div>
-                        <p className="text-base font-mono font-black text-white mt-0.5 truncate">
-                          {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 font-normal font-sans">(000) 000-0000</span>}
-                        </p>
-                      </div>
-
-                      {/* PIN Field */}
-                      <div 
-                        onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
-                        className={cn(
-                          "h-14 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
-                          activeInput === 'pin' ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" : "bg-slate-950 border-slate-800 hover:border-slate-700"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={cn("text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
-                            <Shield className="w-3 h-3" /> {isEs ? "PIN Seguro" : "4 to 6-Digit PIN"}
-                          </span>
-                          {parentPin && (
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setParentPin(''); }} className="text-[10px] font-bold text-slate-500 hover:text-rose-400">✕</button>
-                          )}
-                        </div>
-                        <p className="text-base font-mono font-black text-white mt-0.5 tracking-widest">
-                          {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-normal font-sans tracking-normal">••••</span>}
-                        </p>
-                      </div>
-                    </div>
-
-                    {parentLoginError && (
-                      <p className="text-rose-400 text-xs font-bold text-center mt-1 animate-in fade-in">{parentLoginError}</p>
-                    )}
-                  </div>
-
-                  {/* Tactile Keypad */}
-                  <div className="py-1">
-                    <div className="flex items-center justify-between px-1 mb-1">
-                      <span className="text-[11px] font-bold uppercase text-slate-400">
-                        {activeInput === 'phone' 
-                          ? (isEs ? "👉 Ingrese Teléfono (Paso 1)" : "👉 Enter Phone (Step 1)") 
-                          : (isEs ? "👉 Ingrese PIN de 4 a 6 dígitos (Paso 2)" : "👉 Enter 4 to 6-digit PIN (Step 2)")}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setActiveInput(activeInput === 'phone' ? 'pin' : 'phone')}
-                        className="text-[10px] font-extrabold uppercase text-blue-400 hover:underline"
-                      >
-                        {activeInput === 'phone' ? "Switch to PIN ➔" : "Switch to Phone ➔"}
-                      </button>
-                    </div>
-                    <NumericKeypad 
-                      value={activeInput === 'phone' ? parentPhone : parentPin} 
-                      onChange={handleKeypadChange} 
-                      maxLength={activeInput === 'phone' ? 10 : 6}
-                    />
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button 
-                    onClick={handleParentLogin} 
-                    disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
-                    className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
-                    {isEs ? "Verificar Teléfono + PIN" : "Verify Phone + PIN & Continue"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Mobile / Portrait View: Dedicated Zero-Scroll Card (< md) */}
-              <div className="md:hidden flex flex-col p-4 rounded-2xl bg-[#0c1322]/90 border border-slate-800/90 shadow-xl backdrop-blur-md max-w-sm mx-auto space-y-3">
-                {/* Dual Input Fields */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div 
-                    onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
-                    className={cn(
-                      "h-12 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
-                      activeInput === 'phone' ? "bg-blue-950/40 border-blue-500 ring-1 ring-blue-500" : "bg-slate-950 border-slate-800"
-                    )}
-                  >
-                    <span className={cn("text-[9px] font-extrabold uppercase flex items-center gap-1", activeInput === 'phone' ? "text-blue-400" : "text-slate-400")}>
-                      <Phone className="w-2.5 h-2.5" /> Phone
-                    </span>
-                    <p className="text-xs font-mono font-black text-white mt-0.5 truncate">
-                      {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600">(000) 000-0000</span>}
-                    </p>
-                  </div>
-
-                  <div 
-                    onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
-                    className={cn(
-                      "h-12 rounded-xl border p-2 flex flex-col justify-center cursor-pointer transition-all shadow-inner",
-                      activeInput === 'pin' ? "bg-blue-950/40 border-blue-500 ring-1 ring-blue-500" : "bg-slate-950 border-slate-800"
-                    )}
-                  >
-                    <span className={cn("text-[9px] font-extrabold uppercase flex items-center gap-1", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
-                      <Shield className="w-2.5 h-2.5" /> 4 to 6-Digit PIN
-                    </span>
-                    <p className="text-xs font-mono font-black text-white mt-0.5 tracking-widest">
-                      {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-normal">••••</span>}
-                    </p>
-                  </div>
+                {/* Tactile 60px Keypad */}
+                <div className="pb-4">
+                  <NumericKeypad 
+                    value={activeInput === 'phone' ? parentPhone : parentPin} 
+                    onChange={handleKeypadChange} 
+                    maxLength={activeInput === 'phone' ? 10 : 6}
+                    onEnter={handleParentLogin}
+                  />
                 </div>
 
-                {parentLoginError && (
-                  <p className="text-rose-400 text-[11px] font-bold text-center animate-in fade-in">{parentLoginError}</p>
-                )}
-
-                {/* Step Instruction & Quick Switch */}
-                <div className="flex items-center justify-between px-1 text-[10px]">
-                  <span className="font-bold text-slate-400">
-                    {activeInput === 'phone' ? "Step 1: Phone" : "Step 2: 4 to 6-digit PIN"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveInput(activeInput === 'phone' ? 'pin' : 'phone')}
-                    className="font-extrabold text-blue-400 hover:underline"
-                  >
-                    {activeInput === 'phone' ? "Enter PIN ➔" : "Enter Phone ➔"}
-                  </button>
-                </div>
-
-                {/* Compact Tactile Keypad */}
-                <NumericKeypad 
-                  value={activeInput === 'phone' ? parentPhone : parentPin} 
-                  onChange={handleKeypadChange} 
-                  maxLength={activeInput === 'phone' ? 10 : 6}
-                />
-
-                {/* Submit Action */}
+                {/* Primary Action Button */}
                 <Button 
                   onClick={handleParentLogin} 
                   disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
-                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md"
+                  className="w-full h-13 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-black uppercase tracking-wider rounded-2xl shadow-xl shadow-blue-950/50 active:scale-[0.98] transition-all cursor-pointer"
                 >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <ArrowRight className="w-4 h-4 mr-1.5" />}
-                  Verify & Sign In
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ArrowRight className="w-5 h-5 mr-2" />}
+                  {isEs ? "Continuar y Ver Niños" : "Continue to Family Roster"}
                 </Button>
 
-                {/* Quick QR & NFC Options on Mobile */}
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                {/* Fast-Pass Options (QR & NFC) */}
+                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between gap-3 text-xs">
                   <button
+                    type="button"
                     onClick={() => setShowParentScanner(true)}
-                    className="h-8 rounded-lg bg-slate-950 border border-slate-800 hover:border-blue-500/50 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-300 hover:text-white transition-colors"
+                    className="flex-1 h-10 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-blue-500/40 flex items-center justify-center gap-2 font-bold text-slate-300 hover:text-white transition-all cursor-pointer"
                   >
-                    <QrCode className="w-3.5 h-3.5 text-blue-400" />
-                    Scan QR Pass
+                    <QrCode className="w-4 h-4 text-blue-400" />
+                    <span>{isEs ? "Escanear Pase QR" : "Scan QR Pass"}</span>
                   </button>
-                  <button
-                    onClick={() => {
-                      toast({ 
-                        title: "NFC Tap Ready", 
-                        description: "Hold your NFC wristband or phone close to the screen/reader." 
-                      });
-                    }}
-                    className="h-8 rounded-lg bg-slate-950 border border-slate-800 hover:border-emerald-500/50 flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-300 hover:text-white transition-colors"
+
+                  <div 
+                    className="flex-1 h-10 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-center gap-2 font-bold text-slate-400"
+                    title="Tap NFC wristband or phone tag to log in"
                   >
-                    <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                    Tap NFC Tag
-                  </button>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <Smartphone className="w-4 h-4 text-emerald-400" />
+                    <span>{isEs ? "NFC Activo" : "NFC Tap Active"}</span>
+                  </div>
                 </div>
+
               </div>
             </div>
           )}
@@ -1495,22 +1385,29 @@ const KioskCheckInSystem = () => {
               PARENT CHECK-IN (Authenticated Children Roster)
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && parentLoggedIn && (
-            <div className="w-full max-w-2xl mx-auto flex flex-col p-5 sm:p-6 rounded-2xl bg-[#0c1322]/90 border border-slate-800/90 shadow-xl backdrop-blur-md">
+            <div className="w-full max-w-3xl mx-auto flex flex-col p-6 sm:p-7 rounded-3xl bg-[#0c1322]/95 border border-slate-800 shadow-2xl backdrop-blur-xl">
               
               {/* Header Bar */}
-              <div className="flex items-center justify-between pb-3.5 border-b border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-800">
                 <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-400">
-                    {isEs ? "Cuenta Familiar Verificada" : "Verified Family Account"}
-                  </p>
-                  <h2 className="text-lg font-black text-white">{parentName}</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+                      {isEs ? "Cuenta Familiar Verificada" : "Verified Family"}
+                    </span>
+                    {familyCode && (
+                      <span className="px-2 py-0.5 rounded-md bg-blue-950/80 border border-blue-500/40 text-[11px] font-mono font-black text-blue-300">
+                        Pager: #{familyCode}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-2xl font-black text-white mt-0.5">{parentName}</h2>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="h-8 text-xs font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/30 hover:bg-emerald-900/40 rounded-xl"
+                    className="h-9 px-3 text-xs font-bold border-emerald-500/30 text-emerald-400 bg-emerald-950/30 hover:bg-emerald-900/40 rounded-xl cursor-pointer"
                     onClick={() => {
                       const parentId = window.localStorage.getItem('kiosk_active_parent_id');
                       if (parentId) {
@@ -1523,7 +1420,7 @@ const KioskCheckInSystem = () => {
                       }
                     }}
                   >
-                    <Smartphone className="w-3.5 h-3.5 mr-1" />
+                    <Smartphone className="w-4 h-4 mr-1.5" />
                     {isRegisteringNFC === window.localStorage.getItem('kiosk_active_parent_id') 
                       ? (isEs ? "Esperando..." : "Waiting...") 
                       : (isEs ? "Vincular NFC" : "Link NFC Tag")}
@@ -1533,79 +1430,87 @@ const KioskCheckInSystem = () => {
                     variant="ghost" 
                     size="sm" 
                     onClick={handleParentLogout} 
-                    className="h-8 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl"
+                    className="h-9 px-3 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl cursor-pointer"
                   >
-                    <LogOut className="w-3.5 h-3.5 mr-1 text-rose-400" /> 
-                    {isEs ? "Cerrar" : "Sign Out"}
+                    <LogOut className="w-4 h-4 mr-1.5 text-rose-400" /> 
+                    {isEs ? "Salir" : "Sign Out"}
                   </Button>
                 </div>
               </div>
 
-              {/* Children List (Compact Horizontal Cards) */}
-              <div className="py-3.5 space-y-2.5 overflow-y-auto max-h-[340px]">
+              {/* Children List */}
+              <div className="py-4 space-y-3 overflow-y-auto max-h-[420px]">
                 {parentChildren.map(child => {
                   const checked = alreadyIn(child.id);
+                  const roomName = child.age && Number(child.age) <= 3 ? "Nursery Room" :
+                                   child.age && Number(child.age) <= 5 ? "Preschool & Kindergarten" :
+                                   child.age && Number(child.age) <= 8 ? "Primary Campers (6-8)" :
+                                   child.age && Number(child.age) <= 12 ? "Junior Campers (9-12)" : "Teens Fellowship (13+)";
+
                   return (
                     <div 
                       key={child.id} 
                       onClick={() => handleParentCheckIn(child)}
                       className={cn(
-                        "p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 group",
+                        "p-4 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group shadow-md",
                         checked 
-                          ? "bg-rose-950/20 border-rose-800/40 hover:border-rose-700/60" 
-                          : "bg-slate-900/70 hover:bg-blue-950/30 border-slate-800 hover:border-blue-700/60 shadow-md"
+                          ? "bg-slate-900/60 border-emerald-500/40 ring-1 ring-emerald-500/20" 
+                          : "bg-slate-950/80 hover:bg-slate-900/80 border-slate-800 hover:border-blue-500/50"
                       )}
                     >
-                      {/* Left: Child Avatar + Details */}
-                      <div className="flex items-center gap-3 min-w-0">
+                      {/* Left: Avatar + Details */}
+                      <div className="flex items-start sm:items-center gap-3.5 min-w-0">
                         <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-md shrink-0",
-                          checked ? "bg-rose-600 text-white" : "bg-blue-600 text-white"
+                          "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-md shrink-0 transition-transform group-hover:scale-105",
+                          checked ? "bg-emerald-600 text-white" : "bg-blue-600 text-white"
                         )}>
-                          {checked ? <CheckCircle className="w-5 h-5" /> : child.first_name[0]}
+                          {checked ? <CheckCircle className="w-6 h-6" /> : child.first_name[0]}
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-extrabold text-sm text-white truncate">{child.first_name} {child.last_name}</h3>
-                            <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md">
+                        
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-extrabold text-base sm:text-lg text-white">{child.first_name} {child.last_name}</h3>
+                            <span className="text-xs font-bold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md">
                               {child.age ? `Age ${child.age}` : 'Child'}
                             </span>
-                            <span className="text-[10px] font-black text-blue-300 bg-blue-950/80 border border-blue-500/30 px-2 py-0.5 rounded-md">
-                              {child.age && Number(child.age) <= 3 ? "Nursery Room" :
-                               child.age && Number(child.age) <= 5 ? "Preschool & Kindergarten" :
-                               child.age && Number(child.age) <= 8 ? "Primary Campers (6-8)" :
-                               child.age && Number(child.age) <= 12 ? "Junior Campers (9-12)" : "Teens Fellowship (13+)"}
+                            <span className="text-xs font-bold text-blue-300 bg-blue-950/80 border border-blue-500/30 px-2.5 py-0.5 rounded-md">
+                              {roomName}
                             </span>
                           </div>
+
+                          {/* Full untruncated Allergy Banner */}
                           {child.allergies ? (
-                            <p className="text-[10px] font-bold text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/30 mt-1 inline-block truncate max-w-[280px]">
-                              ⚠️ {child.allergies}
-                            </p>
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-950/50 px-2.5 py-1 rounded-lg border border-amber-500/30 w-fit">
+                              <span className="shrink-0">⚠️</span>
+                              <span>Allergies: {child.allergies}</span>
+                            </div>
                           ) : (
-                            <p className="text-[10px] font-medium text-slate-500 mt-0.5">
-                              {checked ? "Currently present in classroom" : "Ready for check-in"}
+                            <p className="text-xs text-slate-500 font-medium">
+                              {checked ? "Present in class • Name badge printed" : "Ready for drop-off"}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      {/* Right: Instant Tap Action Button */}
-                      <div className="shrink-0">
+                      {/* Right: Big Touch Button */}
+                      <div className="shrink-0 flex items-center justify-end">
                         <div className={cn(
-                          "px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-transform group-hover:scale-105",
+                          "h-12 px-5 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-2 shadow-lg transition-transform group-hover:scale-102",
                           checked 
-                            ? "bg-rose-600 text-white hover:bg-rose-500" 
-                            : "bg-emerald-600 text-white hover:bg-emerald-500"
+                            ? "bg-slate-800 text-emerald-400 border border-emerald-500/40 hover:bg-rose-950/40 hover:text-rose-300 hover:border-rose-500/50" 
+                            : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-950/50"
                         )}>
                           {checked ? (
                             <>
-                              <LogOut className="w-3.5 h-3.5" />
-                              <span>{isEs ? "Salida" : "Check Out"}</span>
+                              <CheckCircle className="w-4 h-4 text-emerald-400 group-hover:hidden" />
+                              <LogOut className="w-4 h-4 text-rose-400 hidden group-hover:inline" />
+                              <span className="group-hover:hidden">{isEs ? "Registrado" : "Checked In"}</span>
+                              <span className="hidden group-hover:inline">{isEs ? "Salida" : "Check Out"}</span>
                             </>
                           ) : (
                             <>
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              <span>{isEs ? "Entrada" : "Check In"}</span>
+                              <CheckCircle className="w-4 h-4" />
+                              <span>{isEs ? "Registrar Entrada" : "Check In"}</span>
                             </>
                           )}
                         </div>
@@ -1616,16 +1521,17 @@ const KioskCheckInSystem = () => {
               </div>
 
               {/* Bottom Instructions / Done Bar */}
-              <div className="pt-3.5 border-t border-slate-800 flex items-center justify-between">
-                <p className="text-xs text-slate-400 font-medium">
-                  {isEs ? "Toque un niño para registrar entrada o salida" : "Tap any child row above to check in or out"}
+              <div className="pt-5 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs sm:text-sm text-slate-400 font-medium text-center sm:text-left">
+                  {isEs ? "Toque cualquier niño para registrar entrada o salida" : "Tap any child to check in. Name badge prints automatically."}
                 </p>
                 <Button 
-                  size="sm" 
+                  size="lg" 
                   onClick={handleParentLogout} 
-                  className="h-9 px-5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md"
+                  className="w-full sm:w-auto h-12 px-6 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950/50 cursor-pointer"
                 >
-                  {isEs ? "Listo / Finalizar" : "Done / Complete"}
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  {isEs ? "Listo / Finalizar" : "Done / Finish"}
                 </Button>
               </div>
 
@@ -2318,55 +2224,44 @@ const NumericKeypad: React.FC<{
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [value, maxLength, onEnter]);
 
-  const keypadKeys = [
-    { num: '1', letters: '' },
-    { num: '2', letters: 'ABC' },
-    { num: '3', letters: 'DEF' },
-    { num: '4', letters: 'GHI' },
-    { num: '5', letters: 'JKL' },
-    { num: '6', letters: 'MNO' },
-    { num: '7', letters: 'PQRS' },
-    { num: '8', letters: 'TUV' },
-    { num: '9', letters: 'WXYZ' },
-  ];
+    const keypadNumbers = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
   return (
-    <div className="grid grid-cols-3 gap-2 w-full max-w-xs mx-auto">
-      {keypadKeys.map(({ num, letters }) => (
+    <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full max-w-sm mx-auto select-none">
+      {keypadNumbers.map((num) => (
         <button 
           key={num} 
           type="button"
-          className="h-10 sm:h-11 bg-slate-900/90 hover:bg-slate-800 active:bg-blue-600 text-white border border-slate-800 active:border-blue-500 rounded-xl flex flex-col items-center justify-center active:scale-95 transition-all shadow-md group cursor-pointer"
+          className="h-13 sm:h-15 bg-slate-900/95 hover:bg-slate-800/90 active:bg-blue-600 active:scale-95 text-white border border-slate-800/80 active:border-blue-500 rounded-2xl flex items-center justify-center transition-all duration-100 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           onClick={() => handlePress(num)}
         >
-          <span className="text-base sm:text-lg font-black leading-none text-white">{num}</span>
-          {letters && <span className="text-[8px] font-bold text-slate-500 group-hover:text-slate-400 group-active:text-blue-200 tracking-wider mt-0.5">{letters}</span>}
+          <span className="text-2xl sm:text-3xl font-black text-white">{num}</span>
         </button>
       ))}
       
       <button 
         type="button"
-        className="h-10 sm:h-11 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200 active:scale-95 transition-all cursor-pointer"
+        className="h-13 sm:h-15 bg-slate-950/90 hover:bg-slate-900 active:scale-95 border border-slate-800/80 rounded-2xl flex items-center justify-center text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-all duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
         onClick={handleClear}
       >
-        CLEAR
+        Clear
       </button>
 
       <button 
         type="button"
-        className="h-10 sm:h-11 bg-slate-900/90 hover:bg-slate-800 active:bg-blue-600 text-white border border-slate-800 active:border-blue-500 rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-md group cursor-pointer"
+        className="h-13 sm:h-15 bg-slate-900/95 hover:bg-slate-800/90 active:bg-blue-600 active:scale-95 text-white border border-slate-800/80 active:border-blue-500 rounded-2xl flex items-center justify-center transition-all duration-100 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         onClick={() => handlePress('0')}
       >
-        <span className="text-base sm:text-lg font-black text-white">0</span>
+        <span className="text-2xl sm:text-3xl font-black text-white">0</span>
       </button>
 
       <button 
         type="button"
-        className="h-10 sm:h-11 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-400 active:scale-95 transition-all cursor-pointer"
+        className="h-13 sm:h-15 bg-slate-950/90 hover:bg-slate-900 active:scale-95 border border-slate-800/80 rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
         onClick={handleBackspace}
         title="Backspace"
       >
-        <Eraser className="w-4 h-4" />
+        <Eraser className="w-5 h-5" />
       </button>
     </div>
   );

@@ -23,7 +23,11 @@ export const SecurityGroupManager = () => {
             const data = await SecurityGroupService.getGroups();
             setGroups(data || []);
         } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+            toast({ 
+                title: "Error Loading Security Groups", 
+                description: error?.message || (typeof error === 'string' ? error : "Unable to load security groups"), 
+                variant: "destructive" 
+            });
         } finally {
             setLoading(false);
         }

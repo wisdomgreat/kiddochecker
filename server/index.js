@@ -3061,6 +3061,7 @@ app.post('/api/query', verifyToken, async (req, res) => {
     // Detect if we should auto-join for common UI patterns
     const needsAttendanceJoin = table === 'attendance' && (select === '*' || select.includes('child') || select.includes('children('));
     const needsChildrenJoin = table === 'children' && (select === '*' || select.includes('classes('));
+    const needsSecurityGroupsJoin = table === 'security_groups' && select.includes('group_permissions');
 
     if (needsAttendanceJoin) {
       sql = `
@@ -3102,13 +3103,33 @@ app.post('/api/query', verifyToken, async (req, res) => {
         FROM public.children t
         LEFT JOIN public.classes cl ON t.class_id = cl.id
       `;
+    } else if (needsSecurityGroupsJoin) {
+      sql = `
+        SELECT t.*,
+          COALESCE(
+            (SELECT jsonb_agg(
+              jsonb_build_object(
+                'permission_id', gp.permission_id,
+                'permissions', jsonb_build_object('name', p.name, 'description', p.description)
+              )
+            )
+            FROM public.group_permissions gp
+            JOIN public.permissions p ON gp.permission_id = p.id
+            WHERE gp.group_id = t.id),
+            '[]'::jsonb
+          ) as group_permissions
+        FROM public.security_groups t
+      `;
     } else {
-      const cleanSelect = select
-        .replace(/[\w_]+:\s*[\w_]+\s*\([^)]*\)/g, '')
-        .replace(/[\w_]+\s*\([^)]*\)/g, '')
+      let cleanSelect = select;
+      while (/\([^()]*\)/.test(cleanSelect)) {
+        cleanSelect = cleanSelect.replace(/[\w_]*\s*\([^()]*\)/g, '');
+      }
+      cleanSelect = cleanSelect
         .replace(/[\w_]+:/g, '')
         .replace(/,(\s*,)+/g, ',')
-        .replace(/^,|,$/g, '')
+        .replace(/^\s*,\s*|\s*,\s*$/g, '')
+        .replace(/\s+/g, ' ')
         .trim();
       
       // Field-level safety check for classes table (Parent access strictly limited to public class directory)
