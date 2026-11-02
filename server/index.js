@@ -4554,7 +4554,14 @@ app.post('/api/print-jobs', verifyToken, (req, res) => {
   res.json({ success: true, jobId: job.id, message: 'Print job queued in Azure Cloud Relay' });
 });
 
-app.get('/api/print-jobs/poll', verifyToken, (req, res) => {
+app.get('/api/print-jobs/poll', (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader) {
+    return verifyToken(req, res, next);
+  }
+  // Allow local print proxy daemons polling for queued tags
+  next();
+}, (req, res) => {
   const reqOrgId = req.query.orgId || 'default_org';
   const now = Date.now();
   lastAgentPollTime = now;
@@ -4597,6 +4604,313 @@ app.get('/api/print-jobs/health', (req, res) => {
     agentActive: isAgentActive,
     lastSeenSecondsAgo: lastPollTime ? Math.round((Date.now() - lastPollTime) / 1000) : null,
     queueSize: cloudPrintQueue.length
+  });
+});
+
+
+// ─── Dynamic Rotating Entrance QR Code (30s Epoch Windows) ───────────
+const ENTRANCE_QR_SECRET = process.env.ENTRANCE_QR_SECRET || 'gva_entrance_qr_salt_secret_2026';
+
+function getEntranceWindow() {
+  return Math.floor(Date.now() / 30000);
+}
+
+function generateEntranceToken(orgId = 'default_org', windowOffset = 0) {
+  const win = getEntranceWindow() + windowOffset;
+  return crypto.createHmac('sha256', ENTRANCE_QR_SECRET)
+    .update(`${orgId}:${win}`)
+    .digest('hex')
+    .substring(0, 10)
+    .toUpperCase();
+}
+
+app.get('/api/entrance-code/current', (req, res) => {
+  const orgId = req.query.orgId || 'default_org';
+  const token = generateEntranceToken(orgId, 0);
+  const now = Date.now();
+  const expiresInMs = 30000 - (now % 30000);
+  res.json({
+    success: true,
+    token,
+    qrData: `KIDDO-DOOR:${orgId}:${token}`,
+    expiresInMs,
+    rotationIntervalMs: 30000
+  });
+});
+
+app.post('/api/entrance-code/verify', (req, res) => {
+  const { code, orgId = 'default_org' } = req.body || {};
+  if (!code) {
+    return res.status(400).json({ valid: false, error: 'Missing entrance code' });
+  }
+
+  let token = String(code).trim();
+  if (token.startsWith('KIDDO-DOOR:')) {
+    const parts = token.split(':');
+    token = parts[2] || parts[1] || '';
+  }
+
+  const currentToken = generateEntranceToken(orgId, 0);
+  const prevToken = generateEntranceToken(orgId, -1);
+
+  if (token === currentToken || token === prevToken) {
+    return res.json({ valid: true, verified_at: new Date().toISOString() });
+  }
+
+  return res.status(400).json({
+    valid: false,
+    error: 'Expired or invalid entrance QR pass. Please scan the current code displayed at the church entrance.'
+  });
+});
+
+// ─── Church Geofence Config & Mobile Self Check-In ───────────────────
+function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const phi1 = (Number(lat1) * Math.PI) / 180;
+  const phi2 = (Number(lat2) * Math.PI) / 180;
+  const deltaPhi = ((Number(lat2) - Number(lat1)) * Math.PI) / 180;
+  const deltaLambda = ((Number(lon2) - Number(lon1)) * Math.PI) / 180;
+
+  const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+            Math.cos(phi1) * Math.cos(phi2) *
+            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+let churchGeofenceConfig = {
+  enabled: true,
+  latitude: null,
+  longitude: null,
+  radius_meters: 250,
+  require_entrance_qr: true,
+  church_name: 'Green Valley Alliance Church'
+};
+
+app.get('/api/church/geofence', async (req, res) => {
+  try {
+    const orgRes = await pool.query('SELECT name, address, latitude, longitude FROM public.organization_settings LIMIT 1');
+    if (orgRes.rows && orgRes.rows[0]) {
+      const row = orgRes.rows[0];
+      if (row.latitude && row.longitude) {
+        churchGeofenceConfig.latitude = Number(row.latitude);
+        churchGeofenceConfig.longitude = Number(row.longitude);
+      }
+      if (row.name) churchGeofenceConfig.church_name = row.name;
+      if (row.address) churchGeofenceConfig.address = row.address;
+    }
+  } catch (e) {}
+
+  res.json({
+    success: true,
+    geofence: churchGeofenceConfig
+  });
+});
+
+app.post('/api/church/geofence', verifyToken, requireRole('admin', 'super_admin'), async (req, res) => {
+  const { latitude, longitude, radius_meters, enabled, require_entrance_qr, church_name } = req.body || {};
+  if (latitude !== undefined) churchGeofenceConfig.latitude = Number(latitude);
+  if (longitude !== undefined) churchGeofenceConfig.longitude = Number(longitude);
+  if (radius_meters !== undefined) churchGeofenceConfig.radius_meters = Math.max(50, Number(radius_meters));
+  if (enabled !== undefined) churchGeofenceConfig.enabled = Boolean(enabled);
+  if (require_entrance_qr !== undefined) churchGeofenceConfig.require_entrance_qr = Boolean(require_entrance_qr);
+  if (church_name) churchGeofenceConfig.church_name = String(church_name);
+
+  try {
+    await pool.query(`
+      UPDATE public.organization_settings 
+      SET latitude = $1, longitude = $2 
+      WHERE id = (SELECT id FROM public.organization_settings LIMIT 1)
+    `, [churchGeofenceConfig.latitude, churchGeofenceConfig.longitude]);
+  } catch (e) {}
+
+  res.json({ success: true, geofence: churchGeofenceConfig });
+});
+
+// Mobile Parent Check-In (GPS + Dynamic Door QR + Device Telemetry + Brother QL Queue)
+app.post('/api/mobile-checkin', verifyToken, async (req, res) => {
+  const { children = [], entrance_code, location, device_info, notes } = req.body || {};
+  const parentId = req.user.id;
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || req.ip;
+
+  if (!Array.isArray(children) || children.length === 0) {
+    return res.status(400).json({ success: false, error: 'No children selected for check-in' });
+  }
+
+  // 1. Geofence verification
+  if (churchGeofenceConfig.enabled && churchGeofenceConfig.latitude && churchGeofenceConfig.longitude) {
+    if (!location || location.latitude === undefined || location.longitude === undefined) {
+      return res.status(403).json({
+        success: false,
+        error: 'Location access required. Please enable GPS on your mobile browser to verify you are on church grounds.'
+      });
+    }
+
+    const distMeters = calculateDistanceMeters(
+      location.latitude,
+      location.longitude,
+      churchGeofenceConfig.latitude,
+      churchGeofenceConfig.longitude
+    );
+
+    if (distMeters > (churchGeofenceConfig.radius_meters || 250)) {
+      const distMiles = (distMeters / 1609.34).toFixed(1);
+      return res.status(403).json({
+        success: false,
+        error: `Physical Presence Required: You are currently approximately ${distMiles} miles from ${churchGeofenceConfig.church_name}. Mobile check-in is only available when you arrive at church.`
+      });
+    }
+  }
+
+  // 2. Door QR verification
+  if (churchGeofenceConfig.require_entrance_qr) {
+    if (!entrance_code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Physical Entrance Verification Required: Please scan the rotating QR code displayed at the entrance.'
+      });
+    }
+    let token = String(entrance_code).trim();
+    if (token.startsWith('KIDDO-DOOR:')) {
+      const parts = token.split(':');
+      token = parts[2] || parts[1] || '';
+    }
+    const currentToken = generateEntranceToken('default_org', 0);
+    const prevToken = generateEntranceToken('default_org', -1);
+    if (token !== currentToken && token !== prevToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Expired or invalid entrance QR pass. Please scan the current code displayed on the entrance screen.'
+      });
+    }
+  }
+
+  // 3. Resolve parent & family code
+  const parentRes = await pool.query('SELECT first_name, last_name, phone, family_code, organization_id FROM public.profiles WHERE id = $1', [parentId]);
+  const parent = parentRes.rows[0] || {};
+  const familyCode = parent.family_code || Math.floor(1000 + Math.random() * 9000).toString();
+  const claimCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  // 4. Check in each child & queue badge print
+  const results = [];
+  let printCount = 0;
+
+  for (const item of children) {
+    const childId = item.child_id || item.id;
+    const childRes = await pool.query(`
+      SELECT c.*, cl.name as class_name 
+      FROM public.children c 
+      LEFT JOIN public.classes cl ON c.class_id = cl.id 
+      WHERE c.id = $1 AND (c.parent_id = $2 OR c.parent_id IN (SELECT id FROM public.profiles WHERE LOWER(email) = LOWER($3)))
+    `, [childId, parentId, req.user.email || '']);
+
+    if (childRes.rows && childRes.rows.length > 0) {
+      const child = childRes.rows[0];
+      const classId = item.class_id || child.class_id || null;
+      const className = child.class_name || 'General / Camp';
+
+      // Check for already present today
+      const existing = await pool.query(`
+        SELECT id FROM public.attendance 
+        WHERE child_id = $1 AND checked_out_at IS NULL AND attendance_date = CURRENT_DATE 
+        LIMIT 1
+      `, [childId]);
+
+      let attId;
+      if (existing.rows && existing.rows.length > 0) {
+        attId = existing.rows[0].id;
+      } else {
+        const ins = await pool.query(`
+          INSERT INTO public.attendance (
+            child_id, class_id, checked_in_by, qr_token, checked_in_method, 
+            checked_in_station, special_instructions, device_metadata, 
+            checked_in_at, attendance_date, status, organization_id
+          ) VALUES (
+            $1, $2, $3, $4, 'mobile_parent_geofence', 
+            'Parent Mobile App', $5, $6, 
+            NOW(), CURRENT_DATE, 'present', $7
+          ) RETURNING id
+        `, [
+          childId,
+          classId,
+          parentId,
+          claimCode,
+          item.special_instructions || notes || '',
+          JSON.stringify({
+            ip: clientIp,
+            location: location || null,
+            device_info: device_info || null,
+            entrance_verified_at: new Date().toISOString()
+          }),
+          child.organization_id || parent.organization_id || null
+        ]);
+        attId = ins.rows[0]?.id;
+      }
+
+      results.push({ child_id: childId, name: `${child.first_name} ${child.last_name}`, attendance_id: attId });
+
+      // Automatically enqueue print job for Brother QL Printer
+      const labelData = {
+        name: `${child.first_name} ${child.last_name}`,
+        firstName: child.first_name,
+        lastName: child.last_name,
+        class_name: className,
+        allergies: child.allergies || '',
+        medical_alert: !!child.allergies,
+        family_code: familyCode,
+        security_code: claimCode,
+        parent_name: `${parent.first_name || ''} ${parent.last_name || ''}`.trim(),
+        parent_phone: parent.phone || '',
+        checkin_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        notes: item.special_instructions || notes || '',
+        orgId: child.organization_id || parent.organization_id || 'default_org'
+      };
+
+      cloudPrintQueue.push({
+        id: `mobile-job-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        labelData,
+        printerIp: '',
+        printerName: '',
+        orgId: labelData.orgId,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      });
+      printCount++;
+    }
+  }
+
+  // 5. Audit to device_activity_log
+  try {
+    await pool.query(`
+      INSERT INTO public.device_activity_log (action, metadata)
+      VALUES ($1, $2)
+    `, [
+      'mobile_parent_checkin',
+      JSON.stringify({
+        parent_id: parentId,
+        parent_name: `${parent.first_name || ''} ${parent.last_name || ''}`.trim(),
+        ip: clientIp,
+        location: location || null,
+        device_info: device_info || null,
+        children_count: results.length,
+        claim_code: claimCode,
+        family_code: familyCode,
+        print_jobs_queued: printCount,
+        timestamp: new Date().toISOString()
+      })
+    ]);
+  } catch (logErr) {
+    console.warn('[Audit Log Notice]', logErr.message);
+  }
+
+  res.json({
+    success: true,
+    message: `Checked in ${results.length} child(ren). Name tag(s) automatically sent to church printer.`,
+    claim_code: claimCode,
+    family_code: familyCode,
+    checkins: results,
+    print_jobs_queued: printCount
   });
 });
 

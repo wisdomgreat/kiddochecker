@@ -104,12 +104,33 @@ export const TermsOfServicePage = () => {
           </CardContent>
         </Card>
 
+        {/* Mobile Self Check-In & Device Auditing */}
+        <Card className="border-border shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2 text-foreground">
+              <Shield className="h-5 w-5 text-indigo-600" />
+              5. Mobile Self Check-In, Geofencing & Device Auditing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+            <p>
+              When utilizing mobile self check-in features on your personal smartphone or mobile device:
+            </p>
+            <ul className="list-disc list-inside space-y-1.5">
+              <li><strong>Physical Presence Requirement:</strong> You agree that mobile self check-in may only be performed when you and your children are physically present at the church facility or campus perimeter. Attempting to spoof GPS coordinates or remotely check in absent children is strictly prohibited.</li>
+              <li><strong>Entrance Code Verification:</strong> Where enabled, you must scan or verify the dynamic rotating entrance code displayed at the facility entrance to confirm physical entry.</li>
+              <li><strong>Device & IP Logging:</strong> For custody auditing and emergency accountability, your client IP address, device model/user-agent, and check-in timestamp are logged with each attendance event.</li>
+              <li><strong>Pickup Security:</strong> The Digital Claim Pass issued to your mobile device upon check-in must be presented to classroom teachers or volunteers before any child can be released.</li>
+            </ul>
+          </CardContent>
+        </Card>
+
         {/* Modifications */}
         <Card className="border-border shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2 text-foreground">
               <CheckCircle2 className="h-5 w-5 text-indigo-600" />
-              5. Changes to Terms & Contact
+              6. Changes to Terms & Contact
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground leading-relaxed">

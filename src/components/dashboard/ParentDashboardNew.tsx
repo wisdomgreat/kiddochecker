@@ -1,5 +1,6 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MobileCheckInDialog } from "@/components/parent/MobileCheckInDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +12,8 @@ import {
 import {
     Baby, CheckCircle2, Award, MessageSquare,
     QrCode, ChevronRight, Clock, Activity,
-    Bell, Copy, Check, Info, ShieldAlert, Vibrate
+    Bell, Copy, Check, Info, ShieldAlert, Vibrate,
+    Sparkles, MapPin
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, subDays } from "date-fns";
@@ -45,6 +47,8 @@ const ParentDashboardNew = () => {
     const { t } = useTranslation();
     const [copied, setCopied] = React.useState(false);
     const [showPagerInfo, setShowPagerInfo] = React.useState(false);
+    const [showMobileCheckIn, setShowMobileCheckIn] = React.useState(false);
+    const queryClient = useQueryClient();
 
     // Fetch user profile for latest family sanctuary code
     const { data: userProfile } = useQuery({
@@ -218,6 +222,36 @@ const ParentDashboardNew = () => {
                 </Button>
             }
         >
+            {/* Express Mobile Check-In Card */}
+            <div className="surface-card bg-gradient-to-r from-emerald-500/10 via-blue-500/5 to-primary/10 border-emerald-500/30 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-enter animate-enter-1">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-950/20">
+                        <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-extrabold text-sm sm:text-base text-foreground">
+                                Express Mobile Check-In
+                            </h3>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                At Church Only
+                            </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Verify your church GPS location, scan the entrance display, and tags print automatically.
+                        </p>
+                    </div>
+                </div>
+
+                <Button
+                    onClick={() => setShowMobileCheckIn(true)}
+                    className="h-10 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-emerald-900/20 gap-2 shrink-0 cursor-pointer"
+                >
+                    <MapPin className="h-4 w-4" />
+                    <span>Start Mobile Check-In</span>
+                </Button>
+            </div>
+
             {/* Family Sanctuary Pager Code Banner - compact horizontal bar */}
             <div className="surface-card bg-gradient-to-r from-primary/10 via-slate-500/5 to-indigo-500/10 border-primary/25 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl flex items-center justify-between gap-2.5 animate-enter animate-enter-1">
                 <div className="flex items-center gap-2.5 min-w-0">

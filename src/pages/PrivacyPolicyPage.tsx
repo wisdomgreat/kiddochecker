@@ -84,6 +84,12 @@ export const PrivacyPolicyPage = () => {
                 Live check-in and check-out timestamps, matching claim-ticket tokens, and designated authorized pickup individuals with contact verification.
               </p>
             </div>
+            <div>
+              <h4 className="font-semibold text-foreground text-sm">E. Geolocation & Device Telemetry (Mobile Self Check-In):</h4>
+              <p className="mt-1">
+                When parents utilize Express Mobile Check-In from personal mobile devices, we process device GPS coordinates (latitude, longitude, and accuracy radius) solely to verify physical presence on church premises within designated safety perimeters. We also record client IP addresses, browser/device user agents, and entrance verification timestamps in secure forensic logs. Geolocation coordinates are evaluated in real time at the moment of check-in and are never used for continuous tracking or third-party behavioral profiling.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

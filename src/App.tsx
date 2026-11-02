@@ -79,6 +79,7 @@ const AboutUsPage = lazyWithRetry(() => import("./pages/AboutUsPage"));
 const PrivacyPolicyPage = lazyWithRetry(() => import("./pages/PrivacyPolicyPage"));
 const TermsOfServicePage = lazyWithRetry(() => import("./pages/TermsOfServicePage"));
 const CentersPage = lazyWithRetry(() => import("./pages/CentersPage"));
+const EntranceDisplayPage = lazyWithRetry(() => import("./pages/EntranceDisplayPage"));
 
 const ShiftManagementPage = lazyWithRetry(() => import("./pages/ShiftManagementPage"));
 const ChurchManagementPage = lazyWithRetry(() => import("./pages/ChurchManagementPage"));
@@ -145,6 +146,8 @@ function App() {
                       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/landing" element={<LandingPage />} />
+                      <Route path="/entrance-display" element={<EntranceDisplayPage />} />
+                      <Route path="/entrance-qr" element={<EntranceDisplayPage />} />
                       <Route path="/check-in" element={
                         <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk']}>
                           <CheckInPage />
