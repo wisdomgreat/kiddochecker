@@ -476,3 +476,4 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
     </Dialog>
   );
 };
+
