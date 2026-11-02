@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
-import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Award, QrCode, Bell } from "lucide-react";
+import { User, Mail, Phone, MapPin, Edit, Save, X, Heart, ShieldCheck, Award, QrCode, Bell, Eye, EyeOff, Key } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { useMembers } from "@/hooks/useMembers";
 import { format } from "date-fns";
@@ -78,6 +78,8 @@ const ParentProfile = () => {
   const [address, setAddress] = useState("");
   const [securityPin, setSecurityPin] = useState("");
   const [showPin, setShowPin] = useState(false);
+  const [isEditingPin, setIsEditingPin] = useState(false);
+  const [savingPin, setSavingPin] = useState(false);
   const [photoUrl, setPhotoUrl] = useState("");
   const [isMilestoneOpen, setIsMilestoneOpen] = useState(false);
   const [newMilestoneType, setNewMilestoneType] = useState("Baptism");
@@ -226,10 +228,47 @@ const ParentProfile = () => {
     await updateProfileMutation.mutateAsync();
   };
 
+  const handleQuickSavePin = async () => {
+    if (!user) return;
+    if (securityPin.length < 4 || securityPin.length > 6) {
+      toast({
+        title: "Invalid PIN",
+        description: "PIN must be between 4 and 6 digits.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavingPin(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ security_pin: securityPin } as any)
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["profile", user.id] });
+      toast({
+        title: "PIN Updated",
+        description: "Your kiosk security PIN has been saved.",
+      });
+      setIsEditingPin(false);
+    } catch (err: any) {
+      console.error("Error saving PIN:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update PIN",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPin(false);
+    }
+  };
+
   const handleAddMilestone = () => {
     if (!myMembership || !newMilestoneDate) return;
 
-    const currentMilestones = (myMembership.spiritual_milestones as Milestone[]) || [];
+    const currentMilestones = (myMembership.spiritual_milestones as unknown as Milestone[]) || [];
     const updatedMilestones = [
       ...currentMilestones,
       {
@@ -240,7 +279,7 @@ const ParentProfile = () => {
 
     updateMember({
       id: myMembership.id,
-      spiritual_milestones: updatedMilestones
+      spiritual_milestones: updatedMilestones as any
     });
 
     setIsMilestoneOpen(false);
@@ -349,40 +388,92 @@ const ParentProfile = () => {
           </div>
 
           {/* Security PIN */}
-          <div className="space-y-2">
-            <Label htmlFor="securityPin">Kiosk Security PIN (4 to 6 Digits)</Label>
+          <div className="space-y-3 p-4 rounded-2xl bg-slate-50/80 border border-slate-200">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <Label htmlFor="securityPin" className="text-sm font-bold text-slate-800">
+                  Kiosk Security PIN (4 to 6 Digits)
+                </Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Used by you or volunteers to check in children at the kiosk station.
+                </p>
+              </div>
+              {!isEditing && (
+                !isEditingPin ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs font-semibold shrink-0 border-primary/30 hover:bg-primary/5 text-primary"
+                    onClick={() => {
+                      setShowPin(true);
+                      setIsEditingPin(true);
+                    }}
+                  >
+                    <Key className="mr-1.5 h-3.5 w-3.5 text-primary" />
+                    Change PIN
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs text-muted-foreground"
+                      onClick={() => {
+                        setSecurityPin(profile?.security_pin || "");
+                        setIsEditingPin(false);
+                      }}
+                      disabled={savingPin}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 px-3 text-xs font-semibold"
+                      onClick={handleQuickSavePin}
+                      disabled={savingPin}
+                    >
+                      {savingPin ? "Saving…" : "Save PIN"}
+                    </Button>
+                  </div>
+                )
+              )}
+            </div>
+
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Input
                   id="securityPin"
                   type={showPin ? "text" : "password"}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={securityPin}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                     setSecurityPin(val);
                   }}
-                  disabled={!isEditing}
+                  disabled={!isEditing && !isEditingPin}
                   placeholder="4 to 6-Digit PIN"
-                  className="font-mono tracking-widest text-lg"
+                  className="font-mono tracking-widest text-lg bg-card pr-10 border-slate-200"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPin(!showPin)}
+                  aria-label={showPin ? "Hide PIN" : "Show PIN"}
                 >
                   {showPin ? (
-                    <X className="h-4 w-4" />
+                    <EyeOff className="h-4 w-4" />
                   ) : (
-                    <Edit className="h-4 w-4" />
+                    <Eye className="h-4 w-4" />
                   )}
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              This 4 to 6-digit PIN will be used to check in your children at the kiosk station.
-            </p>
           </div>
 
           {/* Family Sanctuary Pager Code */}
@@ -552,7 +643,7 @@ const ParentProfile = () => {
                     <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Spiritual Milestones</Label>
                     <div className="flex flex-wrap gap-3">
                         <AnimatePresence mode="popLayout">
-                            {(myMembership?.spiritual_milestones as Milestone[] || []).map((m, i) => (
+                            {(myMembership?.spiritual_milestones as unknown as Milestone[] || []).map((m, i) => (
                                 <motion.div
                                     key={i}
                                     initial={{ opacity: 0, scale: 0.8 }}

@@ -186,7 +186,7 @@ const AddChildForm = ({ open, onOpenChange, onSuccess }: AddChildFormProps) => {
                   type="number"
                   id="age"
                   placeholder="Enter age"
-                  value={age !== undefined ? age.toString() : ""}
+                  value={age !== undefined && age !== null ? age.toString() : ""}
                   onChange={(e) => setAge(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                   required
                 />

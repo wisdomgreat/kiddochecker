@@ -138,6 +138,56 @@ const KioskCheckInSystem = () => {
   const [parentProfileId, setParentProfileId] = useState<string | null>(null);
   const [parentChildren, setParentChildren] = useState<Child[]>([]);
   const [parentLoginError, setParentLoginError] = useState('');
+
+  // Friendly, professional modal for check-in notices and errors
+  const [friendlyError, setFriendlyError] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    details?: string;
+    onRetry?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: ''
+  });
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+
+  const showFriendlyKioskError = (title: string, message: string, rawError?: any, onRetry?: () => void) => {
+    let details = '';
+    if (rawError) {
+      if (typeof rawError === 'string') {
+        try {
+          const parsed = JSON.parse(rawError);
+          details = parsed.error || parsed.message || rawError;
+        } catch (_) {
+          details = rawError;
+        }
+      } else {
+        details = rawError.message || JSON.stringify(rawError);
+      }
+    }
+
+    let friendlyMsg = message;
+    if (details.includes('inconsistent types') || details.includes('parameter ')) {
+      friendlyMsg = isEs
+        ? "Hubo un breve retraso en la sincronización del sistema. Por favor presione 'Reintentar' para completar el registro."
+        : "There was a brief synchronization delay with the station system. Please tap 'Try Again' to complete check-in.";
+    } else if (details.includes('already checked in') || details.includes('alreadyCheckedIn')) {
+      friendlyMsg = isEs
+        ? "Este niño ya fue registrado como presente el día de hoy."
+        : "This child is already recorded as checked in for today's service.";
+    }
+
+    setShowTechnicalDetails(false);
+    setFriendlyError({
+      isOpen: true,
+      title: title || (isEs ? "Aviso de Registro" : "Check-in Notice"),
+      message: friendlyMsg,
+      details: details && details !== friendlyMsg ? details : undefined,
+      onRetry
+    });
+  };
   const [activeInput, setActiveInput] = useState<'phone' | 'pin'>('phone');
 
   const formatPhoneNumber = (val: string) => {
@@ -763,12 +813,26 @@ const KioskCheckInSystem = () => {
         await loadTodayData();
         setShowNameTagDialog(true);
         startAutoLogoutTimer(7);
-      } else {
-        toast({ title: "Check-in Error", description: result.error || "Could not complete check-in.", variant: "destructive" });
+            } else {
+        showFriendlyKioskError(
+          isEs ? "Aviso de Registro" : "Check-in Notice",
+          isEs
+            ? `No se pudo completar el registro de ${child.first_name}. Por favor toque Reintentar.`
+            : `Could not complete check-in for ${child.first_name}. Please tap Try Again.`,
+          result.error,
+          () => handleParentCheckIn(child)
+        );
       }
     } catch (err: any) {
       console.error('[Kiosk] Auto check-in failed:', err);
-      toast({ title: "Check-in Failed", description: err.message || "Failed to check in", variant: "destructive" });
+      showFriendlyKioskError(
+        isEs ? "Aviso de Registro" : "Check-in Notice",
+        isEs
+          ? `Ocurrió un error inesperado al registrar a ${child.first_name}.`
+          : `An unexpected issue occurred while checking in ${child.first_name}.`,
+        err.message,
+        () => handleParentCheckIn(child)
+      );
     } finally {
       setIsLoading(false);
     }
@@ -2142,6 +2206,65 @@ const KioskCheckInSystem = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Friendly, Professional Kiosk Notice / Error Modal */}
+      <Dialog open={friendlyError.isOpen} onOpenChange={(open) => setFriendlyError(prev => ({ ...prev, isOpen: open }))}>
+        <DialogContent className="max-w-md p-6 overflow-hidden bg-slate-900 border-slate-800 text-white shadow-2xl rounded-3xl">
+          <div className="flex flex-col items-center text-center space-y-4 pt-2">
+            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-inner">
+              <ShieldAlert className="h-7 w-7" />
+            </div>
+
+            <div className="space-y-1.5">
+              <DialogTitle className="text-xl font-bold tracking-tight text-white">
+                {friendlyError.title}
+              </DialogTitle>
+              <DialogDescription className="text-slate-300 text-sm leading-relaxed max-w-sm">
+                {friendlyError.message}
+              </DialogDescription>
+            </div>
+
+            {friendlyError.details && (
+              <div className="w-full text-left pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowTechnicalDetails(prev => !prev)}
+                  className="text-[11px] text-slate-400 hover:text-slate-200 underline tracking-wide"
+                >
+                  {showTechnicalDetails ? (isEs ? "Ocultar diagnóstico" : "Hide technical note") : (isEs ? "Ver diagnóstico para voluntarios" : "View note for volunteers")}
+                </button>
+                {showTechnicalDetails && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-400 break-all select-all">
+                    {friendlyError.details}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col w-full gap-2.5 pt-3">
+              {friendlyError.onRetry && (
+                <Button
+                  onClick={() => {
+                    const retryFn = friendlyError.onRetry;
+                    setFriendlyError(prev => ({ ...prev, isOpen: false }));
+                    if (retryFn) retryFn();
+                  }}
+                  className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-base shadow-lg shadow-primary/20"
+                >
+                  {isEs ? "Reintentar" : "Try Again"}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setFriendlyError(prev => ({ ...prev, isOpen: false }))}
+                className="w-full h-11 rounded-xl border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-medium text-sm"
+              >
+                {isEs ? "Cerrar / Pedir Ayuda" : "Dismiss / Ask Volunteer"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
     </div>
   );

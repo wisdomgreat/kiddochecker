@@ -385,7 +385,7 @@ const AddEditChildDialog: React.FC<AddEditChildDialogProps> = ({ open, onOpenCha
                   <Input
                     id="age"
                     type="number"
-                    value={age !== undefined ? age.toString() : ""}
+                    value={age !== undefined && age !== null ? age.toString() : ""}
                     onChange={(e) => setAge(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={loading}
                     className="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-card transition-all"

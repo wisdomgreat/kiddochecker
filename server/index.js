@@ -2291,16 +2291,21 @@ app.post('/api/rpc', verifyToken, async (req, res) => {
         }
 
         // 3. Insert fresh check-in record
+        let targetOrgId = orgId;
+        if (!targetOrgId && childId) {
+          const orgLookup = await pool.query('SELECT organization_id FROM public.children WHERE id::text = $1::text LIMIT 1', [childId]);
+          targetOrgId = orgLookup.rows[0]?.organization_id || null;
+        }
+
         const insertRes = await pool.query(`
           INSERT INTO public.attendance (
             child_id, class_id, checked_in_by, qr_token, checked_in_method, checked_in_station,
             special_instructions, health_fever, health_cough, device_metadata, device_id,
             checked_in_at, attendance_date, status, organization_id
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), CURRENT_DATE, 'present',
-            COALESCE($12, (SELECT organization_id FROM public.children WHERE id::text = $1::text LIMIT 1))
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), CURRENT_DATE, 'present', $12
           ) RETURNING id;
-        `, [childId, classId, checkedInBy, qrToken, method, station, specialInstructions, healthFever, healthCough, JSON.stringify(deviceMetadata), deviceId, orgId]);
+        `, [childId, classId, checkedInBy, qrToken, method, station, specialInstructions, healthFever, healthCough, JSON.stringify(deviceMetadata), deviceId, targetOrgId]);
 
         return res.json({ data: insertRes.rows[0].id, error: null });
       } catch (err) {

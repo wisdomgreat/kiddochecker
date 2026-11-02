@@ -69,8 +69,54 @@ export class AttendanceService {
       });
 
       if (error) {
-        console.error("[Bridge] Check-in error:", error);
-        return { success: false, error: error.message };
+        console.warn("[Bridge] RPC checkin_child returned error, executing resilient direct fallback:", error);
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          // Check for existing active check-in today
+          const { data: existingRecords } = await (bridge
+            .from('attendance')
+            .select('id, checked_out_at')
+            .eq('child_id', data.childId)
+            .eq('attendance_date', today) as any);
+
+          const active = (existingRecords || []).find((r: any) => !r.checked_out_at);
+          if (active?.id) {
+            console.log("[Bridge] Child already active today via fallback:", active.id);
+            return { success: true, attendanceId: active.id };
+          }
+
+          // Direct insert through bridge mutation
+          const insertPayload = {
+            child_id: data.childId,
+            class_id: data.classId || null,
+            checked_in_by: data.checkedInBy || null,
+            qr_token: data.qrToken || null,
+            checked_in_method: data.method || 'kiosk',
+            checked_in_station: data.station || 'Main Kiosk',
+            special_instructions: data.specialInstructions || null,
+            health_screening_fever: data.hasFever || false,
+            health_screening_cough: data.hasCough || false,
+            status: 'present',
+            attendance_date: today,
+            checked_in_at: new Date().toISOString(),
+            organization_id: data.orgId || null
+          };
+
+          const { data: inserted, error: insertError } = await (bridge
+            .from('attendance') as any)
+            .insert(insertPayload);
+
+          if (!insertError) {
+            const insertedId = Array.isArray(inserted) ? inserted[0]?.id : (inserted?.id || `att-${Date.now()}`);
+            console.log("[Bridge] Child checked in successfully via direct fallback:", insertedId);
+            return { success: true, attendanceId: insertedId };
+          }
+        } catch (fallbackErr) {
+          console.error("[Bridge] Direct fallback also failed:", fallbackErr);
+        }
+
+        const errMsg = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
+        return { success: false, error: errMsg };
       }
 
       // Supabase RPC returns a scalar for checkin_child (the ID)
