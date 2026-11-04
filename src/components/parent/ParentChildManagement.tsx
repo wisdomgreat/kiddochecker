@@ -33,34 +33,59 @@ const ParentChildManagement = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+
   const { data: children = [], isLoading, refetch } = useQuery({
     queryKey: ['parent-children', user?.id],
     queryFn: async (): Promise<Child[]> => {
-      if (!user) return [];
+      if (!user?.id) return [];
 
       try {
-        // Try to use the RPC function first
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
-          parent_user_id: user.id
-        });
+        // Build set of currently present children for today
+        const today = new Date().toISOString().split('T')[0];
+        let presentSet = new Set<string>();
 
-        if (!rpcError && rpcData) {
-          // Map the RPC result to match our Child interface
-          return rpcData.map((child: any) => ({
-            id: child.child_id,
-            first_name: child.first_name,
-            last_name: child.last_name,
-            age: child.age,
-            allergies: child.allergies,
-            medical_info: child.medical_info,
-            emergency_contact_name: child.emergency_contact_name,
-            emergency_contact_phone: child.emergency_contact_phone,
-            current_class_name: child.current_class_name,
-            is_present: presentSet.has(child.child_id || child.id),
-          }));
+        try {
+          const { data: attendanceData } = await supabase
+            .from('attendance')
+            .select('child_id, checked_in_at, checked_out_at')
+            .eq('attendance_date', today);
+
+          if (Array.isArray(attendanceData)) {
+            presentSet = new Set(
+              attendanceData
+                .filter((a: any) => a.checked_in_at && !a.checked_out_at)
+                .map((a: any) => a.child_id)
+            );
+          }
+        } catch (attErr) {
+          console.warn('Could not query today attendance for presence flags:', attErr);
         }
 
-        // Fallback to direct query
+        // Try to use the RPC function first
+        try {
+          const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
+            parent_user_id: user.id
+          });
+
+          if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+            return rpcData.map((child: any) => ({
+              id: child.child_id || child.id,
+              first_name: child.first_name,
+              last_name: child.last_name,
+              age: child.age,
+              allergies: child.allergies,
+              medical_info: child.medical_info,
+              emergency_contact_name: child.emergency_contact_name,
+              emergency_contact_phone: child.emergency_contact_phone,
+              current_class_name: child.current_class_name || 'General / Summer Camp',
+              is_present: presentSet.has(child.child_id || child.id),
+            }));
+          }
+        } catch (rpcErr) {
+          console.warn('Notice in get_parent_children_with_classes RPC, falling back to direct query:', rpcErr);
+        }
+
+        // Resilient direct query fallback
         const { data, error } = await supabase
           .from('children')
           .select('*')
@@ -68,11 +93,11 @@ const ParentChildManagement = () => {
           .order('first_name');
 
         if (error) {
-          console.error('Error fetching children:', error);
+          console.error('Error fetching children via direct query:', error);
           throw error;
         }
 
-        return (data || []).map(child => ({
+        return (data || []).map((child: any) => ({
           id: child.id,
           first_name: child.first_name,
           last_name: child.last_name,
@@ -81,7 +106,7 @@ const ParentChildManagement = () => {
           medical_info: child.medical_info,
           emergency_contact_name: child.emergency_contact_name,
           emergency_contact_phone: child.emergency_contact_phone,
-          current_class_name: undefined,
+          current_class_name: child.current_class_name || child.class_name || 'General / Summer Camp',
           is_present: presentSet.has(child.id),
         }));
       } catch (error) {
@@ -94,7 +119,7 @@ const ParentChildManagement = () => {
         return [];
       }
     },
-    enabled: !!user,
+    enabled: !!user?.id,
   });
 
   useEffect(() => {
@@ -268,5 +293,3 @@ const ParentChildManagement = () => {
 };
 
 export default ParentChildManagement;
-
-

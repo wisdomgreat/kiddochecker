@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -15,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertTriangle, Camera, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/useToast';
+import { cn } from '@/lib/utils';
 
 interface LogIncidentDialogProps {
   open: boolean;
@@ -97,7 +97,10 @@ const LogIncidentDialog: React.FC<LogIncidentDialogProps> = ({
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Event Type</Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger className="h-12 rounded-2xl bg-muted/30 border-transparent focus:bg-background transition-all font-bold">
+                <SelectTrigger className={cn(
+                  "h-12 rounded-2xl bg-muted/30 border-transparent focus:bg-background transition-all font-bold",
+                  severity === 'high' && "text-destructive"
+                )}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-border/50">

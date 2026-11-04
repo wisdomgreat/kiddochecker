@@ -13,6 +13,7 @@ import {
   Bell,
   Vibrate,
   Monitor,
+  Smartphone,
   Printer,
   QrCode,
   Users,
