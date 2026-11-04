@@ -63,6 +63,7 @@ export function AppSidebar() {
         { title: t("kioskStation"), url: "/check-in", icon: Monitor },
         { title: t("checkOut"), url: "/check-out", icon: LogOut },
         { title: "Staff Training Hub", url: "/training", icon: GraduationCap },
+        { title: "Entrance QR Display", url: "/entrance-display", icon: QrCode },
         { title: t("attendanceRewards"), url: "/admin/rewards", icon: Trophy },
       ],
     },

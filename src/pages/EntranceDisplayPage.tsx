@@ -12,7 +12,7 @@ export const EntranceDisplayPage = () => {
 
   const fetchToken = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_LOCAL_BACKEND_URL || "";
+      const baseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_LOCAL_BACKEND_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
       const res = await fetch(`${baseUrl}/api/entrance-code/current`);
       if (res.ok) {
         const data = await res.json();
@@ -171,4 +171,3 @@ export const EntranceDisplayPage = () => {
 };
 
 export default EntranceDisplayPage;
-

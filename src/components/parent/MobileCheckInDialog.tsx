@@ -75,7 +75,7 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
 
   const fetchGeofence = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_LOCAL_BACKEND_URL || "";
+      const baseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_LOCAL_BACKEND_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
       const res = await fetch(`${baseUrl}/api/church/geofence`);
       if (res.ok) {
         const data = await res.json();
