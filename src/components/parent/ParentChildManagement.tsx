@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/useToast";
 import { UserPlus, Edit2, QrCode, User, Calendar } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import AddEditChildDialog from "@/components/children/AddEditChildDialog";
@@ -34,42 +34,57 @@ const ParentChildManagement = () => {
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const queryClient = useQueryClient();
+
+  const handleRefresh = () => {
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ['parent-my-children'] });
+    queryClient.invalidateQueries({ queryKey: ['parent-children'] });
+  };
+
   const { data: children = [], isLoading, refetch } = useQuery({
-    queryKey: ['parent-children', user?.id],
+    queryKey: ['parent-my-children', user?.id],
     queryFn: async (): Promise<Child[]> => {
       if (!user?.id) return [];
 
+      let fetchedChildren: Child[] = [];
+
+      // 1. Primary: RPC get_parent_children_with_classes (supports Azure AD UID, parent email, class info)
       try {
-        // Build set of currently present children for today
-        const today = new Date().toISOString().split('T')[0];
-        let presentSet = new Set<string>();
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
+          parent_user_id: user.id
+        });
 
-        try {
-          const { data: attendanceData } = await supabase
-            .from('attendance')
-            .select('child_id, checked_in_at, checked_out_at')
-            .eq('attendance_date', today);
-
-          if (Array.isArray(attendanceData)) {
-            presentSet = new Set(
-              attendanceData
-                .filter((a: any) => a.checked_in_at && !a.checked_out_at)
-                .map((a: any) => a.child_id)
-            );
-          }
-        } catch (attErr) {
-          console.warn('Could not query today attendance for presence flags:', attErr);
+        if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+          fetchedChildren = rpcData.map((child: any) => ({
+            id: child.child_id || child.id,
+            first_name: child.first_name,
+            last_name: child.last_name,
+            age: child.age,
+            allergies: child.allergies,
+            medical_info: child.medical_info,
+            emergency_contact_name: child.emergency_contact_name,
+            emergency_contact_phone: child.emergency_contact_phone,
+            current_class_name: child.current_class_name || 'General / Summer Camp',
+            is_present: false,
+          }));
         }
+      } catch (rpcErr) {
+        console.warn('Notice in get_parent_children_with_classes RPC, trying direct fallback:', rpcErr);
+      }
 
-        // Try to use the RPC function first
+      // 2. Direct query fallback if RPC returned nothing
+      if (fetchedChildren.length === 0) {
         try {
-          const { data: rpcData, error: rpcError } = await supabase.rpc('get_parent_children_with_classes', {
-            parent_user_id: user.id
-          });
+          const { data: directData, error: directErr } = await supabase
+            .from('children')
+            .select('*')
+            .eq('parent_id', user.id)
+            .order('first_name');
 
-          if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
-            return rpcData.map((child: any) => ({
-              id: child.child_id || child.id,
+          if (!directErr && Array.isArray(directData) && directData.length > 0) {
+            fetchedChildren = directData.map((child: any) => ({
+              id: child.id,
               first_name: child.first_name,
               last_name: child.last_name,
               age: child.age,
@@ -77,47 +92,41 @@ const ParentChildManagement = () => {
               medical_info: child.medical_info,
               emergency_contact_name: child.emergency_contact_name,
               emergency_contact_phone: child.emergency_contact_phone,
-              current_class_name: child.current_class_name || 'General / Summer Camp',
-              is_present: presentSet.has(child.child_id || child.id),
+              current_class_name: child.current_class_name || child.class_name || 'General / Summer Camp',
+              is_present: false,
             }));
           }
-        } catch (rpcErr) {
-          console.warn('Notice in get_parent_children_with_classes RPC, falling back to direct query:', rpcErr);
+        } catch (directErr) {
+          console.warn('Direct query fallback error in ParentChildManagement:', directErr);
         }
-
-        // Resilient direct query fallback
-        const { data, error } = await supabase
-          .from('children')
-          .select('*')
-          .eq('parent_id', user.id)
-          .order('first_name');
-
-        if (error) {
-          console.error('Error fetching children via direct query:', error);
-          throw error;
-        }
-
-        return (data || []).map((child: any) => ({
-          id: child.id,
-          first_name: child.first_name,
-          last_name: child.last_name,
-          age: child.age,
-          allergies: child.allergies,
-          medical_info: child.medical_info,
-          emergency_contact_name: child.emergency_contact_name,
-          emergency_contact_phone: child.emergency_contact_phone,
-          current_class_name: child.current_class_name || child.class_name || 'General / Summer Camp',
-          is_present: presentSet.has(child.id),
-        }));
-      } catch (error) {
-        console.error('Error in parent children fetch:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load children',
-          variant: 'destructive',
-        });
-        return [];
       }
+
+      // 3. Enrich with today attendance status non-blockingly
+      if (fetchedChildren.length > 0) {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const { data: attendanceData } = await supabase
+            .from('attendance')
+            .select('child_id, checked_in_at, checked_out_at')
+            .eq('attendance_date', today);
+
+          if (Array.isArray(attendanceData)) {
+            const presentSet = new Set(
+              attendanceData
+                .filter((a: any) => a.checked_in_at && !a.checked_out_at)
+                .map((a: any) => a.child_id)
+            );
+            fetchedChildren = fetchedChildren.map(c => ({
+              ...c,
+              is_present: presentSet.has(c.id),
+            }));
+          }
+        } catch (attErr) {
+          console.warn('Attendance presence check warning (non-fatal):', attErr);
+        }
+      }
+
+      return fetchedChildren;
     },
     enabled: !!user?.id,
   });
@@ -268,7 +277,7 @@ const ParentChildManagement = () => {
         onOpenChange={setShowAddModal}
         onSuccess={() => {
           setShowAddModal(false);
-          refetch();
+          handleRefresh();
         }}
       />
 
@@ -279,7 +288,7 @@ const ParentChildManagement = () => {
         onSuccess={() => {
           setShowEditModal(false);
           setSelectedChild(null);
-          refetch();
+          handleRefresh();
         }}
       />
 

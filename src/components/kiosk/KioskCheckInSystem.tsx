@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, CheckCircle, Maximize, Loader2,
   MapPin, Shield, KeyRound, UserCog, LogIn, LogOut, QrCode,
-  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone, ShieldAlert, Printer
+  Baby, Phone, User, Clock, ArrowRight, Eraser, Globe, PenTool, Smartphone, ShieldAlert, Printer, AlertTriangle
 } from 'lucide-react';
 import { PrintService } from '@/services/printService';
 import { AttendanceService } from '@/services/attendanceService';
