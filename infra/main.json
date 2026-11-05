@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "8657731702610075165"
+      "templateHash": "13451083976418851487"
     }
   },
   "parameters": {
@@ -18,7 +18,7 @@
     },
     "appName": {
       "type": "string",
-      "defaultValue": "kcheck",
+      "defaultValue": "kiddo",
       "metadata": {
         "description": "The short name of the application."
       }
@@ -35,16 +35,60 @@
       "metadata": {
         "description": "Database administrator password."
       }
+    },
+    "apiImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest",
+      "metadata": {
+        "description": "The Docker image for the Data Bridge API."
+      }
+    },
+    "frontendUrl": {
+      "type": "string",
+      "defaultValue": "https://happy-glacier-0746a2210.7.azurestaticapps.net",
+      "metadata": {
+        "description": "The frontend SWA URL for password reset links."
+      }
+    },
+    "resendApiKey": {
+      "type": "securestring",
+      "defaultValue": "re_placeholder_key_configured_in_azure",
+      "metadata": {
+        "description": "Resend API key for email delivery."
+      }
+    },
+    "azureCommunicationConnectionString": {
+      "type": "securestring",
+      "defaultValue": "endpoint=https://placeholder.communication.azure.com/;accesskey=placeholder",
+      "metadata": {
+        "description": "Azure Communication Services Connection String."
+      }
+    },
+    "azureCommunicationSenderAddress": {
+      "type": "string",
+      "defaultValue": "DoNotReply@kiddochecker.azurecomm.net",
+      "metadata": {
+        "description": "Azure Communication Services Sender Address."
+      }
+    },
+    "bridgeSecret": {
+      "type": "securestring",
+      "defaultValue": "kiddochecker-jwt-secret-key-2026",
+      "metadata": {
+        "description": "Secret key for signing JWT tokens in the bridge API."
+      }
     }
   },
   "variables": {
     "suffix": "[substring(uniqueString(resourceGroup().id), 0, 5)]",
-    "acrName": "[format('cr{0}{1}', parameters('appName'), variables('suffix'))]",
-    "keyVaultName": "[format('kv{0}{1}', parameters('appName'), variables('suffix'))]",
-    "dbServerName": "[format('psql-{0}-{1}', parameters('appName'), variables('suffix'))]",
-    "caEnvName": "[format('cae-{0}-{1}', parameters('appName'), variables('suffix'))]",
-    "swaName": "[format('swa-{0}-{1}', parameters('appName'), variables('suffix'))]",
-    "logWorkspaceName": "[format('log-{0}-{1}', parameters('appName'), variables('suffix'))]",
+    "vnetName": "[format('vnet-{0}-{1}-{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+    "acrName": "[format('cr{0}{1}{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+    "keyVaultName": "[format('kv{0}{1}{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+    "dbServerName": "[format('psql-{0}-{1}-{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+    "caEnvName": "[format('cae-{0}-{1}-{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+    "swaName": "[format('swa-{0}-{1}-{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+    "logWorkspaceName": "[format('log-{0}-{1}-{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+    "privateDnsZoneName": "[format('{0}.private.postgres.database.azure.com', variables('dbServerName'))]",
     "tags": {
       "Project": "KiddoChecker",
       "Environment": "[parameters('env')]",
@@ -52,6 +96,96 @@
     }
   },
   "resources": [
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('vnetName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "snet-postgres",
+            "properties": {
+              "addressPrefix": "10.0.1.0/24",
+              "delegations": [
+                {
+                  "name": "dlg-postgres",
+                  "properties": {
+                    "serviceName": "Microsoft.DBforPostgreSQL/flexibleServers"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "snet-app",
+            "properties": {
+              "addressPrefix": "10.0.2.0/24",
+              "delegations": [
+                {
+                  "name": "dlg-app",
+                  "properties": {
+                    "serviceName": "Microsoft.App/environments"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "snet-migration",
+            "properties": {
+              "addressPrefix": "10.0.3.0/24",
+              "delegations": [
+                {
+                  "name": "dlg-aci",
+                  "properties": {
+                    "serviceName": "Microsoft.ContainerInstance/containerGroups"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "metadata": {
+        "description": "0. Virtual Network - The private security perimeter."
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2020-06-01",
+      "name": "[variables('privateDnsZoneName')]",
+      "location": "global",
+      "tags": "[variables('tags')]",
+      "metadata": {
+        "description": "Private DNS Zone for PostgreSQL isolation."
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2020-06-01",
+      "name": "[format('{0}/{1}', variables('privateDnsZoneName'), format('{0}-link', variables('vnetName')))]",
+      "location": "global",
+      "properties": {
+        "registrationEnabled": false,
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+      ],
+      "metadata": {
+        "description": "Link Private DNS Zone to the VNet."
+      }
+    },
     {
       "type": "Microsoft.ContainerRegistry/registries",
       "apiVersion": "2023-07-01",
@@ -65,7 +199,7 @@
         "adminUserEnabled": true
       },
       "metadata": {
-        "description": "1. Azure Container Registry - Stores microservice Docker images."
+        "description": "1. Azure Container Registry"
       }
     },
     {
@@ -83,12 +217,12 @@
         "enableRbacAuthorization": true
       },
       "metadata": {
-        "description": "2. Azure Key Vault - Securely manages secrets and API keys."
+        "description": "2. Azure Key Vault"
       }
     },
     {
       "type": "Microsoft.DBforPostgreSQL/flexibleServers",
-      "apiVersion": "2023-06-01-preview",
+      "apiVersion": "2024-08-01",
       "name": "[variables('dbServerName')]",
       "location": "[parameters('location')]",
       "tags": "[variables('tags')]",
@@ -100,6 +234,10 @@
         "version": "15",
         "administratorLogin": "kiddomin",
         "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+        "network": {
+          "delegatedSubnetResourceId": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '2023-05-01').subnets[0].id]",
+          "privateDnsZoneArmResourceId": "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+        },
         "storage": {
           "storageSizeGB": 32
         },
@@ -107,24 +245,26 @@
           "backupRetentionDays": 7
         }
       },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+        "[resourceId('Microsoft.Network/privateDnsZones/virtualNetworkLinks', variables('privateDnsZoneName'), format('{0}-link', variables('vnetName')))]"
+      ],
       "metadata": {
-        "description": "3. PostgreSQL Flexible Server - Primary multi-tenant database."
+        "description": "3. PostgreSQL Flexible Server - Now Isolated in VNet."
       }
     },
     {
-      "type": "Microsoft.DBforPostgreSQL/flexibleServers/firewallRules",
-      "apiVersion": "2023-06-01-preview",
-      "name": "[format('{0}/{1}', variables('dbServerName'), 'AllowAzureServices')]",
+      "type": "Microsoft.DBforPostgreSQL/flexibleServers/databases",
+      "apiVersion": "2024-08-01",
+      "name": "[format('{0}/{1}', variables('dbServerName'), 'kiddochecker')]",
       "properties": {
-        "startIpAddress": "0.0.0.0",
-        "endIpAddress": "0.0.0.0"
+        "charset": "utf8",
+        "collation": "en_US.utf8"
       },
       "dependsOn": [
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', variables('dbServerName'))]"
-      ],
-      "metadata": {
-        "description": "Database Firewall Rule - Allows Azure services to connect."
-      }
+      ]
     },
     {
       "type": "Microsoft.App/managedEnvironments",
@@ -139,13 +279,18 @@
             "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName')), '2022-10-01').customerId]",
             "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName')), '2022-10-01').primarySharedKey]"
           }
+        },
+        "vnetConfiguration": {
+          "infrastructureSubnetId": "[reference(resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), '2023-05-01').subnets[1].id]",
+          "internal": false
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName'))]"
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logWorkspaceName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
       ],
       "metadata": {
-        "description": "4. Container Apps Environment - The hosting environment for all microservices."
+        "description": "4. Container Apps Environment - Integrated with Networking."
       }
     },
     {
@@ -161,7 +306,7 @@
         "retentionInDays": 30
       },
       "metadata": {
-        "description": "5. Log Analytics Workspace - Centralized monitoring and performance metrics."
+        "description": "5. Log Analytics Workspace"
       }
     },
     {
@@ -176,7 +321,114 @@
       },
       "properties": {},
       "metadata": {
-        "description": "6. Azure Static Web App - Hosts the React frontend with global CDN distribution."
+        "description": "6. Azure Static Web App"
+      }
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2023-05-01",
+      "name": "[format('ca-api-{0}-{1}-{2}', parameters('appName'), parameters('env'), variables('suffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": 3001,
+            "allowInsecure": false
+          },
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').loginServer]",
+              "username": "[variables('acrName')]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "db-password",
+              "value": "[parameters('administratorLoginPassword')]"
+            },
+            {
+              "name": "resend-api-key",
+              "value": "[parameters('resendApiKey')]"
+            },
+            {
+              "name": "bridge-secret",
+              "value": "[parameters('bridgeSecret')]"
+            },
+            {
+              "name": "acs-connection-string",
+              "value": "[parameters('azureCommunicationConnectionString')]"
+            }
+          ]
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "bridge-api",
+              "image": "[parameters('apiImage')]",
+              "env": [
+                {
+                  "name": "DB_HOST",
+                  "value": "10.0.1.4"
+                },
+                {
+                  "name": "DB_PASSWORD",
+                  "secretRef": "db-password"
+                },
+                {
+                  "name": "DB_USER",
+                  "value": "kiddomin"
+                },
+                {
+                  "name": "DB_NAME",
+                  "value": "kiddochecker"
+                },
+                {
+                  "name": "RESEND_API_KEY",
+                  "secretRef": "resend-api-key"
+                },
+                {
+                  "name": "AZURE_COMMUNICATION_CONNECTION_STRING",
+                  "secretRef": "acs-connection-string"
+                },
+                {
+                  "name": "AZURE_COMMUNICATION_SENDER_ADDRESS",
+                  "value": "[parameters('azureCommunicationSenderAddress')]"
+                },
+                {
+                  "name": "BRIDGE_SECRET",
+                  "secretRef": "bridge-secret"
+                },
+                {
+                  "name": "FRONTEND_URL",
+                  "value": "[parameters('frontendUrl')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.25')]",
+                "memory": "0.5Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 3
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ],
+      "metadata": {
+        "description": "7. Data Bridge API - Container App"
       }
     }
   ],
@@ -196,6 +448,10 @@
     "dbServerName": {
       "type": "string",
       "value": "[variables('dbServerName')]"
+    },
+    "vnetName": {
+      "type": "string",
+      "value": "[variables('vnetName')]"
     }
   }
 }
