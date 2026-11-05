@@ -1,152 +1,152 @@
 import React, { useState, useEffect } from 'react';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Shield, Delete, X } from 'lucide-react';
 
 interface PINDialogProps {
-    open: boolean;
-    onClose: () => void;
-    onSuccess: () => void;
-    correctPin: string;
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  correctPin: string;
 }
 
 const PINDialog = ({ open, onClose, onSuccess, correctPin }: PINDialogProps) => {
-    const [pin, setPin] = useState('');
-    const [error, setError] = useState(false);
-    const [attempts, setAttempts] = useState(0);
-    const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
-    const [timeLeft, setTimeLeft] = useState(0);
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState(0);
 
-    useEffect(() => {
-        if (lockoutUntil) {
-            const timer = setInterval(() => {
-                const remaining = Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000));
-                setTimeLeft(remaining);
-                if (remaining === 0) setLockoutUntil(null);
-            }, 1000);
-            return () => clearInterval(timer);
+  useEffect(() => {
+    if (lockoutUntil) {
+      const timer = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((lockoutUntil - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining === 0) setLockoutUntil(null);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [lockoutUntil]);
+
+  useEffect(() => {
+    if (pin.length === correctPin.length) {
+      if (pin === correctPin) {
+        onSuccess();
+        setPin('');
+        setError(false);
+        setAttempts(0);
+      } else {
+        setError(true);
+        setPin('');
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+
+        if (newAttempts >= 5) {
+          const lockoutTime = 30; // 30 seconds lockout
+          setLockoutUntil(Date.now() + lockoutTime * 1000);
+          setAttempts(0);
         }
-    }, [lockoutUntil]);
 
-    useEffect(() => {
-        if (pin.length === correctPin.length) {
-            if (pin === correctPin) {
-                onSuccess();
-                setPin('');
-                setError(false);
-                setAttempts(0);
-            } else {
-                setError(true);
-                setPin('');
-                const newAttempts = attempts + 1;
-                setAttempts(newAttempts);
+        setTimeout(() => setError(false), 500);
+      }
+    }
+  }, [pin, correctPin, onSuccess, attempts]);
 
-                if (newAttempts >= 5) {
-                    const lockoutTime = 30; // 30 seconds lockout
-                    setLockoutUntil(Date.now() + lockoutTime * 1000);
-                    setAttempts(0);
-                }
+  if (!open) return null;
 
-                setTimeout(() => setError(false), 500);
-            }
-        }
-    }, [pin, correctPin, onSuccess, attempts]);
+  const handleNumberClick = (num: string) => {
+    if (pin.length < correctPin.length) {
+      setPin(prev => prev + num);
+    }
+  };
 
-    if (!open) return null;
+  const handleDelete = () => {
+    setPin(prev => prev.slice(0, -1));
+  };
 
-    const handleNumberClick = (num: string) => {
-        if (pin.length < correctPin.length) {
-            setPin(prev => prev + num);
-        }
-    };
-
-    const handleDelete = () => {
-        setPin(prev => prev.slice(0, -1));
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-300">
-                <div className="p-6 text-center space-y-6">
-                    <div className="flex justify-center">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${error ? 'bg-red-100 text-red-600' : 'bg-indigo-100 text-indigo-600'}`}>
-                            <Shield className="h-8 w-8" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <h2 className="text-2xl font-bold text-foreground">Security PIN Required</h2>
-                        {lockoutUntil ? (
-                            <p className="text-red-500 font-semibold mt-1 animate-pulse">
-                                Too many attempts. Try again in {timeLeft}s
-                            </p>
-                        ) : (
-                            <p className="text-slate-500 mt-1">Please enter your 6-digit access code</p>
-                        )}
-                    </div>
-
-                    <div className="flex justify-center gap-3">
-                        {[...Array(correctPin.length)].map((_, i) => (
-                            <div
-                                key={i}
-                                className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${pin.length > i
-                                    ? 'bg-indigo-600 border-indigo-600 scale-110'
-                                    : error
-                                        ? 'border-red-400 bg-red-50'
-                                        : 'border-slate-300'
-                                    } ${error ? 'animate-bounce' : ''}`}
-                            />
-                        ))}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3 pt-4">
-                        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
-                            <Button
-                                key={num}
-                                variant="outline"
-                                className="h-16 text-2xl font-bold rounded-2xl hover:bg-slate-50 hover:border-indigo-300 active:scale-95 transition-all"
-                                onClick={() => handleNumberClick(num)}
-                                disabled={!!lockoutUntil}
-                            >
-                                {num}
-                            </Button>
-                        ))}
-                        <Button
-                            variant="ghost"
-                            className="h-16 rounded-2xl text-slate-400"
-                            onClick={onClose}
-                        >
-                            <X className="h-6 w-6" />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="h-16 text-2xl font-bold rounded-2xl hover:bg-slate-50 active:scale-95 transition-all"
-                            onClick={() => handleNumberClick('0')}
-                            disabled={!!lockoutUntil}
-                        >
-                            0
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className="h-16 rounded-2xl text-slate-400"
-                            onClick={handleDelete}
-                            disabled={!!lockoutUntil}
-                        >
-                            <Delete className="h-6 w-6" />
-                        </Button>
-                    </div>
-                </div>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl shadow-lg w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="p-6 text-center space-y-5">
+          <div className="flex justify-between items-start">
+            <div className="w-6" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-colors ${error ? 'bg-destructive/10 border-destructive/20 text-destructive' : 'bg-primary/10 border-primary/20 text-primary'}`}>
+              <Shield className="h-6 w-6" />
             </div>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold text-foreground">Security PIN Required</h2>
+            {lockoutUntil ? (
+              <p className="text-destructive font-medium text-xs">
+                Too many attempts. Try again in {timeLeft}s
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-xs">Please enter your authorized terminal access code</p>
+            )}
+          </div>
+
+          <div className="flex justify-center gap-2.5 py-1">
+            {[...Array(correctPin.length)].map((_, i) => (
+              <div
+                key={i}
+                className={`w-3.5 h-3.5 rounded-full border transition-colors ${
+                  pin.length > i
+                    ? 'bg-primary border-primary'
+                    : 'bg-muted border-border'
+                }`}
+              />
+            ))}
+          </div>
+
+          {/* Tactile Keypad Grid */}
+          <div className="grid grid-cols-3 gap-2 pt-2">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+              <button
+                key={num}
+                type="button"
+                onClick={() => handleNumberClick(num.toString())}
+                disabled={!!lockoutUntil}
+                className="h-12 rounded-xl font-semibold text-lg bg-muted/40 hover:bg-muted text-foreground border border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPin('')}
+              className="h-12 rounded-xl font-medium text-xs text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNumberClick('0')}
+              disabled={!!lockoutUntil}
+              className="h-12 rounded-xl font-semibold text-lg bg-muted/40 hover:bg-muted text-foreground border border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              0
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="h-12 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label="Backspace"
+            >
+              <Delete className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default PINDialog;
-

@@ -153,6 +153,11 @@ function App() {
                           <CheckInPage />
                         </RoleBasedRoute>
                       } />
+                      <Route path="/kiosk" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk']}>
+                          <CheckInPage />
+                        </RoleBasedRoute>
+                      } />
                       <Route path="/check-out" element={
                         <RoleBasedRoute allowedRoles={['admin', 'super_admin', 'staff', 'teacher', 'teacher_assistant', 'volunteer', 'kiosk']}>
                           <CheckOutPage />

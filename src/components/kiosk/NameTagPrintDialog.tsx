@@ -279,7 +279,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
                   </div>
                 </div>
                 {child.allergies && (
-                  <div className="bg-red-600 text-white font-bold text-center text-xs py-1 rounded uppercase tracking-wider my-2">
+                  <div className="bg-destructive text-destructive-foreground font-semibold text-center text-xs py-1 rounded my-2">
                     ⚠️ Allergy: {child.allergies}
                   </div>
                 )}
@@ -293,7 +293,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
               <div>
                 <div className="flex justify-between text-xs font-bold mb-1">
                   <span>Class: {className || 'N/A'}</span>
-                  <span>{new Date().toLocaleDateString()}{resolvedFamilyCode ? ` • Pager: #${resolvedFamilyCode}` : ''}</span>
+                  <span>{new Date().toLocaleDateString()}{resolvedFamilyCode ? `  Pager: #${resolvedFamilyCode}` : ''}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <QRCodeSVG

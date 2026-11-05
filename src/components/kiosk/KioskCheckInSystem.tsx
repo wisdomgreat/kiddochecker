@@ -108,13 +108,13 @@ const KioskCheckInSystem = () => {
     try {
       const res = await fetch(target, { method: 'GET' });
       if (res.ok) {
-        toast({ title: "Print Server Online! ✅", description: `Connected to Print Server at ${target}` });
+        toast({ title: "Print Server Online", description: `Connected to Print Server at ${target}` });
       } else {
         toast({ title: "Server Warning", description: `Received status ${res.status}`, variant: "destructive" });
       }
     } catch (err: any) {
       toast({
-        title: "Connection Failed ❌",
+        title: "Connection Failed",
         description: `Could not reach ${target}. Ensure print server is running on port 3003.`,
         variant: "destructive"
       });
@@ -128,7 +128,7 @@ const KioskCheckInSystem = () => {
     localStorage.setItem('kiddochecker_target_printer_ip', targetPrinterIp.trim());
     localStorage.setItem('kiddochecker_target_printer_name', targetPrinterName.trim());
     setShowPrinterDialog(false);
-    toast({ title: "Printer Saved 🖨️", description: "Kiosk printer configuration updated." });
+    toast({ title: "Printer Configuration Saved", description: "Kiosk printer configuration updated." });
   };
 
   const [parentPhone, setParentPhone] = useState('');
@@ -1182,13 +1182,13 @@ const KioskCheckInSystem = () => {
         <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[10px] sm:text-[11px] font-extrabold">
           <button 
             onClick={() => setLanguage('en')} 
-            className={cn("px-2 py-0.5 rounded-md transition-all cursor-pointer", language === 'en' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
+            className={cn("px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs font-semibold", language === 'en' ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}
           >
             EN
           </button>
           <button 
             onClick={() => setLanguage('es')} 
-            className={cn("px-2 py-0.5 rounded-md transition-all cursor-pointer", language === 'es' ? "bg-blue-600 text-white shadow-xs" : "text-slate-400 hover:text-white")}
+            className={cn("px-2.5 py-1 rounded-md transition-colors cursor-pointer text-xs font-semibold", language === 'es' ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}
           >
             ES
           </button>
@@ -1227,10 +1227,10 @@ const KioskCheckInSystem = () => {
         <div className="min-h-[42px] h-auto py-1 px-2 sm:px-6 bg-[#0a0f1d]/90 border-b border-slate-800/90 flex items-center justify-center z-40 shadow-sm">
         <div className="grid grid-cols-4 sm:flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner w-full max-w-lg sm:max-w-none sm:w-auto gap-0.5">
           {[
-            { id: 'parent', label: isEs ? 'PADRES' : 'PARENT DROP-OFF', shortLabel: isEs ? 'PADRES' : 'PARENT', icon: KeyRound },
-            { id: 'youth', label: isEs ? 'JÓVENES' : 'YOUTH CHECK-IN', shortLabel: isEs ? 'JÓVENES' : 'YOUTH', icon: User },
-            { id: 'checkout', label: isEs ? 'SALIDA' : 'SELF CHECK-OUT', shortLabel: isEs ? 'SALIDA' : 'EXIT', icon: LogOut },
-            { id: 'staff', label: isEs ? 'PERSONAL' : 'STAFF PORTAL', shortLabel: isEs ? 'PERSONAL' : 'STAFF', icon: UserCog },
+            { id: 'parent', label: isEs ? 'Padres' : 'Parent check-in', shortLabel: isEs ? 'Padres' : 'Parent', icon: KeyRound },
+            { id: 'youth', label: isEs ? 'Jóvenes' : 'Youth check-in', shortLabel: isEs ? 'Jóvenes' : 'Youth', icon: User },
+            { id: 'checkout', label: isEs ? 'Salida' : 'Check-out', shortLabel: isEs ? 'Salida' : 'Exit', icon: LogOut },
+            { id: 'staff', label: isEs ? 'Personal' : 'Staff portal', shortLabel: isEs ? 'Personal' : 'Staff', icon: UserCog },
           ].map(tab => (
             <button
               key={tab.id}
@@ -1241,7 +1241,7 @@ const KioskCheckInSystem = () => {
                 setStaffPinError('');
               }}
               className={cn(
-                "flex items-center justify-center gap-1 sm:gap-1.5 py-1.5 px-2 sm:px-4 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all duration-150 cursor-pointer text-center",
+                "flex items-center justify-center gap-1 sm:gap-1.5 py-2 px-2.5 sm:px-4 rounded-lg text-xs font-semibold transition-colors duration-150 cursor-pointer text-center",
                 activeTab === tab.id 
                   ? "bg-blue-600 text-white shadow-md shadow-blue-900/50" 
                   : "text-slate-400 hover:text-white hover:bg-slate-900/60"
@@ -1293,13 +1293,13 @@ const KioskCheckInSystem = () => {
                       type="button"
                       onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
                       className={cn(
-                        "h-16 rounded-2xl border px-3 py-2 flex flex-col justify-center text-left transition-all duration-150 cursor-pointer shadow-inner",
+                        "h-16 rounded-xl border px-3.5 py-2 flex flex-col justify-center text-left transition-colors duration-150 cursor-pointer",
                         activeInput === 'phone' 
                           ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
                           : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
                       )}
                     >
-                      <span className={cn("text-[10px] font-bold uppercase tracking-wider flex items-center justify-between", activeInput === 'phone' ? "text-blue-400" : "text-slate-400")}>
+                      <span className={cn("text-xs font-semibold flex items-center justify-between", activeInput === 'phone' ? "text-primary" : "text-muted-foreground")}>
                         <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {isEs ? "Teléfono" : "Phone"}</span>
                         {activeInput === 'phone' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
                       </span>
@@ -1313,13 +1313,13 @@ const KioskCheckInSystem = () => {
                       type="button"
                       onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
                       className={cn(
-                        "h-16 rounded-2xl border px-3 py-2 flex flex-col justify-center text-left transition-all duration-150 cursor-pointer shadow-inner",
+                        "h-16 rounded-xl border px-3.5 py-2 flex flex-col justify-center text-left transition-colors duration-150 cursor-pointer",
                         activeInput === 'pin' 
                           ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
                           : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
                       )}
                     >
-                      <span className={cn("text-[10px] font-bold uppercase tracking-wider flex items-center justify-between", activeInput === 'pin' ? "text-blue-400" : "text-slate-400")}>
+                      <span className={cn("text-xs font-semibold flex items-center justify-between", activeInput === 'pin' ? "text-primary" : "text-muted-foreground")}>
                         <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> PIN</span>
                         {activeInput === 'pin' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
                       </span>
@@ -1350,7 +1350,7 @@ const KioskCheckInSystem = () => {
                 <Button 
                   onClick={handleParentLogin} 
                   disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
-                  className="w-full h-13 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-black uppercase tracking-wider rounded-2xl shadow-xl shadow-blue-950/50 active:scale-[0.98] transition-all cursor-pointer"
+                  className="w-full h-13 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ArrowRight className="w-5 h-5 mr-2" />}
                   {isEs ? "Continuar y Ver Niños" : "Continue to Family Roster"}
@@ -1361,7 +1361,7 @@ const KioskCheckInSystem = () => {
                   <button
                     type="button"
                     onClick={() => setShowParentScanner(true)}
-                    className="flex-1 h-10 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-blue-500/40 flex items-center justify-center gap-2 font-bold text-slate-300 hover:text-white transition-all cursor-pointer"
+                    className="flex-1 h-10 rounded-xl bg-card hover:bg-muted border border-border hover:border-primary/40 flex items-center justify-center gap-2 font-medium text-xs text-foreground transition-colors cursor-pointer"
                   >
                     <QrCode className="w-4 h-4 text-blue-400" />
                     <span>{isEs ? "Escanear Pase QR" : "Scan QR Pass"}</span>
@@ -1391,7 +1391,7 @@ const KioskCheckInSystem = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-800">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+                    <span className="text-xs font-semibold text-primary">
                       {isEs ? "Cuenta Familiar Verificada" : "Verified Family"}
                     </span>
                     {familyCode && (
@@ -1452,7 +1452,7 @@ const KioskCheckInSystem = () => {
                       key={child.id} 
                       onClick={() => handleParentCheckIn(child)}
                       className={cn(
-                        "p-4 rounded-2xl border transition-all duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group shadow-md",
+                        "p-4 rounded-xl border transition-colors duration-150 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group shadow-xs",
                         checked 
                           ? "bg-slate-900/60 border-emerald-500/40 ring-1 ring-emerald-500/20" 
                           : "bg-slate-950/80 hover:bg-slate-900/80 border-slate-800 hover:border-blue-500/50"
@@ -1481,12 +1481,12 @@ const KioskCheckInSystem = () => {
                           {/* Full untruncated Allergy Banner */}
                           {child.allergies ? (
                             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-950/50 px-2.5 py-1 rounded-lg border border-amber-500/30 w-fit">
-                              <span className="shrink-0">⚠️</span>
+                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                               <span>Allergies: {child.allergies}</span>
                             </div>
                           ) : (
                             <p className="text-xs text-slate-500 font-medium">
-                              {checked ? "Present in class • Name badge printed" : "Ready for drop-off"}
+                              {checked ? "Present in class (badge printed)" : "Ready for drop-off"}
                             </p>
                           )}
                         </div>
@@ -1495,7 +1495,7 @@ const KioskCheckInSystem = () => {
                       {/* Right: Big Touch Button */}
                       <div className="shrink-0 flex items-center justify-end">
                         <div className={cn(
-                          "h-12 px-5 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-2 shadow-lg transition-transform group-hover:scale-102",
+                          "h-11 px-5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 shadow-xs transition-colors",
                           checked 
                             ? "bg-slate-800 text-emerald-400 border border-emerald-500/40 hover:bg-rose-950/40 hover:text-rose-300 hover:border-rose-500/50" 
                             : "bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-950/50"
@@ -1528,7 +1528,7 @@ const KioskCheckInSystem = () => {
                 <Button 
                   size="lg" 
                   onClick={handleParentLogout} 
-                  className="w-full sm:w-auto h-12 px-6 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950/50 cursor-pointer"
+                  className="w-full sm:w-auto h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   {isEs ? "Listo / Finalizar" : "Done / Finish"}
@@ -1594,7 +1594,7 @@ const KioskCheckInSystem = () => {
                   <Button 
                     onClick={handleYouthLogin} 
                     disabled={isLoading || youthPinInput.length < 4}
-                    className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98] transition-all"
+                    className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl shadow-xs transition-colors"
                   >
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
                     {isEs ? "Verificar Identidad" : "Verify & Check In"}
@@ -1626,7 +1626,7 @@ const KioskCheckInSystem = () => {
                 <Button 
                   onClick={handleYouthLogin} 
                   disabled={isLoading || youthPinInput.length < 4}
-                  className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md"
+                  className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl shadow-xs transition-colors"
                 >
                   {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <ArrowRight className="w-4 h-4 mr-1.5" />}
                   Verify & Check In
@@ -1646,7 +1646,7 @@ const KioskCheckInSystem = () => {
                     <Shield className="w-7 h-7 sm:w-8 sm:h-8" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-black uppercase tracking-tight text-white">
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground">
                       {isEs ? "Autorización de Seguridad Requerida" : "Security Verification Required"}
                     </h3>
                     <p className="text-[11px] sm:text-xs text-slate-400 max-w-sm mt-1">
@@ -1657,7 +1657,7 @@ const KioskCheckInSystem = () => {
                   </div>
                   <Button 
                     onClick={() => setActiveTab('parent')} 
-                    className="h-10 px-6 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-blue-950"
+                    className="h-10 px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-xl shadow-xs transition-colors"
                   >
                     <KeyRound className="w-4 h-4 mr-2" />
                     {isEs ? "Ir a Verificación Familiar" : "Go to Family Verification"}
@@ -1695,7 +1695,7 @@ const KioskCheckInSystem = () => {
                         <Button 
                           size="sm" 
                           onClick={() => initiateCheckOut(record)} 
-                          className="h-8 px-3 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg"
+                          className="h-8 px-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold text-xs rounded-lg transition-colors"
                         >
                           <LogOut className="w-3 h-3 mr-1" />
                           {isEs ? "Salida" : "Log Exit"}
@@ -1780,7 +1780,7 @@ const KioskCheckInSystem = () => {
 
                       <Button 
                         onClick={handleStaffAuth} 
-                        className="w-full h-11 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-blue-950 active:scale-[0.98]"
+                        className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl shadow-xs transition-colors"
                       >
                         {isEs ? "Desbloquear Estación" : "Unlock Station"}
                       </Button>
@@ -1810,7 +1810,7 @@ const KioskCheckInSystem = () => {
 
                     <Button 
                       onClick={handleStaffAuth} 
-                      className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-md"
+                      className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl shadow-xs transition-colors"
                     >
                       Unlock Station
                     </Button>
@@ -1820,7 +1820,7 @@ const KioskCheckInSystem = () => {
                 <div className="h-full flex flex-col justify-between">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                     <div>
-                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400">
+                      <p className="text-xs font-medium text-primary">
                         {isEs ? "Personal Autenticado" : "Authenticated Staff"}
                       </p>
                       <h2 className="text-base font-black text-white">{staffName}</h2>
@@ -2232,16 +2232,16 @@ const NumericKeypad: React.FC<{
         <button 
           key={num} 
           type="button"
-          className="h-13 sm:h-15 bg-slate-900/95 hover:bg-slate-800/90 active:bg-blue-600 active:scale-95 text-white border border-slate-800/80 active:border-blue-500 rounded-2xl flex items-center justify-center transition-all duration-100 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="h-14 sm:h-16 bg-muted/40 hover:bg-muted active:bg-primary active:text-primary-foreground text-foreground border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
           onClick={() => handlePress(num)}
         >
-          <span className="text-2xl sm:text-3xl font-black text-white">{num}</span>
+          <span className="text-2xl sm:text-3xl font-semibold">{num}</span>
         </button>
       ))}
       
       <button 
         type="button"
-        className="h-13 sm:h-15 bg-slate-950/90 hover:bg-slate-900 active:scale-95 border border-slate-800/80 rounded-2xl flex items-center justify-center text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 transition-all duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+        className="h-14 sm:h-16 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/80 rounded-xl flex items-center justify-center text-xs sm:text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
         onClick={handleClear}
       >
         Clear
@@ -2249,15 +2249,15 @@ const NumericKeypad: React.FC<{
 
       <button 
         type="button"
-        className="h-13 sm:h-15 bg-slate-900/95 hover:bg-slate-800/90 active:bg-blue-600 active:scale-95 text-white border border-slate-800/80 active:border-blue-500 rounded-2xl flex items-center justify-center transition-all duration-100 shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="h-14 sm:h-16 bg-muted/40 hover:bg-muted active:bg-primary active:text-primary-foreground text-foreground border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
         onClick={() => handlePress('0')}
       >
-        <span className="text-2xl sm:text-3xl font-black text-white">0</span>
+        <span className="text-2xl sm:text-3xl font-semibold">0</span>
       </button>
 
       <button 
         type="button"
-        className="h-13 sm:h-15 bg-slate-950/90 hover:bg-slate-900 active:scale-95 border border-slate-800/80 rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+        className="h-14 sm:h-16 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-destructive border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive shadow-xs"
         onClick={handleBackspace}
         title="Backspace"
       >
