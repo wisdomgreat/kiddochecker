@@ -19,6 +19,7 @@ import {
   Info
 } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import { API_BASE_URL, getAccessToken } from "@/lib/apiClient";
 
 interface MobileCheckInDialogProps {
   open: boolean;
@@ -75,8 +76,7 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
 
   const fetchGeofence = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_LOCAL_BACKEND_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
-      const res = await fetch(`${baseUrl}/api/church/geofence`);
+      const res = await fetch(`${API_BASE_URL}/api/church/geofence`);
       if (res.ok) {
         const data = await res.json();
         setGeofenceConfig(data.geofence);
@@ -92,7 +92,7 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
     setErrorMessage("");
 
     if (!("geolocation" in navigator)) {
-      setErrorMessage("Geolocation is not supported by your mobile browser.");
+      setErrorMessage("Geolocation is not supported by your mobile browser. You can still scan the rotating door QR display.");
       setLoading(false);
       return;
     }
@@ -138,35 +138,39 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
       },
       (err) => {
         setLoading(false);
+        console.warn("GPS notice:", err);
         setErrorMessage(
           err.code === 1
-            ? "Location permission was denied. Please allow location access in your browser settings to verify you are at church."
-            : "Unable to retrieve precise GPS coordinates. Please try again."
+            ? "Location permission was denied. You can proceed directly by scanning the rotating entrance display at the church door."
+            : "Unable to retrieve precise GPS coordinates. You can proceed by scanning the rotating entrance display."
         );
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
 
   // Step 2: Verify Entrance QR
   const handleVerifyQrCode = async (codeToVerify: string) => {
+    if (!codeToVerify || !codeToVerify.trim()) {
+      setErrorMessage("Please scan or enter the entrance code.");
+      return;
+    }
     setLoading(true);
     setErrorMessage("");
     try {
-      const baseUrl = import.meta.env.VITE_LOCAL_BACKEND_URL || "";
-      const res = await fetch(`${baseUrl}/api/entrance-code/verify`, {
+      const res = await fetch(`${API_BASE_URL}/api/entrance-code/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: codeToVerify }),
+        body: JSON.stringify({ code: codeToVerify.trim() }),
       });
       const data = await res.json();
       if (!res.ok || !data.valid) {
-        setErrorMessage(data.error || "Invalid or expired entrance code. Please scan the current code on the entrance screen.");
+        setErrorMessage(data.error || "Invalid or expired entrance code. Please scan the current rotating code on the entrance screen.");
         setLoading(false);
         return;
       }
 
-      setEntranceCode(codeToVerify);
+      setEntranceCode(codeToVerify.trim());
       setEntranceVerified(true);
       setLoading(false);
       setStep("children");
@@ -195,14 +199,13 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
           special_instructions: specialNotes,
         }));
 
-      const baseUrl = import.meta.env.VITE_LOCAL_BACKEND_URL || "";
-      const token = localStorage.getItem("kiddo_token") || "";
+      const token = await getAccessToken();
 
-      const res = await fetch(`${baseUrl}/api/mobile-checkin`, {
+      const res = await fetch(`${API_BASE_URL}/api/mobile-checkin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           children: selectedChildren,
@@ -300,6 +303,19 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MapPin className="w-4 h-4 mr-2" />}
               {loading ? "Verifying GPS..." : "Verify My Location & Continue"}
             </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setErrorMessage("");
+                setStep("qr");
+              }}
+              className="w-full text-xs text-slate-300 hover:text-white border-slate-700 hover:bg-slate-800/60 rounded-xl gap-2 h-10"
+            >
+              <QrCode className="w-3.5 h-3.5 text-blue-400" />
+              Scan Rotating Entrance Door Display
+            </Button>
           </div>
         )}
 
@@ -338,7 +354,7 @@ export const MobileCheckInDialog: React.FC<MobileCheckInDialogProps> = ({
               />
               <Button
                 onClick={() => handleVerifyQrCode(manualCodeInput)}
-                disabled={loading || manualCodeInput.length < 6}
+                disabled={loading || !manualCodeInput.trim()}
                 className="h-10 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 rounded-xl cursor-pointer"
               >
                 Verify

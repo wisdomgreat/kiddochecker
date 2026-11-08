@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Shield, Sparkles, Maximize2, Minimize2, RefreshCw, Church } from "lucide-react";
+import { API_BASE_URL } from "@/lib/apiClient";
 
 export const EntranceDisplayPage = () => {
   const [token, setToken] = useState("");
@@ -12,8 +13,7 @@ export const EntranceDisplayPage = () => {
 
   const fetchToken = async () => {
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_LOCAL_BACKEND_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
-      const res = await fetch(`${baseUrl}/api/entrance-code/current`);
+      const res = await fetch(`${API_BASE_URL}/api/entrance-code/current`);
       if (res.ok) {
         const data = await res.json();
         setToken(data.token);

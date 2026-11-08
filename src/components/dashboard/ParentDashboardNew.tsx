@@ -568,6 +568,18 @@ const ParentDashboardNew = () => {
 
             {/* In-App Realtime Sanctuary Page Alert Receiver with Haptic Vibration */}
             <SanctuaryPageReceiver familyCode={familyCode} />
+
+            {/* Express Mobile Check-In Modal */}
+            <MobileCheckInDialog
+                open={showMobileCheckIn}
+                onOpenChange={setShowMobileCheckIn}
+                childrenList={myChildren}
+                onCheckInSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ["parent-recent-attendance"] });
+                    queryClient.invalidateQueries({ queryKey: ["parent-my-children"] });
+                    queryClient.invalidateQueries({ queryKey: ["parent-dashboard-summary"] });
+                }}
+            />
         </DashboardShell>
     );
 };
