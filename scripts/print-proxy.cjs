@@ -235,8 +235,8 @@ function generateQrMatrix(text) {
 // ─── Complete Brother DK Roll Specifications Table ──────────────────
 const BROTHER_ROLL_SPECS = {
     // Continuous Tape Rolls (Media Type: 0x0A, length = 0)
-    '62':     { id: '62',     name: 'DK-2205 (62mm Continuous Black/White)',        type: 0x0A, width: 62, length: 0,   isTwoColor: false, printableDots: 696, totalDots: 720, defaultHeight: 520 },
-    '62red':  { id: '62red',  name: 'DK-2251 / DK-22251 (62mm Black/Red Starter)',  type: 0x0A, width: 62, length: 0,   isTwoColor: true,  printableDots: 696, totalDots: 720, defaultHeight: 520 },
+    '62':     { id: '62',     name: 'DK-2205 (62mm Continuous Black/White)',        type: 0x0A, width: 62, length: 0,   isTwoColor: false, printableDots: 696, totalDots: 720, defaultHeight: 880 },
+    '62red':  { id: '62red',  name: 'DK-2251 / DK-22251 (62mm Black/Red Starter)',  type: 0x0A, width: 62, length: 0,   isTwoColor: true,  printableDots: 696, totalDots: 720, defaultHeight: 880 },
     '29':     { id: '29',     name: 'DK-2210 (29mm Continuous Tape)',               type: 0x0A, width: 29, length: 0,   isTwoColor: false, printableDots: 306, totalDots: 720, defaultHeight: 520 },
     '38':     { id: '38',     name: 'DK-2225 (38mm Continuous Tape)',               type: 0x0A, width: 38, length: 0,   isTwoColor: false, printableDots: 413, totalDots: 720, defaultHeight: 520 },
     '54':     { id: '54',     name: 'DK-N55224 (54mm Continuous Non-Adhesive)',     type: 0x0A, width: 54, length: 0,   isTwoColor: false, printableDots: 590, totalDots: 720, defaultHeight: 520 },
@@ -272,7 +272,7 @@ function getBrotherRollSpec(labelSize = '62') {
 
 // ─── Native 300-DPI Brother ESC/P Raster Bitmap Engine ────────────────
 class BrotherBitmapCanvas {
-    constructor(width = 720, height = 520) {
+    constructor(width = 720, height = 880) {
         this.width = width;
         this.height = height;
         this.pixels = new Uint8Array(width * height);
@@ -299,7 +299,7 @@ class BrotherBitmapCanvas {
         this.fillRect(x + w - thickness, y, thickness, h, color);
     }
 
-    drawDashedRect(x, y, w, h, thickness = 2, dash = 12, gap = 6, color = 1) {
+    drawDashedRect(x, y, w, h, thickness = 2, dash = 14, gap = 8, color = 1) {
         for (let cx = x; cx < x + w; cx += dash + gap) {
             const len = Math.min(dash, x + w - cx);
             this.fillRect(cx, y, len, thickness, color);
@@ -312,20 +312,22 @@ class BrotherBitmapCanvas {
         }
     }
 
-    drawChar(char, x, y, scale = 2, color = 1) {
-        const glyph = FONT_5X7[char] || FONT_5X7['?'] || [0,0,0,0,0];
+    drawChar(char, x, y, scale = 2, color = 1, bold = false) {
+        const glyph = FONT_5X7[char] || FONT_5X7[char.toUpperCase()] || FONT_5X7['?'] || [0,0,0,0,0];
+        const extra = bold ? Math.max(1, Math.floor(scale / 3)) : 0;
         for (let col = 0; col < 5; col++) {
             const byte = glyph[col];
             for (let row = 0; row < 7; row++) {
                 if ((byte & (1 << row)) !== 0) {
-                    this.fillRect(x + col * scale, y + row * scale, scale, scale, color);
+                    this.fillRect(x + col * scale, y + row * scale, scale + extra, scale + extra, color);
                 }
             }
         }
     }
 
-    drawText(text, x, y, scale = 2, color = 1) {
+    drawText(text, x, y, scale = 2, color = 1, bold = false) {
         let curX = x;
+        const charSpacing = (5 + 1) * scale + (bold ? Math.floor(scale / 3) : 0);
         for (let i = 0; i < text.length; i++) {
             const c = text[i];
             if (c === '\n') {
@@ -333,16 +335,16 @@ class BrotherBitmapCanvas {
                 y += (7 + 3) * scale;
                 continue;
             }
-            this.drawChar(c, curX, y, scale, color);
-            curX += (5 + 1) * scale;
+            this.drawChar(c, curX, y, scale, color, bold);
+            curX += charSpacing;
         }
     }
 
-    drawTextCentered(text, y, scale = 2, color = 1, boxLeft = 0, boxRight = 720) {
-        const charWidth = (5 + 1) * scale;
-        const textWidth = text.length * charWidth;
+    drawTextCentered(text, y, scale = 2, color = 1, boxLeft = 0, boxRight = 720, bold = false) {
+        const charSpacing = (5 + 1) * scale + (bold ? Math.floor(scale / 3) : 0);
+        const textWidth = text.length * charSpacing;
         const x = Math.max(0, Math.floor(boxLeft + ((boxRight - boxLeft) - textWidth) / 2));
-        this.drawText(text, x, y, scale, color);
+        this.drawText(text, x, y, scale, color, bold);
     }
 
     drawQrCode(matrix, x, y, moduleSize = 6) {
@@ -371,8 +373,6 @@ class BrotherBitmapCanvas {
         chunks.push(Buffer.from([0x1B, 0x69, 0x61, 0x01]));
 
         // 4. Media specification: ESC i z
-        // Continuous: PI = 0x86 (bits 7, 2, 1 -> 0x80 | 0x04 | 0x02)
-        // Die-Cut:    PI = 0x8E (bits 7, 3, 2, 1 -> 0x80 | 0x08 | 0x04 | 0x02)
         const isDieCut = spec.type === 0x0B;
         const piFlags = isDieCut ? 0x8E : 0x86;
         const mediaWidth = spec.width;
@@ -380,10 +380,10 @@ class BrotherBitmapCanvas {
 
         const mediaHeader = Buffer.from([
             0x1B, 0x69, 0x7A,
-            piFlags,            // Valid flags: bit 7 (always 1), bit 2 (width), bit 1 (type), bit 3 (length if die-cut)
-            spec.type,          // 0x0A (Continuous roll) or 0x0B (Die-cut)
-            mediaWidth,         // Media width in mm
-            mediaLength,        // Media length in mm (0 for continuous, length for die-cut)
+            piFlags,
+            spec.type,
+            mediaWidth,
+            mediaLength,
             this.height & 0xFF, (this.height >> 8) & 0xFF, (this.height >> 16) & 0xFF, (this.height >> 24) & 0xFF,
             0x00, 0x00
         ]);
@@ -404,6 +404,7 @@ class BrotherBitmapCanvas {
 
         // 9. Raster lines: 90 bytes per line (720 dots wide, 696 printable)
         const BYTES_PER_LINE = 90;
+        const TOTAL_PINS = 720;
 
         for (let y = 0; y < this.height; y++) {
             const blackBytes = Buffer.alloc(BYTES_PER_LINE, 0);
@@ -411,13 +412,18 @@ class BrotherBitmapCanvas {
 
             for (let x = 0; x < this.width && x < 720; x++) {
                 const val = this.pixels[y * this.width + x];
-                const byteIdx = Math.floor(x / 8);
-                const bitIdx = 7 - (x % 8);
+                if (val !== 0) {
+                    // Un-mirrored mapping: Brother print head Pin 1 is at the left of the exiting label,
+                    // Pin 720 is at the right. We map canvas x=0 (left) to Pin 1, x=719 (right) to Pin 720.
+                    const physX = (TOTAL_PINS - 1) - x;
+                    const byteIdx = Math.floor(physX / 8);
+                    const bitIdx = 7 - (physX % 8);
 
-                if (val === 1) {
-                    blackBytes[byteIdx] |= (1 << bitIdx);
-                } else if (val === 2) {
-                    redBytes[byteIdx] |= (1 << bitIdx);
+                    if (val === 1) {
+                        blackBytes[byteIdx] |= (1 << bitIdx);
+                    } else if (val === 2) {
+                        redBytes[byteIdx] |= (1 << bitIdx);
+                    }
                 }
             }
 
@@ -454,52 +460,74 @@ function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
     const qrDataPayload = labelData.qrData || securityCode;
     const className = labelData.class || 'Preschool Room 2';
     const allergies = (labelData.allergies || '').trim();
+    const instructions = (labelData.instructions || labelData.special_instructions || '').trim();
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none' && allergies.length > 0;
     const familyCode = (labelData.familyCode || labelData.family_code || '').toString().trim();
     const pagerText = familyCode ? `   •   Pager: #${familyCode}` : '';
 
-    const defaultH = spec.defaultHeight || 520;
+    const defaultH = spec.type === 0x0B ? spec.defaultHeight : (spec.defaultHeight || 880);
     const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || defaultH, 10);
     const canvas = new BrotherBitmapCanvas(720, height);
 
     // Outer badge frame
-    canvas.drawDashedRect(25, 25, 670, height - 50, 4, 16, 8, 1);
+    canvas.drawDashedRect(24, 20, 672, height - 40, 4, 16, 8, 1);
 
-    // Child First & Last Name
-    canvas.drawText(firstName, 45, 55, 6, 1);
+    // 1. Header (Child First & Last Name on Left, Security Code Badge on Right)
+    canvas.drawText(firstName, 44, 45, 8, 1, true);
     if (lastName) {
-        canvas.drawText(lastName, 45, 110, 6, 1);
-        canvas.fillRect(45, 160, 420, 4, 1);
-        canvas.drawText(`Class: ${className}`, 45, 178, 4, 1);
-        canvas.drawText(`Date: ${dateStr}${pagerText}`, 45, 215, 3, 1);
-    } else {
-        canvas.fillRect(45, 115, 420, 4, 1);
-        canvas.drawText(`Class: ${className}`, 45, 135, 4, 1);
-        canvas.drawText(`Date: ${dateStr}${pagerText}`, 45, 175, 3, 1);
+        canvas.drawText(lastName, 44, 115, 7, 1, true);
     }
 
-    // Security Code Box (Inverted black badge with white text)
-    canvas.fillRect(475, 45, 205, 65, 1);
-    canvas.drawTextCentered(securityCode, 58, 6, 0, 475, 680);
+    // Security Code Box (Inverted solid black badge with high-contrast white text)
+    canvas.fillRect(470, 45, 205, 85, 1);
+    canvas.drawTextCentered(securityCode, 68, 8, 0, 470, 675, true);
 
-    // QR Code Box & 2D Matrix
-    const qrMatrix = generateQrMatrix(qrDataPayload);
-    const qrX = 490;
-    const qrY = 125;
-    canvas.drawRect(qrX - 6, qrY - 6, 162, 162, 3, 1);
-    canvas.drawQrCode(qrMatrix, qrX, qrY, 7);
+    // Header divider line
+    canvas.fillRect(44, 185, 632, 4, 1);
 
-    // Allergy Alert Banner
+    let curY = 205;
+
+    // 2. Allergy Alert Banner
     if (hasAllergy) {
-        const allergyY = height - 110;
         const alertColor = isTwoColor ? 2 : 1;
-        canvas.fillRect(35, allergyY, 650, 48, alertColor);
-        canvas.drawTextCentered(`! ALLERGY: ${allergies.toUpperCase()}`, allergyY + 14, 4, 0, 35, 685);
+        canvas.fillRect(44, curY, 632, 55, alertColor);
+        canvas.drawTextCentered(`! ALLERGY: ${allergies.toUpperCase()}`, curY + 16, 4, 0, 44, 676, true);
+        curY += 70;
     }
 
-    canvas.drawTextCentered('Must present matching ticket for pick-up.', height - 42, 3, 1);
+    // 3. Special Instructions / Notes Box
+    if (instructions) {
+        canvas.drawRect(44, curY, 632, 46, 2, 1);
+        canvas.drawText(`NOTE: ${instructions.toUpperCase()}`, 54, curY + 14, 3, 1, true);
+        curY += 60;
+    }
+
+    // 4. Class & Date / Sanctuary Pager
+    canvas.drawText(`CLASS: ${className.toUpperCase()}`, 44, curY, 4, 1, true);
+    curY += 36;
+    canvas.drawText(`DATE: ${dateStr}${pagerText}`, 44, curY, 3, 1, false);
+    curY += 40;
+
+    // Divider before QR section
+    canvas.fillRect(44, curY, 632, 2, 1);
+    curY += 20;
+
+    // 5. 2D QR Code & Verification Notice
+    const qrMatrix = generateQrMatrix(qrDataPayload);
+    const qrX = 50;
+    const qrY = curY;
+    const moduleSize = 7;
+    canvas.drawRect(qrX - 6, qrY - 6, 162, 162, 2, 1);
+    canvas.drawQrCode(qrMatrix, qrX, qrY, moduleSize);
+
+    // Text beside QR code
+    const textLeft = 230;
+    canvas.drawText('OFFICIAL ATTENDANCE BADGE', textLeft, qrY + 10, 3, 1, true);
+    canvas.drawText('Must present matching guardian claim', textLeft, qrY + 45, 3, 1, false);
+    canvas.drawText('ticket for child release.', textLeft, qrY + 75, 3, 1, false);
+    canvas.drawText('Safety verified: Green Valley Alliance', textLeft, qrY + 115, 2, 1, true);
 
     return canvas.toBrotherRasterBuffer(labelSize, isTwoColor);
 }
@@ -510,33 +538,44 @@ function generateNativeBrotherGuardianTicket(labelData, labelSize = '62') {
     const childName = (labelData.name || 'CHILD NAME').toUpperCase();
     const securityCode = labelData.securityCode || 'K984';
     const qrDataPayload = labelData.qrData || securityCode;
-    const defaultH = spec.type === 0x0B ? spec.defaultHeight : 380;
+    const defaultH = spec.type === 0x0B ? spec.defaultHeight : 700;
     const height = parseInt(serverConfig.guardianTicketLength || labelData.guardianTicketLength || defaultH, 10);
     const canvas = new BrotherBitmapCanvas(720, height);
 
     // Outer ticket frame
-    canvas.drawDashedRect(25, 25, 670, height - 50, 4, 16, 8, 1);
+    canvas.drawDashedRect(24, 20, 672, height - 40, 4, 16, 8, 1);
 
     // Header
-    canvas.drawTextCentered('PRIMARY GUARDIAN CLAIM TICKET', 45, 4, 1);
-    canvas.fillRect(40, 75, 640, 3, 1);
+    canvas.drawTextCentered('PRIMARY GUARDIAN CLAIM TICKET', 45, 4, 1, 24, 696, true);
+    canvas.fillRect(44, 85, 632, 4, 1);
 
-    canvas.drawText('Security Match Code:', 45, 100, 3, 1);
+    canvas.drawTextCentered('SECURITY MATCH CODE', 110, 3, 1, 24, 696, true);
 
     // Massive Security Code Inverted Box
-    canvas.fillRect(45, 125, 410, 120, 1);
-    canvas.drawTextCentered(securityCode, 155, 9, 0, 45, 455);
+    canvas.fillRect(80, 145, 560, 150, 1);
+    canvas.drawTextCentered(securityCode, 185, 14, 0, 80, 640, true);
 
-    // QR Code Box & 2D Matrix
+    // Child Name
+    canvas.drawTextCentered(`CHILD: ${childName}`, 320, 5, 1, 24, 696, true);
+
+    canvas.fillRect(44, 380, 632, 2, 1);
+
+    // QR Code
     const qrMatrix = generateQrMatrix(qrDataPayload);
-    const qrX = 490;
-    const qrY = 100;
-    canvas.drawRect(qrX - 6, qrY - 6, 162, 162, 3, 1);
+    const qrX = 70;
+    const qrY = 410;
+    canvas.drawRect(qrX - 6, qrY - 6, 162, 162, 2, 1);
     canvas.drawQrCode(qrMatrix, qrX, qrY, 7);
 
-    // Footer info
-    canvas.drawTextCentered(`Child: ${childName}`, height - 85, 4, 1);
-    canvas.drawTextCentered('Keep this ticket until child is picked up.', height - 45, 3, 1);
+    // Release instructions beside QR
+    const textLeft = 250;
+    canvas.drawText('GUARDIAN PICK-UP PASS', textLeft, qrY + 15, 3, 1, true);
+    canvas.drawText('Present this ticket at child pick-up.', textLeft, qrY + 50, 3, 1, false);
+    canvas.drawText('Staff will verify security code & QR', textLeft, qrY + 80, 3, 1, false);
+    canvas.drawText('prior to releasing child.', textLeft, qrY + 110, 3, 1, false);
+
+    // Footer
+    canvas.drawTextCentered('KEEP THIS TICKET UNTIL CHILD IS SAFELY PICKED UP', height - 55, 3, 1, 24, 696, true);
 
     return canvas.toBrotherRasterBuffer(labelSize, isTwoColor);
 }
