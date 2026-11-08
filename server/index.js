@@ -4862,15 +4862,20 @@ app.post('/api/mobile-checkin', verifyToken, async (req, res) => {
         firstName: child.first_name,
         lastName: child.last_name,
         class_name: className,
+        class: className,
         allergies: child.allergies || '',
         medical_alert: !!child.allergies,
         family_code: familyCode,
+        familyCode: familyCode,
         security_code: claimCode,
+        securityCode: claimCode,
         parent_name: `${parent.first_name || ''} ${parent.last_name || ''}`.trim(),
         parent_phone: parent.phone || '',
         checkin_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         notes: item.special_instructions || notes || '',
-        orgId: child.organization_id || parent.organization_id || 'default_org'
+        orgId: child.organization_id || parent.organization_id || 'default_org',
+        labelSize: 'auto',
+        rollSize: 'auto'
       };
 
       cloudPrintQueue.push({

@@ -87,6 +87,7 @@ const KioskCheckInSystem = () => {
   const [printServerIp, setPrintServerIp] = useState(() => localStorage.getItem('kiddochecker_print_server_url') || '');
   const [targetPrinterIp, setTargetPrinterIp] = useState(() => localStorage.getItem('kiddochecker_target_printer_ip') || '');
   const [targetPrinterName, setTargetPrinterName] = useState(() => localStorage.getItem('kiddochecker_target_printer_name') || '');
+  const [targetRollSize, setTargetRollSize] = useState(() => localStorage.getItem('kiddochecker_target_roll_size') || 'auto');
   const [isTestingPrinter, setIsTestingPrinter] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(() => {
     if (typeof document === 'undefined') return false;
@@ -132,6 +133,7 @@ const KioskCheckInSystem = () => {
     localStorage.setItem('kiddochecker_print_server_url', printServerIp.trim());
     localStorage.setItem('kiddochecker_target_printer_ip', targetPrinterIp.trim());
     localStorage.setItem('kiddochecker_target_printer_name', targetPrinterName.trim());
+    localStorage.setItem('kiddochecker_target_roll_size', targetRollSize);
     setShowPrinterDialog(false);
     toast({ title: "Printer Configuration Saved", description: "Kiosk printer configuration updated." });
   };
@@ -2123,6 +2125,29 @@ const KioskCheckInSystem = () => {
                 placeholder="e.g. Brother QL-820NWB"
                 className="bg-slate-950 border-slate-800 text-white"
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase text-slate-400 block mb-1">
+                Brother DK Roll / Label Size
+              </label>
+              <select
+                value={targetRollSize}
+                onChange={(e) => setTargetRollSize(e.target.value)}
+                className="w-full h-10 px-3 rounded-md bg-slate-950 border border-slate-800 text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="auto">Auto-Detect from Printer (Recommended)</option>
+                <option value="62">DK-2205 — 62mm Continuous Black/White</option>
+                <option value="62x100">DK-1202 — 62mm x 100mm Large Die-Cut Badge</option>
+                <option value="62red">DK-2251 — 62mm Black/Red Starter Roll</option>
+                <option value="29x90">DK-1201 — 29mm x 90mm Standard Address</option>
+                <option value="29">DK-2210 — 29mm Continuous Tape</option>
+                <option value="62x29">DK-1204 — 62mm x 29mm Multi-Purpose</option>
+                <option value="38x90">DK-1208 — 38mm x 90mm Large Address</option>
+              </select>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Select your exact label cartridge to prevent "Wrong roll type" errors on Brother QL printers.
+              </p>
             </div>
           </div>
 

@@ -397,7 +397,7 @@ class BrotherBitmapCanvas {
 
         // 7. ESC i K (Expanded mode: bit 3 = 0x08 cut at end, bit 0 = 0x01 two-color mode)
         const extMode = useTwoColor ? (0x08 | 0x01) : 0x08;
-        chunks.push(Buffer.from([0x1B, 0x69, 0x6B, extMode]));
+        chunks.push(Buffer.from([0x1B, 0x69, 0x4B, extMode]));
 
         // 8. ESC i d (Feed margin: 35 dots ~3mm)
         chunks.push(Buffer.from([0x1B, 0x69, 0x64, 0x23, 0x00]));
@@ -458,7 +458,7 @@ function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none' && allergies.length > 0;
     const familyCode = (labelData.familyCode || labelData.family_code || '').toString().trim();
-    const pagerText = familyCode ?   •  Pager: # : '';
+    const pagerText = familyCode ? `   •   Pager: #${familyCode}` : '';
 
     const defaultH = spec.defaultHeight || 520;
     const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || defaultH, 10);
@@ -571,7 +571,7 @@ function generateBrotherQlChildBadgeSvg(labelData, labelSizeValue) {
     const dateStr = now.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
     const familyCode = (labelData.familyCode || labelData.family_code || '').toString().trim();
-    const pagerText = familyCode ?    •   Pager: # : '';
+    const pagerText = familyCode ? `   •   Pager: #${familyCode}` : '';
 
     const width = 696;
     const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || 520, 10);
@@ -622,7 +622,7 @@ function generateEscPosPayload(labelData) {
     const LINE = '─'.repeat(32) + '\n';
     const hasAllergy = allergies && allergies.toLowerCase() !== 'none';
     const familyCode = (labelData.familyCode || labelData.family_code || '').toString().trim();
-    const pagerText = familyCode ?    •   Pager: # : '';
+    const pagerText = familyCode ? `   •   Pager: #${familyCode}` : '';
     return Buffer.from(
         '\x1b@' + '\x1ba\x01' +
         '\x1bE\x01\x1d!\x00' + 'KIDDOCHECKER CHECK-IN\n' + '\x1bE\x00' + LINE +
@@ -663,14 +663,22 @@ function parseBrotherStatus(buf) {
     while (offset < buf.length && buf[offset] !== 0x80) offset++;
     if (offset + 32 > buf.length) return null;
 
-    const mediaTypeByte = buf[offset + 11]; // 0x00=none, 0x0A=continuous, 0x0B=die-cut
-    const mediaWidthMm   = buf[offset + 12]; // mm
-    const mediaLengthMm  = buf[offset + 13]; // mm (for die-cut)
-    const err1           = buf[offset + 19];
-    const err2           = buf[offset + 20];
+    if (buf[offset] !== 0x80 || buf[offset + 1] !== 0x20 || buf[offset + 2] !== 0x42) {
+        return null;
+    }
+
+    const err1           = buf[offset + 6];  // Error info 1
+    const err2           = buf[offset + 7];  // Error info 2
+    const mediaTypeByte  = buf[offset + 8];  // 0x00=none, 0x0A=continuous, 0x0B=die-cut
+    const mediaWidthMm   = buf[offset + 9];  // mm width
+    const mediaLengthMm  = buf[offset + 10]; // mm length (for die-cut)
+    const tapeColorByte  = buf[offset + 11]; // Tape color / Two-color flag
 
     const isDieCut = mediaTypeByte === 0x0B;
-    const mediaTypeStr = mediaTypeByte === 0x0A ? 'Continuous Roll' : isDieCut ? 'Die-Cut Labels' : 'No Media';
+    const isContinuous = mediaTypeByte === 0x0A;
+    const isTwoColor = (tapeColorByte & 0x01) !== 0 || tapeColorByte === 0x02;
+
+    const mediaTypeStr = isContinuous ? 'Continuous Roll' : isDieCut ? 'Die-Cut Labels' : 'No Media';
     const errors = [];
     if (err1 & 0x01) errors.push('No media loaded');
     if (err1 & 0x02) errors.push('End of media roll');
@@ -680,13 +688,22 @@ function parseBrotherStatus(buf) {
     if (err2 & 0x01) errors.push('Replace media error');
     if (err2 & 0x04) errors.push('Communication error');
 
-    // Find closest matching roll spec ID
+    // Find closest matching roll spec ID from physical hardware report
     let matchingSpecKey = '62';
     if (isDieCut) {
         matchingSpecKey = `${mediaWidthMm}x${mediaLengthMm}`;
-        if (!BROTHER_ROLL_SPECS[matchingSpecKey]) matchingSpecKey = '62x100';
-    } else {
-        matchingSpecKey = `${mediaWidthMm}`;
+        if (!BROTHER_ROLL_SPECS[matchingSpecKey]) {
+            if (mediaWidthMm === 62) matchingSpecKey = '62x100';
+            else if (mediaWidthMm === 29) matchingSpecKey = '29x90';
+            else if (mediaWidthMm === 38) matchingSpecKey = '38x90';
+            else matchingSpecKey = '62x100';
+        }
+    } else if (isContinuous) {
+        if (mediaWidthMm === 62 && isTwoColor) {
+            matchingSpecKey = '62red';
+        } else {
+            matchingSpecKey = `${mediaWidthMm}`;
+        }
     }
 
     return {
@@ -695,8 +712,9 @@ function parseBrotherStatus(buf) {
         mediaWidth: mediaWidthMm,
         mediaLength: mediaLengthMm,
         isDieCut,
+        isContinuous,
+        isTwoColor,
         matchingSpecKey,
-        isTwoColor: (buf[offset + 15] & 0x01) !== 0,
         errors,
         rawHex: buf.slice(offset, offset + 32).toString('hex')
     };
@@ -706,14 +724,14 @@ function queryBrotherPrinterStatus(cleanIp, callback) {
     if (!cleanIp || cleanIp.startsWith('/dev/')) return callback(null, null);
 
     const socket = new net.Socket();
-    socket.setTimeout(2000);
+    socket.setTimeout(2500);
     let buffer = Buffer.alloc(0);
     let called = false;
 
     const done = (err, status) => {
         if (called) return;
         called = true;
-        socket.destroy();
+        try { socket.destroy(); } catch(e) {}
         callback(err, status);
     };
 
@@ -743,10 +761,11 @@ function queryBrotherPrinterStatus(cleanIp, callback) {
 // ─── Brother QL Printing (Native Direct Socket + USB/CLI Fallback) ───
 function printViaBrotherQl(labelData, printerIp, callback) {
     const cleanIp = (printerIp || '').replace(/^tcp:\/\//i, '').replace(/:9100$/, '').trim();
-    let labelSize = (labelData.labelSize || serverConfig.defaultLabelSize || '62').trim();
+    let requestedLabelSize = (labelData.labelSize || labelData.rollSize || serverConfig.defaultLabelSize || 'auto').trim().toLowerCase();
 
     // 1. If USB device path on Linux (e.g. /dev/usb/lp0)
     if (cleanIp.startsWith('/dev/')) {
+        const labelSize = requestedLabelSize === 'auto' ? '62' : requestedLabelSize;
         try {
             const badgeBuffer = generateNativeBrotherChildBadge(labelData, labelSize);
             const ticketBuffer = generateNativeBrotherGuardianTicket(labelData, labelSize);
@@ -762,25 +781,36 @@ function printViaBrotherQl(labelData, printerIp, callback) {
 
     // 2. Query hardware status to detect exact roll & clear roll mismatch
     queryBrotherPrinterStatus(cleanIp, (statusErr, hwStatus) => {
+        let labelSize = requestedLabelSize;
+
         if (hwStatus) {
             if (hwStatus.errors && hwStatus.errors.length > 0) {
-                addLog('warn', `Printer hardware report: ${hwStatus.errors.join(', ')}`, { targetIp: cleanIp });
+                addLog('warn', `Printer hardware report: ${hwStatus.errors.join(', ')}`, { targetIp: cleanIp, errors: hwStatus.errors });
             }
             if (hwStatus.mediaWidth > 0) {
                 const detectedKey = hwStatus.matchingSpecKey;
-                addLog('info', `Printer detected roll: ${hwStatus.mediaTypeStr} (${hwStatus.mediaWidth}mm${hwStatus.mediaLength ? `x${hwStatus.mediaLength}mm` : ''})`, {
+                addLog('info', `Printer detected roll: ${hwStatus.mediaTypeStr} (${hwStatus.mediaWidth}mm${hwStatus.mediaLength ? `x${hwStatus.mediaLength}mm` : ''}) -> Using roll [${detectedKey}]`, {
                     targetIp: cleanIp,
                     detectedRoll: detectedKey
                 });
-                // Auto-adapt labelSize if the user loaded a die-cut or different roll
-                if (hwStatus.isDieCut || hwStatus.mediaWidth !== 62) {
+
+                // Auto-adapt if user asked for auto OR if the detected roll differs from continuous 62mm
+                if (labelSize === 'auto' || hwStatus.isDieCut || (hwStatus.mediaWidth !== 62 && hwStatus.mediaWidth > 0)) {
                     labelSize = detectedKey;
+                } else if (labelSize === '62' && hwStatus.isTwoColor) {
+                    labelSize = '62red';
                 }
             }
         }
 
+        if (labelSize === 'auto') {
+            labelSize = serverConfig.defaultLabelSize && serverConfig.defaultLabelSize !== 'auto' 
+                ? serverConfig.defaultLabelSize 
+                : '62';
+        }
+
         const spec = getBrotherRollSpec(labelSize);
-        addLog('info', `Generating Native Brother ESC/P Raster for "${labelData.name}" using [${spec.name}]...`, { targetIp: cleanIp, roll: spec.id });
+        addLog('info', `Generating Native Brother ESC/P Raster for "${labelData.name}" using [${spec.name}] (type=0x${spec.type.toString(16)}, width=${spec.width}mm, length=${spec.length}mm)...`, { targetIp: cleanIp, roll: spec.id });
 
         const badgeBuffer = generateNativeBrotherChildBadge(labelData, labelSize);
         const ticketBuffer = generateNativeBrotherGuardianTicket(labelData, labelSize);

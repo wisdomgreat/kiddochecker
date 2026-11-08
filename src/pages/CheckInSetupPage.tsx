@@ -21,6 +21,7 @@ const CheckInSetupPage = () => {
     printerName: localStorage.getItem('kiddochecker_target_printer_name') || 'Default Printer',
     printServerUrl: localStorage.getItem('kiddochecker_print_server_url') || '',
     targetPrinterIp: localStorage.getItem('kiddochecker_target_printer_ip') || '',
+    rollSize: localStorage.getItem('kiddochecker_target_roll_size') || 'auto',
     kioskMode: false,
   });
 
@@ -30,6 +31,7 @@ const CheckInSetupPage = () => {
     localStorage.setItem('kiddochecker_print_server_url', settings.printServerUrl);
     localStorage.setItem('kiddochecker_target_printer_ip', settings.targetPrinterIp);
     localStorage.setItem('kiddochecker_target_printer_name', settings.printerName);
+    localStorage.setItem('kiddochecker_target_roll_size', settings.rollSize || 'auto');
     toast({
       title: "Settings Saved",
       description: "Check-in setup and Print Server configuration updated successfully",
@@ -203,6 +205,27 @@ const CheckInSetupPage = () => {
                       onChange={(e) => handleSettingChange('targetPrinterIp', e.target.value)}
                       placeholder="e.g. 192.168.1.101 (Leave blank to use default)"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="targetRollSize">Brother DK Roll / Label Size</Label>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Match the physical cartridge inside your Brother printer to prevent "Wrong roll type" errors.
+                    </p>
+                    <select
+                      id="targetRollSize"
+                      value={settings.rollSize}
+                      onChange={(e) => handleSettingChange('rollSize', e.target.value)}
+                      className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="auto">Auto-Detect from Printer (Recommended)</option>
+                      <option value="62">DK-2205 — 62mm Continuous Black/White</option>
+                      <option value="62x100">DK-1202 — 62mm x 100mm Large Die-Cut Badge</option>
+                      <option value="62red">DK-2251 — 62mm Black/Red Starter Roll</option>
+                      <option value="29x90">DK-1201 — 29mm x 90mm Standard Address</option>
+                      <option value="29">DK-2210 — 29mm Continuous Tape</option>
+                      <option value="62x29">DK-1204 — 62mm x 29mm Multi-Purpose</option>
+                      <option value="38x90">DK-1208 — 38mm x 90mm Large Address</option>
+                    </select>
                   </div>
                 </div>
               )}

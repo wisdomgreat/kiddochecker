@@ -103,6 +103,7 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
 
     const targetPrinterIp = localStorage.getItem('kiddochecker_target_printer_ip') || '';
     const targetPrinterName = localStorage.getItem('kiddochecker_target_printer_name') || '';
+    const targetRollSize = localStorage.getItem('kiddochecker_target_roll_size') || 'auto';
 
     setPrintStatus('sending');
     const token = await getAccessToken();
@@ -126,7 +127,9 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             securityCode: displayCode,
             familyCode: safeFamilyCode,
             qrData: finalQrData,
-            orgId: orgId
+            orgId: orgId,
+            labelSize: targetRollSize,
+            rollSize: targetRollSize
           },
           printerIp: targetPrinterIp,
           printerName: targetPrinterName || 'Brother QL Printer',
@@ -163,7 +166,9 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             instructions: safeInstructions,
             securityCode: displayCode,
             familyCode: safeFamilyCode,
-            qrData: finalQrData
+            qrData: finalQrData,
+            labelSize: targetRollSize,
+            rollSize: targetRollSize
           },
           printerIp: targetPrinterIp,
           printerName: targetPrinterName || 'Brother QL Printer'
