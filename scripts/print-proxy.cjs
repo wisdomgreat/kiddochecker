@@ -358,21 +358,33 @@ class BrotherBitmapCanvas {
         }
     }
 
-    toBrotherRasterBuffer(labelSize = '62', isTwoColor = false) {
+    toBrotherRasterBuffer(labelSize = '62', isTwoColor = false, isLastPage = true, includeJobHeader = true) {
         const spec = getBrotherRollSpec(labelSize);
         const useTwoColor = isTwoColor || spec.isTwoColor;
         const chunks = [];
 
-        // 1. 400 null bytes for clean synchronization and flushing previous buffers
-        chunks.push(Buffer.alloc(400, 0));
+        if (includeJobHeader) {
+            // 1. 400 null bytes for clean synchronization and flushing previous buffers
+            chunks.push(Buffer.alloc(400, 0));
 
-        // 2. ESC @ (Initialize Printer)
-        chunks.push(Buffer.from([0x1B, 0x40]));
+            // 2. ESC @ (Initialize Printer)
+            chunks.push(Buffer.from([0x1B, 0x40]));
 
-        // 3. Switch to Raster mode: ESC i a 1
-        chunks.push(Buffer.from([0x1B, 0x69, 0x61, 0x01]));
+            // 3. Switch to Raster mode: ESC i a 1
+            chunks.push(Buffer.from([0x1B, 0x69, 0x61, 0x01]));
 
-        // 4. Media specification: ESC i z
+            // 4. ESC i M 0x40 (Auto cut enable)
+            chunks.push(Buffer.from([0x1B, 0x69, 0x4D, 0x40]));
+
+            // 5. ESC i A 0x01 (Cut every 1 page)
+            chunks.push(Buffer.from([0x1B, 0x69, 0x41, 0x01]));
+
+            // 6. ESC i K (Expanded mode: bit 3 = 0x08 cut at end, bit 0 = 0x01 two-color mode)
+            const extMode = useTwoColor ? (0x08 | 0x01) : 0x08;
+            chunks.push(Buffer.from([0x1B, 0x69, 0x4B, extMode]));
+        }
+
+        // 7. Media specification: ESC i z (sent per page with current page height)
         const isDieCut = spec.type === 0x0B;
         const piFlags = isDieCut ? 0x8E : 0x86;
         const mediaWidth = spec.width;
@@ -388,16 +400,6 @@ class BrotherBitmapCanvas {
             0x00, 0x00
         ]);
         chunks.push(mediaHeader);
-
-        // 5. ESC i M 0x40 (Auto cut enable)
-        chunks.push(Buffer.from([0x1B, 0x69, 0x4D, 0x40]));
-
-        // 6. ESC i A 0x01 (Cut every 1 page)
-        chunks.push(Buffer.from([0x1B, 0x69, 0x41, 0x01]));
-
-        // 7. ESC i K (Expanded mode: bit 3 = 0x08 cut at end, bit 0 = 0x01 two-color mode)
-        const extMode = useTwoColor ? (0x08 | 0x01) : 0x08;
-        chunks.push(Buffer.from([0x1B, 0x69, 0x4B, extMode]));
 
         // 8. ESC i d (Feed margin: 35 dots ~3mm)
         chunks.push(Buffer.from([0x1B, 0x69, 0x64, 0x23, 0x00]));
@@ -441,16 +443,23 @@ class BrotherBitmapCanvas {
             }
         }
 
-        // 10. Print Trigger (0x1A: Print command with feed) + Form Feed & Page Cut (0x0C)
-        chunks.push(Buffer.from([0x1A]));
-        chunks.push(Buffer.from([0x0C]));
+        // 10. Page execution command:
+        // In Brother ESC/P Raster specification:
+        // - 0x0C (Form Feed): Prints current page, executes auto-cut, and prepares for next page in multi-page batch.
+        // - 0x1A (Print with Feed): Prints current page, executes auto-cut, feeds final margin, and FINISHES print job.
+        // NEVER send 0x0C after 0x1A (that causes printer to wait indefinitely for a phantom page).
+        if (isLastPage) {
+            chunks.push(Buffer.from([0x1A]));
+        } else {
+            chunks.push(Buffer.from([0x0C]));
+        }
 
         return Buffer.concat(chunks);
     }
 }
 
-// ─── Badge & Ticket Generators (Native Raster & SVG) ─────────────────
-function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
+// ─── Badge & Ticket Canvas Builders (Native 300 DPI Raster) ──────────
+function buildNativeBrotherChildBadgeCanvas(labelData, labelSize = '62') {
     const spec = getBrotherRollSpec(labelSize);
     const isTwoColor = spec.isTwoColor || labelSize === '62red' || labelSize.includes('red');
     const nameParts = (labelData.name || 'CHILD NAME').trim().split(' ');
@@ -529,12 +538,11 @@ function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
     canvas.drawText('ticket for child release.', textLeft, qrY + 75, 3, 1, false);
     canvas.drawText('Safety verified: Green Valley Alliance', textLeft, qrY + 115, 2, 1, true);
 
-    return canvas.toBrotherRasterBuffer(labelSize, isTwoColor);
+    return canvas;
 }
 
-function generateNativeBrotherGuardianTicket(labelData, labelSize = '62') {
+function buildNativeBrotherGuardianTicketCanvas(labelData, labelSize = '62') {
     const spec = getBrotherRollSpec(labelSize);
-    const isTwoColor = spec.isTwoColor || labelSize === '62red' || labelSize.includes('red');
     const childName = (labelData.name || 'CHILD NAME').toUpperCase();
     const securityCode = labelData.securityCode || 'K984';
     const qrDataPayload = labelData.qrData || securityCode;
@@ -577,7 +585,39 @@ function generateNativeBrotherGuardianTicket(labelData, labelSize = '62') {
     // Footer
     canvas.drawTextCentered('KEEP THIS TICKET UNTIL CHILD IS SAFELY PICKED UP', height - 55, 3, 1, 24, 696, true);
 
-    return canvas.toBrotherRasterBuffer(labelSize, isTwoColor);
+    return canvas;
+}
+
+// Standalone Child Badge (Single-page job ending with 0x1A)
+function generateNativeBrotherChildBadge(labelData, labelSize = '62') {
+    const spec = getBrotherRollSpec(labelSize);
+    const isTwoColor = spec.isTwoColor || labelSize === '62red' || labelSize.includes('red');
+    const canvas = buildNativeBrotherChildBadgeCanvas(labelData, labelSize);
+    return canvas.toBrotherRasterBuffer(labelSize, isTwoColor, true, true);
+}
+
+// Standalone Guardian Ticket (Single-page job ending with 0x1A)
+function generateNativeBrotherGuardianTicket(labelData, labelSize = '62') {
+    const spec = getBrotherRollSpec(labelSize);
+    const isTwoColor = spec.isTwoColor || labelSize === '62red' || labelSize.includes('red');
+    const canvas = buildNativeBrotherGuardianTicketCanvas(labelData, labelSize);
+    return canvas.toBrotherRasterBuffer(labelSize, isTwoColor, true, true);
+}
+
+// Complete 2-Label Print Job (Child Badge + Guardian Claim Ticket in a unified multi-page ESC/P stream)
+function generateNativeBrotherFullJob(labelData, labelSize = '62') {
+    const spec = getBrotherRollSpec(labelSize);
+    const isTwoColor = spec.isTwoColor || labelSize === '62red' || labelSize.includes('red');
+
+    const badgeCanvas = buildNativeBrotherChildBadgeCanvas(labelData, labelSize);
+    const ticketCanvas = buildNativeBrotherGuardianTicketCanvas(labelData, labelSize);
+
+    // Page 1 (Badge): includeJobHeader=true, isLastPage=false (terminates with 0x0C for form-feed & cut to next page)
+    const page1 = badgeCanvas.toBrotherRasterBuffer(labelSize, isTwoColor, false, true);
+    // Page 2 (Ticket): includeJobHeader=false, isLastPage=true (terminates with 0x1A for final cut & job finish)
+    const page2 = ticketCanvas.toBrotherRasterBuffer(labelSize, isTwoColor, true, false);
+
+    return Buffer.concat([page1, page2]);
 }
 
 function generateRealQrCodeSvg(text, x, y, size) {
@@ -806,9 +846,7 @@ function printViaBrotherQl(labelData, printerIp, callback) {
     if (cleanIp.startsWith('/dev/')) {
         const labelSize = requestedLabelSize === 'auto' ? '62' : requestedLabelSize;
         try {
-            const badgeBuffer = generateNativeBrotherChildBadge(labelData, labelSize);
-            const ticketBuffer = generateNativeBrotherGuardianTicket(labelData, labelSize);
-            const fullPayload = Buffer.concat([badgeBuffer, ticketBuffer]);
+            const fullPayload = generateNativeBrotherFullJob(labelData, labelSize);
             fs.writeFileSync(cleanIp, fullPayload);
             addLog('success', `Brother QL: Printed 2 labels directly to USB port [${cleanIp}]!`);
             return callback && callback(null, { success: true, printer: cleanIp, mode: 'brother_usb_direct' });
@@ -851,15 +889,13 @@ function printViaBrotherQl(labelData, printerIp, callback) {
         const spec = getBrotherRollSpec(labelSize);
         addLog('info', `Generating Native Brother ESC/P Raster for "${labelData.name}" using [${spec.name}] (type=0x${spec.type.toString(16)}, width=${spec.width}mm, length=${spec.length}mm)...`, { targetIp: cleanIp, roll: spec.id });
 
-        const badgeBuffer = generateNativeBrotherChildBadge(labelData, labelSize);
-        const ticketBuffer = generateNativeBrotherGuardianTicket(labelData, labelSize);
-        const fullPayload = Buffer.concat([badgeBuffer, ticketBuffer]);
+        const fullPayload = generateNativeBrotherFullJob(labelData, labelSize);
 
         // Stream raster to printer Port 9100
         addLog('info', `Streaming native Brother ESC/P raster to tcp://${cleanIp}:9100 (${fullPayload.length} bytes)...`, { targetIp: cleanIp });
 
         const socket = new net.Socket();
-        socket.setTimeout(7000);
+        socket.setTimeout(8000);
         let called = false;
         const done = (err, res) => {
             if (called) return;
@@ -870,9 +906,12 @@ function printViaBrotherQl(labelData, printerIp, callback) {
 
         socket.connect(9100, cleanIp, () => {
             socket.write(fullPayload, () => {
-                try { socket.end(); } catch(e) {}
-                addLog('success', `Brother QL: 2 labels (Child Badge + Guardian Ticket) successfully printed on ${cleanIp} [${spec.name}]!`, { targetIp: cleanIp });
-                done(null, { success: true, printer: cleanIp, mode: 'brother_native_raster_tcp', roll: spec.name });
+                addLog('success', `Brother QL: 2 labels (Child Badge + Guardian Ticket) streamed to ${cleanIp} [${spec.name}]!`, { targetIp: cleanIp });
+                // Keep connection open 1500ms to allow printer firmware to consume data before closing
+                setTimeout(() => {
+                    try { socket.end(); } catch(e) {}
+                    done(null, { success: true, printer: cleanIp, mode: 'brother_native_raster_tcp', roll: spec.name });
+                }, 1500);
             });
         });
 
@@ -1177,6 +1216,38 @@ app.post('/api/test-print', (req, res) => {
         if (res.headersSent) return;
         if (err) return res.status(400).json({ success: false, error: err.message });
         res.json(result || { success: true });
+    });
+});
+
+app.post('/api/printer/reset', (req, res) => {
+    const targetIp = (req.body?.ip || req.query?.ip || serverConfig.defaultPrinterIp || '').trim();
+    if (!targetIp) {
+        return res.status(400).json({ success: false, error: 'Printer IP is required' });
+    }
+    const cleanIp = targetIp.replace(/^tcp:\/\//i, '').replace(/:9100$/, '').trim();
+    const socket = new net.Socket();
+    socket.setTimeout(2500);
+
+    socket.connect(9100, cleanIp, () => {
+        // Send 400 null bytes + ESC @ (Initialize/Reset) to flush any stuck print buffer
+        const resetBuffer = Buffer.concat([Buffer.alloc(400, 0), Buffer.from([0x1B, 0x40])]);
+        socket.write(resetBuffer, () => {
+            setTimeout(() => {
+                try { socket.destroy(); } catch(e) {}
+                addLog('info', `Sent hardware cancel/reset command (ESC @) to printer at ${cleanIp}`);
+                if (!res.headersSent) res.json({ success: true, message: `Hardware reset sent to ${cleanIp}` });
+            }, 300);
+        });
+    });
+
+    socket.on('error', (err) => {
+        try { socket.destroy(); } catch(e) {}
+        if (!res.headersSent) res.status(500).json({ success: false, error: err.message });
+    });
+
+    socket.on('timeout', () => {
+        try { socket.destroy(); } catch(e) {}
+        if (!res.headersSent) res.status(504).json({ success: false, error: 'Reset connection timed out' });
     });
 });
 
@@ -1509,7 +1580,10 @@ app.get(['/', '/logs'], (req, res) => {
                     <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Send immediate test badge to printer IP or queue.</p>
                     <input type="text" id="testIp" placeholder="Printer IP" value="${serverConfig.defaultPrinterIp || '192.168.2.169'}" />
                     <input type="text" id="testName" placeholder="Test Child Name" value="SAMUEL OKONKWO" oninput="updateLivePreview()" />
-                    <button onclick="sendTestPrint()">🚀 Dispatch Test Print</button>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <button onclick="sendTestPrint()" style="flex:2;">🚀 Dispatch Test Print</button>
+                        <button onclick="resetPrinter()" class="btn-secondary" style="flex:1; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5;">🛑 Unstick / Clear</button>
+                    </div>
                     <div id="testResult" style="font-size: 12px; font-weight: 700; margin-top: 6px;"></div>
                 </div>
 
@@ -1784,6 +1858,31 @@ app.get(['/', '/logs'], (req, res) => {
                     }
                 } catch(e) {
                     resDiv.innerText = '❌ Error: ' + e.message;
+                    resDiv.style.color = '#f43f5e';
+                }
+            }
+
+            async function resetPrinter() {
+                const ip = document.getElementById('testIp').value.trim();
+                const resDiv = document.getElementById('testResult');
+                resDiv.innerText = 'Sending hardware cancel/reset signal to ' + ip + '...';
+                resDiv.style.color = '#38bdf8';
+                try {
+                    const res = await fetch('/api/printer/reset', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ ip })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        resDiv.innerText = '✅ Reset signal sent! Printer buffer cleared.';
+                        resDiv.style.color = '#10b981';
+                    } else {
+                        resDiv.innerText = '❌ ' + (data.error || 'Reset failed');
+                        resDiv.style.color = '#f43f5e';
+                    }
+                } catch(e) {
+                    resDiv.innerText = '❌ Reset error: ' + e.message;
                     resDiv.style.color = '#f43f5e';
                 }
             }
