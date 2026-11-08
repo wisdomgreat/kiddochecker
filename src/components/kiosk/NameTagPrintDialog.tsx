@@ -15,6 +15,8 @@ import { useTranslation, Language } from '@/lib/i18n';
 
 import { useLanguage } from '@/context/LanguageContext';
 import { getPrintProxyUrl } from '@/services/printService';
+import { useToast } from '@/hooks/useToast';
+import { getAccessToken } from '@/lib/apiClient';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NameTagPrintDialogProps {
@@ -48,6 +50,8 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
   const { language } = useLanguage();
   const isEs = language === 'es';
   const printRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'queued' | 'printed' | 'fallback'>('idle');
   
   // Generate a matching security code for the session if not provided
   const generatedCode = useRef(Math.random().toString(36).substring(2, 6).toUpperCase());
@@ -100,13 +104,19 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
     const targetPrinterIp = localStorage.getItem('kiddochecker_target_printer_ip') || '';
     const targetPrinterName = localStorage.getItem('kiddochecker_target_printer_name') || '';
 
+    setPrintStatus('sending');
+    const token = await getAccessToken();
+
     // 1. Primary: Enqueue to Azure Cloud Relay (Immune to browser CORS / Mixed Content)
     try {
       const baseUrl = import.meta.env.VITE_API_URL || "https://ca-api-kiddo-prod-yotzp.blackpond-a683933c.centralus.azurecontainerapps.io";
       const orgId = localStorage.getItem('kiddochecker_org_id') || 'default_org';
       const cloudRes = await fetch(`${baseUrl}/api/print-jobs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           labelData: {
             name: `${safeFirstName} ${safeLastName}`,
@@ -119,14 +129,19 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             orgId: orgId
           },
           printerIp: targetPrinterIp,
-          printerName: targetPrinterName,
+          printerName: targetPrinterName || 'Brother QL Printer',
           orgId: orgId
         }),
       });
 
       if (cloudRes.ok) {
         console.log('[Printer] Silent print job enqueued via Azure Cloud Relay.');
-        setTimeout(onClose, 1500);
+        setPrintStatus('queued');
+        toast({
+          title: "Print Job Queued ✅",
+          description: `Name badge for ${safeFirstName} queued to ${targetPrinterName || 'Brother QL printer'}.`,
+        });
+        setTimeout(onClose, 2000);
         return;
       }
     } catch (cErr) {
@@ -151,17 +166,30 @@ const NameTagPrintDialog: React.FC<NameTagPrintDialogProps> = ({
             qrData: finalQrData
           },
           printerIp: targetPrinterIp,
-          printerName: targetPrinterName
+          printerName: targetPrinterName || 'Brother QL Printer'
         }),
       });
 
       if (response.ok) {
         console.log('[Printer] Silent print successful via local proxy.');
-        setTimeout(onClose, 1500);
+        setPrintStatus('printed');
+        toast({
+          title: "Printed Locally ✅",
+          description: `Name badge for ${safeFirstName} printed on ${targetPrinterName || 'Brother Printer'}.`,
+        });
+        setTimeout(onClose, 2000);
         return;
       }
     } catch (err) {
       console.warn('[Printer] Local print proxy unavailable. Falling back to browser print...');
+    }
+
+    // 3. Fallback: Browser Direct Print
+    setPrintStatus('fallback');
+    try {
+      window.print();
+    } catch (e) {
+      console.error('[Printer] Direct window.print error:', e);
     }
 
     // Use a hidden iframe for more reliable "silent" printing without popup blockers

@@ -1,5 +1,6 @@
 
 import { toast } from "@/hooks/useToast";
+import { getAccessToken } from "@/lib/apiClient";
 
 /**
  * Gets the configured Print Server Proxy URL.

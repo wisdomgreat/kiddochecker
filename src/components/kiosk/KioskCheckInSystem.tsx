@@ -88,6 +88,11 @@ const KioskCheckInSystem = () => {
   const [targetPrinterIp, setTargetPrinterIp] = useState(() => localStorage.getItem('kiddochecker_target_printer_ip') || '');
   const [targetPrinterName, setTargetPrinterName] = useState(() => localStorage.getItem('kiddochecker_target_printer_name') || '');
   const [isTestingPrinter, setIsTestingPrinter] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(() => {
+    if (typeof document === 'undefined') return false;
+    const doc = document as any;
+    return !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+  });
 
   const testPrinterConnection = async () => {
     if (!printServerIp.trim()) {
@@ -1156,7 +1161,7 @@ const KioskCheckInSystem = () => {
   const alreadyIn = (id: string) => checkedInChildIds.has(id);
 
   return (
-    <div className="fixed inset-0 h-screen overflow-y-auto md:overflow-hidden bg-[#070b14] text-slate-100 flex flex-col select-none font-sans">
+    <div className="fixed inset-0 min-h-[100dvh] h-[100dvh] overflow-y-auto bg-[#070b14] text-slate-100 flex flex-col select-none font-sans">
       
       {/* ─── Ultra-Compact Sleek Header (Responsive Top Bar) ─── */}
       <div className="min-h-[42px] h-auto py-1 sm:py-0 px-3 sm:px-6 bg-[#080d1a] border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 z-50">
@@ -1256,125 +1261,144 @@ const KioskCheckInSystem = () => {
       </div>
       )}
 
+      {/* ─── Tap-to-Fullscreen Tablet Banner (only visible when not in fullscreen) ─── */}
+      {!isFullscreen && (
+        <div 
+          onClick={toggleFs}
+          className="bg-amber-950/40 border-b border-amber-500/20 px-3 py-1 text-center text-[11px] font-medium text-amber-300 hover:text-white hover:bg-amber-900/40 transition-colors cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+        >
+          <Maximize className="w-3 h-3 text-amber-400" />
+          <span>{isEs ? "Toque para pantalla completa (optimizado para tableta de quiosco)" : "Tap here for Fullscreen Kiosk Mode (optimizes tablet display)"}</span>
+        </div>
+      )}
+
       {/* ─── Main Responsive Workspace (Zero-Scroll Adaptive Layout) ─── */}
-      <main className="flex-1 overflow-y-auto md:overflow-hidden px-3 sm:px-6 py-2 sm:py-4 flex flex-col items-center justify-center">
+      <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-2 flex flex-col items-center justify-center">
         <div className="w-full max-w-5xl my-auto">
           
           {/* ══════════════════════════════════════════════════════════════
-              PARENT CHECK-IN TAB (Unauthenticated)
+              PARENT CHECK-IN TAB (Unauthenticated) - Adaptive 2-Column on Landscape / Tablet
              ══════════════════════════════════════════════════════════════ */}
           {activeTab === 'parent' && !parentLoggedIn && (
-            <div className="w-full max-w-md mx-auto">
-              <div className="flex flex-col p-6 sm:p-7 rounded-3xl bg-[#0c1322]/95 border border-slate-800 shadow-2xl backdrop-blur-xl">
+            <div className="w-full max-w-4xl mx-auto my-auto">
+              <div className="p-4 sm:p-6 lg:p-7 rounded-2xl sm:rounded-3xl bg-[#0c1322]/95 border border-slate-800 shadow-2xl backdrop-blur-xl">
                 
-                {/* Clean Header */}
-                <div className="text-center pb-5 border-b border-slate-800/80">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold mb-2">
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span>{isEs ? "Registro Familiar" : "Family Check-In"}</span>
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    {activeInput === 'phone' 
-                      ? (isEs ? "Ingrese su Teléfono" : "Enter Phone Number") 
-                      : (isEs ? "Ingrese su PIN" : "Enter Your PIN")}
-                  </h1>
-                  <p className="text-xs sm:text-sm text-slate-400 mt-1 font-medium">
-                    {activeInput === 'phone'
-                      ? (isEs ? "Paso 1 de 2: Escriba su número móvil registrado" : "Step 1 of 2: Enter your 10-digit mobile number")
-                      : (isEs ? "Paso 2 de 2: Ingrese su PIN familiar de 4 a 6 dígitos" : "Step 2 of 2: Enter your 4 to 6-digit family PIN")}
-                  </p>
-                </div>
-
-                {/* Display Value Boxes */}
-                <div className="py-4 space-y-2">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {/* Phone Display Box */}
-                    <button
-                      type="button"
-                      onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
-                      className={cn(
-                        "h-16 rounded-xl border px-3.5 py-2 flex flex-col justify-center text-left transition-colors duration-150 cursor-pointer",
-                        activeInput === 'phone' 
-                          ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
-                          : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
-                      )}
-                    >
-                      <span className={cn("text-xs font-semibold flex items-center justify-between", activeInput === 'phone' ? "text-primary" : "text-muted-foreground")}>
-                        <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {isEs ? "Teléfono" : "Phone"}</span>
-                        {activeInput === 'phone' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
-                      </span>
-                      <p className="text-base sm:text-lg font-mono font-black text-white mt-0.5 truncate tracking-wide">
-                        {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 font-sans font-normal text-sm">(000) 000-0000</span>}
+                {/* Responsive 2-Column Grid on Tablet / Landscape (md+), 1-Column on Mobile Portrait */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 lg:gap-8 items-center">
+                  
+                  {/* Left Column: Headers, Phone & PIN Display Boxes, Action Button, Fast-Pass */}
+                  <div className="md:col-span-6 flex flex-col justify-between space-y-3 sm:space-y-4">
+                    {/* Header */}
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] font-bold mb-1.5">
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>{isEs ? "Registro Familiar" : "Family Check-In"}</span>
+                      </div>
+                      <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight">
+                        {activeInput === 'phone' 
+                          ? (isEs ? "Ingrese su Teléfono" : "Enter Phone Number") 
+                          : (isEs ? "Ingrese su PIN" : "Enter Your PIN")}
+                      </h1>
+                      <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                        {activeInput === 'phone'
+                          ? (isEs ? "Paso 1 de 2: Escriba su número móvil registrado" : "Step 1 of 2: Enter your 10-digit mobile number")
+                          : (isEs ? "Paso 2 de 2: Ingrese su PIN familiar de 4 a 6 dígitos" : "Step 2 of 2: Enter your 4 to 6-digit family PIN")}
                       </p>
-                    </button>
-
-                    {/* PIN Display Box */}
-                    <button
-                      type="button"
-                      onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
-                      className={cn(
-                        "h-16 rounded-xl border px-3.5 py-2 flex flex-col justify-center text-left transition-colors duration-150 cursor-pointer",
-                        activeInput === 'pin' 
-                          ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
-                          : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
-                      )}
-                    >
-                      <span className={cn("text-xs font-semibold flex items-center justify-between", activeInput === 'pin' ? "text-primary" : "text-muted-foreground")}>
-                        <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> PIN</span>
-                        {activeInput === 'pin' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
-                      </span>
-                      <p className="text-base sm:text-lg font-mono font-black text-white mt-0.5 tracking-widest truncate">
-                        {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-sans font-normal text-sm tracking-normal">••••</span>}
-                      </p>
-                    </button>
-                  </div>
-
-                  {parentLoginError && (
-                    <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center animate-in fade-in">
-                      {parentLoginError}
                     </div>
-                  )}
-                </div>
 
-                {/* Tactile 60px Keypad */}
-                <div className="pb-4">
-                  <NumericKeypad 
-                    value={activeInput === 'phone' ? parentPhone : parentPin} 
-                    onChange={handleKeypadChange} 
-                    maxLength={activeInput === 'phone' ? 10 : 6}
-                    onEnter={handleParentLogin}
-                  />
-                </div>
+                    {/* Display Value Boxes */}
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Phone Display Box */}
+                        <button
+                          type="button"
+                          onClick={() => { setActiveInput('phone'); setParentLoginError(''); }}
+                          className={cn(
+                            "h-14 sm:h-16 rounded-xl border px-3 py-1.5 flex flex-col justify-center text-left transition-colors duration-150 cursor-pointer",
+                            activeInput === 'phone' 
+                              ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
+                              : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
+                          )}
+                        >
+                          <span className={cn("text-[11px] font-semibold flex items-center justify-between", activeInput === 'phone' ? "text-primary" : "text-muted-foreground")}>
+                            <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {isEs ? "Teléfono" : "Phone"}</span>
+                            {activeInput === 'phone' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
+                          </span>
+                          <p className="text-sm sm:text-base font-mono font-black text-white mt-0.5 truncate tracking-wide">
+                            {parentPhone ? formatPhoneNumber(parentPhone) : <span className="text-slate-600 font-sans font-normal text-xs sm:text-sm">(000) 000-0000</span>}
+                          </p>
+                        </button>
 
-                {/* Primary Action Button */}
-                <Button 
-                  onClick={handleParentLogin} 
-                  disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
-                  className="w-full h-13 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
-                >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ArrowRight className="w-5 h-5 mr-2" />}
-                  {isEs ? "Continuar y Ver Niños" : "Continue to Family Roster"}
-                </Button>
+                        {/* PIN Display Box */}
+                        <button
+                          type="button"
+                          onClick={() => { setActiveInput('pin'); setParentLoginError(''); }}
+                          className={cn(
+                            "h-14 sm:h-16 rounded-xl border px-3 py-1.5 flex flex-col justify-center text-left transition-colors duration-150 cursor-pointer",
+                            activeInput === 'pin' 
+                              ? "bg-blue-950/40 border-blue-500 ring-2 ring-blue-500/30" 
+                              : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
+                          )}
+                        >
+                          <span className={cn("text-[11px] font-semibold flex items-center justify-between", activeInput === 'pin' ? "text-primary" : "text-muted-foreground")}>
+                            <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> PIN</span>
+                            {activeInput === 'pin' && <span className="text-[9px] text-blue-300 font-bold">Active</span>}
+                          </span>
+                          <p className="text-sm sm:text-base font-mono font-black text-white mt-0.5 tracking-widest truncate">
+                            {parentPin ? '•'.repeat(parentPin.length) : <span className="text-slate-600 font-sans font-normal text-xs sm:text-sm tracking-normal">••••</span>}
+                          </p>
+                        </button>
+                      </div>
 
-                {/* Fast-Pass Options (QR & NFC) */}
-                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between gap-3 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setShowParentScanner(true)}
-                    className="flex-1 h-10 rounded-xl bg-card hover:bg-muted border border-border hover:border-primary/40 flex items-center justify-center gap-2 font-medium text-xs text-foreground transition-colors cursor-pointer"
-                  >
-                    <QrCode className="w-4 h-4 text-blue-400" />
-                    <span>{isEs ? "Escanear Pase QR" : "Scan QR Pass"}</span>
-                  </button>
+                      {parentLoginError && (
+                        <div className="p-2 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs font-bold text-center animate-in fade-in">
+                          {parentLoginError}
+                        </div>
+                      )}
+                    </div>
 
-                  <div 
-                    className="flex-1 h-10 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-center gap-2 font-bold text-slate-400"
-                    title="Tap NFC wristband or phone tag to log in"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <Smartphone className="w-4 h-4 text-emerald-400" />
-                    <span>{isEs ? "NFC Activo" : "NFC Tap Active"}</span>
+                    {/* Primary Action Button */}
+                    <Button 
+                      onClick={handleParentLogin} 
+                      disabled={isLoading || parentPhone.length < 10 || parentPin.length < 4}
+                      className="w-full h-11 sm:h-12 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowRight className="w-4 h-4 mr-2" />}
+                      {isEs ? "Continuar y Ver Niños" : "Continue to Family Roster"}
+                    </Button>
+
+                    {/* Fast-Pass Options (QR & NFC) */}
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setShowParentScanner(true)}
+                        className="flex-1 h-9 rounded-xl bg-card hover:bg-muted border border-border hover:border-primary/40 flex items-center justify-center gap-1.5 font-medium text-xs text-foreground transition-colors cursor-pointer"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-blue-400" />
+                        <span>{isEs ? "Escanear QR" : "Scan QR Pass"}</span>
+                      </button>
+
+                      <div 
+                        className="flex-1 h-9 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-center gap-1.5 font-bold text-slate-400 text-xs"
+                        title="Tap NFC wristband or phone tag to log in"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>{isEs ? "NFC Activo" : "NFC Tap Active"}</span>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Right Column: Tactile Numeric Keypad */}
+                  <div className="md:col-span-6 flex flex-col items-center justify-center">
+                    <NumericKeypad 
+                      value={activeInput === 'phone' ? parentPhone : parentPin} 
+                      onChange={handleKeypadChange} 
+                      maxLength={activeInput === 'phone' ? 10 : 6}
+                      onEnter={handleParentLogin}
+                    />
+                  </div>
+
                 </div>
 
               </div>
@@ -2232,16 +2256,16 @@ const NumericKeypad: React.FC<{
         <button 
           key={num} 
           type="button"
-          className="h-14 sm:h-16 bg-muted/40 hover:bg-muted active:bg-primary active:text-primary-foreground text-foreground border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
+          className="h-11 sm:h-13 lg:h-14 bg-muted/40 hover:bg-muted active:bg-primary active:text-primary-foreground text-foreground border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
           onClick={() => handlePress(num)}
         >
-          <span className="text-2xl sm:text-3xl font-semibold">{num}</span>
+          <span className="text-xl sm:text-2xl font-bold">{num}</span>
         </button>
       ))}
       
       <button 
         type="button"
-        className="h-14 sm:h-16 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/80 rounded-xl flex items-center justify-center text-xs sm:text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
+        className="h-11 sm:h-13 lg:h-14 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/80 rounded-xl flex items-center justify-center text-xs sm:text-sm font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
         onClick={handleClear}
       >
         Clear
@@ -2249,15 +2273,15 @@ const NumericKeypad: React.FC<{
 
       <button 
         type="button"
-        className="h-14 sm:h-16 bg-muted/40 hover:bg-muted active:bg-primary active:text-primary-foreground text-foreground border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
+        className="h-11 sm:h-13 lg:h-14 bg-muted/40 hover:bg-muted active:bg-primary active:text-primary-foreground text-foreground border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-xs"
         onClick={() => handlePress('0')}
       >
-        <span className="text-2xl sm:text-3xl font-semibold">0</span>
+        <span className="text-xl sm:text-2xl font-bold">0</span>
       </button>
 
       <button 
         type="button"
-        className="h-14 sm:h-16 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-destructive border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive shadow-xs"
+        className="h-11 sm:h-13 lg:h-14 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-destructive border border-border/80 rounded-xl flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive shadow-xs"
         onClick={handleBackspace}
         title="Backspace"
       >

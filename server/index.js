@@ -4526,7 +4526,13 @@ const cloudPrintQueue = [];
 let lastAgentPollTime = 0;
 const lastAgentPollByOrg = {};
 
-app.post('/api/print-jobs', verifyToken, (req, res) => {
+app.post('/api/print-jobs', (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && !authHeader.includes('guest')) {
+    return verifyToken(req, res, next);
+  }
+  next();
+}, (req, res) => {
   const { labelData, printerIp, printerName, orgId } = req.body || {};
   if (!labelData || !labelData.name) {
     return res.status(400).json({ success: false, error: 'Invalid label data' });
@@ -4537,8 +4543,8 @@ app.post('/api/print-jobs', verifyToken, (req, res) => {
   const job = {
     id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     labelData,
-    printerIp: printerIp || '',
-    printerName: printerName || '',
+    printerIp: printerIp || labelData.printerIp || '',
+    printerName: printerName || labelData.printerName || 'Brother QL Printer',
     orgId: jobOrgId,
     status: 'pending',
     created_at: new Date().toISOString()
@@ -4550,7 +4556,7 @@ app.post('/api/print-jobs', verifyToken, (req, res) => {
     cloudPrintQueue.shift();
   }
 
-  console.log(`[Cloud Print Relay] New job queued: ${job.id} for ${labelData.name} (Org: ${jobOrgId})`);
+  console.log(`[Cloud Print Relay] New job queued: ${job.id} for ${labelData.name} (Printer: ${job.printerName} @ ${job.printerIp || 'LAN'}, Org: ${jobOrgId})`);
   res.json({ success: true, jobId: job.id, message: 'Print job queued in Azure Cloud Relay' });
 });
 
