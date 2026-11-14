@@ -15,7 +15,7 @@ import { ImageUpload } from "@/components/ui/image-upload";
 import { useMembers } from "@/hooks/useMembers";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,11 +24,11 @@ import {
 } from "@/components/ui/select";
 import { CalendarIcon } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
@@ -96,17 +96,17 @@ const ParentProfile = () => {
 
       if (error) throw error;
 
-      toast({ 
-        title: "NFC Linked!", 
+      toast({
+        title: "NFC Linked!",
         description: "Your tag has been successfully linked to your profile.",
       });
       setIsRegisteringNFC(false);
       refetch();
     } catch (err: any) {
-      toast({ 
-        title: "Registration Failed", 
-        description: err.message, 
-        variant: "destructive" 
+      toast({
+        title: "Registration Failed",
+        description: err.message,
+        variant: "destructive"
       });
     }
   });
@@ -268,7 +268,7 @@ const ParentProfile = () => {
   const handleAddMilestone = () => {
     if (!myMembership || !newMilestoneDate) return;
 
-    const currentMilestones = (myMembership.spiritual_milestones as unknown as Milestone[]) || [];
+    const currentMilestones = (myMembership.spiritual_milestones as Milestone[]) || [];
     const updatedMilestones = [
       ...currentMilestones,
       {
@@ -279,13 +279,13 @@ const ParentProfile = () => {
 
     updateMember({
       id: myMembership.id,
-      spiritual_milestones: updatedMilestones as any
+      spiritual_milestones: updatedMilestones
     });
 
     setIsMilestoneOpen(false);
     toast({
-        title: "Milestone Added",
-        description: `${newMilestoneType} added to your spiritual journey.`
+      title: "Milestone Added",
+      description: `${newMilestoneType} added to your spiritual journey.`
     });
   };
 
@@ -478,98 +478,98 @@ const ParentProfile = () => {
 
           {/* Family Sanctuary Pager Code */}
           <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-3xl p-6 space-y-3">
-             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-xl">
-                        <Bell className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-foreground leading-tight">Sanctuary Pager Code</h4>
-                        <p className="text-[10px] font-semibold text-primary uppercase tracking-widest">Discreet Screen Alert</p>
-                    </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-xl">
+                  <Bell className="h-5 w-5 text-primary" />
                 </div>
-                <div className="px-3.5 py-1.5 bg-card border-2 border-primary/30 rounded-xl shadow-sm">
-                    <span className="font-mono text-xl font-black tracking-widest text-foreground">
-                        {profile?.family_code || (user as any)?.family_code || "—"}
-                    </span>
+                <div>
+                  <h4 className="font-bold text-foreground leading-tight">Sanctuary Pager Code</h4>
+                  <p className="text-[10px] font-semibold text-primary uppercase tracking-widest">Discreet Screen Alert</p>
                 </div>
-             </div>
-             <p className="text-xs text-muted-foreground leading-relaxed">
-                If your child needs your attention during service, this 4-character code will be displayed on the sanctuary screen to notify you without announcing your name publicly.
-             </p>
+              </div>
+              <div className="px-3.5 py-1.5 bg-card border-2 border-primary/30 rounded-xl shadow-sm">
+                <span className="font-mono text-xl font-black tracking-widest text-foreground">
+                  {profile?.family_code || (user as any)?.family_code || "—"}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              If your child needs your attention during service, this 4-character code will be displayed on the sanctuary screen to notify you without announcing your name publicly.
+            </p>
           </div>
 
           {/* Kiosk QR Access */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-3xl p-6 flex flex-col items-center gap-4">
-             <div className="flex items-center gap-3 self-start mb-2">
-                <div className="p-2 bg-indigo-100 rounded-xl">
-                    <QrCode className="h-5 w-5 text-indigo-700" />
-                </div>
-                <h4 className="font-bold text-foreground leading-tight">Kiosk Access QR</h4>
-             </div>
-             
-             <div className="bg-card p-4 rounded-2xl shadow-sm border border-indigo-50">
-                {user?.id ? (
-                    <QRCodeSVG 
-                      value={user.id} 
-                      size={140} 
-                      className="transition-all hover:scale-110 duration-500"
-                    />
-                ) : (
-                    <div className="h-[140px] w-[140px] flex items-center justify-center text-slate-300">Loading...</div>
-                )}
-             </div>
-             
-             <p className="text-center text-[11px] font-bold text-slate-500 max-w-xs">
-                Scan this code at any check-in kiosk to instantly identify your family and begin check-in.
-             </p>
+            <div className="flex items-center gap-3 self-start mb-2">
+              <div className="p-2 bg-indigo-100 rounded-xl">
+                <QrCode className="h-5 w-5 text-indigo-700" />
+              </div>
+              <h4 className="font-bold text-foreground leading-tight">Kiosk Access QR</h4>
+            </div>
+
+            <div className="bg-card p-4 rounded-2xl shadow-sm border border-indigo-50">
+              {user?.id ? (
+                <QRCodeSVG
+                  value={user.id}
+                  size={140}
+                  className="transition-all hover:scale-110 duration-500"
+                />
+              ) : (
+                <div className="h-[140px] w-[140px] flex items-center justify-center text-slate-300">Loading...</div>
+              )}
+            </div>
+
+            <p className="text-center text-[11px] font-bold text-slate-500 max-w-xs">
+              Scan this code at any check-in kiosk to instantly identify your family and begin check-in.
+            </p>
           </div>
 
           {/* NFC Registration Section */}
           <div className="bg-emerald-50 border border-emerald-100 rounded-3xl p-6 space-y-4">
-             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-100 rounded-xl">
-                        <Smartphone className="h-5 w-5 text-emerald-700" />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-foreground leading-tight">Smart Tag (NFC)</h4>
-                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Tap & Go Check-in</p>
-                    </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-100 rounded-xl">
+                  <Smartphone className="h-5 w-5 text-emerald-700" />
                 </div>
-                {profile?.nfc_uid ? (
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Linked</Badge>
-                ) : (
-                    <Badge variant="outline" className="text-slate-400 border-slate-200">Not Linked</Badge>
-                )}
-             </div>
+                <div>
+                  <h4 className="font-bold text-foreground leading-tight">Smart Tag (NFC)</h4>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Tap & Go Check-in</p>
+                </div>
+              </div>
+              {profile?.nfc_uid ? (
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Linked</Badge>
+              ) : (
+                <Badge variant="outline" className="text-slate-400 border-slate-200">Not Linked</Badge>
+              )}
+            </div>
 
-             <div className="space-y-3">
-                <p className="text-xs text-slate-600 leading-relaxed">
-                   Link a physical NFC tag, sticker, or your phone's digital wallet to skip the phone/PIN entry at the kiosk.
-                </p>
-                
-                {!nfcSupported ? (
-                   <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[10px] text-amber-700 font-medium">
-                      Note: Your current device or browser does not support Web NFC. Please use an Android device with Chrome or ask a staff member for assistance.
-                   </div>
-                ) : (
-                   <Button 
-                      variant={isRegisteringNFC ? "secondary" : "default"}
-                      className={cn(
-                        "w-full rounded-2xl h-12 font-bold transition-all",
-                        isRegisteringNFC ? "animate-pulse bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100"
-                      )}
-                      onClick={() => {
-                        setIsRegisteringNFC(true);
-                        startNfc();
-                        toast({ title: "Ready to Scan", description: "Hold your tag or sticker to the back of your phone now." });
-                      }}
-                   >
-                      {isRegisteringNFC ? "Scanning... Tap Tag Now" : profile?.nfc_uid ? "Update Linked Tag" : "Link New NFC Tag"}
-                   </Button>
-                )}
-             </div>
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Link a physical NFC tag, sticker, or your phone's digital wallet to skip the phone/PIN entry at the kiosk.
+              </p>
+
+              {!nfcSupported ? (
+                <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-[10px] text-amber-700 font-medium">
+                  Note: Your current device or browser does not support Web NFC. Please use an Android device with Chrome or ask a staff member for assistance.
+                </div>
+              ) : (
+                <Button
+                  variant={isRegisteringNFC ? "secondary" : "default"}
+                  className={cn(
+                    "w-full rounded-2xl h-12 font-bold transition-all",
+                    isRegisteringNFC ? "animate-pulse bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-100"
+                  )}
+                  onClick={() => {
+                    setIsRegisteringNFC(true);
+                    startNfc();
+                    toast({ title: "Ready to Scan", description: "Hold your tag or sticker to the back of your phone now." });
+                  }}
+                >
+                  {isRegisteringNFC ? "Scanning... Tap Tag Now" : profile?.nfc_uid ? "Update Linked Tag" : "Link New NFC Tag"}
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="h-px bg-slate-100 dark:bg-card/5 my-2" />
@@ -577,97 +577,97 @@ const ParentProfile = () => {
           {/* Church Membership Section */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 rounded-xl">
-                        <Heart className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-foreground leading-tight">Church Membership</h4>
-                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Congregation Status</p>
-                    </div>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 rounded-xl">
+                  <Heart className="h-5 w-5 text-indigo-600" />
                 </div>
-                {myMembership ? (
-                    <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40 px-3 py-1 rounded-full font-bold uppercase text-[9px] tracking-tight">
-                        {myMembership.membership_type} Member
-                    </Badge>
-                ) : (
-                    <Badge variant="outline" className="border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500 font-bold uppercase text-[9px] tracking-tight">
-                        Non-Registered
-                    </Badge>
-                )}
+                <div>
+                  <h4 className="font-bold text-foreground leading-tight">Church Membership</h4>
+                  <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">Congregation Status</p>
+                </div>
+              </div>
+              {myMembership ? (
+                <Badge className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/40 px-3 py-1 rounded-full font-bold uppercase text-[9px] tracking-tight">
+                  {myMembership.membership_type} Member
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500 font-bold uppercase text-[9px] tracking-tight">
+                  Non-Registered
+                </Badge>
+              )}
             </div>
 
             <div className="bg-slate-50/50 dark:bg-card/5 rounded-3xl p-6 border border-slate-100 dark:border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 tracking-tighter">Joined Since</Label>
-                    <p className="font-bold text-slate-700 dark:text-slate-300">{myMembership ? format(new Date(myMembership.joined_at), 'MMMM dd, yyyy') : 'N/A'}</p>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 tracking-tighter">Joined Since</Label>
+                <p className="font-bold text-slate-700 dark:text-slate-300">{myMembership ? format(new Date(myMembership.joined_at), 'MMMM dd, yyyy') : 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Membership Type</Label>
+                <div className="flex gap-2 mt-1">
+                  {['visitor', 'regular', 'registered'].map(type => {
+                    const isActive = myMembership?.membership_type === type;
+                    return (
+                      <Button
+                        key={type}
+                        size="sm"
+                        variant={isActive ? 'default' : 'outline'}
+                        className={cn(
+                          "rounded-full h-8 px-5 text-[10px] font-bold uppercase tracking-tight transition-all duration-300",
+                          isActive
+                            ? "bg-indigo-600 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500 ring-offset-2"
+                            : "bg-card text-slate-400 border-slate-200 hover:border-indigo-300 hover:text-indigo-500"
+                        )}
+                        // Removed isEditing check to allow instant joining as a member
+                        onClick={() => {
+                          if (myMembership) {
+                            updateMember({ id: myMembership.id, membership_type: type as any });
+                          } else {
+                            createMember({
+                              profile_id: user?.id,
+                              membership_type: type as any,
+                              status: 'active',
+                              joined_at: new Date().toISOString()
+                            });
+                          }
+                        }}
+                      >
+                        {isActive && <Check className="mr-1.5 h-3 w-3" />}
+                        {type}
+                      </Button>
+                    );
+                  })}
                 </div>
-                <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Membership Type</Label>
-                    <div className="flex gap-2 mt-1">
-                        {['visitor', 'regular', 'registered'].map(type => {
-                            const isActive = myMembership?.membership_type === type;
-                            return (
-                                <Button 
-                                    key={type} 
-                                    size="sm" 
-                                    variant={isActive ? 'default' : 'outline'} 
-                                    className={cn(
-                                        "rounded-full h-8 px-5 text-[10px] font-bold uppercase tracking-tight transition-all duration-300",
-                                        isActive 
-                                            ? "bg-indigo-600 shadow-lg shadow-indigo-100 ring-2 ring-indigo-500 ring-offset-2" 
-                                            : "bg-card text-slate-400 border-slate-200 hover:border-indigo-300 hover:text-indigo-500"
-                                    )}
-                                    // Removed isEditing check to allow instant joining as a member
-                                    onClick={() => {
-                                        if (myMembership) {
-                                            updateMember({ id: myMembership.id, membership_type: type as any });
-                                        } else {
-                                            createMember({ 
-                                                profile_id: user?.id, 
-                                                membership_type: type as any,
-                                                status: 'active',
-                                                joined_at: new Date().toISOString()
-                                            });
-                                        }
-                                    }}
-                                >
-                                    {isActive && <Check className="mr-1.5 h-3 w-3" />}
-                                    {type}
-                                </Button>
-                            );
-                        })}
-                    </div>
+              </div>
+              <div className="md:col-span-2 space-y-4">
+                <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Spiritual Milestones</Label>
+                <div className="flex flex-wrap gap-3">
+                  <AnimatePresence mode="popLayout">
+                    {(myMembership?.spiritual_milestones as Milestone[] || []).map((m, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                      >
+                        <Badge className="bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20 font-bold px-3 py-1 rounded-xl flex items-center gap-2">
+                          <Award className="h-3 w-3" />
+                          {m.type}: {format(new Date(m.date), 'yyyy')}
+                        </Badge>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  <Button
+                    variant="ghost"
+                    className="h-8 rounded-full text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-4 border border-dashed border-indigo-200"
+                    onClick={() => setIsMilestoneOpen(true)}
+                  >
+                    <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+                    Add Milestone
+                  </Button>
                 </div>
-                <div className="md:col-span-2 space-y-4">
-                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-tighter">Spiritual Milestones</Label>
-                    <div className="flex flex-wrap gap-3">
-                        <AnimatePresence mode="popLayout">
-                            {(myMembership?.spiritual_milestones as unknown as Milestone[] || []).map((m, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ opacity: 0, scale: 0.8 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.8 }}
-                                >
-                                    <Badge className="bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-indigo-500/20 font-bold px-3 py-1 rounded-xl flex items-center gap-2">
-                                        <Award className="h-3 w-3" />
-                                        {m.type}: {format(new Date(m.date), 'yyyy')}
-                                    </Badge>
-                                </motion.div>
-                            ))}
-                        </AnimatePresence>
-                        
-                        <Button 
-                            variant="ghost" 
-                            className="h-8 rounded-full text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-4 border border-dashed border-indigo-200"
-                            onClick={() => setIsMilestoneOpen(true)}
-                        >
-                            <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
-                            Add Milestone
-                        </Button>
-                    </div>
-                </div>
+              </div>
             </div>
           </div>
 
@@ -693,66 +693,66 @@ const ParentProfile = () => {
 
       <Dialog open={isMilestoneOpen} onOpenChange={setIsMilestoneOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-[2rem]">
-            <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
-                    <Award className="h-6 w-6 text-indigo-600" />
-                    Record Milestone
-                </DialogTitle>
-                <DialogDescription className="font-bold text-slate-400">
-                    Add a significant event to your spiritual profile.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
-                <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest pl-1">Milestone Type</Label>
-                    <Select value={newMilestoneType} onValueChange={setNewMilestoneType}>
-                        <SelectTrigger className="rounded-2xl border-slate-100 bg-slate-50/50 h-12 font-bold text-slate-700">
-                            <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
-                            <SelectItem value="Baptism" className="font-bold">Baptism</SelectItem>
-                            <SelectItem value="Confirmation" className="font-bold">Confirmation</SelectItem>
-                            <SelectItem value="Dedication" className="font-bold">Dedication</SelectItem>
-                            <SelectItem value="Membership Class" className="font-bold">Membership Class</SelectItem>
-                            <SelectItem value="Leadership Training" className="font-bold">Leadership Training</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest pl-1">Completion Date</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold text-left px-4",
-                                    !newMilestoneDate && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4 text-indigo-500" />
-                                {newMilestoneDate ? format(newMilestoneDate, "PPP") : "Pick a date"}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 rounded-[2rem] border-slate-100 shadow-2xl overflow-hidden" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={newMilestoneDate}
-                                onSelect={setNewMilestoneDate}
-                                initialFocus
-                                className="font-bold"
-                            />
-                        </PopoverContent>
-                    </Popover>
-                </div>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-2">
+              <Award className="h-6 w-6 text-indigo-600" />
+              Record Milestone
+            </DialogTitle>
+            <DialogDescription className="font-bold text-slate-400">
+              Add a significant event to your spiritual profile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest pl-1">Milestone Type</Label>
+              <Select value={newMilestoneType} onValueChange={setNewMilestoneType}>
+                <SelectTrigger className="rounded-2xl border-slate-100 bg-slate-50/50 h-12 font-bold text-slate-700">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-slate-100 shadow-2xl">
+                  <SelectItem value="Baptism" className="font-bold">Baptism</SelectItem>
+                  <SelectItem value="Confirmation" className="font-bold">Confirmation</SelectItem>
+                  <SelectItem value="Dedication" className="font-bold">Dedication</SelectItem>
+                  <SelectItem value="Membership Class" className="font-bold">Membership Class</SelectItem>
+                  <SelectItem value="Leadership Training" className="font-bold">Leadership Training</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <DialogFooter className="sm:justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/5">
-                <Button variant="ghost" className="rounded-2xl font-bold h-12 px-6 dark:hover:bg-card/5" onClick={() => setIsMilestoneOpen(false)}>
-                    Cancel
-                </Button>
-                <Button className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold h-12 px-8 shadow-lg shadow-indigo-100 dark:shadow-indigo-500/20" onClick={handleAddMilestone}>
-                    Save Milestone
-                </Button>
-            </DialogFooter>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest pl-1">Completion Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full h-12 rounded-2xl border-slate-100 bg-slate-50/50 font-bold text-left px-4",
+                      !newMilestoneDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-indigo-500" />
+                    {newMilestoneDate ? format(newMilestoneDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 rounded-[2rem] border-slate-100 shadow-2xl overflow-hidden" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newMilestoneDate}
+                    onSelect={setNewMilestoneDate}
+                    initialFocus
+                    className="font-bold"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/5">
+            <Button variant="ghost" className="rounded-2xl font-bold h-12 px-6 dark:hover:bg-card/5" onClick={() => setIsMilestoneOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold h-12 px-8 shadow-lg shadow-indigo-100 dark:shadow-indigo-500/20" onClick={handleAddMilestone}>
+              Save Milestone
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -107,8 +107,8 @@ let serverConfig = {
     defaultPrinterModel: process.env.PRINTER_MODEL || 'brother_ql_820',
     defaultLabelSize:    process.env.LABEL_SIZE    || '62',
     orgId:               process.env.ORG_ID        || 'default_org',
-    childBadgeLength:    parseInt(process.env.CHILD_BADGE_LENGTH || '520', 10),
-    guardianTicketLength: parseInt(process.env.GUARDIAN_TICKET_LENGTH || '380', 10),
+    childBadgeLength:    parseInt(process.env.CHILD_BADGE_LENGTH || '880', 10),
+    guardianTicketLength: parseInt(process.env.GUARDIAN_TICKET_LENGTH || '700', 10),
 };
 
 function loadServerConfig() {
@@ -430,12 +430,13 @@ class BrotherBitmapCanvas {
             }
 
             if (useTwoColor) {
-                // Red raster line: w 0x01 0x5A
+                // Two-color raster transfer: w {c} {n} {d1..dn}
+                // Color 0x01 = First color (Black / High Energy)
                 chunks.push(Buffer.from([0x77, 0x01, BYTES_PER_LINE]));
-                chunks.push(redBytes);
-                // Black raster line: w 0x00 0x5A
-                chunks.push(Buffer.from([0x77, 0x00, BYTES_PER_LINE]));
                 chunks.push(blackBytes);
+                // Color 0x02 = Second color (Red / Low Energy)
+                chunks.push(Buffer.from([0x77, 0x02, BYTES_PER_LINE]));
+                chunks.push(redBytes);
             } else {
                 // Monochrome raster line: g 0x00 0x5A
                 chunks.push(Buffer.from([0x67, 0x00, BYTES_PER_LINE]));
@@ -477,7 +478,12 @@ function buildNativeBrotherChildBadgeCanvas(labelData, labelSize = '62') {
     const pagerText = familyCode ? `   •   Pager: #${familyCode}` : '';
 
     const defaultH = spec.type === 0x0B ? spec.defaultHeight : (spec.defaultHeight || 880);
-    const height = parseInt(serverConfig.childBadgeLength || labelData.childBadgeLength || defaultH, 10);
+    let height = defaultH;
+    if (labelData.childBadgeLength && parseInt(labelData.childBadgeLength, 10) >= 600) {
+        height = parseInt(labelData.childBadgeLength, 10);
+    } else if (serverConfig.childBadgeLength && parseInt(serverConfig.childBadgeLength, 10) >= 700) {
+        height = parseInt(serverConfig.childBadgeLength, 10);
+    }
     const canvas = new BrotherBitmapCanvas(720, height);
 
     // Outer badge frame
@@ -547,7 +553,12 @@ function buildNativeBrotherGuardianTicketCanvas(labelData, labelSize = '62') {
     const securityCode = labelData.securityCode || 'K984';
     const qrDataPayload = labelData.qrData || securityCode;
     const defaultH = spec.type === 0x0B ? spec.defaultHeight : 700;
-    const height = parseInt(serverConfig.guardianTicketLength || labelData.guardianTicketLength || defaultH, 10);
+    let height = defaultH;
+    if (labelData.guardianTicketLength && parseInt(labelData.guardianTicketLength, 10) >= 500) {
+        height = parseInt(labelData.guardianTicketLength, 10);
+    } else if (serverConfig.guardianTicketLength && parseInt(serverConfig.guardianTicketLength, 10) >= 550) {
+        height = parseInt(serverConfig.guardianTicketLength, 10);
+    }
     const canvas = new BrotherBitmapCanvas(720, height);
 
     // Outer ticket frame
